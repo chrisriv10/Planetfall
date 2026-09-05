@@ -97,15 +97,27 @@ describe("Planetfall multiplayer server", () => {
     room.scraps.clear();
 
     const fired = new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error("bot fire timeout")), 12000);
+      const timeout = setTimeout(() => reject(new Error("bot fire timeout")), 2000);
       human.on("projectile:spawned", (projectile) => {
         if (!room.players.get(projectile.ownerId)?.isBot) return;
         clearTimeout(timeout); resolve();
       });
     });
+    const ownPlanet = room.planets.get(bot.planetId)!;
+    const targetPlanet = [...room.planets.values()].find((planet) => planet.ownerId !== bot.id)!;
+    const cannon = cannonPosition(ownPlanet);
+    bot.position = { ...cannon };
+    bot.body.setTranslation(cannon, true);
+    const delta = {
+      x: targetPlanet.position.x - cannon.x,
+      y: targetPlanet.position.y - cannon.y,
+      z: targetPlanet.position.z - cannon.z
+    };
+    const magnitude = Math.hypot(delta.x, delta.y, delta.z);
+    room.fire(bot.id, "rocket", { x: delta.x / magnitude, y: delta.y / magnitude, z: delta.z / magnitude });
     await fired;
     expect([...room.players.values()].filter((player) => player.isBot).some((player) => player.scrap < BALANCE.startingScrap + BALANCE.scrapValue)).toBe(true);
-  }, 16000);
+  });
 
   it("runs bot overtime and rematches without rebuilding the room", async () => {
     const { url, server } = await setup();

@@ -10,7 +10,7 @@
     "dev": "concurrently -k -n shared,server,client -c yellow,cyan,magenta \"npm run dev -w @planetfall/shared\" \"npm run dev -w @planetfall/server\" \"npm run dev -w @planetfall/client\"",
     "build": "npm run build -w @planetfall/shared && npm run build -w @planetfall/server && npm run build -w @planetfall/client",
     "start": "npm run start -w @planetfall/server",
-    "test": "npm run build -w @planetfall/shared && vitest run",
+    "test": "npm run build -w @planetfall/shared && vitest run --configLoader native",
     "test:e2e": "playwright test",
     "typecheck": "npm run typecheck -ws --if-present"
   },

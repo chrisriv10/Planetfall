@@ -5,7 +5,7 @@ export default defineConfig({
     include: ["shared/src/**/*.test.ts", "server/src/**/*.test.ts"],
     testTimeout: 15_000,
     hookTimeout: 10_000,
-    pool: "forks",
+    pool: "threads",
     maxWorkers: 1
   }
 });
