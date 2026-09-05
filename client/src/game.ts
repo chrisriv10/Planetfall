@@ -38,6 +38,7 @@ type PlanetVisual = {
   recoil: number;
   repairPulse: number;
   state: PlanetState;
+  body?: RAPIER.RigidBody;
 };
 type PlayerVisual = {
   group: THREE.Group;
@@ -117,8 +118,6 @@ export class PlanetfallGame {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.8));
     this.renderer.setSize(innerWidth, innerHeight);
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.12;
@@ -207,7 +206,7 @@ export class PlanetfallGame {
 
   explode(payload: { id: string; position: Vec3; weapon: WeaponType }): void {
     const projectile = this.projectiles.get(payload.id);
-    if (projectile) { this.scene.remove(projectile.mesh, projectile.trail); projectile.trail.geometry.dispose(); }
+    if (projectile) this.disposeProjectile(projectile);
     this.projectiles.delete(payload.id);
     const position = vec(payload.position);
     const count = payload.weapon === "asteroid" ? 34 : 22;
@@ -226,7 +225,7 @@ export class PlanetfallGame {
 
   collectScrap(payload: { scrapId: string; playerId: string; position: Vec3; value: number }): void {
     const scrap = this.scraps.get(payload.scrapId);
-    if (scrap) this.scene.remove(scrap);
+    if (scrap) { this.scene.remove(scrap); this.disposeObject(scrap); }
     this.scraps.delete(payload.scrapId);
     const position = vec(payload.position);
     this.spawnBurst(position, [0xffdc4f, 0xfff4ae, 0x70f5ff], 12, 4.5);
@@ -253,7 +252,7 @@ export class PlanetfallGame {
       new THREE.CircleGeometry(integrity <= 50 ? 1.15 : 0.72, 14),
       new THREE.MeshBasicMaterial({ color: 0x251d3d, transparent: true, opacity: 0.82, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 })
     );
-    crater.position.copy(normal.multiplyScalar(BALANCE.planetRadius + 0.025));
+    crater.position.copy(normal.clone().multiplyScalar(BALANCE.planetRadius + 0.025));
     crater.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
     visual.cracks.add(crater);
     visual.shell.material.emissive.setHex(0xff5738);
@@ -286,12 +285,12 @@ export class PlanetfallGame {
   }
 
   resetVisualEffects(): void {
-    for (const particle of this.particles) this.scene.remove(particle.mesh);
+    for (const particle of this.particles) this.disposeParticle(particle);
     this.particles = [];
-    for (const shot of this.projectiles.values()) { this.scene.remove(shot.mesh, shot.trail); shot.trail.geometry.dispose(); }
+    for (const shot of this.projectiles.values()) this.disposeProjectile(shot);
     this.projectiles.clear();
     for (const planet of this.planets.values()) {
-      for (const child of [...planet.cracks.children]) if (!child.userData.stageMark) planet.cracks.remove(child);
+      for (const child of [...planet.cracks.children]) if (!child.userData.stageMark) { planet.cracks.remove(child); this.disposeObject(child); }
       planet.shell.visible = true; planet.cannon.visible = true; planet.repair.visible = true; planet.props.visible = true;
       planet.group.scale.setScalar(1); planet.shell.material.emissive.setHex(0x000000);
     }
@@ -302,11 +301,6 @@ export class PlanetfallGame {
     this.scene.add(ambient);
     const sun = new THREE.DirectionalLight(0xfff0d0, 3.2);
     sun.position.set(-35, 46, 28);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
-    sun.shadow.bias = -0.00015;
-    sun.shadow.normalBias = 0.075;
-    sun.shadow.camera.left = -60; sun.shadow.camera.right = 60; sun.shadow.camera.top = 60; sun.shadow.camera.bottom = -60;
     this.scene.add(sun);
     const rim = new THREE.PointLight(0x8d5cff, 90, 110, 2);
     rim.position.set(30, -8, -35);
@@ -510,10 +504,12 @@ export class PlanetfallGame {
         if (this.physics) {
           const body = this.physics.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(state.position.x, state.position.y, state.position.z));
           this.physics.createCollider(RAPIER.ColliderDesc.ball(BALANCE.planetRadius), body);
+          visual.body = body;
         }
       }
       visual.state = state;
       visual.group.position.copy(vec(state.position));
+      visual.body?.setTranslation(state.position, true);
       visual.shell.material.color.copy(visual.baseColor).lerp(new THREE.Color(0x33243c), state.damageStage * 0.13);
       for (const mark of visual.cracks.children) if (mark.userData.stageMark) mark.visible = state.damageStage >= mark.userData.stageMark;
       visual.props.children.forEach((prop, index) => { prop.visible = state.alive && (state.damageStage < 2 || index % (state.damageStage === 2 ? 4 : 2) !== 0); });
@@ -522,6 +518,13 @@ export class PlanetfallGame {
       visual.props.visible = state.alive;
       if (!state.alive) { visual.shell.visible = false; visual.cannon.visible = false; visual.repair.visible = false; }
       else { visual.shell.visible = true; visual.cannon.visible = true; visual.repair.visible = true; }
+    }
+    for (const [id, visual] of this.planets) {
+      if (states.some((state) => state.id === id)) continue;
+      this.scene.remove(visual.group);
+      if (visual.body && this.physics) this.physics.removeRigidBody(visual.body);
+      this.disposeObject(visual.group);
+      this.planets.delete(id);
     }
   }
 
@@ -543,14 +546,14 @@ export class PlanetfallGame {
         }
       }
     }
-    for (const [id, visual] of this.players) if (!states.some((s) => s.id === id)) { this.scene.remove(visual.group); this.players.delete(id); }
+    for (const [id, visual] of this.players) if (!states.some((s) => s.id === id)) { this.scene.remove(visual.group); this.disposeObject(visual.group); this.players.delete(id); }
   }
 
   private syncScraps(states: RoomView["scraps"]): void {
     for (const state of states) {
       if (!this.scraps.has(state.id)) { const mesh = this.makeScrap(); mesh.position.copy(vec(state.position)); this.scene.add(mesh); this.scraps.set(state.id, mesh); }
     }
-    for (const [id, mesh] of this.scraps) if (!states.some((s) => s.id === id)) { this.scene.remove(mesh); this.scraps.delete(id); }
+    for (const [id, mesh] of this.scraps) if (!states.some((s) => s.id === id)) { this.scene.remove(mesh); this.disposeObject(mesh); this.scraps.delete(id); }
   }
 
   private bindControls(): void {
@@ -749,7 +752,7 @@ export class PlanetfallGame {
       projectile.trail.geometry.setDrawRange(0, projectile.trailPoints.length);
       const trailMaterial = projectile.trail.material as THREE.LineBasicMaterial;
       trailMaterial.opacity = .48 + Math.sin(this.demoTime * 15) * .12;
-      if (projectile.mesh.position.length() > 170) { this.scene.remove(projectile.mesh, projectile.trail); projectile.trail.geometry.dispose(); this.projectiles.delete(id); }
+      if (projectile.mesh.position.length() > 170) { this.disposeProjectile(projectile); this.projectiles.delete(id); }
     }
     for (const mesh of this.scraps.values()) { mesh.rotation.y += dt * 1.8; mesh.rotation.x += dt * 0.7; mesh.scale.setScalar(1 + Math.sin(this.demoTime * 4 + mesh.position.x) * .08); }
     for (const visual of this.planets.values()) {
@@ -782,9 +785,9 @@ export class PlanetfallGame {
       particle.mesh.rotation.x += dt * 2; particle.mesh.rotation.y += dt * 1.4;
       const material = particle.mesh.material as THREE.Material & { opacity?: number };
       if (material.opacity !== undefined) material.opacity = clamp(particle.life / Math.min(1, particle.maxLife), 0, 1);
-      if (particle.life <= 0) { this.scene.remove(particle.mesh); this.particles.splice(i, 1); }
+      if (particle.life <= 0) { this.disposeParticle(particle); this.particles.splice(i, 1); }
     }
-    while (this.particles.length > 180) { const particle = this.particles.shift()!; this.scene.remove(particle.mesh); }
+    while (this.particles.length > 180) this.disposeParticle(this.particles.shift()!);
     this.shake *= Math.pow(0.02, dt);
   }
 
@@ -863,6 +866,32 @@ export class PlanetfallGame {
   }
 
   private isSpectating(): boolean { return Boolean(this.players.get(this.localId) && !this.players.get(this.localId)!.state.alive); }
+
+  private disposeProjectile(projectile: ProjectileVisual): void {
+    this.scene.remove(projectile.mesh, projectile.trail);
+    this.disposeObject(projectile.mesh);
+    projectile.trail.geometry.dispose();
+    this.disposeMaterial(projectile.trail.material);
+  }
+
+  private disposeParticle(particle: Particle): void {
+    this.scene.remove(particle.mesh);
+    if (particle.mesh.geometry !== particleGeometry) particle.mesh.geometry.dispose();
+    this.disposeMaterial(particle.mesh.material);
+  }
+
+  private disposeObject(object: THREE.Object3D): void {
+    object.traverse((child) => {
+      const renderable = child as THREE.Mesh | THREE.Line | THREE.Points;
+      renderable.geometry?.dispose();
+      if (renderable.material) this.disposeMaterial(renderable.material);
+    });
+  }
+
+  private disposeMaterial(material: THREE.Material | THREE.Material[]): void {
+    if (Array.isArray(material)) material.forEach((entry) => entry.dispose());
+    else material.dispose();
+  }
 
   private resize(): void {
     this.camera.aspect = innerWidth / innerHeight;

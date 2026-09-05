@@ -77,7 +77,7 @@ Copy the example files when custom local values are needed. Development defaults
 
 | Variable | Used by | Purpose |
 | --- | --- | --- |
-| `VITE_SERVER_URL` | Client build | Socket.IO server URL; defaults to `http://localhost:3000` |
+| `VITE_SERVER_URL` | Client build | Socket.IO server URL; defaults to `http://localhost:3000` in development and must be set to the Render URL for Pages |
 | `CLIENT_ORIGIN` | Server | Allowed browser origin; use the final Pages URL in production |
 | `PORT` | Server | HTTP and WebSocket port; defaults to `3000` locally |
 | `NODE_ENV` | Server | Set to `production` on Render to disable implicit localhost CORS |
@@ -120,7 +120,7 @@ Deploy the Render service first so its public URL can be injected into the stati
    ```
 
 4. Set the build output directory to `client/dist`.
-5. Add `VITE_SERVER_URL=https://YOUR-SERVICE.onrender.com` to both production and preview environment variables.
+5. Add `VITE_SERVER_URL=https://YOUR-SERVICE.onrender.com` to both production and preview environment variables. This value is required because the static Pages origin does not host the multiplayer server.
 6. Deploy, then copy the Pages URL back into Render's `CLIENT_ORIGIN` and redeploy the server.
 
 No production URL is hardcoded. Cloudflare rebuilds the static client on repository pushes, while Render rebuilds the authoritative server independently.

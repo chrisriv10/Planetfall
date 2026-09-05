@@ -1,13 +1,9 @@
 import "./style.css";
 import { BALANCE, type JoinResult, type RoomView, type WeaponType } from "@planetfall/shared";
-import { PlanetfallGame } from "./game";
 import { createGameSocket } from "./network";
 
 const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const canvas = byId<HTMLCanvasElement>("game-canvas");
-const game = new PlanetfallGame(canvas);
-const socket = createGameSocket();
-
 const screens = {
   home: byId("home-screen"), lobby: byId("lobby-screen"), hud: byId("hud"), results: byId("results-screen")
 };
@@ -25,6 +21,11 @@ const connectionPill = byId("connection-pill");
 const contextPrompt = byId("context-prompt");
 const trajectoryLabel = byId("trajectory");
 const countdown = byId("countdown");
+createButton.disabled = true; soloButton.disabled = true; joinButton.disabled = true;
+
+const socket = createGameSocket();
+const { PlanetfallGame } = await import("./game");
+const game = new PlanetfallGame(canvas);
 
 let room: RoomView | null = null;
 let playerId = "";
@@ -39,6 +40,8 @@ nameInput.value = localStorage.getItem("planetfall:name") ?? "";
 
 await game.init();
 showScreen("home");
+createButton.disabled = false; soloButton.disabled = false; joinButton.disabled = false;
+if (socket.connected) setConnection("online", "Online");
 
 socket.on("connect", () => {
   setConnection("online", "Online");
@@ -166,8 +169,9 @@ function renderLobby(): void {
   readyButton.textContent = me?.ready ? "Ready ✓" : "Ready";
   startButton.hidden = room.hostId !== playerId;
   addBotButton.hidden = room.hostId !== playerId || room.players.length >= BALANCE.maxPlayers;
-  startButton.toggleAttribute("disabled", room.players.filter((p) => p.connected).length < BALANCE.minPlayers || !room.players.filter((p) => p.connected).every((p) => p.ready));
-  byId("lobby-hint").textContent = room.players.length < 2 ? "Waiting for players" : room.hostId === playerId ? "Start when everyone is ready" : "Waiting for host";
+  const waitingForReconnect = room.players.some((player) => !player.connected);
+  startButton.toggleAttribute("disabled", waitingForReconnect || room.players.filter((p) => p.connected).length < BALANCE.minPlayers || !room.players.filter((p) => p.connected).every((p) => p.ready));
+  byId("lobby-hint").textContent = waitingForReconnect ? "Waiting for player to reconnect" : room.players.length < 2 ? "Waiting for players" : room.hostId === playerId ? "Start when everyone is ready" : "Waiting for host";
 }
 
 function updateHud(): void {
