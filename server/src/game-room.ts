@@ -43,6 +43,8 @@ interface PlayerRecord extends PlayerState {
   disconnectedAt: number | null;
   lastBurstAt: number;
   lastFireAt: number;
+  lastInputAt: number;
+  lastRepairAt: number;
   input: PlayerInput | null;
   body: RAPIER.RigidBody;
 }
@@ -50,7 +52,7 @@ interface PlayerRecord extends PlayerState {
 function id(prefix: string): string { return `${prefix}_${randomBytes(5).toString("hex")}`; }
 function token(): string { return randomBytes(18).toString("base64url"); }
 function clonePlayer(player: PlayerRecord): PlayerState {
-  const { socketId: _a, sessionToken: _b, disconnectedAt: _c, lastBurstAt: _d, lastFireAt: _e, input: _f, body: _g, ...view } = player;
+  const { socketId: _a, sessionToken: _b, disconnectedAt: _c, lastBurstAt: _d, lastFireAt: _e, lastInputAt: _f, lastRepairAt: _g, input: _h, body: _i, ...view } = player;
   return view;
 }
 
@@ -81,8 +83,9 @@ export class GameRoom {
     const name = sanitizeName(rawName);
     if (!name) return { ok: false, error: "Enter a name first." };
 
+    const now = Date.now();
     const returning = sessionToken
-      ? [...this.players.values()].find((p) => p.sessionToken === sessionToken && !p.connected)
+      ? [...this.players.values()].find((p) => p.sessionToken === sessionToken && !p.connected && p.disconnectedAt !== null && now - p.disconnectedAt < BALANCE.reconnectGraceMs)
       : undefined;
     if (returning) {
       returning.connected = true;
@@ -124,6 +127,8 @@ export class GameRoom {
       disconnectedAt: null,
       lastBurstAt: 0,
       lastFireAt: 0,
+      lastInputAt: 0,
+      lastRepairAt: 0,
       input: null,
       body
     };
@@ -156,7 +161,7 @@ export class GameRoom {
       position: { x: 0, y: 0, z: 0 }, velocity: { x: 0, y: 0, z: 0 },
       rotation: { x: 0, y: 0, z: 0, w: 1 }, lastInputSequence: 0,
       socketId: null, sessionToken: "", disconnectedAt: null,
-      lastBurstAt: 0, lastFireAt: 0, input: null, body
+      lastBurstAt: 0, lastFireAt: 0, lastInputAt: 0, lastRepairAt: 0, input: null, body
     };
     this.players.set(playerId, bot);
     this.botBrains.set(playerId, new BotBrain(`${this.code}:${playerId}`));
@@ -206,6 +211,7 @@ export class GameRoom {
     if (this.phase !== "lobby" || playerId !== this.hostId) return;
     const connected = [...this.players.values()].filter((p) => p.connected);
     if (connected.length < BALANCE.minPlayers) return this.error(playerId, "Add another player or bot.");
+    if ([...this.players.values()].some((p) => !p.connected)) return this.error(playerId, "Waiting for players to reconnect.");
     if (!connected.every((p) => p.ready)) return this.error(playerId, "Waiting for players.");
     this.resetMatch();
     this.phase = "countdown";
@@ -214,22 +220,34 @@ export class GameRoom {
     this.emitRoom();
   }
 
-  setInput(playerId: string, input: PlayerInput): void {
+  setInput(playerId: string, input: unknown): void {
     const player = this.players.get(playerId);
     if (!player?.alive || (this.phase !== "playing" && this.phase !== "overtime")) return;
-    if (!Number.isInteger(input.sequence) || input.sequence <= player.lastInputSequence || !isFiniteVec3(input.cameraForward)) return;
-    input.moveX = clamp(Number(input.moveX) || 0, -1, 1);
-    input.moveY = clamp(Number(input.moveY) || 0, -1, 1);
-    input.dt = clamp(Number(input.dt) || 0, 0, 0.1);
-    if (input.grapplePoint && !isFiniteVec3(input.grapplePoint)) delete input.grapplePoint;
-    player.input = input;
-    player.lastInputSequence = input.sequence;
+    if (!input || typeof input !== "object") return;
+    const candidate = input as Partial<PlayerInput>;
+    if (!Number.isInteger(candidate.sequence) || candidate.sequence! <= player.lastInputSequence || !isFiniteVec3(candidate.cameraForward)) return;
+    const now = Date.now();
+    if (!player.isBot && now - player.lastInputAt < 20) return;
+    const grapplePoint = isFiniteVec3(candidate.grapplePoint) ? { ...candidate.grapplePoint } : undefined;
+    player.input = {
+      sequence: candidate.sequence!,
+      dt: clamp(Number(candidate.dt) || 0, 0, 0.1),
+      moveX: clamp(Number(candidate.moveX) || 0, -1, 1),
+      moveY: clamp(Number(candidate.moveY) || 0, -1, 1),
+      cameraForward: { ...candidate.cameraForward },
+      jump: candidate.jump === true,
+      burst: candidate.burst === true,
+      grapple: candidate.grapple === true && Boolean(grapplePoint),
+      grapplePoint
+    };
+    player.lastInputAt = now;
+    player.lastInputSequence = candidate.sequence!;
   }
 
-  fire(playerId: string, weapon: WeaponType, direction: Vec3): void {
+  fire(playerId: string, weapon: unknown, direction: unknown): void {
     const player = this.players.get(playerId);
     const planet = player ? this.planets.get(player.planetId) : undefined;
-    if (!player?.alive || !planet?.alive || !isFiniteVec3(direction)) return;
+    if (!player?.alive || !planet?.alive || !isFiniteVec3(direction) || (weapon !== "rocket" && weapon !== "asteroid")) return;
     if (this.phase !== "playing" && this.phase !== "overtime") return;
     const config = BALANCE.weapons[weapon];
     if (!config) return;
@@ -257,11 +275,14 @@ export class GameRoom {
     const planet = player ? this.planets.get(player.planetId) : undefined;
     if (!player?.alive || !planet?.alive || this.phase === "overtime") return;
     if (this.phase !== "playing") return;
+    const now = Date.now();
+    if (now - player.lastRepairAt < 250) return;
     const station = repairPosition(planet);
     if (distance(player.position, station) > 4) return this.error(playerId, "Stand beside the repair core.");
     if (player.scrap < BALANCE.repair.cost) return this.error(playerId, "Not enough scrap.");
     if (planet.integrity >= BALANCE.maxIntegrity) return this.error(playerId, "Your planet is already at full integrity.");
     player.scrap -= BALANCE.repair.cost;
+    player.lastRepairAt = now;
     const before = planet.integrity;
     planet.integrity = Math.min(BALANCE.maxIntegrity, planet.integrity + BALANCE.repair.heal);
     planet.damageStage = damageStage(planet.integrity);
@@ -278,8 +299,20 @@ export class GameRoom {
       this.phase = "lobby";
       this.winnerId = null;
       this.matchEndsAt = null;
+      this.countdownStartsAt = null;
+      this.overtimeEndsAt = null;
+      this.lastScrapSpawn = 0;
+      this.snapshotAccumulator = 0;
+      this.scraps.clear();
+      this.projectiles.clear();
       this.rematchVotes.clear();
-      for (const p of connected) p.ready = p.isBot;
+      for (const p of connected) {
+        p.ready = p.isBot;
+        p.alive = true;
+        p.scrap = BALANCE.startingScrap;
+        p.input = null;
+        p.lastInputSequence = 0;
+      }
       this.rebuildPlanets();
     }
     this.emitRoom();
@@ -353,7 +386,7 @@ export class GameRoom {
     this.rebuildPlanets();
     for (const player of this.players.values()) {
       player.alive = player.connected; player.scrap = BALANCE.startingScrap; player.input = null;
-      player.lastInputSequence = 0; player.lastFireAt = 0; player.lastBurstAt = 0;
+      player.lastInputSequence = 0; player.lastFireAt = 0; player.lastBurstAt = 0; player.lastInputAt = 0; player.lastRepairAt = 0;
     }
     for (const planet of this.planets.values()) for (let i = 0; i < 3; i++) this.spawnScrap(planet);
   }
@@ -507,23 +540,28 @@ export class GameRoom {
 
   private removeExpiredDisconnects(now: number): void {
     let changed = false;
+    const matchActive = this.phase === "playing" || this.phase === "overtime";
     for (const player of [...this.players.values()]) {
       if (!player.connected && player.disconnectedAt && now - player.disconnectedAt >= BALANCE.reconnectGraceMs) {
-        if (this.phase === "playing" || this.phase === "overtime") {
-          player.alive = false;
+        if (matchActive) {
           const planet = this.planets.get(player.planetId);
-          if (planet) { planet.alive = false; planet.integrity = 0; planet.damageStage = 3; }
-          this.checkWinner();
+          if (planet?.alive) {
+            planet.alive = false; planet.integrity = 0; planet.damageStage = 3;
+            this.io.to(this.code).emit("planet:destroyed", { planetId: planet.id, ownerId: player.id });
+          }
         } else {
-          this.world.removeRigidBody(player.body);
-          this.players.delete(player.id);
           this.planets.delete(player.planetId);
-          changed = true;
         }
+        this.world.removeRigidBody(player.body);
+        this.players.delete(player.id);
+        this.rematchVotes.delete(player.id);
+        changed = true;
       }
     }
     if (!this.players.has(this.hostId)) this.migrateHost();
+    if (matchActive && changed) this.checkWinner();
     if (changed && this.phase === "lobby") this.rebuildPlanets();
+    if (changed) this.emitRoom();
   }
 
   private migrateHost(): void {
@@ -534,5 +572,15 @@ export class GameRoom {
   private error(playerId: string, message: string): void {
     const socketId = this.players.get(playerId)?.socketId;
     if (socketId) this.io.to(socketId).emit("server:error", { message });
+  }
+
+  dispose(): void {
+    this.players.clear();
+    this.planets.clear();
+    this.scraps.clear();
+    this.projectiles.clear();
+    this.botBrains.clear();
+    this.rematchVotes.clear();
+    this.world.free();
   }
 }

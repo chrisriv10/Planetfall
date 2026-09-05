@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { io as connect, type Socket } from "socket.io-client";
-import { BALANCE, cannonPosition, type ClientToServerEvents, type JoinResult, type RoomView, type ServerToClientEvents } from "@planetfall/shared";
+import { BALANCE, cannonPosition, repairPosition, type ClientToServerEvents, type JoinResult, type RoomView, type ServerToClientEvents } from "@planetfall/shared";
 import { createPlanetfallServer } from "./app.js";
 
 type TestSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
@@ -36,8 +36,8 @@ function createRoom(socket: TestSocket, name: string): Promise<JoinResult> {
 function createSolo(socket: TestSocket, name: string): Promise<JoinResult> {
   return new Promise((resolve) => socket.emit("room:solo", { name }, resolve));
 }
-function joinRoom(socket: TestSocket, code: string, name: string): Promise<JoinResult> {
-  return new Promise((resolve) => socket.emit("room:join", { code, name }, resolve));
+function joinRoom(socket: TestSocket, code: string, name: string, sessionToken?: string): Promise<JoinResult> {
+  return new Promise((resolve) => socket.emit("room:join", { code, name, sessionToken }, resolve));
 }
 function waitForRoom(socket: TestSocket, predicate: (room: RoomView) => boolean, timeoutMs = 6000): Promise<RoomView> {
   return new Promise((resolve, reject) => {
@@ -119,6 +119,64 @@ describe("Planetfall multiplayer server", () => {
     expect([...room.players.values()].filter((player) => player.isBot).some((player) => player.scrap < BALANCE.startingScrap + BALANCE.scrapValue)).toBe(true);
   });
 
+  it("moves and repairs bots through the live room simulation", async () => {
+    const { url, server } = await setup();
+    const human = await client(url);
+    const created = await createSolo(human, "Chris");
+    if (!created.ok) throw new Error(created.error);
+    const room = server.manager.rooms.get(created.room.code)!;
+    room.phase = "playing";
+    const bots = [...room.players.values()].filter((player) => player.isBot);
+    const initialPositions = new Map(bots.map((bot) => [bot.id, { ...bot.position }]));
+    const start = Date.now();
+    for (let index = 0; index < 180; index++) room.update(1 / BALANCE.serverRate, start + index * (1000 / BALANCE.serverRate));
+    expect(bots.some((bot) => Math.hypot(bot.position.x - initialPositions.get(bot.id)!.x, bot.position.y - initialPositions.get(bot.id)!.y, bot.position.z - initialPositions.get(bot.id)!.z) > 0.25)).toBe(true);
+
+    const repairingBot = bots[0];
+    const planet = room.planets.get(repairingBot.planetId)!;
+    planet.integrity = 1;
+    repairingBot.scrap = BALANCE.startingScrap;
+    const station = repairPosition(planet);
+    repairingBot.position = { ...station };
+    repairingBot.velocity = { x: 0, y: 0, z: 0 };
+    repairingBot.body.setTranslation(station, true);
+    for (let index = 0; index < 120 && planet.integrity === 1; index++) {
+      repairingBot.position = { ...station };
+      repairingBot.velocity = { x: 0, y: 0, z: 0 };
+      repairingBot.body.setTranslation(station, true);
+      room.update(1 / BALANCE.serverRate, start + 10_000 + index * 100);
+    }
+    expect(planet.integrity).toBeGreaterThan(1);
+    expect(repairingBot.scrap).toBeLessThan(BALANCE.startingScrap);
+  });
+
+  it("collects scrap and repairs through authoritative human actions", async () => {
+    const { url, server } = await setup();
+    const human = await client(url);
+    const created = await createRoom(human, "Chris");
+    if (!created.ok) throw new Error(created.error);
+    const room = server.manager.rooms.get(created.room.code)!;
+    room.addBot(created.playerId);
+    room.phase = "playing";
+    const player = room.players.get(created.playerId)!;
+    room.scraps.set("human-scrap", { id: "human-scrap", planetId: player.planetId, position: { ...player.position } });
+    room.update(1 / BALANCE.serverRate, Date.now());
+    expect(player.scrap).toBe(BALANCE.startingScrap + BALANCE.scrapValue);
+
+    const planet = room.planets.get(player.planetId)!;
+    planet.integrity = 50;
+    const station = repairPosition(planet);
+    player.position = { ...station };
+    player.body.setTranslation(station, true);
+    const repaired = new Promise<number>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error("repair timeout")), 2000);
+      human.once("planet:repaired", ({ integrity }) => { clearTimeout(timeout); resolve(integrity); });
+    });
+    human.emit("repair:buy");
+    expect(await repaired).toBe(65);
+    expect(player.scrap).toBe(BALANCE.startingScrap + BALANCE.scrapValue - BALANCE.repair.cost);
+  });
+
   it("runs bot overtime and rematches without rebuilding the room", async () => {
     const { url, server } = await setup();
     const human = await client(url);
@@ -130,6 +188,24 @@ describe("Planetfall multiplayer server", () => {
     room.matchEndsAt = Date.now() - 1;
     room.update(1 / BALANCE.serverRate, Date.now());
     expect((await overtime).matchEndsAt).not.toBeNull();
+
+    const shooter = room.players.get(result.playerId)!;
+    const origin = cannonPosition(room.planets.get(shooter.planetId)!);
+    shooter.position = { ...origin };
+    shooter.body.setTranslation(origin, true);
+    const target = [...room.planets.values()].find((planet) => planet.ownerId !== result.playerId)!;
+    const delta = { x: target.position.x - origin.x, y: target.position.y - origin.y, z: target.position.z - origin.z };
+    const magnitude = Math.hypot(delta.x, delta.y, delta.z);
+    const doubledDamage = new Promise<number>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error("overtime damage timeout")), 4000);
+      const handler = (payload: { planetId: string; amount: number }) => {
+        if (payload.planetId !== target.id) return;
+        clearTimeout(timeout); human.off("planet:damaged", handler); resolve(payload.amount);
+      };
+      human.on("planet:damaged", handler);
+    });
+    room.fire(result.playerId, "rocket", { x: delta.x / magnitude, y: delta.y / magnitude, z: delta.z / magnitude });
+    expect(await doubledDamage).toBe(BALANCE.weapons.rocket.damage * 2);
 
     room.phase = "results";
     room.winnerId = result.playerId;
@@ -170,18 +246,173 @@ describe("Planetfall multiplayer server", () => {
   }, 14000);
 
   it("creates rooms, joins players, and migrates the host", async () => {
-    const { url } = await setup();
+    const { url, server } = await setup();
     const first = await client(url); const second = await client(url);
     const created = await createRoom(first, "Nova");
     expect(created.ok).toBe(true);
     if (!created.ok) return;
     expect(created.room.code).toMatch(/^[A-Z2-9]{6}$/);
-    const joined = await joinRoom(second, created.room.code, "Orbit");
+    const botId = server.manager.rooms.get(created.room.code)!.addBot(created.playerId)!;
+    const joined = await joinRoom(second, created.room.code, "Friend");
     expect(joined.ok).toBe(true);
     if (!joined.ok) return;
     const hostChanged = waitForRoom(second, (room) => room.hostId === joined.playerId);
     first.disconnect();
-    expect((await hostChanged).hostId).toBe(joined.playerId);
+    const migrated = await hostChanged;
+    expect(migrated.hostId).toBe(joined.playerId);
+    expect(migrated.hostId).not.toBe(botId);
+  });
+
+  it("restores the same player within the reconnect grace period", async () => {
+    const { url, server } = await setup();
+    const host = await client(url); const guest = await client(url);
+    const created = await createRoom(host, "Nova");
+    if (!created.ok) throw new Error(created.error);
+    const joined = await joinRoom(guest, created.room.code, "Orbit");
+    if (!joined.ok) throw new Error(joined.error);
+    const room = server.manager.rooms.get(created.room.code)!;
+    room.phase = "playing";
+    const record = room.players.get(joined.playerId)!;
+    record.position = { x: 7, y: 8, z: 9 };
+    guest.disconnect();
+    await waitForRoom(host, (next) => next.players.find((player) => player.id === joined.playerId)?.connected === false);
+
+    const returning = await client(url);
+    const resumed = await joinRoom(returning, created.room.code, "Orbit", joined.sessionToken);
+    expect(resumed.ok).toBe(true);
+    if (!resumed.ok) return;
+    expect(resumed.playerId).toBe(joined.playerId);
+    expect(resumed.room.players.find((player) => player.id === joined.playerId)).toMatchObject({ connected: true, position: { x: 7, y: 8, z: 9 } });
+  });
+
+  it("eliminates an expired disconnect and rejects the expired session", async () => {
+    const { url, server } = await setup();
+    const host = await client(url); const guest = await client(url);
+    const created = await createRoom(host, "Nova");
+    if (!created.ok) throw new Error(created.error);
+    const joined = await joinRoom(guest, created.room.code, "Orbit");
+    if (!joined.ok) throw new Error(joined.error);
+    const room = server.manager.rooms.get(created.room.code)!;
+    room.phase = "playing";
+    guest.disconnect();
+    await waitForRoom(host, (next) => next.players.find((player) => player.id === joined.playerId)?.connected === false);
+    room.players.get(joined.playerId)!.disconnectedAt = Date.now() - BALANCE.reconnectGraceMs - 1;
+    const ended = waitForRoom(host, (next) => next.phase === "results");
+    room.update(1 / BALANCE.serverRate, Date.now());
+    const result = await ended;
+    expect(result.winnerId).toBe(created.playerId);
+    expect(result.players.some((player) => player.id === joined.playerId)).toBe(false);
+    expect(result.planets.find((planet) => planet.ownerId === joined.playerId)?.alive).toBe(false);
+
+    const lateSocket = await client(url);
+    const lateJoin = await joinRoom(lateSocket, created.room.code, "Orbit", joined.sessionToken);
+    expect(lateJoin.ok).toBe(false);
+  });
+
+  it("deletes bot-only rooms after the final human grace period", async () => {
+    const { url, server } = await setup();
+    const human = await client(url);
+    const created = await createSolo(human, "Chris");
+    if (!created.ok) throw new Error(created.error);
+    const room = server.manager.rooms.get(created.room.code)!;
+    human.disconnect();
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error("disconnect timeout")), 1000);
+      const poll = setInterval(() => {
+        if (room.players.get(created.playerId)?.connected !== false) return;
+        clearTimeout(timeout); clearInterval(poll); resolve();
+      }, 10);
+    });
+    room.players.get(created.playerId)!.disconnectedAt = Date.now() - BALANCE.reconnectGraceMs - 1;
+    room.update(1 / BALANCE.serverRate, Date.now());
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error("room cleanup timeout")), 2000);
+      const poll = setInterval(() => {
+        if (server.manager.rooms.has(created.room.code)) return;
+        clearTimeout(timeout); clearInterval(poll); resolve();
+      }, 20);
+    });
+    expect(server.manager.rooms.has(created.room.code)).toBe(false);
+  });
+
+  it("supports six participants and rejects a seventh", async () => {
+    const { url } = await setup();
+    const sockets = await Promise.all(Array.from({ length: 7 }, () => client(url)));
+    const created = await createRoom(sockets[0], "Pilot 1");
+    if (!created.ok) throw new Error(created.error);
+    const members: Array<{ socket: TestSocket; result: Extract<JoinResult, { ok: true }> }> = [{ socket: sockets[0], result: created }];
+    for (let index = 1; index < 6; index++) {
+      const result = await joinRoom(sockets[index], created.room.code, `Pilot ${index + 1}`);
+      if (!result.ok) throw new Error(result.error);
+      members.push({ socket: sockets[index], result });
+    }
+    const overflow = await joinRoom(sockets[6], created.room.code, "Pilot 7");
+    expect(overflow.ok).toBe(false);
+    expect(members.at(-1)!.result.room.players).toHaveLength(6);
+    expect(new Set(members.at(-1)!.result.room.planets.map((planet) => `${planet.position.x.toFixed(3)}:${planet.position.z.toFixed(3)}`)).size).toBe(6);
+
+    for (const member of members) member.socket.emit("room:ready", { ready: true });
+    await waitForRoom(sockets[0], (next) => next.players.every((player) => player.ready));
+    const playing = waitForRoom(sockets[0], (next) => next.phase === "playing");
+    sockets[0].emit("match:start");
+    const active = await playing;
+    const snapshot = await new Promise<RoomView["players"]>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error("six-player snapshot timeout")), 2000);
+      sockets[0].once("match:snapshot", (next) => { clearTimeout(timeout); resolve(next.players); });
+    });
+    expect(snapshot).toHaveLength(6);
+
+    const shooter = active.players.find((player) => player.id === created.playerId)!;
+    const origin = cannonPosition(active.planets.find((planet) => planet.id === shooter.planetId)!);
+    const target = active.planets.find((planet) => planet.ownerId === members[1].result.playerId)!;
+    const delta = { x: target.position.x - origin.x, y: target.position.y - origin.y, z: target.position.z - origin.z };
+    const magnitude = Math.hypot(delta.x, delta.y, delta.z);
+    const damaged = new Promise<number>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error("six-player projectile timeout")), 4000);
+      const handler = (payload: { planetId: string; amount: number }) => {
+        if (payload.planetId !== target.id) return;
+        clearTimeout(timeout); sockets[0].off("planet:damaged", handler); resolve(payload.amount);
+      };
+      sockets[0].on("planet:damaged", handler);
+    });
+    sockets[0].emit("cannon:fire", { weapon: "rocket", direction: { x: delta.x / magnitude, y: delta.y / magnitude, z: delta.z / magnitude } });
+    expect(await damaged).toBe(BALANCE.weapons.rocket.damage);
+  }, 12000);
+
+  it("resets repeated rematches without duplicating room state or listeners", async () => {
+    const { url, server } = await setup();
+    const human = await client(url);
+    const created = await createSolo(human, "Chris");
+    if (!created.ok) throw new Error(created.error);
+    const room = server.manager.rooms.get(created.room.code)!;
+    const listenerCount = human.listeners("room:state").length;
+    for (let index = 0; index < 3; index++) {
+      room.phase = "results";
+      room.winnerId = created.playerId;
+      const lobby = waitForRoom(human, (next) => next.phase === "lobby");
+      human.emit("match:rematch");
+      const reset = await lobby;
+      expect(reset.players).toHaveLength(4);
+      expect(reset.planets).toHaveLength(4);
+      expect(reset.scraps).toHaveLength(0);
+      expect(server.manager.rooms.size).toBe(1);
+    }
+    expect(human.listeners("room:state").length).toBe(listenerCount);
+  });
+
+  it("ignores malformed commands and prevents one socket from leaking rooms", async () => {
+    const { url, server } = await setup();
+    const socket = await client(url);
+    const created = await createRoom(socket, "Nova");
+    if (!created.ok) throw new Error(created.error);
+    (socket as unknown as { emit: (event: string, payload?: unknown) => void }).emit("room:ready", null);
+    (socket as unknown as { emit: (event: string, payload?: unknown) => void }).emit("player:input", null);
+    (socket as unknown as { emit: (event: string, payload?: unknown) => void }).emit("cannon:fire", null);
+    (socket as unknown as { emit: (event: string, payload?: unknown) => void }).emit("room:create", { name: "Duplicate" });
+    const duplicate = await createRoom(socket, "Duplicate");
+    expect(duplicate).toMatchObject({ ok: false, error: "Already in a room." });
+    expect(server.manager.rooms.size).toBe(1);
+    expect((await fetch(`${url}/health`)).status).toBe(200);
   });
 
   it("runs an authoritative match and applies projectile damage", async () => {
