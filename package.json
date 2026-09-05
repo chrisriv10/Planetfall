@@ -1,0 +1,23 @@
+{
+  "name": "planetfall",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": ["client", "server", "shared"],
+  "engines": { "node": "22.x" },
+  "scripts": {
+    "predev": "npm run build -w @planetfall/shared",
+    "dev": "concurrently -k -n shared,server,client -c yellow,cyan,magenta \"npm run dev -w @planetfall/shared\" \"npm run dev -w @planetfall/server\" \"npm run dev -w @planetfall/client\"",
+    "build": "npm run build -w @planetfall/shared && npm run build -w @planetfall/server && npm run build -w @planetfall/client",
+    "start": "npm run start -w @planetfall/server",
+    "test": "npm run build -w @planetfall/shared && vitest run",
+    "test:e2e": "playwright test",
+    "typecheck": "npm run typecheck -ws --if-present"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "concurrently": "^10.0.5",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.0"
+  }
+}

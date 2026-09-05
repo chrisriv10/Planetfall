@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#080b28" />
+    <meta name="description" content="Planetfall is a tiny-planet multiplayer party game." />
+    <title>Planetfall</title>
+  </head>
+  <body>
+    <canvas id="game-canvas" aria-label="Planetfall 3D game"></canvas>
+    <div class="vignette" aria-hidden="true"></div>
+    <main id="ui">
+      <section id="home-screen" class="screen active" aria-labelledby="logo-title">
+        <div class="home-card glass">
+          <div class="brand-lockup"><i class="brand-orbit"></i><h1 id="logo-title">PLANETFALL</h1><b></b></div>
+          <p class="intro">Last planet standing wins.</p>
+          <label class="field-label" for="player-name">Name</label>
+          <input id="player-name" maxlength="18" autocomplete="nickname" placeholder="Space bean" />
+          <div class="primary-actions">
+            <button id="play-solo" class="button button-primary button-solo"><span class="button-icon">▶</span> Play Solo</button>
+            <button id="create-room" class="button button-secondary">Create Room</button>
+            <div class="join-row">
+              <input id="room-code" maxlength="6" autocomplete="off" placeholder="ROOM CODE" aria-label="Room code" />
+              <button id="join-room" class="button button-secondary">Join Game</button>
+            </div>
+          </div>
+          <div class="control-strip" aria-label="Game controls">
+            <span><kbd>WASD</kbd> Run</span><span><kbd>Space</kbd> Jump</span><span><kbd>RMB</kbd> Grapple</span>
+          </div>
+          <p class="service-note">Server may need a moment to wake up.</p>
+        </div>
+      </section>
+
+      <section id="lobby-screen" class="screen" aria-labelledby="lobby-title">
+        <div class="lobby-card glass">
+          <div class="lobby-heading">
+            <div><div class="panel-kicker">GAME LOBBY</div><h2 id="lobby-title">Players</h2></div>
+            <button id="copy-code" class="room-code" title="Copy room code"><span id="lobby-code">------</span><small>copy</small></button>
+          </div>
+          <div id="player-list" class="player-list"></div>
+          <div class="lobby-actions">
+            <button id="add-bot" class="button button-quiet" hidden>+ Add Bot</button>
+            <span class="lobby-spacer"></span>
+            <button id="ready-button" class="button button-secondary">Ready</button>
+            <button id="start-button" class="button button-primary" hidden>Start</button>
+          </div>
+          <p id="lobby-hint" class="lobby-hint">Waiting for players</p>
+        </div>
+      </section>
+
+      <section id="hud" class="screen hud" aria-label="Match HUD">
+        <div class="hud-top">
+          <div class="stat-block health-block"><span>INTEGRITY</span><div class="meter"><i id="health-meter"></i></div><b id="health-value">100</b></div>
+          <div id="timer" class="timer">07:00</div>
+          <div class="stat-block scrap-block"><span>SCRAP</span><b id="scrap-value">20</b><i class="scrap-gem"></i></div>
+        </div>
+        <div id="alive-list" class="alive-list"></div>
+        <div id="crosshair" class="crosshair"><i></i><i></i></div>
+        <div id="trajectory" class="trajectory-label">ROCKET · 8 SCRAP</div>
+        <div id="context-prompt" class="context-prompt">Click the arena to take control</div>
+        <div class="weapon-panel">
+          <span>WEAPON <kbd>Q</kbd></span>
+          <button id="weapon-button"><i></i><b id="weapon-name">BASIC ROCKET</b><small id="weapon-cost">8 scrap</small></button>
+        </div>
+        <div class="control-help"><span><kbd>WASD</kbd> Move</span><span><kbd>Space</kbd> Jump</span><span><kbd>Shift</kbd> Burst</span><span><kbd>RMB</kbd> Grapple</span></div>
+      </section>
+
+      <section id="results-screen" class="screen" aria-labelledby="results-title">
+        <div class="results-card glass">
+          <div class="result-burst" aria-hidden="true">★</div>
+          <h2 id="results-title">You win!</h2>
+          <p id="winner-copy">Your planet survived.</p>
+          <div class="result-actions">
+            <button id="rematch-button" class="button button-primary">Rematch</button>
+            <button id="leave-button" class="button button-secondary">Quit</button>
+          </div>
+          <small id="rematch-count">0 / 0 votes</small>
+        </div>
+      </section>
+
+      <div id="countdown" class="countdown" aria-live="assertive"></div>
+      <div id="connection-pill" class="connection-pill"><i></i><span>Connecting</span></div>
+      <div id="toast-region" class="toast-region" aria-live="polite"></div>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

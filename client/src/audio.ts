@@ -1,0 +1,79 @@
+export class GameAudio {
+  private context: AudioContext | null = null;
+  private music: HTMLAudioElement;
+  private musicFade: ReturnType<typeof setInterval> | null = null;
+
+  constructor() {
+    this.music = new Audio("/audio/bot-city.ogg");
+    this.music.loop = true;
+    this.music.preload = "auto";
+    this.music.volume = 0;
+  }
+
+  unlock(): void {
+    if (!this.context) this.context = new AudioContext();
+    if (this.context.state === "suspended") void this.context.resume();
+    if (this.music.paused) {
+      void this.music.play().then(() => this.fadeMusicIn()).catch(() => undefined);
+    }
+  }
+
+  click(): void { this.tone(360, 0.04, "square", 0.025, 520); }
+  pickup(): void { this.tone(720, 0.1, "sine", 0.05, 1180); }
+  jump(): void { this.tone(190, 0.12, "triangle", 0.04, 330); }
+  land(): void { this.noise(0.07, 0.025, 180); this.tone(92, 0.08, "sine", 0.025, 62); }
+  burst(): void { this.noise(0.11, 0.045, 900); this.tone(170, 0.14, "sawtooth", 0.035, 360); }
+  grapple(): void { this.tone(130, 0.16, "sawtooth", 0.035, 90); }
+  rocket(): void { this.noise(0.18, 0.14, 600); this.tone(95, 0.18, "sawtooth", 0.07, 45); }
+  asteroid(): void { this.noise(0.28, 0.19, 320); this.tone(64, 0.3, "square", 0.08, 38); }
+  explosion(heavy = false): void { this.noise(heavy ? 0.7 : 0.42, heavy ? 0.3 : 0.2, heavy ? 170 : 260); }
+  repair(): void { this.tone(420, 0.22, "sine", 0.04, 820); }
+  countdown(value: number): void { this.tone(value === 0 ? 660 : 300 + value * 55, value === 0 ? .22 : .08, "square", value === 0 ? .045 : .025, value === 0 ? 980 : 360 + value * 55); }
+  result(won: boolean): void {
+    const notes = won ? [440, 554, 659, 880] : [280, 235, 196];
+    notes.forEach((note, index) => setTimeout(() => this.tone(note, .18, "triangle", .035, note * 1.04), index * 110));
+  }
+
+  private fadeMusicIn(): void {
+    if (this.musicFade) clearInterval(this.musicFade);
+    this.musicFade = setInterval(() => {
+      this.music.volume = Math.min(.16, this.music.volume + .01);
+      if (this.music.volume >= .16 && this.musicFade) {
+        clearInterval(this.musicFade);
+        this.musicFade = null;
+      }
+    }, 90);
+  }
+
+  private tone(start: number, duration: number, type: OscillatorType, gain: number, end = start): void {
+    if (!this.context) return;
+    const now = this.context.currentTime;
+    const oscillator = this.context.createOscillator();
+    const volume = this.context.createGain();
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(start, now);
+    oscillator.frequency.exponentialRampToValueAtTime(Math.max(20, end), now + duration);
+    volume.gain.setValueAtTime(gain, now);
+    volume.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    oscillator.connect(volume).connect(this.context.destination);
+    oscillator.start(now);
+    oscillator.stop(now + duration);
+  }
+
+  private noise(duration: number, gain: number, cutoff: number): void {
+    if (!this.context) return;
+    const frames = Math.ceil(this.context.sampleRate * duration);
+    const buffer = this.context.createBuffer(1, frames, this.context.sampleRate);
+    const channel = buffer.getChannelData(0);
+    for (let i = 0; i < frames; i++) channel[i] = (Math.random() * 2 - 1) * (1 - i / frames);
+    const source = this.context.createBufferSource();
+    const filter = this.context.createBiquadFilter();
+    const volume = this.context.createGain();
+    filter.type = "lowpass";
+    filter.frequency.value = cutoff;
+    volume.gain.value = gain;
+    source.buffer = buffer;
+    source.connect(filter).connect(volume).connect(this.context.destination);
+    source.start();
+  }
+}

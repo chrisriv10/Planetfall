@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: planetfall-server
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build -w @planetfall/shared && npm run build -w @planetfall/server
+    startCommand: npm run start -w @planetfall/server
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.22.0
+      - key: NODE_ENV
+        value: production
+      - key: CLIENT_ORIGIN
+        sync: false
