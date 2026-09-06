@@ -12,6 +12,7 @@
     "start": "npm run start -w @planetfall/server",
     "test": "npm run build -w @planetfall/shared && vitest run --configLoader native",
     "test:e2e": "playwright test",
+    "pretypecheck": "npm run build -w @planetfall/shared",
     "typecheck": "npm run typecheck -ws --if-present"
   },
   "devDependencies": {

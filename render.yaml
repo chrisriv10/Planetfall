@@ -3,7 +3,7 @@ services:
     name: planetfall-server
     runtime: node
     plan: free
-    buildCommand: npm ci && npm run build -w @planetfall/shared && npm run build -w @planetfall/server
+    buildCommand: npm ci --include=dev && npm run build -w @planetfall/shared && npm run build -w @planetfall/server
     startCommand: npm run start -w @planetfall/server
     healthCheckPath: /health
     envVars:
