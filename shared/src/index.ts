@@ -1,6 +1,7 @@
 export type Vec3 = { x: number; y: number; z: number };
 export type Quat = { x: number; y: number; z: number; w: number };
 export type WeaponType = "rocket" | "asteroid";
+export type StructureType = "cannon" | "repair";
 export type RoomPhase = "lobby" | "countdown" | "playing" | "overtime" | "results";
 
 export const BALANCE = {
@@ -18,6 +19,9 @@ export const BALANCE = {
   burstCooldownMs: 2200,
   grappleRange: 30,
   grapplePull: 14,
+  launch: { range: 3.25, cooldownMs: 5000, speed: 32, assist: 16, assistMs: 3800 },
+  shove: { range: 2.2, cooldownMs: 1200, force: 9.5, lift: 4.2 },
+  sabotage: { range: 3.2, channelMs: 1250, durationMs: 7000, immunityMs: 10000 },
   maxIntegrity: 100,
   startingScrap: 20,
   scrapValue: 5,
@@ -61,6 +65,9 @@ export interface PlayerState {
   velocity: Vec3;
   rotation: Quat;
   lastInputSequence: number;
+  surfacePlanetId: string | null;
+  launchCooldownUntil: number;
+  shoveCooldownUntil: number;
 }
 
 export interface PlanetState {
@@ -71,6 +78,8 @@ export interface PlanetState {
   alive: boolean;
   palette: number;
   damageStage: 0 | 1 | 2 | 3;
+  cannonDisabledUntil: number;
+  repairDisabledUntil: number;
 }
 
 export interface ScrapState { id: string; planetId: string; position: Vec3; }
@@ -109,6 +118,11 @@ export interface PlayerInput {
   grapplePoint?: Vec3;
 }
 
+export type PlayerInteraction =
+  | { action: "launch"; targetPlanetId: string }
+  | { action: "shove"; targetPlayerId: string }
+  | { action: "sabotage"; planetId: string; structure: StructureType; active: boolean };
+
 export interface ServerSnapshot {
   serverTime: number;
   phase: RoomPhase;
@@ -127,7 +141,7 @@ export interface ClientToServerEvents {
   "room:bot:remove": (payload: { botId: string }) => void;
   "match:start": () => void;
   "player:input": (payload: PlayerInput) => void;
-  "player:interact": () => void;
+  "player:interact": (payload: PlayerInteraction) => void;
   "cannon:fire": (payload: { weapon: WeaponType; direction: Vec3 }) => void;
   "repair:buy": () => void;
   "match:rematch": () => void;
@@ -139,7 +153,12 @@ export interface ServerToClientEvents {
   "match:countdown": (payload: { startsAt: number }) => void;
   "projectile:spawned": (projectile: ProjectileState) => void;
   "projectile:exploded": (payload: { id: string; position: Vec3; weapon: WeaponType; planetId?: string }) => void;
-  "scrap:collected": (payload: { scrapId: string; playerId: string; position: Vec3; value: number }) => void;
+  "scrap:collected": (payload: { scrapId: string; playerId: string; planetId: string; ownerId: string; position: Vec3; value: number; stolen: boolean }) => void;
+  "player:launched": (payload: { playerId: string; sourcePlanetId: string; targetPlanetId: string; position: Vec3; velocity: Vec3; cooldownUntil: number }) => void;
+  "player:landed": (payload: { playerId: string; planetId: string; ownerId: string; intruder: boolean }) => void;
+  "player:shoved": (payload: { attackerId: string; targetId: string; planetId: string; position: Vec3; velocity: Vec3 }) => void;
+  "structure:sabotaged": (payload: { playerId: string; planetId: string; ownerId: string; structure: StructureType; disabledUntil: number }) => void;
+  "structure:sabotage-cancelled": (payload: { playerId: string }) => void;
   "planet:damaged": (payload: { planetId: string; integrity: number; amount: number; hit: Vec3 }) => void;
   "planet:repaired": (payload: { planetId: string; playerId: string; integrity: number; amount: number }) => void;
   "planet:destroyed": (payload: { planetId: string; ownerId: string }) => void;
@@ -198,4 +217,27 @@ export function cannonPosition(planet: Pick<PlanetState, "position">): Vec3 {
 
 export function repairPosition(planet: Pick<PlanetState, "position">): Vec3 {
   return add(planet.position, { x: BALANCE.planetRadius + 0.8, y: 0, z: 0 });
+}
+
+export function launchPadNormal(planet: Pick<PlanetState, "position">): Vec3 {
+  const inward = length(planet.position) > 0.001 ? normalize(scale(planet.position, -1)) : { x: -1, y: 0, z: 0 };
+  const tangent = normalize(cross({ x: 0, y: 1, z: 0 }, inward));
+  return normalize(add(scale(inward, 0.84), add(scale(tangent, 0.36), { x: 0, y: 0.42, z: 0 })));
+}
+
+export function launchPadPosition(planet: Pick<PlanetState, "position">): Vec3 {
+  return add(planet.position, scale(launchPadNormal(planet), BALANCE.planetRadius + 0.7));
+}
+
+export function launchLandingPosition(source: Pick<PlanetState, "position">, target: Pick<PlanetState, "position">): Vec3 {
+  return add(target.position, scale(normalize(sub(source.position, target.position)), BALANCE.planetRadius + 0.95));
+}
+
+export function launchVelocity(from: Vec3, source: Pick<PlanetState, "position">, target: Pick<PlanetState, "position">): Vec3 {
+  const outward = normalize(sub(from, source.position));
+  const direct = normalize(sub(launchLandingPosition(source, target), from));
+  const direction = dot(direct, outward) >= 0.32
+    ? direct
+    : normalize(add(normalize(projectOnPlane(direct, outward)), scale(outward, 0.42)));
+  return scale(direction, BALANCE.launch.speed);
 }

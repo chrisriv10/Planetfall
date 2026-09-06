@@ -12,6 +12,9 @@ import {
   distance,
   dot,
   isFiniteVec3,
+  launchLandingPosition,
+  launchPadPosition,
+  launchVelocity,
   length,
   normalize,
   projectOnPlane,
@@ -23,12 +26,14 @@ import {
   type JoinResult,
   type PlanetState,
   type PlayerInput,
+  type PlayerInteraction,
   type PlayerState,
   type ProjectileState,
   type RoomPhase,
   type RoomView,
   type ScrapState,
   type ServerToClientEvents,
+  type StructureType,
   type Vec3,
   type WeaponType
 } from "@planetfall/shared";
@@ -45,6 +50,10 @@ interface PlayerRecord extends PlayerState {
   lastFireAt: number;
   lastInputAt: number;
   lastRepairAt: number;
+  launchSourcePlanetId: string | null;
+  launchTargetPlanetId: string | null;
+  launchAssistUntil: number;
+  sabotage: { planetId: string; structure: StructureType; startedAt: number } | null;
   input: PlayerInput | null;
   body: RAPIER.RigidBody;
 }
@@ -52,7 +61,11 @@ interface PlayerRecord extends PlayerState {
 function id(prefix: string): string { return `${prefix}_${randomBytes(5).toString("hex")}`; }
 function token(): string { return randomBytes(18).toString("base64url"); }
 function clonePlayer(player: PlayerRecord): PlayerState {
-  const { socketId: _a, sessionToken: _b, disconnectedAt: _c, lastBurstAt: _d, lastFireAt: _e, lastInputAt: _f, lastRepairAt: _g, input: _h, body: _i, ...view } = player;
+  const {
+    socketId: _a, sessionToken: _b, disconnectedAt: _c, lastBurstAt: _d, lastFireAt: _e,
+    lastInputAt: _f, lastRepairAt: _g, launchSourcePlanetId: _h, launchTargetPlanetId: _i,
+    launchAssistUntil: _j, sabotage: _k, input: _l, body: _m, ...view
+  } = player;
   return view;
 }
 
@@ -73,6 +86,7 @@ export class GameRoom {
   private snapshotAccumulator = 0;
   private world: RAPIER.World;
   private botBrains = new Map<string, BotBrain>();
+  private structureImmunity = new Map<string, number>();
 
   constructor(code: string, private io: GameServer) {
     this.code = code;
@@ -122,6 +136,9 @@ export class GameRoom {
       velocity: { x: 0, y: 0, z: 0 },
       rotation: { x: 0, y: 0, z: 0, w: 1 },
       lastInputSequence: 0,
+      surfacePlanetId: null,
+      launchCooldownUntil: 0,
+      shoveCooldownUntil: 0,
       socketId: socket.id,
       sessionToken: token(),
       disconnectedAt: null,
@@ -129,6 +146,10 @@ export class GameRoom {
       lastFireAt: 0,
       lastInputAt: 0,
       lastRepairAt: 0,
+      launchSourcePlanetId: null,
+      launchTargetPlanetId: null,
+      launchAssistUntil: 0,
+      sabotage: null,
       input: null,
       body
     };
@@ -160,8 +181,11 @@ export class GameRoom {
       alive: true, scrap: BALANCE.startingScrap,
       position: { x: 0, y: 0, z: 0 }, velocity: { x: 0, y: 0, z: 0 },
       rotation: { x: 0, y: 0, z: 0, w: 1 }, lastInputSequence: 0,
+      surfacePlanetId: null, launchCooldownUntil: 0, shoveCooldownUntil: 0,
       socketId: null, sessionToken: "", disconnectedAt: null,
-      lastBurstAt: 0, lastFireAt: 0, lastInputAt: 0, lastRepairAt: 0, input: null, body
+      lastBurstAt: 0, lastFireAt: 0, lastInputAt: 0, lastRepairAt: 0,
+      launchSourcePlanetId: null, launchTargetPlanetId: null, launchAssistUntil: 0, sabotage: null,
+      input: null, body
     };
     this.players.set(playerId, bot);
     this.botBrains.set(playerId, new BotBrain(`${this.code}:${playerId}`));
@@ -195,6 +219,7 @@ export class GameRoom {
     player.connected = false;
     player.socketId = null;
     player.disconnectedAt = Date.now();
+    player.sabotage = null;
     if (player.id === this.hostId) this.migrateHost();
     this.emitRoom();
   }
@@ -244,15 +269,100 @@ export class GameRoom {
     player.lastInputSequence = candidate.sequence!;
   }
 
-  fire(playerId: string, weapon: unknown, direction: unknown): void {
+  interact(playerId: string, interaction: unknown): void {
+    if (!interaction || typeof interaction !== "object") return;
+    const payload = interaction as Partial<PlayerInteraction> & Record<string, unknown>;
+    if (payload.action === "launch" && typeof payload.targetPlanetId === "string") {
+      this.launch(playerId, payload.targetPlanetId);
+    } else if (payload.action === "shove" && typeof payload.targetPlayerId === "string") {
+      this.shove(playerId, payload.targetPlayerId);
+    } else if (
+      payload.action === "sabotage"
+      && typeof payload.planetId === "string"
+      && (payload.structure === "cannon" || payload.structure === "repair")
+      && typeof payload.active === "boolean"
+    ) {
+      this.sabotage(playerId, payload.planetId, payload.structure, payload.active);
+    }
+  }
+
+  launch(playerId: string, targetPlanetId: string, now = Date.now()): boolean {
+    const player = this.players.get(playerId);
+    const target = this.planets.get(targetPlanetId);
+    if (!player?.alive || !target?.alive || (this.phase !== "playing" && this.phase !== "overtime")) return false;
+    const source = [...this.planets.values()]
+      .filter((planet) => planet.alive && planet.id !== target.id)
+      .sort((a, b) => distance(player.position, launchPadPosition(a)) - distance(player.position, launchPadPosition(b)))[0];
+    if (!source || distance(player.position, launchPadPosition(source)) > BALANCE.launch.range) {
+      this.error(playerId, "Stand on a launch pad.");
+      return false;
+    }
+    if (now < player.launchCooldownUntil) {
+      this.error(playerId, "Launch pad recharging.");
+      return false;
+    }
+    this.cancelSabotage(player, true);
+    player.velocity = launchVelocity(player.position, source, target);
+    player.launchCooldownUntil = now + BALANCE.launch.cooldownMs;
+    player.launchSourcePlanetId = source.id;
+    player.launchTargetPlanetId = target.id;
+    player.launchAssistUntil = now + BALANCE.launch.assistMs;
+    player.surfacePlanetId = null;
+    this.io.to(this.code).emit("player:launched", {
+      playerId, sourcePlanetId: source.id, targetPlanetId: target.id,
+      position: { ...player.position }, velocity: { ...player.velocity }, cooldownUntil: player.launchCooldownUntil
+    });
+    return true;
+  }
+
+  shove(playerId: string, targetPlayerId: string, now = Date.now()): boolean {
+    const player = this.players.get(playerId);
+    const target = this.players.get(targetPlayerId);
+    if (!player?.alive || !target?.alive || player.id === target.id || (this.phase !== "playing" && this.phase !== "overtime")) return false;
+    if (now < player.shoveCooldownUntil || distance(player.position, target.position) > BALANCE.shove.range) return false;
+    const planet = this.nearestAlivePlanet(player.position);
+    const targetPlanet = this.nearestAlivePlanet(target.position);
+    if (!planet || targetPlanet?.id !== planet.id) return false;
+    if (distance(player.position, planet.position) - BALANCE.planetRadius > 2 || distance(target.position, planet.position) - BALANCE.planetRadius > 2) return false;
+    const outward = normalize(sub(target.position, planet.position));
+    let away = normalize(projectOnPlane(sub(target.position, player.position), outward));
+    if (length(away) < 0.1) away = normalize(projectOnPlane(player.input?.cameraForward ?? { x: 0, y: 0, z: 1 }, outward));
+    target.velocity = add(target.velocity, add(scale(away, BALANCE.shove.force), scale(outward, BALANCE.shove.lift)));
+    player.shoveCooldownUntil = now + BALANCE.shove.cooldownMs;
+    this.cancelSabotage(target, true);
+    this.io.to(this.code).emit("player:shoved", {
+      attackerId: player.id, targetId: target.id, planetId: planet.id,
+      position: { ...target.position }, velocity: { ...target.velocity }
+    });
+    return true;
+  }
+
+  sabotage(playerId: string, planetId: string, structure: StructureType, active: boolean, now = Date.now()): boolean {
+    const player = this.players.get(playerId);
+    if (!player) return false;
+    if (!active) {
+      this.cancelSabotage(player, true);
+      return true;
+    }
+    const planet = this.planets.get(planetId);
+    if (!player.alive || !planet?.alive || planet.ownerId === player.id || (this.phase !== "playing" && this.phase !== "overtime")) return false;
+    if (distance(player.position, this.structurePosition(planet, structure)) > BALANCE.sabotage.range) return false;
+    const disabledUntil = structure === "cannon" ? planet.cannonDisabledUntil : planet.repairDisabledUntil;
+    if (disabledUntil > now || (this.structureImmunity.get(this.structureKey(planet.id, structure)) ?? 0) > now) return false;
+    if (player.sabotage?.planetId === planetId && player.sabotage.structure === structure) return true;
+    player.sabotage = { planetId, structure, startedAt: now };
+    return true;
+  }
+
+  fire(playerId: string, weapon: unknown, direction: unknown, now = Date.now()): void {
     const player = this.players.get(playerId);
     const planet = player ? this.planets.get(player.planetId) : undefined;
     if (!player?.alive || !planet?.alive || !isFiniteVec3(direction) || (weapon !== "rocket" && weapon !== "asteroid")) return;
     if (this.phase !== "playing" && this.phase !== "overtime") return;
     const config = BALANCE.weapons[weapon];
     if (!config) return;
-    const now = Date.now();
     if (now - player.lastFireAt < config.cooldownMs) return;
+    if (planet.cannonDisabledUntil > now) return this.error(playerId, "Cannon jammed.");
     const cannon = cannonPosition(planet);
     if (distance(player.position, cannon) > 5) return this.error(playerId, "Stand beside your cannon to fire.");
     if (player.scrap < config.cost) return this.error(playerId, "Not enough scrap.");
@@ -270,13 +380,13 @@ export class GameRoom {
     this.emitRoom();
   }
 
-  repair(playerId: string): void {
+  repair(playerId: string, now = Date.now()): void {
     const player = this.players.get(playerId);
     const planet = player ? this.planets.get(player.planetId) : undefined;
     if (!player?.alive || !planet?.alive || this.phase === "overtime") return;
     if (this.phase !== "playing") return;
-    const now = Date.now();
     if (now - player.lastRepairAt < 250) return;
+    if (planet.repairDisabledUntil > now) return this.error(playerId, "Repair core jammed.");
     const station = repairPosition(planet);
     if (distance(player.position, station) > 4) return this.error(playerId, "Stand beside the repair core.");
     if (player.scrap < BALANCE.repair.cost) return this.error(playerId, "Not enough scrap.");
@@ -305,6 +415,7 @@ export class GameRoom {
       this.snapshotAccumulator = 0;
       this.scraps.clear();
       this.projectiles.clear();
+      this.structureImmunity.clear();
       this.rematchVotes.clear();
       for (const p of connected) {
         p.ready = p.isBot;
@@ -312,6 +423,13 @@ export class GameRoom {
         p.scrap = BALANCE.startingScrap;
         p.input = null;
         p.lastInputSequence = 0;
+        p.surfacePlanetId = p.planetId;
+        p.launchCooldownUntil = 0;
+        p.shoveCooldownUntil = 0;
+        p.launchSourcePlanetId = null;
+        p.launchTargetPlanetId = null;
+        p.launchAssistUntil = 0;
+        p.sabotage = null;
       }
       this.rebuildPlanets();
     }
@@ -329,6 +447,7 @@ export class GameRoom {
     if (this.phase !== "playing" && this.phase !== "overtime") return;
     this.updateBots(now);
     for (const player of this.players.values()) this.updatePlayer(player, dt, now);
+    this.updateSabotage(now);
     this.updateProjectiles(dt, now);
     this.collectScrap();
     if (now - this.lastScrapSpawn >= BALANCE.scrapSpawnMs) {
@@ -372,21 +491,25 @@ export class GameRoom {
       player.planetId = planetId;
       player.position = add(position, { x: 0, y: BALANCE.planetRadius + 1.15, z: 0 });
       player.velocity = { x: 0, y: 0, z: 0 };
+      player.surfacePlanetId = planetId;
       player.body.setNextKinematicTranslation(player.position);
       this.planets.set(planetId, {
         id: planetId, ownerId: player.id, position,
         integrity: BALANCE.maxIntegrity, alive: true,
-        palette: index % 6, damageStage: 0
+        palette: index % 6, damageStage: 0,
+        cannonDisabledUntil: 0, repairDisabledUntil: 0
       });
     });
   }
 
   private resetMatch(): void {
-    this.scraps.clear(); this.projectiles.clear(); this.rematchVotes.clear(); this.winnerId = null; this.overtimeEndsAt = null;
+    this.scraps.clear(); this.projectiles.clear(); this.structureImmunity.clear(); this.rematchVotes.clear(); this.winnerId = null; this.overtimeEndsAt = null;
     this.rebuildPlanets();
     for (const player of this.players.values()) {
       player.alive = player.connected; player.scrap = BALANCE.startingScrap; player.input = null;
       player.lastInputSequence = 0; player.lastFireAt = 0; player.lastBurstAt = 0; player.lastInputAt = 0; player.lastRepairAt = 0;
+      player.surfacePlanetId = player.planetId; player.launchCooldownUntil = 0; player.shoveCooldownUntil = 0;
+      player.launchSourcePlanetId = null; player.launchTargetPlanetId = null; player.launchAssistUntil = 0; player.sabotage = null;
     }
     for (const planet of this.planets.values()) for (let i = 0; i < 3; i++) this.spawnScrap(planet);
   }
@@ -422,6 +545,14 @@ export class GameRoom {
     } else {
       player.velocity = add(tangentVelocity, scale(outward, dot(player.velocity, outward) - BALANCE.gravity * dt));
     }
+    const launchTarget = player.launchTargetPlanetId ? this.planets.get(player.launchTargetPlanetId) : undefined;
+    const launchSource = player.launchSourcePlanetId ? this.planets.get(player.launchSourcePlanetId) : undefined;
+    if (launchTarget?.alive && launchSource && now < player.launchAssistUntil && !player.surfacePlanetId) {
+      const guide = normalize(sub(launchLandingPosition(launchSource, launchTarget), player.position));
+      player.velocity = add(player.velocity, scale(guide, BALANCE.launch.assist * dt));
+      const maxLaunchSpeed = BALANCE.launch.speed * 1.12;
+      if (length(player.velocity) > maxLaunchSpeed) player.velocity = scale(normalize(player.velocity), maxLaunchSpeed);
+    }
     player.position = add(player.position, scale(player.velocity, dt));
     const nextOutward = normalize(sub(player.position, planet.position));
     const minDistance = BALANCE.planetRadius + 0.95;
@@ -432,6 +563,21 @@ export class GameRoom {
       if (inwardSpeed < 0) player.velocity = sub(player.velocity, scale(nextOutward, inwardSpeed));
     }
     player.body.setNextKinematicTranslation(player.position);
+    const surface = this.nearestAlivePlanet(player.position);
+    const surfaceAltitude = surface ? distance(player.position, surface.position) - BALANCE.planetRadius : Infinity;
+    if (surface && surfaceAltitude <= 1.2) {
+      if (player.surfacePlanetId !== surface.id) {
+        player.surfacePlanetId = surface.id;
+        player.launchSourcePlanetId = null;
+        player.launchTargetPlanetId = null;
+        player.launchAssistUntil = 0;
+        this.io.to(this.code).emit("player:landed", {
+          playerId: player.id, planetId: surface.id, ownerId: surface.ownerId, intruder: surface.ownerId !== player.id
+        });
+      }
+    } else if (surfaceAltitude > 1.8) {
+      player.surfacePlanetId = null;
+    }
   }
 
   private updateProjectiles(dt: number, now: number): void {
@@ -470,13 +616,58 @@ export class GameRoom {
     }
   }
 
+  private updateSabotage(now: number): void {
+    for (const player of this.players.values()) {
+      const channel = player.sabotage;
+      if (!channel) continue;
+      const planet = this.planets.get(channel.planetId);
+      if (
+        !player.alive || !planet?.alive || planet.ownerId === player.id
+        || distance(player.position, this.structurePosition(planet, channel.structure)) > BALANCE.sabotage.range
+      ) {
+        this.cancelSabotage(player, true);
+        continue;
+      }
+      if (now - channel.startedAt < BALANCE.sabotage.channelMs) continue;
+      const disabledUntil = now + BALANCE.sabotage.durationMs;
+      if (channel.structure === "cannon") planet.cannonDisabledUntil = disabledUntil;
+      else planet.repairDisabledUntil = disabledUntil;
+      this.structureImmunity.set(this.structureKey(planet.id, channel.structure), disabledUntil + BALANCE.sabotage.immunityMs);
+      player.sabotage = null;
+      this.io.to(this.code).emit("structure:sabotaged", {
+        playerId: player.id, planetId: planet.id, ownerId: planet.ownerId,
+        structure: channel.structure, disabledUntil
+      });
+      this.emitRoom();
+    }
+  }
+
+  private cancelSabotage(player: PlayerRecord, notify: boolean): void {
+    if (!player.sabotage) return;
+    player.sabotage = null;
+    if (notify && player.socketId) this.io.to(player.socketId).emit("structure:sabotage-cancelled", { playerId: player.id });
+  }
+
+  private structurePosition(planet: PlanetState, structure: StructureType): Vec3 {
+    return structure === "cannon" ? cannonPosition(planet) : repairPosition(planet);
+  }
+
+  private structureKey(planetId: string, structure: StructureType): string {
+    return `${planetId}:${structure}`;
+  }
+
   private collectScrap(): void {
     for (const scrap of [...this.scraps.values()]) {
       const collector = [...this.players.values()].find((p) => p.alive && distance(p.position, scrap.position) < 1.8);
       if (collector) {
         collector.scrap += BALANCE.scrapValue;
         this.scraps.delete(scrap.id);
-        this.io.to(this.code).emit("scrap:collected", { scrapId: scrap.id, playerId: collector.id, position: scrap.position, value: BALANCE.scrapValue });
+        const planet = this.planets.get(scrap.planetId);
+        const ownerId = planet?.ownerId ?? "";
+        this.io.to(this.code).emit("scrap:collected", {
+          scrapId: scrap.id, playerId: collector.id, planetId: scrap.planetId, ownerId,
+          position: scrap.position, value: BALANCE.scrapValue, stolen: Boolean(ownerId && ownerId !== collector.id)
+        });
       }
     }
   }
@@ -484,10 +675,16 @@ export class GameRoom {
   private spawnScrap(planet: PlanetState): void {
     const count = [...this.scraps.values()].filter((s) => s.planetId === planet.id).length;
     if (count >= BALANCE.scrapMaxPerPlanet) return;
-    const theta = Math.random() * Math.PI * 2;
-    const y = Math.random() * 1.6 - 0.8;
-    const radial = Math.sqrt(1 - y * y);
-    const normal = { x: radial * Math.cos(theta), y, z: radial * Math.sin(theta) };
+    let normal = { x: 0, y: 0, z: 1 };
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const theta = Math.random() * Math.PI * 2;
+      const y = Math.random() * 1.6 - 0.8;
+      const radial = Math.sqrt(1 - y * y);
+      const candidate = { x: radial * Math.cos(theta), y, z: radial * Math.sin(theta) };
+      const position = add(planet.position, scale(candidate, BALANCE.planetRadius + 0.75));
+      normal = candidate;
+      if ([cannonPosition(planet), repairPosition(planet), launchPadPosition(planet)].every((structure) => distance(position, structure) > 2.6)) break;
+    }
     const scrap: ScrapState = { id: id("scrap"), planetId: planet.id, position: add(planet.position, scale(normal, BALANCE.planetRadius + 0.75)) };
     this.scraps.set(scrap.id, scrap);
   }
@@ -519,11 +716,14 @@ export class GameRoom {
       if (!player?.alive || !ownPlanet?.alive) continue;
       const decision = brain.update({
         now, phase: this.phase, player, ownPlanet,
-        planets: [...this.planets.values()], scraps: [...this.scraps.values()]
+        surfacePlanet: player.surfacePlanetId ? this.planets.get(player.surfacePlanetId) : undefined,
+        planets: [...this.planets.values()], players: [...this.players.values()], scraps: [...this.scraps.values()]
       });
       this.setInput(botId, decision.input);
       if (decision.fire) this.fire(botId, decision.fire.weapon, decision.fire.direction);
       if (decision.repair) this.repair(botId);
+      if (decision.launchTargetId) this.launch(botId, decision.launchTargetId);
+      if (decision.shoveTargetId) this.shove(botId, decision.shoveTargetId);
     }
   }
 
@@ -580,6 +780,7 @@ export class GameRoom {
     this.scraps.clear();
     this.projectiles.clear();
     this.botBrains.clear();
+    this.structureImmunity.clear();
     this.rematchVotes.clear();
     this.world.free();
   }

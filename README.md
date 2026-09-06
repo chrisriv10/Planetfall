@@ -27,12 +27,14 @@ Choose **Play Solo** for a match with three bots, or **Create Room** and share t
 
 | Input | Action |
 | --- | --- |
-| `WASD` | Move around your planet |
+| `WASD` | Move across any planet |
 | Mouse | Aim and look |
 | `Space` | Jump |
 | `Shift` | Burst |
 | `Left click` | Fire your cannon |
 | `Right click` | Grapple |
+| `E` | Launch, shove, or hold to jam enemy structures |
+| `Esc` | Cancel launch aiming |
 | `Q` | Switch weapon |
 | `R` | Repair your planet |
 

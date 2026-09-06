@@ -20,10 +20,15 @@ export class GameAudio {
 
   click(): void { this.tone(360, 0.04, "square", 0.025, 520); }
   pickup(): void { this.tone(720, 0.1, "sine", 0.05, 1180); }
+  stolen(): void { this.tone(610, 0.08, "square", 0.045, 980); setTimeout(() => this.tone(880, 0.12, "triangle", 0.04, 1320), 65); }
   jump(): void { this.tone(190, 0.12, "triangle", 0.04, 330); }
   land(): void { this.noise(0.07, 0.025, 180); this.tone(92, 0.08, "sine", 0.025, 62); }
   burst(): void { this.noise(0.11, 0.045, 900); this.tone(170, 0.14, "sawtooth", 0.035, 360); }
   grapple(): void { this.tone(130, 0.16, "sawtooth", 0.035, 90); }
+  launch(): void { this.noise(0.24, 0.1, 760); this.tone(110, 0.32, "sawtooth", 0.065, 520); }
+  shove(): void { this.noise(0.09, 0.065, 420); this.tone(120, 0.11, "square", 0.045, 75); }
+  sabotage(): void { this.noise(0.2, 0.035, 1200); this.tone(390, 0.28, "square", 0.035, 105); }
+  intruder(): void { this.tone(520, 0.08, "square", 0.04, 350); setTimeout(() => this.tone(520, 0.08, "square", 0.035, 350), 120); }
   rocket(): void { this.noise(0.18, 0.14, 600); this.tone(95, 0.18, "sawtooth", 0.07, 45); }
   asteroid(): void { this.noise(0.28, 0.19, 320); this.tone(64, 0.3, "square", 0.08, 38); }
   explosion(heavy = false): void { this.noise(heavy ? 0.7 : 0.42, heavy ? 0.3 : 0.2, heavy ? 170 : 260); }

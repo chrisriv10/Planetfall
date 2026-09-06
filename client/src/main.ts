@@ -38,6 +38,7 @@ let countdownNumber = -1;
 let announcedWinner: string | null | undefined;
 
 await game.init();
+if (import.meta.env.DEV) Object.defineProperty(window, "__PLANETFALL_DEBUG__", { value: () => game.debugState(), configurable: true });
 showScreen("home");
 createButton.disabled = false; soloButton.disabled = false; joinButton.disabled = false;
 if (socket.connected) setConnection("online", "Online");
@@ -61,7 +62,28 @@ socket.on("match:snapshot", (snapshot) => {
 socket.on("match:countdown", ({ startsAt }) => runCountdown(startsAt));
 socket.on("projectile:spawned", (projectile) => game.spawnProjectile(projectile));
 socket.on("projectile:exploded", (payload) => game.explode(payload));
-socket.on("scrap:collected", (payload) => game.collectScrap(payload));
+socket.on("scrap:collected", (payload) => {
+  game.collectScrap(payload);
+  if (!payload.stolen) return;
+  const collector = room?.players.find((player) => player.id === payload.playerId);
+  if (payload.playerId === playerId) toast(`STOLEN SCRAP +${payload.value}`);
+  else if (payload.ownerId === playerId) toast(`${collector?.name ?? "An intruder"} stole your scrap`);
+});
+socket.on("player:launched", (payload) => game.launchPlayer(payload));
+socket.on("player:landed", (payload) => {
+  game.landPlayer(payload);
+  const invader = room?.players.find((player) => player.id === payload.playerId);
+  if (payload.intruder && payload.ownerId === playerId) toast(`${invader?.name?.toUpperCase() ?? "INTRUDER"} LANDED`);
+  else if (payload.intruder && payload.playerId === playerId) toast("Enemy planet reached");
+});
+socket.on("player:shoved", (payload) => game.shovePlayer(payload));
+socket.on("structure:sabotaged", (payload) => {
+  game.sabotageStructure(payload);
+  const label = payload.structure === "cannon" ? "Cannon" : "Repair core";
+  if (payload.playerId === playerId) toast(`${label} jammed`);
+  else if (payload.ownerId === playerId) toast(`${label.toUpperCase()} JAMMED`);
+});
+socket.on("structure:sabotage-cancelled", ({ playerId: cancelledId }) => game.cancelSabotage(cancelledId));
 socket.on("planet:damaged", ({ planetId, hit, integrity }) => { game.damagePlanet(planetId, hit, integrity); updateHud(); });
 socket.on("planet:repaired", (payload) => game.repairPlanet(payload));
 socket.on("planet:destroyed", ({ planetId }) => game.destroyPlanet(planetId));
@@ -70,10 +92,12 @@ socket.on("match:ended", ({ winnerId }) => showResults(winnerId));
 game.onInput = (input) => socket.emit("player:input", input);
 game.onFire = (weapon, direction) => socket.emit("cannon:fire", { weapon, direction });
 game.onRepair = () => socket.emit("repair:buy");
+game.onInteract = (interaction) => socket.emit("player:interact", interaction);
 game.onWeaponChange = updateWeapon;
-game.onPrompt = (text, aiming) => {
+game.onPrompt = (text, aiming, label) => {
   contextPrompt.textContent = text;
   trajectoryLabel.style.opacity = aiming ? "1" : "0";
+  if (label) trajectoryLabel.textContent = label;
 };
 
 createButton.addEventListener("click", () => joinOrCreate("create"));

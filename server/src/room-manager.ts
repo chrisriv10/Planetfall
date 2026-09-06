@@ -77,7 +77,7 @@ export class RoomManager {
     socket.on("room:bot:remove", (payload) => { const c = this.current(socket); if (c) c.room.removeBot(c.playerId, String(payload?.botId ?? "")); });
     socket.on("match:start", () => { const c = this.current(socket); if (c) c.room.start(c.playerId); });
     socket.on("player:input", (input) => { const c = this.current(socket); if (c) c.room.setInput(c.playerId, input); });
-    socket.on("player:interact", () => undefined);
+    socket.on("player:interact", (payload) => { const c = this.current(socket); if (c) c.room.interact(c.playerId, payload); });
     socket.on("cannon:fire", (payload) => { const c = this.current(socket); if (c) c.room.fire(c.playerId, payload?.weapon, payload?.direction); });
     socket.on("repair:buy", () => { const c = this.current(socket); if (c) c.room.repair(c.playerId); });
     socket.on("match:rematch", () => { const c = this.current(socket); if (c) c.room.voteRematch(c.playerId); });

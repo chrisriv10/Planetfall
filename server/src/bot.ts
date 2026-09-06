@@ -4,6 +4,8 @@ import {
   cannonPosition,
   clamp,
   distance,
+  launchLandingPosition,
+  launchPadPosition,
   normalize,
   projectOnPlane,
   repairPosition,
@@ -19,7 +21,7 @@ import {
 } from "@planetfall/shared";
 
 export const BOT_NAMES = ["Nova", "Orbit", "Comet", "Astro", "Luna", "Cosmo", "Sol", "Vega", "Apollo", "Meteor"] as const;
-export type BotMode = "Recover" | "SeekScrap" | "MoveToCannon" | "Aim" | "MoveToRepair" | "Repair" | "Idle";
+export type BotMode = "Recover" | "SeekScrap" | "MoveToCannon" | "Aim" | "MoveToRepair" | "Repair" | "MoveToLaunch" | "Idle";
 
 export interface BotProfile {
   aggression: number;
@@ -27,6 +29,7 @@ export interface BotProfile {
   aimErrorRadians: number;
   reactionMs: number;
   asteroidBias: number;
+  riskTolerance: number;
 }
 
 export interface BotContext {
@@ -34,7 +37,9 @@ export interface BotContext {
   phase: RoomPhase;
   player: PlayerState;
   ownPlanet: PlanetState;
+  surfacePlanet?: PlanetState;
   planets: PlanetState[];
+  players: PlayerState[];
   scraps: ScrapState[];
 }
 
@@ -43,6 +48,8 @@ export interface BotDecision {
   input: PlayerInput;
   fire?: { weapon: WeaponType; direction: Vec3 };
   repair?: true;
+  launchTargetId?: string;
+  shoveTargetId?: string;
 }
 
 function hash(value: string): number {
@@ -67,7 +74,8 @@ export function createBotProfile(seed: string): BotProfile {
     repairThreshold: 35 + random() * 25,
     aimErrorRadians: (5 + random() * 10) * Math.PI / 180,
     reactionMs: 850 + Math.floor(random() * 850),
-    asteroidBias: 0.25 + random() * 0.4
+    asteroidBias: 0.25 + random() * 0.4,
+    riskTolerance: 0.3 + random() * 0.5
   };
 }
 
@@ -81,6 +89,9 @@ export class BotBrain {
   private targetScrapId: string | null = null;
   private targetPlanetId: string | null = null;
   private wanderPoint: Vec3 | null = null;
+  private wanderPlanetId: string | null = null;
+  private raidTargetPlanetId: string | null = null;
+  private raidEndsAt = 0;
 
   constructor(readonly id: string) {
     this.profile = createBotProfile(id);
@@ -88,6 +99,13 @@ export class BotBrain {
   }
 
   update(context: BotContext): BotDecision {
+    const surface = context.surfacePlanet;
+    if (this.mode === "MoveToLaunch" && surface && this.raidTargetPlanetId && distance(context.player.position, launchPadPosition(surface)) <= BALANCE.launch.range) {
+      const decision: BotDecision = { mode: this.mode, input: this.makeInput(context, launchPadPosition(surface)), launchTargetId: this.raidTargetPlanetId };
+      this.mode = "Recover";
+      this.nextThinkAt = context.now + 1500;
+      return decision;
+    }
     if (this.mode === "Aim") {
       const decision: BotDecision = { mode: this.mode, input: this.makeInput(context, cannonPosition(context.ownPlanet)) };
       if (context.now < this.actionAt) return decision;
@@ -112,13 +130,32 @@ export class BotBrain {
     const target = this.movementTarget(context);
     const input = this.makeInput(context, target);
     const decision: BotDecision = { mode: this.mode, input };
+    const nearbyEnemy = context.players.find((candidate) => candidate.alive && candidate.id !== context.player.id && candidate.surfacePlanetId && candidate.surfacePlanetId === context.player.surfacePlanetId && distance(candidate.position, context.player.position) <= BALANCE.shove.range);
+    if (nearbyEnemy && this.random() < 0.035) decision.shoveTargetId = nearbyEnemy.id;
     return decision;
   }
 
   private think(context: BotContext): void {
     this.nextThinkAt = context.now + 500 + this.random() * 500;
-    const altitude = distance(context.player.position, context.ownPlanet.position) - BALANCE.planetRadius;
+    const navigationPlanet = context.surfacePlanet ?? [...context.planets].sort((a, b) => distance(context.player.position, a.position) - distance(context.player.position, b.position))[0];
+    const altitude = navigationPlanet ? distance(context.player.position, navigationPlanet.position) - BALANCE.planetRadius : Infinity;
     if (altitude > 3.5) { this.mode = "Recover"; return; }
+
+    if (context.surfacePlanet && context.surfacePlanet.id !== context.ownPlanet.id) {
+      if (context.ownPlanet.integrity <= this.profile.repairThreshold || context.now >= this.raidEndsAt) {
+        this.raidTargetPlanetId = context.ownPlanet.id;
+        this.mode = "MoveToLaunch";
+        return;
+      }
+      const enemyScraps = context.scraps.filter((scrap) => scrap.planetId === context.surfacePlanet!.id);
+      const nearestEnemyScrap = enemyScraps.sort((a, b) => distance(context.player.position, a.position) - distance(context.player.position, b.position))[0];
+      if (nearestEnemyScrap) { this.mode = "SeekScrap"; this.targetScrapId = nearestEnemyScrap.id; return; }
+      this.mode = "Idle";
+      this.chooseWanderPoint(context, context.surfacePlanet);
+      return;
+    }
+
+    if (this.raidTargetPlanetId === context.ownPlanet.id) this.raidTargetPlanetId = null;
 
     const shouldRepair = context.phase !== "overtime"
       && context.ownPlanet.integrity <= this.profile.repairThreshold
@@ -128,6 +165,14 @@ export class BotBrain {
       if (distance(context.player.position, station) <= 3.2) {
         this.mode = "Repair"; this.actionAt = context.now + this.profile.reactionMs * 0.5;
       } else this.mode = "MoveToRepair";
+      return;
+    }
+
+    const raidTarget = this.chooseTarget(context);
+    if (raidTarget && context.now >= context.player.launchCooldownUntil && this.random() < this.profile.aggression * this.profile.riskTolerance * 0.09) {
+      this.raidTargetPlanetId = raidTarget.id;
+      this.raidEndsAt = context.now + 8500 + this.random() * 6500;
+      this.mode = "MoveToLaunch";
       return;
     }
 
@@ -146,27 +191,27 @@ export class BotBrain {
     const nearest = scraps.sort((a, b) => distance(context.player.position, a.position) - distance(context.player.position, b.position))[0];
     if (nearest) { this.mode = "SeekScrap"; this.targetScrapId = nearest.id; return; }
     this.mode = "Idle";
-    if (!this.wanderPoint || distance(context.player.position, this.wanderPoint) < 2) {
-      const theta = this.random() * Math.PI * 2;
-      const y = this.random() * 1.4 - 0.7;
-      const radial = Math.sqrt(1 - y * y);
-      this.wanderPoint = add(context.ownPlanet.position, scale({ x: Math.cos(theta) * radial, y, z: Math.sin(theta) * radial }, BALANCE.planetRadius + 0.95));
-    }
+    this.chooseWanderPoint(context, context.ownPlanet);
   }
 
   private movementTarget(context: BotContext): Vec3 | null {
     if (this.mode === "Recover") {
-      const outward = normalize(sub(context.player.position, context.ownPlanet.position));
-      return add(context.ownPlanet.position, scale(outward, BALANCE.planetRadius));
+      const raidTarget = this.raidTargetPlanetId ? context.planets.find((planet) => planet.id === this.raidTargetPlanetId && planet.alive) : undefined;
+      if (raidTarget) return launchLandingPosition(context.surfacePlanet ?? context.ownPlanet, raidTarget);
+      const nearest = [...context.planets].filter((planet) => planet.alive).sort((a, b) => distance(context.player.position, a.position) - distance(context.player.position, b.position))[0] ?? context.ownPlanet;
+      const outward = normalize(sub(context.player.position, nearest.position));
+      return add(nearest.position, scale(outward, BALANCE.planetRadius));
     }
     if (this.mode === "MoveToCannon" || this.mode === "Aim") return cannonPosition(context.ownPlanet);
     if (this.mode === "MoveToRepair" || this.mode === "Repair") return repairPosition(context.ownPlanet);
+    if (this.mode === "MoveToLaunch" && context.surfacePlanet) return launchPadPosition(context.surfacePlanet);
     if (this.mode === "SeekScrap") return context.scraps.find((scrap) => scrap.id === this.targetScrapId)?.position ?? null;
     return this.wanderPoint;
   }
 
   private makeInput(context: BotContext, target: Vec3 | null): PlayerInput {
-    const outward = normalize(sub(context.player.position, context.ownPlanet.position));
+    const navigationPlanet = context.surfacePlanet ?? [...context.planets].filter((planet) => planet.alive).sort((a, b) => distance(context.player.position, a.position) - distance(context.player.position, b.position))[0] ?? context.ownPlanet;
+    const outward = normalize(sub(context.player.position, navigationPlanet.position));
     const direction = target ? normalize(projectOnPlane(sub(target, context.player.position), outward)) : { x: 0, y: 0, z: 1 };
     const moving = Boolean(target && distance(context.player.position, target) > 1.45 && this.mode !== "Aim" && this.mode !== "Repair");
     return {
@@ -177,8 +222,8 @@ export class BotBrain {
       cameraForward: direction,
       jump: false,
       burst: moving && this.random() < 0.0025,
-      grapple: this.mode === "Recover",
-      grapplePoint: this.mode === "Recover" && target ? target : undefined
+      grapple: this.mode === "Recover" && context.player.launchCooldownUntil <= context.now,
+      grapplePoint: this.mode === "Recover" && context.player.launchCooldownUntil <= context.now && target ? target : undefined
     };
   }
 
@@ -190,6 +235,15 @@ export class BotBrain {
   private chooseWeapon(scrap: number): WeaponType | null {
     if (scrap >= BALANCE.weapons.asteroid.cost && this.random() < this.profile.asteroidBias) return "asteroid";
     return scrap >= BALANCE.weapons.rocket.cost ? "rocket" : null;
+  }
+
+  private chooseWanderPoint(context: BotContext, planet: PlanetState): void {
+    if (this.wanderPlanetId === planet.id && this.wanderPoint && distance(context.player.position, this.wanderPoint) >= 2) return;
+    const theta = this.random() * Math.PI * 2;
+    const y = this.random() * 1.4 - 0.7;
+    const radial = Math.sqrt(1 - y * y);
+    this.wanderPlanetId = planet.id;
+    this.wanderPoint = add(planet.position, scale({ x: Math.cos(theta) * radial, y, z: Math.sin(theta) * radial }, BALANCE.planetRadius + 0.95));
   }
 
   private aimAt(ownPlanet: PlanetState, target: PlanetState): Vec3 {
