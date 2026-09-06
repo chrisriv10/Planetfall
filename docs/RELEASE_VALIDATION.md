@@ -49,7 +49,7 @@ The unit/integration suite also covers bot movement, collection, repair and firi
 - Vite still warns about the game chunk exceeding 1600 kB. The initial JavaScript entry is about 52.04 kB minified / 17.24 kB gzip; the dynamically imported engine is about 3415.99 kB / 1237.90 kB gzip. This is a loading consideration, not a build failure.
 - Playwright prints a `NO_COLOR`/`FORCE_COLOR` conflict. Screenshot capture also produced Chromium GPU `ReadPixels` stall warnings. Neither produced test failures or JavaScript page errors.
 - Git reports its normal LF-to-CRLF conversion warning on edited files.
-- GitHub Actions is configured, but its hosted runner has not executed this unpublished workflow yet. Browser tests remain local/manual for v0.1.0.
+- GitHub Actions passed on the hosted Ubuntu runner for release candidate `afc8bf9`: [CI run 34012628001](https://github.com/chrisriv10/Planetfall/actions/runs/34012628001). Node 22 setup, `npm ci`, typecheck, build, and tests all succeeded. Browser tests remain local/manual for v0.1.0.
 - No live URLs were supplied or found in repository configuration, GitHub homepage metadata, or GitHub deployment records. No hosting resources, GitHub release, or tag were created during this pass.
 - Actual Render cold-start timing, TLS/proxy behavior, full cross-device human/solo matches and rematches, and sustained desktop frame rate remain unverified on hosting.
 
