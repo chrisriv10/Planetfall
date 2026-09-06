@@ -8,6 +8,8 @@ test("two players can create, join, ready, and launch", async ({ browser }) => {
   await Promise.all([host.goto("/"), guest.goto("/")]);
 
   await host.getByLabel("Name").fill("Nova");
+  await expect(host.getByRole("button", { name: "Create Room" })).toBeEnabled();
+  await expect(host.getByLabel("Name")).toHaveValue("Nova");
   await host.getByRole("button", { name: "Create Room" }).click();
   await expect(host.getByRole("heading", { name: "Players" })).toBeVisible();
   const code = (await host.locator("#lobby-code").textContent())!;

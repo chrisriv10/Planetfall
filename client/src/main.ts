@@ -22,6 +22,7 @@ const contextPrompt = byId("context-prompt");
 const trajectoryLabel = byId("trajectory");
 const countdown = byId("countdown");
 createButton.disabled = true; soloButton.disabled = true; joinButton.disabled = true;
+nameInput.value = nameInput.value || localStorage.getItem("planetfall:name") || "";
 
 const socket = createGameSocket();
 const { PlanetfallGame } = await import("./game");
@@ -35,8 +36,6 @@ let joining = false;
 let countdownTimer = 0;
 let countdownNumber = -1;
 let announcedWinner: string | null | undefined;
-
-nameInput.value = localStorage.getItem("planetfall:name") ?? "";
 
 await game.init();
 showScreen("home");
