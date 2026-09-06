@@ -35,6 +35,7 @@ import { GameAudio } from "./audio";
 type PlanetVisual = {
   group: THREE.Group;
   shell: THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
+  atmosphere: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
   cracks: THREE.Group;
   props: THREE.Group;
   damageDebris: THREE.Group;
@@ -42,15 +43,23 @@ type PlanetVisual = {
   barrel: THREE.Group;
   muzzle: THREE.Mesh;
   repair: THREE.Group;
+  repairCore: THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
   launchPad: THREE.Group;
   launchRing: THREE.Mesh;
   launchHighlight: THREE.Group;
   cannonJam: THREE.Group;
   repairJam: THREE.Group;
+  label: THREE.Sprite;
+  labelCanvas: HTMLCanvasElement;
+  labelContext: CanvasRenderingContext2D;
+  labelTexture: THREE.CanvasTexture;
+  labelKey: string;
   baseColor: THREE.Color;
   recoil: number;
   repairPulse: number;
   launchPulse: number;
+  nextJamSparkAt: number;
+  nextDamagePulseAt: number;
   state: PlanetState;
   body?: RAPIER.RigidBody;
 };
@@ -68,12 +77,16 @@ type PlayerVisual = {
   shoveUntil: number;
   hitPulse: number;
 };
-type ProjectileVisual = { mesh: THREE.Group; velocity: THREE.Vector3; weapon: WeaponType; trail: THREE.Line; trailPoints: THREE.Vector3[]; maxTrailPoints: number };
+type ProjectileVisual = { mesh: THREE.Group; velocity: THREE.Vector3; weapon: WeaponType; ownerId: string; threatening: boolean; trail: THREE.Line; trailPoints: THREE.Vector3[]; maxTrailPoints: number };
 type Particle = { mesh: THREE.Mesh; velocity: THREE.Vector3; life: number; maxLife: number };
+
+export type PromptKind = "idle" | "launch" | "shove" | "sabotage" | "cooldown" | "weapon";
+export type EdgeIndicator = { id: string; label: string; color: string; x: number; y: number; angle: number; danger?: boolean };
 
 const vec = (v: Vec3) => new THREE.Vector3(v.x, v.y, v.z);
 const plain = (v: THREE.Vector3): Vec3 => ({ x: v.x, y: v.y, z: v.z });
 const particleGeometry = new THREE.IcosahedronGeometry(0.12, 0);
+const damagedPlanetColor = new THREE.Color(0x33243c);
 
 function seededRandom(seed: string): () => number {
   let value = [...seed].reduce((total, character) => Math.imul(total ^ character.charCodeAt(0), 16777619), 2166136261) >>> 0;
@@ -98,7 +111,9 @@ export class PlanetfallGame {
   onRepair?: () => void;
   onInteract?: (interaction: PlayerInteraction) => void;
   onWeaponChange?: (weapon: WeaponType) => void;
-  onPrompt?: (text: string, aiming: boolean, label?: string) => void;
+  onPrompt?: (text: string, aiming: boolean, label?: string, kind?: PromptKind, progress?: number) => void;
+  onIndicators?: (indicators: EdgeIndicator[]) => void;
+  onHint?: (id: string, text: string) => void;
 
   private physics!: RAPIER.World;
   private room: RoomView | null = null;
@@ -125,6 +140,8 @@ export class PlanetfallGame {
   private launchAiming = false;
   private launchSourcePlanetId: string | null = null;
   private launchTargetPlanetId: string | null = null;
+  private launchTargetOffset = 0;
+  private launchTargetCycled = false;
   private activeSabotage: { planetId: string; structure: StructureType; startedAt: number } | null = null;
   private localLaunchTargetPlanetId: string | null = null;
   private localLaunchSourcePlanetId: string | null = null;
@@ -136,6 +153,13 @@ export class PlanetfallGame {
   private rope: THREE.Line;
   private trajectory: THREE.Line;
   private shake = 0;
+  private recentDamage = new Map<string, number>();
+  private lastIndicatorUpdate = 0;
+  private lastIncomingWarning = 0;
+  private lastCriticalWarning = 0;
+  private measuredFps = 60;
+  private performanceFrames = 0;
+  private performanceSampleAt = performance.now();
   private spectatorIndex = 0;
   private wasGrounded = false;
   private mode: "home" | "lobby" | "match" | "results" = "home";
@@ -177,6 +201,7 @@ export class PlanetfallGame {
     for (const planet of this.planets.values()) planet.group.visible = mode === "match" || mode === "results";
     for (const player of this.players.values()) player.group.visible = mode === "match" || mode === "results";
     if (mode !== "match") {
+      this.onIndicators?.([]);
       this.trajectory.visible = false;
       this.rope.visible = false;
       this.launchAiming = false;
@@ -205,10 +230,12 @@ export class PlanetfallGame {
     cameraForward: Vec3;
     players: PlayerState[];
     planets: PlanetState[];
+    matchStats: RoomView["matchStats"];
     scraps: RoomView["scraps"];
     launchPads: { planetId: string; position: Vec3 }[];
     cannons: { planetId: string; position: Vec3 }[];
     repairs: { planetId: string; position: Vec3 }[];
+    performance: { fps: number; drawCalls: number; triangles: number; particles: number; projectiles: number };
   } {
     return {
       localId: this.localId,
@@ -216,10 +243,15 @@ export class PlanetfallGame {
       cameraForward: plain(this.cameraForward),
       players: this.room?.players.map((player) => ({ ...player, position: { ...player.position }, velocity: { ...player.velocity }, rotation: { ...player.rotation } })) ?? [],
       planets: this.room?.planets.map((planet) => ({ ...planet, position: { ...planet.position } })) ?? [],
+      matchStats: this.room?.matchStats.map((stats) => ({ ...stats })) ?? [],
       scraps: this.room?.scraps.map((scrap) => ({ ...scrap, position: { ...scrap.position } })) ?? [],
       launchPads: this.room?.planets.map((planet) => ({ planetId: planet.id, position: launchPadPosition(planet) })) ?? [],
       cannons: this.room?.planets.map((planet) => ({ planetId: planet.id, position: cannonPosition(planet) })) ?? [],
-      repairs: this.room?.planets.map((planet) => ({ planetId: planet.id, position: repairPosition(planet) })) ?? []
+      repairs: this.room?.planets.map((planet) => ({ planetId: planet.id, position: repairPosition(planet) })) ?? [],
+      performance: {
+        fps: this.measuredFps, drawCalls: this.renderer.info.render.calls, triangles: this.renderer.info.render.triangles,
+        particles: this.particles.length, projectiles: this.projectiles.size
+      }
     };
   }
 
@@ -250,7 +282,11 @@ export class PlanetfallGame {
       new THREE.LineBasicMaterial({ color: projectile.weapon === "rocket" ? 0x70f5ff : 0xff7b4d, transparent: true, opacity: 0.72 })
     );
     this.scene.add(trail);
-    this.projectiles.set(projectile.id, { mesh: group, velocity: vec(projectile.velocity), weapon: projectile.weapon, trail, trailPoints: [group.position.clone()], maxTrailPoints });
+    const threatening = this.threatensLocalPlanet(projectile);
+    this.projectiles.set(projectile.id, {
+      mesh: group, velocity: vec(projectile.velocity), weapon: projectile.weapon, ownerId: projectile.ownerId,
+      threatening, trail, trailPoints: [group.position.clone()], maxTrailPoints
+    });
     const ownerPlanet = [...this.planets.values()].find((planet) => planet.state.ownerId === projectile.ownerId);
     if (ownerPlanet) {
       ownerPlanet.recoil = 1;
@@ -259,6 +295,10 @@ export class PlanetfallGame {
       this.spawnBurst(muzzlePosition, [0xffdc4f, 0xffffff, 0x9fb4ca], projectile.weapon === "asteroid" ? 14 : 9, projectile.weapon === "asteroid" ? 5 : 3.5);
     }
     projectile.weapon === "rocket" ? this.audio.rocket() : this.audio.asteroid();
+    if (threatening && performance.now() - this.lastIncomingWarning > 1400) {
+      this.lastIncomingWarning = performance.now();
+      this.audio.incoming(projectile.weapon === "asteroid");
+    }
     this.shake = Math.max(this.shake, 0.18);
   }
 
@@ -324,6 +364,8 @@ export class PlanetfallGame {
     if (player && planet) {
       const outward = player.group.position.clone().sub(planet.group.position).normalize();
       this.spawnBurst(player.group.position.clone().addScaledVector(outward, -0.65), [0xd7e5ff, 0x9fb4ca, 0x70f5ff], 12, 3.2);
+      player.hitPulse = Math.max(player.hitPulse, .48);
+      this.spawnPulse(player.group.position.clone().addScaledVector(outward, -.55), new THREE.Color(player.state.color).getHex(), .72);
     }
     if (payload.playerId === this.localId) {
       this.localLaunchTargetPlanetId = null;
@@ -350,6 +392,10 @@ export class PlanetfallGame {
       this.localVelocity.copy(vec(payload.velocity));
       this.correction.set(0, 0, 0);
       this.shake = Math.max(this.shake, 0.38);
+      this.canvas.classList.remove("shove-impact");
+      void this.canvas.offsetWidth;
+      this.canvas.classList.add("shove-impact");
+      setTimeout(() => this.canvas.classList.remove("shove-impact"), 110);
     }
     if (payload.attackerId === this.localId || payload.targetId === this.localId) this.audio.shove();
   }
@@ -396,6 +442,12 @@ export class PlanetfallGame {
     setTimeout(() => visual.shell.material.emissive.setHex(0x000000), 130);
     this.spawnBurst(worldHit, [0xff794c, 0xffcf57, 0x4b2947], integrity <= 25 ? 20 : 12, integrity <= 25 ? 6 : 4);
     this.spawnPulse(worldHit, 0xff704c, integrity <= 50 ? 1.7 : 1.05);
+    this.recentDamage.set(planetId, performance.now() + 3200);
+    const local = this.players.get(this.localId);
+    if (local?.state.planetId === planetId && integrity <= 25 && performance.now() - this.lastCriticalWarning > 5000) {
+      this.lastCriticalWarning = performance.now();
+      this.audio.critical();
+    }
   }
 
   destroyPlanet(planetId: string): void {
@@ -409,6 +461,7 @@ export class PlanetfallGame {
     visual.repair.visible = false;
     visual.launchPad.visible = false;
     visual.launchHighlight.visible = false;
+    visual.label.visible = false;
     for (let i = 0; i < 18; i++) {
       const mesh = new THREE.Mesh(
         new THREE.DodecahedronGeometry(Math.random() * 1.4 + 0.55, 0),
@@ -428,10 +481,13 @@ export class PlanetfallGame {
     this.particles = [];
     for (const shot of this.projectiles.values()) this.disposeProjectile(shot);
     this.projectiles.clear();
+    this.recentDamage.clear();
+    this.onIndicators?.([]);
     for (const planet of this.planets.values()) {
       for (const child of [...planet.cracks.children]) if (!child.userData.stageMark) { planet.cracks.remove(child); this.disposeObject(child); }
       planet.shell.visible = true; planet.cannon.visible = true; planet.repair.visible = true; planet.launchPad.visible = true; planet.props.visible = true;
       planet.launchHighlight.visible = false;
+      planet.label.visible = true;
       planet.group.scale.setScalar(1); planet.shell.material.emissive.setHex(0x000000);
     }
   }
@@ -481,9 +537,9 @@ export class PlanetfallGame {
   }
 
   private createDemo(): void {
-    const a = this.makePlanet({ id: "demo-a", ownerId: "", position: { x: 13, y: -2, z: -4 }, integrity: 100, alive: true, palette: 0, damageStage: 0, cannonDisabledUntil: 0, repairDisabledUntil: 0 });
+    const a = this.makePlanet({ id: "demo-a", ownerId: "", position: { x: 13, y: -2, z: -4 }, integrity: 100, alive: true, palette: 0, damageStage: 0, cannonDisabledUntil: 0, repairDisabledUntil: 0, cannonSabotageImmuneUntil: 0, repairSabotageImmuneUntil: 0 });
     a.group.scale.setScalar(1.25);
-    const b = this.makePlanet({ id: "demo-b", ownerId: "", position: { x: -12, y: 3, z: -18 }, integrity: 58, alive: true, palette: 3, damageStage: 2, cannonDisabledUntil: 0, repairDisabledUntil: 0 });
+    const b = this.makePlanet({ id: "demo-b", ownerId: "", position: { x: -12, y: 3, z: -18 }, integrity: 58, alive: true, palette: 3, damageStage: 2, cannonDisabledUntil: 0, repairDisabledUntil: 0, cannonSabotageImmuneUntil: 0, repairSabotageImmuneUntil: 0 });
     b.group.scale.setScalar(0.7);
     this.demo.add(a.group, b.group);
     const astronaut = this.makePlayer({ id: "demo", name: "", isBot: false, color: "#ffdc4f", planetId: "", connected: true, ready: true, alive: true, scrap: 0, position: { x: 13, y: 9.5, z: -4 }, velocity: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, lastInputSequence: 0, surfacePlanetId: "demo-a", launchCooldownUntil: 0, shoveCooldownUntil: 0 });
@@ -521,6 +577,11 @@ export class PlanetfallGame {
       new THREE.MeshBasicMaterial({ color: palette.accent, transparent: true, opacity: 0.1, side: THREE.BackSide, depthWrite: false })
     );
     group.add(atmosphere);
+    const labelCanvas = document.createElement("canvas"); labelCanvas.width = 384; labelCanvas.height = 112;
+    const labelContext = labelCanvas.getContext("2d")!;
+    const labelTexture = new THREE.CanvasTexture(labelCanvas); labelTexture.colorSpace = THREE.SRGBColorSpace;
+    const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTexture, transparent: true, depthTest: false, depthWrite: false }));
+    label.position.set(0, BALANCE.planetRadius + 4.1, 0); label.scale.set(7.2, 2.1, 1); label.renderOrder = 8; group.add(label);
     const cracks = new THREE.Group(); group.add(cracks);
     for (let stage = 1; stage <= 3; stage++) {
       const scar = new THREE.Mesh(
@@ -625,9 +686,10 @@ export class PlanetfallGame {
       fragment.visible = false; fragment.userData.damageLevel = 1 + i % 3; damageDebris.add(fragment);
     }
     return {
-      group, shell, cracks, props, damageDebris, cannon, barrel: barrelRig, muzzle, repair,
+      group, shell, atmosphere, cracks, props, damageDebris, cannon, barrel: barrelRig, muzzle, repair, repairCore: core,
       launchPad, launchRing, launchHighlight, cannonJam, repairJam,
-      baseColor, recoil: 0, repairPulse: 0, launchPulse: 0, state
+      label, labelCanvas, labelContext, labelTexture, labelKey: "",
+      baseColor, recoil: 0, repairPulse: 0, launchPulse: 0, nextJamSparkAt: 0, nextDamagePulseAt: 0, state
     };
   }
 
@@ -715,13 +777,14 @@ export class PlanetfallGame {
       visual.state = state;
       visual.group.position.copy(vec(state.position));
       visual.body?.setTranslation(state.position, true);
-      visual.shell.material.color.copy(visual.baseColor).lerp(new THREE.Color(0x33243c), state.damageStage * 0.13);
+      visual.shell.material.color.copy(visual.baseColor).lerp(damagedPlanetColor, state.damageStage * 0.13);
       for (const mark of visual.cracks.children) if (mark.userData.stageMark) mark.visible = state.damageStage >= mark.userData.stageMark;
       visual.props.children.forEach((prop, index) => { prop.visible = state.alive && (state.damageStage < 2 || index % (state.damageStage === 2 ? 4 : 2) !== 0); });
       visual.damageDebris.children.forEach((fragment) => { fragment.visible = state.alive && state.damageStage >= fragment.userData.damageLevel; });
       visual.props.rotation.z = state.damageStage >= 3 ? Math.sin(this.demoTime * 2 + state.palette) * 0.007 : 0;
       visual.props.visible = state.alive;
-      if (!state.alive) { visual.shell.visible = false; visual.cannon.visible = false; visual.repair.visible = false; visual.launchPad.visible = false; visual.launchHighlight.visible = false; }
+      this.updatePlanetLabel(visual);
+      if (!state.alive) { visual.shell.visible = false; visual.cannon.visible = false; visual.repair.visible = false; visual.launchPad.visible = false; visual.launchHighlight.visible = false; visual.label.visible = false; }
       else { visual.shell.visible = true; visual.cannon.visible = true; visual.repair.visible = true; visual.launchPad.visible = true; }
     }
     for (const [id, visual] of this.planets) {
@@ -758,6 +821,34 @@ export class PlanetfallGame {
     }
   }
 
+  private updatePlanetLabel(visual: PlanetVisual): void {
+    const owner = this.room?.players.find((player) => player.id === visual.state.ownerId);
+    if (!owner) { visual.label.visible = false; return; }
+    const now = Date.now();
+    const intruder = this.room?.players.some((player) => player.alive && player.id !== owner.id && player.surfacePlanetId === visual.state.id) ?? false;
+    const jammed = visual.state.cannonDisabledUntil > now || visual.state.repairDisabledUntil > now;
+    const critical = visual.state.integrity <= 25;
+    const status = intruder ? "INTRUDER" : jammed ? "JAMMED" : critical ? "CRITICAL" : owner.id === this.localId ? "YOUR PLANET" : "";
+    const integrity = Math.round(visual.state.integrity);
+    const key = `${owner.name}|${owner.color}|${integrity}|${status}|${visual.state.alive}`;
+    if (key === visual.labelKey) return;
+    visual.labelKey = key;
+    const context = visual.labelContext;
+    context.clearRect(0, 0, visual.labelCanvas.width, visual.labelCanvas.height);
+    context.fillStyle = critical ? "rgba(47,7,25,.88)" : "rgba(5,8,31,.82)";
+    context.beginPath(); context.roundRect(7, 7, 370, status ? 96 : 72, 18); context.fill();
+    context.strokeStyle = critical ? "#ff5d72" : owner.color; context.lineWidth = owner.id === this.localId ? 6 : 4; context.stroke();
+    context.fillStyle = "#ffffff"; context.textBaseline = "middle"; context.font = "900 30px Trebuchet MS"; context.textAlign = "left";
+    context.fillText(owner.name.toUpperCase(), 26, 39, 250);
+    context.fillStyle = critical ? "#ff8b74" : owner.color; context.textAlign = "right"; context.font = "900 32px Arial Black"; context.fillText(`${integrity}%`, 357, 39);
+    if (status) {
+      context.fillStyle = intruder || jammed || critical ? "#ffdc4f" : "#9eacd3";
+      context.font = "900 18px Trebuchet MS"; context.textAlign = "center";
+      context.fillText(status, 192, 82);
+    }
+    visual.labelTexture.needsUpdate = true;
+  }
+
   private syncScraps(states: RoomView["scraps"]): void {
     for (const state of states) {
       if (!this.scraps.has(state.id)) { const mesh = this.makeScrap(); mesh.position.copy(vec(state.position)); this.scene.add(mesh); this.scraps.set(state.id, mesh); }
@@ -790,7 +881,7 @@ export class PlanetfallGame {
     });
     this.canvas.addEventListener("click", () => {
       this.audio.unlock();
-      if (this.mode === "match" && document.pointerLockElement !== this.canvas) void this.canvas.requestPointerLock();
+      if (this.mode === "match" && document.pointerLockElement !== this.canvas) void this.canvas.requestPointerLock().catch(() => undefined);
     });
     this.canvas.addEventListener("mousedown", (event) => {
       if (this.mode !== "match" || document.pointerLockElement !== this.canvas) return;
@@ -799,6 +890,11 @@ export class PlanetfallGame {
     });
     addEventListener("mouseup", (event) => { if (event.button === 2) { this.grappleHeld = false; this.grapplePoint = null; } });
     this.canvas.addEventListener("contextmenu", (event) => event.preventDefault());
+    this.canvas.addEventListener("wheel", (event) => {
+      if (!this.launchAiming) return;
+      event.preventDefault();
+      this.cycleLaunchTarget(event.deltaY >= 0 ? 1 : -1);
+    }, { passive: false });
   }
 
   private frame(now: number): void {
@@ -810,6 +906,11 @@ export class PlanetfallGame {
     this.updateEffects(dt);
     if (this.physics) this.physics.step();
     this.renderer.render(this.scene, this.camera);
+    this.performanceFrames += 1;
+    if (now - this.performanceSampleAt >= 1000) {
+      this.measuredFps = this.performanceFrames * 1000 / (now - this.performanceSampleAt);
+      this.performanceFrames = 0; this.performanceSampleAt = now;
+    }
   }
 
   private updateDemo(dt: number): void {
@@ -939,7 +1040,7 @@ export class PlanetfallGame {
     for (const planet of this.planets.values()) planet.launchHighlight.visible = false;
     if (this.room?.phase === "countdown") {
       this.trajectory.visible = false;
-      this.onPrompt?.("Get ready", false);
+      this.onPrompt?.("GET READY", false, undefined, "idle");
       return;
     }
 
@@ -952,7 +1053,7 @@ export class PlanetfallGame {
       } else {
         this.trajectory.visible = false;
         const progress = clamp((performance.now() - this.activeSabotage.startedAt) / BALANCE.sabotage.channelMs, 0, 1);
-        this.onPrompt?.(`HOLD E · JAMMING ${Math.round(progress * 100)}%`, false);
+        this.onPrompt?.(`HOLD E  JAMMING ${Math.round(progress * 100)}%`, false, undefined, "sabotage", progress);
         return;
       }
     }
@@ -962,13 +1063,18 @@ export class PlanetfallGame {
       if (!source?.state.alive || this.localPosition.distanceTo(vec(launchPadPosition(source.state))) > BALANCE.launch.range + 0.8) {
         this.cancelLaunchAim();
       } else {
-        const target = this.selectLaunchTarget(source.state.id);
+        const selected = this.launchTargetPlanetId ? this.planets.get(this.launchTargetPlanetId) : undefined;
+        const target = this.launchTargetCycled && selected?.state.alive ? selected : this.selectLaunchTarget(source.state.id);
         this.launchTargetPlanetId = target?.state.id ?? null;
         if (target) {
           target.launchHighlight.visible = true;
-          this.updateLaunchTrajectory(source, target);
           const owner = this.room?.players.find((player) => player.id === target.state.ownerId);
-          this.onPrompt?.(`E · Launch to ${owner?.name ?? "planet"}   Esc · Cancel`, true, `LAUNCH · ${owner?.name?.toUpperCase() ?? "TARGET"}`);
+          target.launchHighlight.traverse((child) => {
+            const mesh = child as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
+            if (mesh.material?.color && owner) { mesh.material.color.set(owner.color); mesh.material.opacity = .62; }
+          });
+          this.updateLaunchTrajectory(source, target);
+          this.onPrompt?.(`E  LAUNCH TO ${owner?.name.toUpperCase() ?? "PLANET"}   •   WHEEL  TARGET   •   ESC  CANCEL`, true, `TARGET · ${owner?.name?.toUpperCase() ?? "PLANET"} · ${Math.round(target.state.integrity)}%`, "launch");
           return;
         }
       }
@@ -977,27 +1083,36 @@ export class PlanetfallGame {
     this.trajectory.visible = false;
     const enemyStructure = this.nearbyEnemyStructure();
     if (enemyStructure) {
-      this.onPrompt?.(`HOLD E · JAM ${enemyStructure.structure === "cannon" ? "CANNON" : "REPAIR CORE"}`, false);
+      const now = Date.now();
+      if (enemyStructure.disabledUntil > now) {
+        this.onPrompt?.(`${enemyStructure.structure === "cannon" ? "CANNON" : "REPAIR"} JAMMED  ${Math.ceil((enemyStructure.disabledUntil - now) / 1000)}s`, false, undefined, "cooldown");
+      } else if (enemyStructure.immuneUntil > now) {
+        this.onPrompt?.(`SYSTEM SHIELDED  ${Math.ceil((enemyStructure.immuneUntil - now) / 1000)}s`, false, undefined, "cooldown");
+      } else {
+        this.onPrompt?.(`HOLD E  JAM ${enemyStructure.structure === "cannon" ? "CANNON" : "REPAIR"}`, false, undefined, "sabotage");
+      }
       return;
     }
     const shoveTarget = this.nearbyPlayer();
     if (shoveTarget) {
-      this.onPrompt?.(`E · Shove ${shoveTarget.state.name}`, false);
+      const cooldown = Math.max(0, (local.state.shoveCooldownUntil - Date.now()) / 1000);
+      this.onPrompt?.(cooldown > 0 ? `SHOVE READY IN ${cooldown.toFixed(1)}s` : `E  SHOVE ${shoveTarget.state.name.toUpperCase()}`, false, undefined, cooldown > 0 ? "cooldown" : "shove");
       return;
     }
     const launchPad = this.nearbyLaunchPad();
     if (launchPad) {
       const cooldown = Math.max(0, (local.state.launchCooldownUntil - Date.now()) / 1000);
-      this.onPrompt?.(cooldown > 0 ? `Launch recharging · ${cooldown.toFixed(1)}s` : "E · Launch", false);
+      this.onHint?.("launch", "Launch to rival planets and steal their scrap");
+      this.onPrompt?.(cooldown > 0 ? `LAUNCH READY IN ${cooldown.toFixed(1)}s` : "E  LAUNCH", false, undefined, cooldown > 0 ? "cooldown" : "launch");
       return;
     }
 
     const nearCannon = this.nearOwnCannon();
     const nearRepair = distance(plain(this.localPosition), repairPosition(ownPlanet.state)) < 4;
     if (nearCannon && ownPlanet.state.cannonDisabledUntil > Date.now()) {
-      this.onPrompt?.(`CANNON JAMMED · ${Math.ceil((ownPlanet.state.cannonDisabledUntil - Date.now()) / 1000)}s`, false);
+      this.onPrompt?.(`CANNON JAMMED  ${Math.ceil((ownPlanet.state.cannonDisabledUntil - Date.now()) / 1000)}s`, false, undefined, "cooldown");
     } else if (nearRepair && ownPlanet.state.repairDisabledUntil > Date.now()) {
-      this.onPrompt?.(`REPAIR CORE JAMMED · ${Math.ceil((ownPlanet.state.repairDisabledUntil - Date.now()) / 1000)}s`, false);
+      this.onPrompt?.(`REPAIR JAMMED  ${Math.ceil((ownPlanet.state.repairDisabledUntil - Date.now()) / 1000)}s`, false, undefined, "cooldown");
     } else if (nearCannon) {
       const origin = vec(cannonPosition(ownPlanet.state)).addScaledVector(this.cameraForward, 1.8);
       const points = Array.from({ length: 20 }, (_, i) => origin.clone().addScaledVector(this.cameraForward, i * 1.25));
@@ -1006,10 +1121,18 @@ export class PlanetfallGame {
       const flatAim = this.cameraForward.clone().projectOnPlane(new THREE.Vector3(0, 1, 0)).normalize();
       if (flatAim.lengthSq() > 0.1) ownPlanet.cannon.rotation.y = Math.atan2(-flatAim.x, -flatAim.z);
       this.trajectory.visible = true;
-      this.onPrompt?.("LMB · Fire cannon", true, `${this.weapon === "rocket" ? "ROCKET" : "ASTEROID"} · ${BALANCE.weapons[this.weapon].cost} SCRAP`);
-    } else if (nearRepair) this.onPrompt?.(`R · Repair ${BALANCE.repair.heal} integrity for ${BALANCE.repair.cost} scrap`, false);
-    else if (document.pointerLockElement !== this.canvas) this.onPrompt?.("Click the arena to take control", false);
-    else this.onPrompt?.("Collect scrap · Raid rival planets · Defend your world", false);
+      this.onHint?.("cannon", "Fire at rival planets");
+      this.onPrompt?.("LMB  FIRE CANNON", true, `${this.weapon === "rocket" ? "ROCKET" : "ASTEROID"} · ${BALANCE.weapons[this.weapon].cost} SCRAP`, "weapon");
+    } else if (nearRepair) {
+      this.onHint?.("repair", "R repairs your planet");
+      this.onPrompt?.(`R  REPAIR ${BALANCE.repair.heal}% FOR ${BALANCE.repair.cost} SCRAP`, false, undefined, "idle");
+    } else if (document.pointerLockElement !== this.canvas) this.onPrompt?.("CLICK THE ARENA TO TAKE CONTROL", false, undefined, "idle");
+    else {
+      if (!local.state.surfacePlanetId && this.localVelocity.length() > 8) this.onHint?.("grapple-space", "Right click to grapple back");
+      else if (local.state.surfacePlanetId && local.state.surfacePlanetId !== local.state.planetId) this.onHint?.("enemy-world", "Steal scrap, shove defenders, or jam structures");
+      else if ([...this.scraps.values()].some((scrap) => scrap.position.distanceTo(this.localPosition) < 4)) this.onHint?.("scrap", "Collect scrap to fire and repair");
+      this.onPrompt?.("COLLECT · RAID · DEFEND", false, undefined, "idle");
+    }
   }
 
   private handleInteractDown(): void {
@@ -1020,7 +1143,7 @@ export class PlanetfallGame {
       return;
     }
     const structure = this.nearbyEnemyStructure();
-    if (structure) {
+    if (structure && structure.disabledUntil <= Date.now() && structure.immuneUntil <= Date.now()) {
       this.activeSabotage = { planetId: structure.planet.state.id, structure: structure.structure, startedAt: performance.now() };
       this.onInteract?.({ action: "sabotage", planetId: structure.planet.state.id, structure: structure.structure, active: true });
       return;
@@ -1036,6 +1159,8 @@ export class PlanetfallGame {
       this.launchAiming = true;
       this.launchSourcePlanetId = pad.state.id;
       this.launchTargetPlanetId = this.selectLaunchTarget(pad.state.id)?.state.id ?? null;
+      this.launchTargetOffset = 0;
+      this.launchTargetCycled = false;
       this.audio.click();
     }
   }
@@ -1044,21 +1169,22 @@ export class PlanetfallGame {
     this.launchAiming = false;
     this.launchSourcePlanetId = null;
     this.launchTargetPlanetId = null;
+    this.launchTargetOffset = 0;
+    this.launchTargetCycled = false;
     this.trajectory.visible = false;
     for (const planet of this.planets.values()) planet.launchHighlight.visible = false;
   }
 
-  private nearbyEnemyStructure(): { planet: PlanetVisual; structure: StructureType; distance: number } | null {
-    let nearest: { planet: PlanetVisual; structure: StructureType; distance: number } | null = null;
-    const now = Date.now();
+  private nearbyEnemyStructure(): { planet: PlanetVisual; structure: StructureType; distance: number; disabledUntil: number; immuneUntil: number } | null {
+    let nearest: { planet: PlanetVisual; structure: StructureType; distance: number; disabledUntil: number; immuneUntil: number } | null = null;
     for (const planet of this.planets.values()) {
       if (!planet.state.alive || planet.state.ownerId === this.localId) continue;
       for (const structure of ["cannon", "repair"] as const) {
         const disabledUntil = structure === "cannon" ? planet.state.cannonDisabledUntil : planet.state.repairDisabledUntil;
-        if (disabledUntil > now) continue;
+        const immuneUntil = structure === "cannon" ? planet.state.cannonSabotageImmuneUntil : planet.state.repairSabotageImmuneUntil;
         const position = structure === "cannon" ? cannonPosition(planet.state) : repairPosition(planet.state);
         const d = distance(plain(this.localPosition), position);
-        if (d <= BALANCE.sabotage.range && (!nearest || d < nearest.distance)) nearest = { planet, structure, distance: d };
+        if (d <= BALANCE.sabotage.range && (!nearest || d < nearest.distance)) nearest = { planet, structure, distance: d, disabledUntil, immuneUntil };
       }
     }
     return nearest;
@@ -1094,6 +1220,17 @@ export class PlanetfallGame {
       return directionB.dot(this.cameraForward) - directionA.dot(this.cameraForward);
     });
     return targets[0] ?? null;
+  }
+
+  private cycleLaunchTarget(direction: number): void {
+    if (!this.launchSourcePlanetId) return;
+    const targets = [...this.planets.values()].filter((planet) => planet.state.alive && planet.state.id !== this.launchSourcePlanetId);
+    if (!targets.length) return;
+    const current = targets.findIndex((planet) => planet.state.id === this.launchTargetPlanetId);
+    this.launchTargetOffset = (current + direction + targets.length) % targets.length;
+    this.launchTargetPlanetId = targets[this.launchTargetOffset].state.id;
+    this.launchTargetCycled = true;
+    this.audio.click();
   }
 
   private updateLaunchTrajectory(source: PlanetVisual, target: PlanetVisual): void {
@@ -1149,6 +1286,9 @@ export class PlanetfallGame {
     }
     for (const mesh of this.scraps.values()) { mesh.rotation.y += dt * 1.8; mesh.rotation.x += dt * 0.7; mesh.scale.setScalar(1 + Math.sin(this.demoTime * 4 + mesh.position.x) * .08); }
     for (const visual of this.planets.values()) {
+      this.updatePlanetLabel(visual);
+      const cameraDistance = this.camera.position.distanceTo(visual.group.position);
+      visual.label.visible = visual.state.alive && this.mode === "match" && cameraDistance > 16;
       visual.cannon.rotation.y += Math.sin(this.demoTime + visual.group.position.x) * dt * .08;
       visual.repair.rotation.y += dt * 1.1;
       visual.recoil *= Math.pow(.045, dt);
@@ -1164,8 +1304,33 @@ export class PlanetfallGame {
       visual.launchHighlight.scale.setScalar(1 + Math.sin(this.demoTime * 4) * .015);
       visual.cannonJam.visible = visual.state.cannonDisabledUntil > wallNow;
       visual.repairJam.visible = visual.state.repairDisabledUntil > wallNow;
-      if (visual.cannonJam.visible) { visual.cannonJam.rotation.y += dt * 5; visual.cannonJam.rotation.z += dt * 2.2; }
-      if (visual.repairJam.visible) { visual.repairJam.rotation.y -= dt * 4.2; visual.repairJam.rotation.x += dt * 1.8; }
+      if (visual.cannonJam.visible) {
+        visual.cannonJam.rotation.y += dt * 5; visual.cannonJam.rotation.z += dt * 2.2;
+        (visual.muzzle.material as THREE.MeshStandardMaterial).emissiveIntensity = .15 + Math.sin(this.demoTime * 23) * .1;
+      }
+      if (visual.repairJam.visible) {
+        visual.repairJam.rotation.y -= dt * 4.2; visual.repairJam.rotation.x += dt * 1.8;
+        visual.repairCore.material.emissiveIntensity = .28 + Math.max(0, Math.sin(this.demoTime * 19)) * .7;
+      } else visual.repairCore.material.emissiveIntensity = 1.5;
+      if ((visual.cannonJam.visible || visual.repairJam.visible) && animationNow >= visual.nextJamSparkAt) {
+        visual.nextJamSparkAt = animationNow + 360 + Math.random() * 340;
+        const jammed = visual.cannonJam.visible ? visual.cannon : visual.repair;
+        this.spawnBurst(jammed.getWorldPosition(new THREE.Vector3()), [0xff5d8f, 0xb67cff, 0x70f5ff], 3, 2.4);
+      }
+      const critical = visual.state.alive && visual.state.integrity <= 25;
+      visual.atmosphere.material.opacity = critical ? .12 + Math.max(0, Math.sin(this.demoTime * 3 + visual.state.palette)) * .12 : .1 + visual.state.damageStage * .025;
+      visual.atmosphere.material.color.set(critical ? 0xff5d67 : PLANET_PALETTES[visual.state.palette % PLANET_PALETTES.length].accent);
+      if (critical) {
+        visual.shell.material.emissive.setHex(0x711624);
+        visual.shell.material.emissiveIntensity = .22 + Math.max(0, Math.sin(this.demoTime * 4.2 + visual.state.palette)) * .35;
+        if (animationNow >= visual.nextDamagePulseAt) {
+          visual.nextDamagePulseAt = animationNow + 1700 + Math.random() * 900;
+          const fragment = visual.damageDebris.children[Math.floor(Math.random() * Math.max(1, visual.damageDebris.children.length))];
+          if (fragment) this.spawnBurst(fragment.getWorldPosition(new THREE.Vector3()), [0xff714d, 0x5a2549], 3, 1.5);
+        }
+      } else if (visual.shell.material.emissive.getHex() === 0x711624) {
+        visual.shell.material.emissive.setHex(0x000000); visual.shell.material.emissiveIntensity = 1;
+      }
       visual.damageDebris.rotation.y += dt * (.08 + visual.state.damageStage * .06);
       visual.damageDebris.rotation.x += dt * .025;
     }
@@ -1212,6 +1377,10 @@ export class PlanetfallGame {
       if (particle.life <= 0) { this.disposeParticle(particle); this.particles.splice(i, 1); }
     }
     while (this.particles.length > 180) this.disposeParticle(this.particles.shift()!);
+    if (animationNow - this.lastIndicatorUpdate > 100) {
+      this.lastIndicatorUpdate = animationNow;
+      this.updateIndicators(animationNow);
+    }
     this.shake *= Math.pow(0.02, dt);
   }
 
@@ -1268,6 +1437,78 @@ export class PlanetfallGame {
 
   private nearestPlanet(position: THREE.Vector3, aliveOnly: boolean): PlanetVisual | undefined {
     return [...this.planets.values()].filter((p) => !aliveOnly || p.state.alive).sort((a, b) => position.distanceTo(a.group.position) - position.distanceTo(b.group.position))[0];
+  }
+
+  private threatensLocalPlanet(projectile: ProjectileState): boolean {
+    const local = this.players.get(this.localId);
+    const planet = local ? this.planets.get(local.state.planetId) : undefined;
+    if (!planet?.state.alive || projectile.ownerId === this.localId) return false;
+    const origin = vec(projectile.position);
+    const velocity = vec(projectile.velocity);
+    const speedSquared = velocity.lengthSq();
+    if (speedSquared < .01) return false;
+    const time = planet.group.position.clone().sub(origin).dot(velocity) / speedSquared;
+    if (time < .08 || time > 7) return false;
+    const closest = origin.addScaledVector(velocity, time);
+    return closest.distanceTo(planet.group.position) < BALANCE.planetRadius + (projectile.weapon === "asteroid" ? 4.5 : 2.5);
+  }
+
+  private updateIndicators(now: number): void {
+    if (this.mode !== "match" || !this.room) return this.onIndicators?.([]);
+    const local = this.players.get(this.localId);
+    const ownPlanet = local ? this.planets.get(local.state.planetId) : undefined;
+    if (!local || !ownPlanet) return this.onIndicators?.([]);
+    type Candidate = { id: string; label: string; color: string; world: THREE.Vector3; danger?: boolean; priority: number };
+    const ownWasHit = (this.recentDamage.get(ownPlanet.state.id) ?? 0) > now;
+    const candidates: Candidate[] = [{
+      id: "home", label: ownWasHit ? "PLANET HIT" : "HOME", color: local.state.color,
+      world: ownPlanet.group.position, danger: ownWasHit, priority: ownWasHit ? 6 : 1
+    }];
+    const targetId = this.launchTargetPlanetId ?? this.localLaunchTargetPlanetId;
+    const target = targetId ? this.planets.get(targetId) : undefined;
+    if (target) {
+      const owner = this.room.players.find((player) => player.id === target.state.ownerId);
+      candidates.push({ id: "target", label: owner?.name.toUpperCase() ?? "TARGET", color: owner?.color ?? "#70f5ff", world: target.group.position, priority: 5 });
+    }
+    const intruder = [...this.players.values()]
+      .filter((player) => player.state.alive && player.state.id !== this.localId && player.state.surfacePlanetId === ownPlanet.state.id)
+      .sort((a, b) => a.group.position.distanceTo(this.localPosition) - b.group.position.distanceTo(this.localPosition))[0];
+    if (intruder) candidates.push({ id: "intruder", label: "INTRUDER", color: intruder.state.color, world: intruder.group.position, danger: true, priority: 6 });
+    for (const [id, projectile] of this.projectiles) if (projectile.threatening) {
+      candidates.push({ id: `incoming-${id}`, label: projectile.weapon === "asteroid" ? "ASTEROID" : "INCOMING", color: projectile.weapon === "asteroid" ? "#ff784d" : "#ff5d8f", world: projectile.mesh.position, danger: true, priority: projectile.weapon === "asteroid" ? 8 : 7 });
+    }
+    for (const [planetId, expiresAt] of this.recentDamage) {
+      if (expiresAt <= now) { this.recentDamage.delete(planetId); continue; }
+      if (planetId === ownPlanet.state.id) continue;
+      const damaged = this.planets.get(planetId);
+      if (damaged) {
+        const owner = this.room.players.find((player) => player.id === damaged.state.ownerId);
+        candidates.push({ id: `hit-${planetId}`, label: "PLANET HIT", color: owner?.color ?? "#ffdc4f", world: damaged.group.position, danger: true, priority: 4 });
+      }
+    }
+    const cameraForward = new THREE.Vector3(); this.camera.getWorldDirection(cameraForward);
+    const cameraRight = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 0);
+    const cameraUp = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 1);
+    const indicators: EdgeIndicator[] = [];
+    const used = new Set<string>();
+    for (const candidate of candidates.sort((a, b) => b.priority - a.priority)) {
+      if (used.has(candidate.id) || indicators.length >= 4) continue;
+      used.add(candidate.id);
+      const toTarget = candidate.world.clone().sub(this.camera.position).normalize();
+      const projected = candidate.world.clone().project(this.camera);
+      const visible = toTarget.dot(cameraForward) > 0 && Math.abs(projected.x) < .86 && Math.abs(projected.y) < .8 && projected.z > -1 && projected.z < 1;
+      if (visible) continue;
+      let screenX = toTarget.dot(cameraRight);
+      let screenY = -toTarget.dot(cameraUp);
+      if (Math.abs(screenX) + Math.abs(screenY) < .01) screenY = -1;
+      const angle = Math.atan2(screenY, screenX);
+      const margin = 58;
+      const x = innerWidth / 2 + Math.cos(angle) * Math.max(20, innerWidth / 2 - margin);
+      let y = innerHeight / 2 + Math.sin(angle) * Math.max(20, innerHeight / 2 - margin);
+      if (indicators.some((item) => Math.hypot(item.x - x, item.y - y) < 58)) y = clamp(y + 30, margin, innerHeight - margin);
+      indicators.push({ id: candidate.id, label: candidate.label, color: candidate.color, x, y, angle: angle * 180 / Math.PI + 135, danger: candidate.danger });
+    }
+    this.onIndicators?.(indicators);
   }
 
   private preventCameraClip(desired: THREE.Vector3, target: THREE.Vector3, planetCenter: THREE.Vector3): THREE.Vector3 {

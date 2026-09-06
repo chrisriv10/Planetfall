@@ -29,6 +29,7 @@ Choose **Play Solo** for a match with three bots, or **Create Room** and share t
 | --- | --- |
 | `WASD` | Move across any planet |
 | Mouse | Aim and look |
+| Mouse wheel | Cycle launch targets while aiming |
 | `Space` | Jump |
 | `Shift` | Burst |
 | `Left click` | Fire your cannon |

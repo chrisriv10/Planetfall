@@ -7,6 +7,7 @@ import {
   add,
   cannonPosition,
   clamp,
+  createMatchStats,
   cross,
   damageStage,
   distance,
@@ -20,10 +21,15 @@ import {
   projectOnPlane,
   repairPosition,
   sanitizeName,
+  selectMatchAwards,
   scale,
   sub,
   type ClientToServerEvents,
   type JoinResult,
+  type MatchEvent,
+  type MatchEventType,
+  type MatchResult,
+  type MatchStats,
   type PlanetState,
   type PlayerInput,
   type PlayerInteraction,
@@ -78,6 +84,8 @@ export class GameRoom {
   scraps = new Map<string, ScrapState>();
   projectiles = new Map<string, ProjectileState>();
   rematchVotes = new Set<string>();
+  matchStats = new Map<string, MatchStats>();
+  matchResult: MatchResult | null = null;
   matchEndsAt: number | null = null;
   winnerId: string | null = null;
   countdownStartsAt: number | null = null;
@@ -86,7 +94,10 @@ export class GameRoom {
   private snapshotAccumulator = 0;
   private world: RAPIER.World;
   private botBrains = new Map<string, BotBrain>();
-  private structureImmunity = new Map<string, number>();
+  private visitedPlanets = new Map<string, Set<string>>();
+  private matchStartedAt = 0;
+  private readonly matchDurationMs = process.env.NODE_ENV === "test" && Number(process.env.PLANETFALL_TEST_MATCH_MS) >= 5000
+    ? Number(process.env.PLANETFALL_TEST_MATCH_MS) : BALANCE.matchMs;
 
   constructor(code: string, private io: GameServer) {
     this.code = code;
@@ -201,6 +212,8 @@ export class GameRoom {
     this.world.removeRigidBody(bot.body);
     this.players.delete(botId);
     this.botBrains.delete(botId);
+    this.matchStats.delete(botId);
+    this.visitedPlanets.delete(botId);
     this.rebuildPlanets();
     this.emitRoom();
   }
@@ -312,6 +325,7 @@ export class GameRoom {
       playerId, sourcePlanetId: source.id, targetPlanetId: target.id,
       position: { ...player.position }, velocity: { ...player.velocity }, cooldownUntil: player.launchCooldownUntil
     });
+    this.emitMatchEvent("launch", { actorId: player.id, targetId: target.ownerId, planetId: target.id }, now);
     return true;
   }
 
@@ -329,11 +343,14 @@ export class GameRoom {
     if (length(away) < 0.1) away = normalize(projectOnPlane(player.input?.cameraForward ?? { x: 0, y: 0, z: 1 }, outward));
     target.velocity = add(target.velocity, add(scale(away, BALANCE.shove.force), scale(outward, BALANCE.shove.lift)));
     player.shoveCooldownUntil = now + BALANCE.shove.cooldownMs;
+    this.stat(player.id).successfulShoves += 1;
+    this.stat(target.id).timesShoved += 1;
     this.cancelSabotage(target, true);
     this.io.to(this.code).emit("player:shoved", {
       attackerId: player.id, targetId: target.id, planetId: planet.id,
       position: { ...target.position }, velocity: { ...target.velocity }
     });
+    this.emitMatchEvent("shove", { actorId: player.id, targetId: target.id, planetId: planet.id }, now);
     return true;
   }
 
@@ -348,7 +365,8 @@ export class GameRoom {
     if (!player.alive || !planet?.alive || planet.ownerId === player.id || (this.phase !== "playing" && this.phase !== "overtime")) return false;
     if (distance(player.position, this.structurePosition(planet, structure)) > BALANCE.sabotage.range) return false;
     const disabledUntil = structure === "cannon" ? planet.cannonDisabledUntil : planet.repairDisabledUntil;
-    if (disabledUntil > now || (this.structureImmunity.get(this.structureKey(planet.id, structure)) ?? 0) > now) return false;
+    const immuneUntil = structure === "cannon" ? planet.cannonSabotageImmuneUntil : planet.repairSabotageImmuneUntil;
+    if (disabledUntil > now || immuneUntil > now) return false;
     if (player.sabotage?.planetId === planetId && player.sabotage.structure === structure) return true;
     player.sabotage = { planetId, structure, startedAt: now };
     return true;
@@ -370,6 +388,8 @@ export class GameRoom {
     if (dot(aim, normalize(sub(cannon, planet.position))) < -0.35) return;
     player.scrap -= config.cost;
     player.lastFireAt = now;
+    if (weapon === "rocket") this.stat(player.id).rocketsFired += 1;
+    else this.stat(player.id).asteroidsFired += 1;
     const projectile: ProjectileState = {
       id: id("shot"), ownerId: playerId, weapon,
       position: add(cannon, scale(aim, 1.8)),
@@ -396,6 +416,9 @@ export class GameRoom {
     const before = planet.integrity;
     planet.integrity = Math.min(BALANCE.maxIntegrity, planet.integrity + BALANCE.repair.heal);
     planet.damageStage = damageStage(planet.integrity);
+    const stats = this.stat(player.id);
+    stats.repairsPerformed += 1;
+    stats.integrityRepaired += planet.integrity - before;
     this.io.to(this.code).emit("planet:repaired", { planetId: planet.id, playerId, integrity: planet.integrity, amount: planet.integrity - before });
     this.emitRoom();
   }
@@ -415,7 +438,8 @@ export class GameRoom {
       this.snapshotAccumulator = 0;
       this.scraps.clear();
       this.projectiles.clear();
-      this.structureImmunity.clear();
+      this.matchResult = null;
+      this.matchStartedAt = 0;
       this.rematchVotes.clear();
       for (const p of connected) {
         p.ready = p.isBot;
@@ -432,6 +456,7 @@ export class GameRoom {
         p.sabotage = null;
       }
       this.rebuildPlanets();
+      this.resetMatchStats();
     }
     this.emitRoom();
   }
@@ -440,7 +465,8 @@ export class GameRoom {
     this.removeExpiredDisconnects(now);
     if (this.phase === "countdown" && this.countdownStartsAt && now >= this.countdownStartsAt) {
       this.phase = "playing";
-      this.matchEndsAt = now + BALANCE.matchMs;
+      this.matchStartedAt = now;
+      this.matchEndsAt = now + this.matchDurationMs;
       this.countdownStartsAt = null;
       this.emitRoom();
     }
@@ -475,7 +501,9 @@ export class GameRoom {
       planets: [...this.planets.values()], scraps: [...this.scraps.values()],
       countdownEndsAt: this.countdownStartsAt,
       matchEndsAt: this.matchEndsAt, winnerId: this.winnerId,
-      rematchVotes: [...this.rematchVotes]
+      rematchVotes: [...this.rematchVotes],
+      matchStats: [...this.matchStats.values()].map((entry) => ({ ...entry })),
+      matchResult: this.matchResult
     };
   }
 
@@ -497,14 +525,17 @@ export class GameRoom {
         id: planetId, ownerId: player.id, position,
         integrity: BALANCE.maxIntegrity, alive: true,
         palette: index % 6, damageStage: 0,
-        cannonDisabledUntil: 0, repairDisabledUntil: 0
+        cannonDisabledUntil: 0, repairDisabledUntil: 0,
+        cannonSabotageImmuneUntil: 0, repairSabotageImmuneUntil: 0
       });
     });
   }
 
   private resetMatch(): void {
-    this.scraps.clear(); this.projectiles.clear(); this.structureImmunity.clear(); this.rematchVotes.clear(); this.winnerId = null; this.overtimeEndsAt = null;
+    this.scraps.clear(); this.projectiles.clear(); this.rematchVotes.clear(); this.winnerId = null; this.overtimeEndsAt = null;
+    this.matchResult = null; this.matchStartedAt = 0;
     this.rebuildPlanets();
+    this.resetMatchStats();
     for (const player of this.players.values()) {
       player.alive = player.connected; player.scrap = BALANCE.startingScrap; player.input = null;
       player.lastInputSequence = 0; player.lastFireAt = 0; player.lastBurstAt = 0; player.lastInputAt = 0; player.lastRepairAt = 0;
@@ -574,6 +605,14 @@ export class GameRoom {
         this.io.to(this.code).emit("player:landed", {
           playerId: player.id, planetId: surface.id, ownerId: surface.ownerId, intruder: surface.ownerId !== player.id
         });
+        if (surface.ownerId !== player.id) {
+          const visited = this.visitedPlanets.get(player.id) ?? new Set<string>();
+          if (!visited.has(surface.id)) {
+            visited.add(surface.id);
+            this.visitedPlanets.set(player.id, visited);
+            this.stat(player.id).planetsVisited += 1;
+          }
+        }
       }
     } else if (surfaceAltitude > 1.8) {
       player.surfacePlanetId = null;
@@ -596,11 +635,21 @@ export class GameRoom {
     const config = BALANCE.weapons[projectile.weapon];
     const multiplier = this.phase === "overtime" ? 2 : 1;
     const amount = config.damage * multiplier;
+    const before = planet.integrity;
     planet.integrity = Math.max(0, planet.integrity - amount);
+    const dealt = before - planet.integrity;
+    const attacker = this.stat(projectile.ownerId);
+    attacker.damageDealt += dealt;
+    attacker.shotsHit += 1;
+    this.stat(planet.ownerId).damageReceived += dealt;
     planet.damageStage = damageStage(planet.integrity);
     this.projectiles.delete(projectile.id);
     this.io.to(this.code).emit("projectile:exploded", { id: projectile.id, position: projectile.position, weapon: projectile.weapon, planetId: planet.id });
     this.io.to(this.code).emit("planet:damaged", { planetId: planet.id, integrity: planet.integrity, amount, hit: projectile.position });
+    const crossedStage = damageStage(before) !== planet.damageStage;
+    if (crossedStage || projectile.weapon === "asteroid") {
+      this.emitMatchEvent("damage", { actorId: projectile.ownerId, targetId: planet.ownerId, planetId: planet.id, amount: dealt, weapon: projectile.weapon });
+    }
     for (const player of this.players.values()) {
       const d = distance(player.position, projectile.position);
       if (player.alive && d < config.radius * 1.8) {
@@ -610,8 +659,13 @@ export class GameRoom {
     if (planet.integrity <= 0) {
       planet.alive = false;
       const owner = this.players.get(planet.ownerId);
-      if (owner) owner.alive = false;
+      if (owner) {
+        owner.alive = false;
+        this.recordSurvival(owner.id);
+      }
+      attacker.planetKills += 1;
       this.io.to(this.code).emit("planet:destroyed", { planetId: planet.id, ownerId: planet.ownerId });
+      this.emitMatchEvent("destroyed", { actorId: projectile.ownerId, targetId: planet.ownerId, planetId: planet.id, weapon: projectile.weapon });
       this.checkWinner();
     }
   }
@@ -630,14 +684,23 @@ export class GameRoom {
       }
       if (now - channel.startedAt < BALANCE.sabotage.channelMs) continue;
       const disabledUntil = now + BALANCE.sabotage.durationMs;
-      if (channel.structure === "cannon") planet.cannonDisabledUntil = disabledUntil;
-      else planet.repairDisabledUntil = disabledUntil;
-      this.structureImmunity.set(this.structureKey(planet.id, channel.structure), disabledUntil + BALANCE.sabotage.immunityMs);
+      const immuneUntil = disabledUntil + BALANCE.sabotage.immunityMs;
+      if (channel.structure === "cannon") {
+        planet.cannonDisabledUntil = disabledUntil;
+        planet.cannonSabotageImmuneUntil = immuneUntil;
+      } else {
+        planet.repairDisabledUntil = disabledUntil;
+        planet.repairSabotageImmuneUntil = immuneUntil;
+      }
+      this.stat(player.id).sabotagesCompleted += 1;
       player.sabotage = null;
       this.io.to(this.code).emit("structure:sabotaged", {
         playerId: player.id, planetId: planet.id, ownerId: planet.ownerId,
         structure: channel.structure, disabledUntil
       });
+      this.emitMatchEvent("sabotage", {
+        actorId: player.id, targetId: planet.ownerId, planetId: planet.id, structure: channel.structure
+      }, now);
       this.emitRoom();
     }
   }
@@ -652,21 +715,24 @@ export class GameRoom {
     return structure === "cannon" ? cannonPosition(planet) : repairPosition(planet);
   }
 
-  private structureKey(planetId: string, structure: StructureType): string {
-    return `${planetId}:${structure}`;
-  }
-
   private collectScrap(): void {
     for (const scrap of [...this.scraps.values()]) {
       const collector = [...this.players.values()].find((p) => p.alive && distance(p.position, scrap.position) < 1.8);
       if (collector) {
         collector.scrap += BALANCE.scrapValue;
+        const stats = this.stat(collector.id);
+        stats.scrapCollected += BALANCE.scrapValue;
         this.scraps.delete(scrap.id);
         const planet = this.planets.get(scrap.planetId);
         const ownerId = planet?.ownerId ?? "";
+        const stolen = Boolean(ownerId && ownerId !== collector.id);
+        if (stolen) {
+          stats.stolenScrap += BALANCE.scrapValue;
+          this.emitMatchEvent("stolen", { actorId: collector.id, targetId: ownerId, planetId: scrap.planetId, amount: BALANCE.scrapValue });
+        }
         this.io.to(this.code).emit("scrap:collected", {
           scrapId: scrap.id, playerId: collector.id, planetId: scrap.planetId, ownerId,
-          position: scrap.position, value: BALANCE.scrapValue, stolen: Boolean(ownerId && ownerId !== collector.id)
+          position: scrap.position, value: BALANCE.scrapValue, stolen
         });
       }
     }
@@ -702,7 +768,8 @@ export class GameRoom {
     const alive = [...this.planets.values()].filter((p) => p.alive);
     const max = Math.max(...alive.map((p) => p.integrity));
     const leaders = alive.filter((p) => p.integrity === max);
-    if (leaders.length === 1) return this.end(leaders[0].ownerId, "timer");
+    if (leaders.length === 1) return this.end(leaders[0].ownerId, "timer", now);
+    if (this.phase === "overtime") return this.end(null, "timer", now);
     this.phase = "overtime";
     this.overtimeEndsAt = now + BALANCE.overtimeMs;
     this.matchEndsAt = this.overtimeEndsAt;
@@ -732,9 +799,22 @@ export class GameRoom {
     if (alive.length <= 1) this.end(alive[0]?.ownerId ?? null, "last-standing");
   }
 
-  private end(winnerId: string | null, reason: "last-standing" | "timer"): void {
+  private end(winnerId: string | null, reason: "last-standing" | "timer", now = Date.now()): void {
+    for (const player of this.players.values()) this.recordSurvival(player.id, now);
     this.phase = "results"; this.winnerId = winnerId; this.matchEndsAt = null; this.overtimeEndsAt = null;
-    this.io.to(this.code).emit("match:ended", { winnerId, reason });
+    const placements = [...this.players.values()]
+      .map((player) => ({
+        playerId: player.id,
+        integrity: this.planets.get(player.planetId)?.integrity ?? 0,
+        survivalTimeMs: this.stat(player.id).survivalTimeMs
+      }))
+      .sort((a, b) => Number(b.playerId === winnerId) - Number(a.playerId === winnerId)
+        || b.survivalTimeMs - a.survivalTimeMs || b.integrity - a.integrity || a.playerId.localeCompare(b.playerId))
+      .map(({ playerId, integrity }, index) => ({ playerId, integrity, place: index + 1 }));
+    const stats = [...this.matchStats.values()].map((entry) => ({ ...entry }));
+    const winnerIntegrity = placements.find((entry) => entry.playerId === winnerId)?.integrity ?? 0;
+    this.matchResult = { winnerId, reason, placements, stats, awards: selectMatchAwards(stats, winnerId, winnerIntegrity) };
+    this.io.to(this.code).emit("match:ended", { winnerId, reason, result: this.matchResult });
     this.emitRoom();
   }
 
@@ -747,6 +827,7 @@ export class GameRoom {
           const planet = this.planets.get(player.planetId);
           if (planet?.alive) {
             planet.alive = false; planet.integrity = 0; planet.damageStage = 3;
+            this.recordSurvival(player.id, now);
             this.io.to(this.code).emit("planet:destroyed", { planetId: planet.id, ownerId: player.id });
           }
         } else {
@@ -754,6 +835,8 @@ export class GameRoom {
         }
         this.world.removeRigidBody(player.body);
         this.players.delete(player.id);
+        this.matchStats.delete(player.id);
+        this.visitedPlanets.delete(player.id);
         this.rematchVotes.delete(player.id);
         changed = true;
       }
@@ -768,6 +851,33 @@ export class GameRoom {
     this.hostId = [...this.players.values()].find((p) => p.connected && !p.isBot)?.id ?? "";
   }
 
+  private stat(playerId: string): MatchStats {
+    let stats = this.matchStats.get(playerId);
+    if (!stats) {
+      stats = createMatchStats(playerId);
+      this.matchStats.set(playerId, stats);
+    }
+    return stats;
+  }
+
+  private resetMatchStats(): void {
+    this.matchStats.clear();
+    this.visitedPlanets.clear();
+    for (const player of this.players.values()) {
+      this.matchStats.set(player.id, createMatchStats(player.id));
+      this.visitedPlanets.set(player.id, new Set([player.planetId]));
+    }
+  }
+
+  private recordSurvival(playerId: string, now = Date.now()): void {
+    const stats = this.stat(playerId);
+    if (stats.survivalTimeMs === 0 && this.matchStartedAt > 0) stats.survivalTimeMs = Math.max(1, now - this.matchStartedAt);
+  }
+
+  private emitMatchEvent(type: MatchEventType, detail: Omit<MatchEvent, "id" | "type" | "createdAt">, now = Date.now()): void {
+    this.io.to(this.code).emit("match:event", { id: id("event"), type, createdAt: now, ...detail });
+  }
+
   private emitRoom(): void { this.io.to(this.code).emit("room:state", this.view()); }
   private error(playerId: string, message: string): void {
     const socketId = this.players.get(playerId)?.socketId;
@@ -780,7 +890,8 @@ export class GameRoom {
     this.scraps.clear();
     this.projectiles.clear();
     this.botBrains.clear();
-    this.structureImmunity.clear();
+    this.matchStats.clear();
+    this.visitedPlanets.clear();
     this.rematchVotes.clear();
     this.world.free();
   }

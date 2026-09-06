@@ -62,6 +62,8 @@ describe("Planetfall multiplayer server", () => {
     expect(result.room.players.filter((player) => player.isBot)).toHaveLength(3);
     expect(result.room.players.every((player) => player.ready)).toBe(true);
     expect(result.room.planets).toHaveLength(4);
+    expect(result.room.matchStats).toHaveLength(4);
+    expect(result.room.matchStats.every((stats) => stats.damageDealt === 0 && stats.scrapCollected === 0)).toBe(true);
   });
 
   it("lets the host add and remove bots without changing human multiplayer", async () => {
@@ -162,6 +164,7 @@ describe("Planetfall multiplayer server", () => {
     room.scraps.set("human-scrap", { id: "human-scrap", planetId: player.planetId, position: { ...player.position } });
     room.update(1 / BALANCE.serverRate, Date.now());
     expect(player.scrap).toBe(BALANCE.startingScrap + BALANCE.scrapValue);
+    expect(room.view().matchStats.find((stats) => stats.playerId === player.id)).toMatchObject({ scrapCollected: BALANCE.scrapValue, stolenScrap: 0 });
 
     const planet = room.planets.get(player.planetId)!;
     planet.integrity = 50;
@@ -175,6 +178,7 @@ describe("Planetfall multiplayer server", () => {
     human.emit("repair:buy");
     expect(await repaired).toBe(65);
     expect(player.scrap).toBe(BALANCE.startingScrap + BALANCE.scrapValue - BALANCE.repair.cost);
+    expect(room.view().matchStats.find((stats) => stats.playerId === player.id)).toMatchObject({ repairsPerformed: 1, integrityRepaired: 15 });
   });
 
   it("runs bot overtime and rematches without rebuilding the room", async () => {
@@ -187,7 +191,9 @@ describe("Planetfall multiplayer server", () => {
     room.phase = "playing";
     room.matchEndsAt = Date.now() - 1;
     room.update(1 / BALANCE.serverRate, Date.now());
-    expect((await overtime).matchEndsAt).not.toBeNull();
+    const overtimeState = await overtime;
+    expect(overtimeState.matchEndsAt).not.toBeNull();
+    const overtimeEndsAt = overtimeState.matchEndsAt!;
 
     const shooter = room.players.get(result.playerId)!;
     const origin = cannonPosition(room.planets.get(shooter.planetId)!);
@@ -207,8 +213,11 @@ describe("Planetfall multiplayer server", () => {
     room.fire(result.playerId, "rocket", { x: delta.x / magnitude, y: delta.y / magnitude, z: delta.z / magnitude });
     expect(await doubledDamage).toBe(BALANCE.weapons.rocket.damage * 2);
 
-    room.phase = "results";
-    room.winnerId = result.playerId;
+    for (const planet of room.planets.values()) planet.integrity = 50;
+    room.update(1 / BALANCE.serverRate, overtimeEndsAt + 1);
+    expect(room.phase).toBe("results");
+    expect(room.matchResult).toMatchObject({ winnerId: null, reason: "timer" });
+
     const lobby = waitForRoom(human, (next) => next.phase === "lobby");
     human.emit("match:rematch");
     const reset = await lobby;
@@ -282,7 +291,9 @@ describe("Planetfall multiplayer server", () => {
     expect(resumed.ok).toBe(true);
     if (!resumed.ok) return;
     expect(resumed.playerId).toBe(joined.playerId);
-    expect(resumed.room.players.find((player) => player.id === joined.playerId)).toMatchObject({ connected: true, position: { x: 7, y: 8, z: 9 } });
+    const restored = resumed.room.players.find((player) => player.id === joined.playerId)!;
+    expect(restored.connected).toBe(true);
+    expect(Math.hypot(restored.position.x - 7, restored.position.y - 8, restored.position.z - 9)).toBeLessThan(0.1);
   });
 
   it("eliminates an expired disconnect and rejects the expired session", async () => {

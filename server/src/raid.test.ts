@@ -103,6 +103,7 @@ describe("planet raids", () => {
     }
     expect(host.surfacePlanetId).toBe(guestPlanet.id);
     expect(distance(host.position, guestPlanet.position)).toBeLessThanOrEqual(BALANCE.planetRadius + 1.21);
+    expect(room.view().matchStats.find((entry) => entry.playerId === host.id)?.planetsVisited).toBe(1);
   });
 
   it("rejects invalid shoves and applies funny but bounded knockback on cooldown", async () => {
@@ -118,6 +119,8 @@ describe("planet raids", () => {
     expect(speed).toBeGreaterThan(BALANCE.shove.force * 0.9);
     expect(speed).toBeLessThan(BALANCE.shove.force + BALANCE.shove.lift + 1);
     expect(guest.velocity.y).toBeGreaterThan(0);
+    expect(room.view().matchStats.find((entry) => entry.playerId === host.id)?.successfulShoves).toBe(1);
+    expect(room.view().matchStats.find((entry) => entry.playerId === guest.id)?.timesShoved).toBe(1);
     expect(room.shove(host.id, guest.id, now + 10)).toBe(false);
     host.shoveCooldownUntil = 0;
     guest.alive = false;
@@ -145,12 +148,15 @@ describe("planet raids", () => {
     room.update(1 / BALANCE.serverRate, now + BALANCE.sabotage.channelMs + 1);
     const cannonDisabledUntil = hostPlanet.cannonDisabledUntil;
     expect(cannonDisabledUntil).toBe(now + BALANCE.sabotage.channelMs + 1 + BALANCE.sabotage.durationMs);
+    expect(hostPlanet.cannonSabotageImmuneUntil).toBe(cannonDisabledUntil + BALANCE.sabotage.immunityMs);
+    expect(room.view().matchStats.find((entry) => entry.playerId === guest.id)?.sabotagesCompleted).toBe(1);
     place(host, cannonPosition(hostPlanet), hostPlanet.id);
     const shotDirection = normalize(sub(guestPlanet.position, cannonPosition(hostPlanet)));
     room.fire(host.id, "rocket", shotDirection, cannonDisabledUntil - 1);
     expect(room.projectiles.size).toBe(0);
     room.fire(host.id, "rocket", shotDirection, cannonDisabledUntil + 1);
     expect(room.projectiles.size).toBe(1);
+    expect(room.view().matchStats.find((entry) => entry.playerId === host.id)?.rocketsFired).toBe(1);
     place(guest, cannonPosition(hostPlanet), hostPlanet.id);
     expect(room.sabotage(guest.id, hostPlanet.id, "cannon", true, cannonDisabledUntil + 1)).toBe(false);
     expect(room.sabotage(guest.id, hostPlanet.id, "cannon", true, cannonDisabledUntil + BALANCE.sabotage.immunityMs + 1)).toBe(true);
@@ -169,6 +175,7 @@ describe("planet raids", () => {
     expect(host.scrap).toBe(scrapBefore);
     room.repair(host.id, repairDisabledUntil + 1);
     expect(hostPlanet.integrity).toBe(50 + BALANCE.repair.heal);
+    expect(room.view().matchStats.find((entry) => entry.playerId === host.id)).toMatchObject({ repairsPerformed: 1, integrityRepaired: BALANCE.repair.heal });
   });
 
   it("marks enemy-world pickup collection as stolen without debiting the owner", async () => {
@@ -183,6 +190,9 @@ describe("planet raids", () => {
     expect(await event).toMatchObject({ playerId: guest.id, planetId: hostPlanet.id, ownerId: host.id, stolen: true, value: BALANCE.scrapValue });
     expect(guest.scrap).toBe(BALANCE.startingScrap + BALANCE.scrapValue);
     expect(host.scrap).toBe(ownerScrap);
+    expect(room.view().matchStats.find((entry) => entry.playerId === guest.id)).toMatchObject({
+      scrapCollected: BALANCE.scrapValue, stolenScrap: BALANCE.scrapValue
+    });
   });
 
   it("clears raid cooldowns and sabotage state on rematch", async () => {
@@ -201,6 +211,9 @@ describe("planet raids", () => {
     expect(host.shoveCooldownUntil).toBe(0);
     expect(resetPlanet.cannonDisabledUntil).toBe(0);
     expect(resetPlanet.repairDisabledUntil).toBe(0);
+    expect(resetPlanet.cannonSabotageImmuneUntil).toBe(0);
+    expect(room.view().matchStats.every((entry) => entry.damageDealt === 0 && entry.successfulShoves === 0)).toBe(true);
+    expect(room.view().matchResult).toBeNull();
   });
 
   it("cancels an invader channel on disconnect", async () => {
@@ -225,5 +238,43 @@ describe("planet raids", () => {
     expect(room.sabotage(bot.id, botPlanet.id, "cannon", true)).toBe(false);
     place(bot, padStandingPosition(botPlanet), botPlanet.id);
     expect(room.launch(bot.id, hostPlanet.id)).toBe(true);
+  });
+
+  it("tracks authoritative shots, damage, kills, events, placements, and results", async () => {
+    const { room, hostSocket, host, guest, hostPlanet, guestPlanet } = await duel();
+    const start = Date.now();
+    room.phase = "countdown";
+    room.countdownStartsAt = start;
+    room.update(1 / BALANCE.serverRate, start);
+    host.scrap = 100;
+    place(host, cannonPosition(hostPlanet), hostPlanet.id);
+    const direction = normalize(sub(guestPlanet.position, cannonPosition(hostPlanet)));
+    const events: string[] = [];
+    const destroyedEvent = new Promise<void>((resolve) => hostSocket.on("match:event", (event) => {
+      events.push(event.type);
+      if (event.type === "destroyed") resolve();
+    }));
+    for (let shot = 0; shot < 4 && guestPlanet.alive; shot++) {
+      const firedAt = start + 1000 + shot * 5000;
+      place(host, cannonPosition(hostPlanet), hostPlanet.id);
+      room.fire(host.id, "asteroid", direction, firedAt);
+      for (let step = 1; step <= 140 && room.projectiles.size; step++) {
+        room.update(1 / BALANCE.serverRate, firedAt + step * (1000 / BALANCE.serverRate));
+      }
+    }
+    expect(guestPlanet.alive).toBe(false);
+    expect(room.phase).toBe("results");
+    const result = room.view().matchResult;
+    expect(result).not.toBeNull();
+    expect(result?.winnerId).toBe(host.id);
+    expect(result?.placements[0]).toMatchObject({ playerId: host.id, place: 1 });
+    expect(result?.placements[1]).toMatchObject({ playerId: guest.id, place: 2, integrity: 0 });
+    expect(result?.stats.find((entry) => entry.playerId === host.id)).toMatchObject({
+      damageDealt: 100, asteroidsFired: 4, shotsHit: 4, planetKills: 1
+    });
+    expect(result?.stats.find((entry) => entry.playerId === guest.id)?.damageReceived).toBe(100);
+    await destroyedEvent;
+    expect(events).toContain("damage");
+    expect(events).toContain("destroyed");
   });
 });

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { BALANCE } from "@planetfall/shared";
 
 type Point = { x: number; y: number; z: number };
 type DebugState = {
@@ -6,15 +7,23 @@ type DebugState = {
   localPosition: Point;
   cameraForward: Point;
   players: { id: string; planetId: string; surfacePlanetId: string | null; scrap: number; position: Point; velocity: Point }[];
-  planets: { id: string; ownerId: string; position: Point; cannonDisabledUntil: number; repairDisabledUntil: number }[];
+  planets: { id: string; ownerId: string; position: Point; integrity: number; cannonDisabledUntil: number; repairDisabledUntil: number }[];
   scraps: { id: string; planetId: string; position: Point }[];
   launchPads: { planetId: string; position: Point }[];
   cannons: { planetId: string; position: Point }[];
   repairs: { planetId: string; position: Point }[];
+  matchStats: { playerId: string; stolenScrap: number; successfulShoves: number; sabotagesCompleted: number }[];
+  performance: { fps: number; drawCalls: number; triangles: number; particles: number; projectiles: number };
 };
 
 const debugState = (page: Page) => page.evaluate(() => (window as unknown as { __PLANETFALL_DEBUG__: () => DebugState }).__PLANETFALL_DEBUG__());
 const pointDistance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+const collectBrowserErrors = (page: Page): string[] => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
+  return errors;
+};
 
 async function takeControl(page: Page): Promise<void> {
   const hasControl = () => page.evaluate(() => document.pointerLockElement?.id === "game-canvas");
@@ -70,11 +79,48 @@ async function moveTo(
   throw new Error(`movement did not reach target; remaining distance ${pointDistance(state.localPosition, targetFor(state)).toFixed(2)} from ${JSON.stringify(state.localPosition)} toward ${JSON.stringify(targetFor(state))}`);
 }
 
+async function aimAt(page: Page, targetFor: (state: DebugState) => Point): Promise<void> {
+  await takeControl(page);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const state = await debugState(page);
+    const target = targetFor(state);
+    const planet = [...state.planets].sort((a, b) => pointDistance(state.localPosition, a.position) - pointDistance(state.localPosition, b.position))[0];
+    const normalize = (point: Point): Point => {
+      const magnitude = Math.hypot(point.x, point.y, point.z) || 1;
+      return { x: point.x / magnitude, y: point.y / magnitude, z: point.z / magnitude };
+    };
+    const dot = (a: Point, b: Point) => a.x * b.x + a.y * b.y + a.z * b.z;
+    const tangent = (value: Point, outward: Point) => {
+      const radial = dot(value, outward);
+      return normalize({ x: value.x - outward.x * radial, y: value.y - outward.y * radial, z: value.z - outward.z * radial });
+    };
+    const outward = normalize({ x: state.localPosition.x - planet.position.x, y: state.localPosition.y - planet.position.y, z: state.localPosition.z - planet.position.z });
+    const desired = normalize({ x: target.x - state.localPosition.x, y: target.y - state.localPosition.y, z: target.z - state.localPosition.z });
+    const currentTangent = tangent(state.cameraForward, outward);
+    const desiredTangent = tangent(desired, outward);
+    const cross = {
+      x: currentTangent.y * desiredTangent.z - currentTangent.z * desiredTangent.y,
+      y: currentTangent.z * desiredTangent.x - currentTangent.x * desiredTangent.z,
+      z: currentTangent.x * desiredTangent.y - currentTangent.y * desiredTangent.x
+    };
+    const yaw = Math.atan2(dot(outward, cross), Math.max(-1, Math.min(1, dot(currentTangent, desiredTangent))));
+    const currentPitch = Math.asin(Math.max(-1, Math.min(1, dot(normalize(state.cameraForward), outward))));
+    const desiredPitch = Math.asin(Math.max(-1, Math.min(1, dot(desired, outward))));
+    await page.evaluate(({ movementX, movementY }) => {
+      const event = new MouseEvent("mousemove");
+      Object.defineProperty(event, "movementX", { value: movementX });
+      Object.defineProperty(event, "movementY", { value: movementY });
+      window.dispatchEvent(event);
+    }, { movementX: -yaw / 0.0022, movementY: (currentPitch - desiredPitch) / 0.0018 });
+  }
+}
+
 test("two players can create, join, ready, and start", async ({ browser }) => {
   const hostContext = await browser.newContext();
   const guestContext = await browser.newContext();
   const host = await hostContext.newPage();
   const guest = await guestContext.newPage();
+  const browserErrors = [collectBrowserErrors(host), collectBrowserErrors(guest)];
   await Promise.all([host.goto("/"), guest.goto("/")]);
 
   await host.getByLabel("Name").fill("Nova");
@@ -96,16 +142,18 @@ test("two players can create, join, ready, and start", async ({ browser }) => {
   await expect(host.locator("#hud")).toBeVisible();
   await expect(guest.locator("#hud")).toBeVisible();
   await expect(host.locator("#timer")).toContainText(":", { timeout: 7000 });
+  expect(browserErrors.flat()).toEqual([]);
 
   await hostContext.close(); await guestContext.close();
 });
 
 test("a human can raid, steal, shove, sabotage, and resume cannon play", async ({ browser }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(120_000);
   const hostContext = await browser.newContext({ viewport: { width: 1280, height: 720 } });
   const guestContext = await browser.newContext({ viewport: { width: 1280, height: 720 } });
   const host = await hostContext.newPage();
   const guest = await guestContext.newPage();
+  const browserErrors = [collectBrowserErrors(host), collectBrowserErrors(guest)];
   await Promise.all([host.goto("/"), guest.goto("/")]);
   await host.getByLabel("Name").fill("Chris");
   await host.getByRole("button", { name: "Create Room" }).click();
@@ -127,10 +175,11 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
   const hostPlanetId = hostPlayer.planetId;
   const guestPlanetId = guestPlayer.planetId;
   await moveTo(host, (state) => state.launchPads.find((pad) => pad.planetId === hostPlanetId)!.position, 2.6);
-  await expect(host.locator("#context-prompt")).toContainText("Launch");
+  await expect(host.locator("#context-prompt")).toContainText(/LAUNCH/i);
   await host.keyboard.press("e");
-  await expect(host.locator("#context-prompt")).toContainText("Launch to Nova");
+  await expect(host.locator("#context-prompt")).toContainText(/LAUNCH TO NOVA/i);
   await host.keyboard.press("e");
+  await expect(host.locator("#event-feed")).toContainText("Chris launched to Nova");
   await expect.poll(async () => (await debugState(host)).players.find((player) => player.id === hostPlayer.id)?.surfacePlanetId, { timeout: 7000 }).toBe(guestPlanetId);
 
   hostState = await debugState(host);
@@ -141,6 +190,7 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
     }, 1.45, 75, (state) => (state.players.find((player) => player.id === hostPlayer.id)?.scrap ?? 0) > 20);
   }
   await expect.poll(async () => (await debugState(host)).players.find((player) => player.id === hostPlayer.id)?.scrap ?? 0).toBeGreaterThan(20);
+  await expect(host.locator("#event-feed")).toContainText("Chris stole Nova's scrap");
 
   const neutralPoint = (state: DebugState): Point => {
     const planet = state.planets.find((candidate) => candidate.id === guestPlanetId)!;
@@ -148,28 +198,57 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
   };
   await moveTo(host, neutralPoint, 1.8);
   await moveTo(guest, (state) => state.players.find((player) => player.id === hostPlayer.id)!.position, 1.75);
-  await expect(host.locator("#context-prompt")).toContainText("Shove Nova");
+  await expect(host.locator("#context-prompt")).toContainText(/SHOVE NOVA/i);
   const guestBeforeShove = (await debugState(guest)).localPosition;
   await host.keyboard.press("e");
   await expect.poll(async () => pointDistance((await debugState(guest)).localPosition, guestBeforeShove), { timeout: 3000 }).toBeGreaterThan(0.7);
+  await expect(host.locator("#event-feed")).toContainText("Chris shoved Nova");
 
   await moveTo(host, (state) => state.repairs.find((repair) => repair.planetId === guestPlanetId)!.position, 2.5);
-  await expect(host.locator("#context-prompt")).toContainText("JAM REPAIR CORE");
+  await expect(host.locator("#context-prompt")).toContainText("JAM REPAIR");
   await host.keyboard.down("e");
-  await host.waitForTimeout(1500);
+  await host.waitForTimeout(650);
+  await expect(host.locator("#context-progress")).not.toHaveCSS("width", "0px");
+  await host.waitForTimeout(850);
   await host.keyboard.up("e");
   await expect.poll(async () => (await debugState(host)).planets.find((planet) => planet.id === guestPlanetId)!.repairDisabledUntil, { timeout: 3000 }).toBeGreaterThan(Date.now());
+  await expect(host.locator("#event-feed")).toContainText("Chris jammed Nova's repair");
+  await expect.poll(async () => (await debugState(host)).matchStats.find((stats) => stats.playerId === hostPlayer.id)?.stolenScrap ?? 0, { timeout: 3000 }).toBeGreaterThanOrEqual(5);
+  await expect.poll(async () => (await debugState(host)).matchStats.find((stats) => stats.playerId === hostPlayer.id)).toMatchObject({
+    successfulShoves: 1, sabotagesCompleted: 1
+  });
 
   await moveTo(guest, (state) => state.cannons.find((cannon) => cannon.planetId === guestPlanetId)!.position, 3.7);
+  await aimAt(guest, (state) => state.planets.find((planet) => planet.id === hostPlanetId)!.position);
   const scrapBeforeFire = (await debugState(guest)).players.find((player) => player.id === guestPlayer.id)!.scrap;
   await guest.locator("#game-canvas").click({ position: { x: 640, y: 360 } });
   await expect.poll(async () => (await debugState(guest)).players.find((player) => player.id === guestPlayer.id)!.scrap, { timeout: 3000 }).toBeLessThan(scrapBeforeFire);
+  await expect.poll(async () => (await debugState(host)).planets.find((planet) => planet.id === hostPlanetId)!.integrity, { timeout: 5000 }).toBeLessThan(100);
+  await guest.waitForTimeout(BALANCE.weapons.rocket.cooldownMs + 100);
+  await aimAt(guest, (state) => state.planets.find((planet) => planet.id === hostPlanetId)!.position);
+  const scrapAfterFirst = (await debugState(guest)).players.find((player) => player.id === guestPlayer.id)!.scrap;
+  await guest.locator("#game-canvas").click({ position: { x: 640, y: 360 } });
+  await expect.poll(async () => (await debugState(guest)).players.find((player) => player.id === guestPlayer.id)!.scrap, { timeout: 3000 }).toBeLessThan(scrapAfterFirst);
+  await expect.poll(async () => (await debugState(host)).planets.find((planet) => planet.id === hostPlanetId)!.integrity, { timeout: 5000 }).toBeLessThanOrEqual(72);
+  await expect(host.locator("#event-feed")).toContainText("Nova hit Chris");
+
+  await expect(host.locator("#results-screen")).toBeVisible({ timeout: 40_000 });
+  await expect(guest.locator("#results-screen")).toBeVisible();
+  await expect(host.locator("#results-standings .standing")).toHaveCount(2);
+  await expect(host.locator("#results-awards")).toContainText("MENACE");
+  await expect(host.locator("#results-awards")).toContainText("SPACE THIEF");
+  await guest.locator("#rematch-button").click();
+  await host.locator("#rematch-button").click();
+  await expect(host.locator("#lobby-screen")).toBeVisible();
+  await expect.poll(async () => (await debugState(host)).matchStats.every((stats) => stats.stolenScrap === 0 && stats.successfulShoves === 0 && stats.sabotagesCompleted === 0)).toBe(true);
+  expect(browserErrors.flat()).toEqual([]);
 
   await hostContext.close();
   await guestContext.close();
 });
 
 test("solo quick play starts with three clearly marked bots", async ({ page }) => {
+  const browserErrors = collectBrowserErrors(page);
   const musicResponse = page.waitForResponse((response) => response.url().endsWith("/audio/bot-city.ogg"));
   await page.goto("/");
   expect((await musicResponse).ok()).toBe(true);
@@ -179,4 +258,9 @@ test("solo quick play starts with three clearly marked bots", async ({ page }) =
   await expect(page.locator("#alive-list .bot-badge")).toHaveCount(3);
   await expect(page.locator("#countdown")).toContainText(/[123]|GO!/, { timeout: 4000 });
   await expect(page.locator("#timer")).toContainText(":", { timeout: 7000 });
+  const metrics = (await debugState(page)).performance;
+  expect(metrics.fps).toBeGreaterThan(0);
+  expect(metrics.drawCalls).toBeLessThan(500);
+  expect(metrics.particles).toBeLessThanOrEqual(180);
+  expect(browserErrors).toEqual([]);
 });

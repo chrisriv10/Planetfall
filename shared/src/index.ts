@@ -80,6 +80,8 @@ export interface PlanetState {
   damageStage: 0 | 1 | 2 | 3;
   cannonDisabledUntil: number;
   repairDisabledUntil: number;
+  cannonSabotageImmuneUntil: number;
+  repairSabotageImmuneUntil: number;
 }
 
 export interface ScrapState { id: string; planetId: string; position: Vec3; }
@@ -93,6 +95,49 @@ export interface ProjectileState {
   spawnedAt: number;
 }
 
+export interface MatchStats {
+  playerId: string;
+  damageDealt: number;
+  damageReceived: number;
+  scrapCollected: number;
+  stolenScrap: number;
+  repairsPerformed: number;
+  integrityRepaired: number;
+  planetsVisited: number;
+  successfulShoves: number;
+  timesShoved: number;
+  sabotagesCompleted: number;
+  rocketsFired: number;
+  asteroidsFired: number;
+  shotsHit: number;
+  planetKills: number;
+  survivalTimeMs: number;
+}
+
+export type MatchAwardId = "menace" | "space-thief" | "mechanic" | "bully" | "tourist" | "survivor" | "bad-aim";
+export interface MatchAward { id: MatchAwardId; title: string; subtitle: string; playerId: string; }
+export interface MatchPlacement { playerId: string; place: number; integrity: number; }
+export interface MatchResult {
+  winnerId: string | null;
+  reason: "last-standing" | "timer";
+  placements: MatchPlacement[];
+  stats: MatchStats[];
+  awards: MatchAward[];
+}
+
+export type MatchEventType = "launch" | "stolen" | "shove" | "sabotage" | "damage" | "destroyed";
+export interface MatchEvent {
+  id: string;
+  type: MatchEventType;
+  createdAt: number;
+  actorId?: string;
+  targetId?: string;
+  planetId?: string;
+  amount?: number;
+  weapon?: WeaponType;
+  structure?: StructureType;
+}
+
 export interface RoomView {
   code: string;
   hostId: string;
@@ -104,6 +149,8 @@ export interface RoomView {
   matchEndsAt: number | null;
   winnerId: string | null;
   rematchVotes: string[];
+  matchStats: MatchStats[];
+  matchResult: MatchResult | null;
 }
 
 export interface PlayerInput {
@@ -162,7 +209,8 @@ export interface ServerToClientEvents {
   "planet:damaged": (payload: { planetId: string; integrity: number; amount: number; hit: Vec3 }) => void;
   "planet:repaired": (payload: { planetId: string; playerId: string; integrity: number; amount: number }) => void;
   "planet:destroyed": (payload: { planetId: string; ownerId: string }) => void;
-  "match:ended": (payload: { winnerId: string | null; reason: "last-standing" | "timer" }) => void;
+  "match:event": (payload: MatchEvent) => void;
+  "match:ended": (payload: { winnerId: string | null; reason: "last-standing" | "timer"; result: MatchResult }) => void;
   "server:error": (payload: { message: string; code?: string }) => void;
 }
 
@@ -198,6 +246,38 @@ export function damageStage(integrity: number): 0 | 1 | 2 | 3 {
   if (integrity <= 50) return 2;
   if (integrity <= 75) return 1;
   return 0;
+}
+
+export function createMatchStats(playerId: string): MatchStats {
+  return {
+    playerId, damageDealt: 0, damageReceived: 0, scrapCollected: 0, stolenScrap: 0,
+    repairsPerformed: 0, integrityRepaired: 0, planetsVisited: 0,
+    successfulShoves: 0, timesShoved: 0, sabotagesCompleted: 0,
+    rocketsFired: 0, asteroidsFired: 0, shotsHit: 0, planetKills: 0, survivalTimeMs: 0
+  };
+}
+
+export function selectMatchAwards(stats: MatchStats[], winnerId: string | null, winnerIntegrity: number): MatchAward[] {
+  const stable = [...stats].sort((a, b) => a.playerId.localeCompare(b.playerId));
+  const maxBy = (value: (entry: MatchStats) => number, minimum = 1): MatchStats | undefined => {
+    const ranked = [...stable].sort((a, b) => value(b) - value(a));
+    return ranked[0] && value(ranked[0]) >= minimum ? ranked[0] : undefined;
+  };
+  const awards: MatchAward[] = [];
+  const add = (entry: MatchStats | undefined, id: MatchAwardId, title: string, subtitle: string) => {
+    if (entry) awards.push({ id, title, subtitle, playerId: entry.playerId });
+  };
+  add(maxBy((entry) => entry.damageDealt), "menace", "MENACE", "Most damage dealt");
+  add(maxBy((entry) => entry.stolenScrap), "space-thief", "SPACE THIEF", "Most stolen scrap");
+  add(maxBy((entry) => entry.integrityRepaired), "mechanic", "MECHANIC", "Most integrity repaired");
+  add(maxBy((entry) => entry.successfulShoves), "bully", "BULLY", "Most successful shoves");
+  add(maxBy((entry) => entry.planetsVisited), "tourist", "TOURIST", "Most enemy planets visited");
+  if (winnerId && winnerIntegrity > 0 && winnerIntegrity <= 25) {
+    awards.push({ id: "survivor", title: "SURVIVOR", subtitle: `Won at ${Math.round(winnerIntegrity)}% integrity`, playerId: winnerId });
+  }
+  const badAim = maxBy((entry) => entry.rocketsFired + entry.asteroidsFired - entry.shotsHit, 2);
+  if (badAim) awards.push({ id: "bad-aim", title: "BAD AIM", subtitle: "Most shots missed", playerId: badAim.playerId });
+  return awards.slice(0, 4);
 }
 
 export function sanitizeName(value: unknown): string {

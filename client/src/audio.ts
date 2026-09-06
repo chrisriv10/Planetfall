@@ -29,6 +29,11 @@ export class GameAudio {
   shove(): void { this.noise(0.09, 0.065, 420); this.tone(120, 0.11, "square", 0.045, 75); }
   sabotage(): void { this.noise(0.2, 0.035, 1200); this.tone(390, 0.28, "square", 0.035, 105); }
   intruder(): void { this.tone(520, 0.08, "square", 0.04, 350); setTimeout(() => this.tone(520, 0.08, "square", 0.035, 350), 120); }
+  incoming(heavy: boolean): void {
+    this.tone(heavy ? 190 : 310, heavy ? 0.2 : 0.12, "triangle", heavy ? 0.045 : 0.03, heavy ? 95 : 220);
+    setTimeout(() => this.tone(heavy ? 150 : 280, 0.1, "square", heavy ? 0.035 : 0.022, heavy ? 80 : 210), heavy ? 170 : 130);
+  }
+  critical(): void { this.tone(160, .16, "triangle", .035, 105); setTimeout(() => this.tone(130, .18, "triangle", .03, 82), 190); }
   rocket(): void { this.noise(0.18, 0.14, 600); this.tone(95, 0.18, "sawtooth", 0.07, 45); }
   asteroid(): void { this.noise(0.28, 0.19, 320); this.tone(64, 0.3, "square", 0.08, 38); }
   explosion(heavy = false): void { this.noise(heavy ? 0.7 : 0.42, heavy ? 0.3 : 0.2, heavy ? 170 : 260); }

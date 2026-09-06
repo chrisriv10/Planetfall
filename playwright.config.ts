@@ -8,7 +8,7 @@ export default defineConfig({
     {
       command: "npm run build -w @planetfall/shared && npm run dev -w @planetfall/server",
       url: "http://127.0.0.1:13000/health",
-      env: { PORT: "13000", NODE_ENV: "test", CLIENT_ORIGIN: "http://127.0.0.1:15173" },
+      env: { PORT: "13000", NODE_ENV: "test", CLIENT_ORIGIN: "http://127.0.0.1:15173", PLANETFALL_TEST_MATCH_MS: "70000" },
       reuseExistingServer: false,
       timeout: 60_000
     },

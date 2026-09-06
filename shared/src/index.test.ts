@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BALANCE, ballisticPosition, cannonPosition, damageStage, distance, dot, launchPadPosition, launchVelocity, normalize, projectOnPlane, repairPosition, sanitizeName, sub } from "./index.js";
+import { BALANCE, ballisticPosition, cannonPosition, createMatchStats, damageStage, distance, dot, launchPadPosition, launchVelocity, normalize, projectOnPlane, repairPosition, sanitizeName, selectMatchAwards, sub } from "./index.js";
 
 describe("shared gameplay math", () => {
   it("projects movement onto a spherical tangent", () => {
@@ -39,5 +39,21 @@ describe("shared gameplay math", () => {
     const velocity = launchVelocity(pad, source, target);
     expect(Math.hypot(velocity.x, velocity.y, velocity.z)).toBeCloseTo(BALANCE.launch.speed);
     expect(dot(normalize(sub(pad, source.position)), normalize(velocity))).toBeGreaterThan(0.3);
+  });
+
+  it("initializes match statistics and selects deterministic meaningful awards", () => {
+    const nova = createMatchStats("nova");
+    const orbit = createMatchStats("orbit");
+    expect(nova).toMatchObject({ damageDealt: 0, stolenScrap: 0, sabotagesCompleted: 0, survivalTimeMs: 0 });
+    nova.damageDealt = 42;
+    nova.successfulShoves = 3;
+    orbit.stolenScrap = 15;
+    orbit.rocketsFired = 5;
+    orbit.shotsHit = 1;
+    const awards = selectMatchAwards([orbit, nova], "nova", 12);
+    expect(awards.map((award) => `${award.id}:${award.playerId}`)).toEqual([
+      "menace:nova", "space-thief:orbit", "bully:nova", "survivor:nova"
+    ]);
+    expect(selectMatchAwards([createMatchStats("nova")], "nova", 100)).toEqual([]);
   });
 });

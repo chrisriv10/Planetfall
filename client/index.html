@@ -58,7 +58,10 @@
         <div id="alive-list" class="alive-list"></div>
         <div id="crosshair" class="crosshair"><i></i><i></i></div>
         <div id="trajectory" class="trajectory-label">ROCKET · 8 SCRAP</div>
-        <div id="context-prompt" class="context-prompt">Click the arena to take control</div>
+        <div id="context-prompt" class="context-prompt" data-kind="idle"><span id="context-copy">Click the arena to take control</span><i id="context-progress"></i></div>
+        <div id="edge-indicators" class="edge-indicators" aria-hidden="true"></div>
+        <div id="event-feed" class="event-feed" aria-live="polite"></div>
+        <div id="match-hint" class="match-hint" aria-live="polite"></div>
         <div class="weapon-panel">
           <span>WEAPON <kbd>Q</kbd></span>
           <button id="weapon-button"><i></i><b id="weapon-name">BASIC ROCKET</b><small id="weapon-cost">8 scrap</small></button>
@@ -71,6 +74,8 @@
           <div class="result-burst" aria-hidden="true">★</div>
           <h2 id="results-title">You win!</h2>
           <p id="winner-copy">Your planet survived.</p>
+          <div id="results-standings" class="results-standings"></div>
+          <div id="results-awards" class="results-awards"></div>
           <div class="result-actions">
             <button id="rematch-button" class="button button-primary">Rematch</button>
             <button id="leave-button" class="button button-secondary">Quit</button>
