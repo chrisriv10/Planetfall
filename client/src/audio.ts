@@ -2,6 +2,7 @@ export class GameAudio {
   private context: AudioContext | null = null;
   private music: HTMLAudioElement;
   private musicFade: ReturnType<typeof setInterval> | null = null;
+  private readonly musicTarget = .145;
 
   constructor() {
     this.music = new Audio("/audio/bot-city.ogg");
@@ -25,7 +26,7 @@ export class GameAudio {
   land(): void { this.noise(0.07, 0.025, 180); this.tone(92, 0.08, "sine", 0.025, 62); }
   burst(): void { this.noise(0.11, 0.045, 900); this.tone(170, 0.14, "sawtooth", 0.035, 360); }
   grapple(): void { this.tone(130, 0.16, "sawtooth", 0.035, 90); }
-  launch(): void { this.noise(0.24, 0.1, 760); this.tone(110, 0.32, "sawtooth", 0.065, 520); }
+  launch(): void { this.duckMusic(480, .55); this.noise(0.24, 0.1, 760); this.tone(110, 0.32, "sawtooth", 0.065, 520); }
   shove(): void { this.noise(0.09, 0.065, 420); this.tone(120, 0.11, "square", 0.045, 75); }
   sabotage(): void { this.noise(0.2, 0.035, 1200); this.tone(390, 0.28, "square", 0.035, 105); }
   intruder(): void { this.tone(520, 0.08, "square", 0.04, 350); setTimeout(() => this.tone(520, 0.08, "square", 0.035, 350), 120); }
@@ -35,10 +36,14 @@ export class GameAudio {
   }
   critical(): void { this.tone(160, .16, "triangle", .035, 105); setTimeout(() => this.tone(130, .18, "triangle", .03, 82), 190); }
   rocket(): void { this.noise(0.18, 0.14, 600); this.tone(95, 0.18, "sawtooth", 0.07, 45); }
-  asteroid(): void { this.noise(0.28, 0.19, 320); this.tone(64, 0.3, "square", 0.08, 38); }
-  explosion(heavy = false): void { this.noise(heavy ? 0.7 : 0.42, heavy ? 0.3 : 0.2, heavy ? 170 : 260); }
+  asteroid(): void { this.duckMusic(520, .62); this.noise(0.28, 0.19, 320); this.tone(64, 0.3, "square", 0.08, 38); }
+  explosion(heavy = false): void { if (heavy) this.duckMusic(850, .72); this.noise(heavy ? 0.7 : 0.42, heavy ? 0.3 : 0.2, heavy ? 170 : 260); }
   repair(): void { this.tone(420, 0.22, "sine", 0.04, 820); }
   countdown(value: number): void { this.tone(value === 0 ? 660 : 300 + value * 55, value === 0 ? .22 : .08, "square", value === 0 ? .045 : .025, value === 0 ? 980 : 360 + value * 55); }
+  chaos(): void {
+    this.duckMusic(700, .6);
+    [220, 330, 494].forEach((note, index) => setTimeout(() => this.tone(note, .16, index === 2 ? "square" : "triangle", .035, note * 1.28), index * 85));
+  }
   result(won: boolean): void {
     const notes = won ? [440, 554, 659, 880] : [280, 235, 196];
     notes.forEach((note, index) => setTimeout(() => this.tone(note, .18, "triangle", .035, note * 1.04), index * 110));
@@ -47,12 +52,18 @@ export class GameAudio {
   private fadeMusicIn(): void {
     if (this.musicFade) clearInterval(this.musicFade);
     this.musicFade = setInterval(() => {
-      this.music.volume = Math.min(.16, this.music.volume + .01);
-      if (this.music.volume >= .16 && this.musicFade) {
+      this.music.volume = Math.min(this.musicTarget, this.music.volume + .01);
+      if (this.music.volume >= this.musicTarget && this.musicFade) {
         clearInterval(this.musicFade);
         this.musicFade = null;
       }
     }, 90);
+  }
+
+  private duckMusic(duration: number, amount: number): void {
+    if (this.music.paused) return;
+    this.music.volume = Math.min(this.music.volume, this.musicTarget * (1 - amount));
+    setTimeout(() => this.fadeMusicIn(), duration);
   }
 
   private tone(start: number, duration: number, type: OscillatorType, gain: number, end = start): void {

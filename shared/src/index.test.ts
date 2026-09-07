@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BALANCE, ballisticPosition, cannonPosition, createMatchStats, damageStage, distance, dot, launchPadPosition, launchVelocity, normalize, projectOnPlane, repairPosition, sanitizeName, selectMatchAwards, sub } from "./index.js";
+import { BALANCE, CHAOS_MODIFIERS, ballisticPosition, cannonPosition, createMatchRules, createMatchStats, damageStage, distance, dot, launchPadPosition, launchVelocity, normalize, projectOnPlane, repairPosition, sanitizeName, selectChaosModifier, selectMatchAwards, sub } from "./index.js";
 
 describe("shared gameplay math", () => {
   it("projects movement onto a spherical tangent", () => {
@@ -55,5 +55,27 @@ describe("shared gameplay math", () => {
       "menace:nova", "space-thief:orbit", "bully:nova", "survivor:nova"
     ]);
     expect(selectMatchAwards([createMatchStats("nova")], "nova", 100)).toEqual([]);
+  });
+
+  it("builds Classic and all five focused Chaos rule sets", () => {
+    expect(createMatchRules()).toEqual({
+      gravity: BALANCE.gravity, jumpSpeed: BALANCE.jumpSpeed,
+      scrapSpawnMs: BALANCE.scrapSpawnMs, scrapMaxPerPlanet: BALANCE.scrapMaxPerPlanet,
+      maxIntegrity: BALANCE.maxIntegrity, launchCooldownMs: BALANCE.launch.cooldownMs,
+      shoveForce: BALANCE.shove.force, shoveCooldownMs: BALANCE.shove.cooldownMs
+    });
+    const rules = Object.fromEntries(CHAOS_MODIFIERS.map((modifier) => [modifier, createMatchRules(modifier)]));
+    expect(rules["low-gravity"].gravity).toBeCloseTo(BALANCE.gravity * .65);
+    expect(rules["low-gravity"].jumpSpeed).toBeGreaterThan(BALANCE.jumpSpeed);
+    expect(rules["scrap-rush"]).toMatchObject({ scrapSpawnMs: 4500, scrapMaxPerPlanet: 8 });
+    expect(rules["fragile-worlds"].maxIntegrity).toBe(70);
+    expect(rules["launch-party"].launchCooldownMs).toBe(2250);
+    expect(rules["super-shove"]).toMatchObject({ shoveForce: 14, shoveCooldownMs: 900 });
+  });
+
+  it("selects one Chaos modifier without immediately repeating", () => {
+    expect(selectChaosModifier(null, () => 0)).toBe("low-gravity");
+    expect(selectChaosModifier("low-gravity", () => 0)).toBe("scrap-rush");
+    for (const previous of CHAOS_MODIFIERS) expect(selectChaosModifier(previous, () => .999)).not.toBe(previous);
   });
 });

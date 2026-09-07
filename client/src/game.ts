@@ -6,6 +6,7 @@ import {
   add,
   cannonPosition,
   clamp,
+  createMatchRules,
   cross,
   distance,
   dot,
@@ -20,6 +21,7 @@ import {
   scale,
   sub,
   type PlanetState,
+  type MatchRules,
   type PlayerInput,
   type PlayerInteraction,
   type PlayerState,
@@ -35,17 +37,21 @@ import { GameAudio } from "./audio";
 type PlanetVisual = {
   group: THREE.Group;
   shell: THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
-  atmosphere: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
+  atmosphere: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>;
+  surfacePatches: THREE.Group;
   cracks: THREE.Group;
   props: THREE.Group;
   damageDebris: THREE.Group;
   cannon: THREE.Group;
   barrel: THREE.Group;
   muzzle: THREE.Mesh;
+  cannonAccent: THREE.MeshStandardMaterial;
   repair: THREE.Group;
   repairCore: THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
+  repairRings: THREE.Group;
   launchPad: THREE.Group;
   launchRing: THREE.Mesh;
+  launchArms: THREE.Group;
   launchHighlight: THREE.Group;
   cannonJam: THREE.Group;
   repairJam: THREE.Group;
@@ -60,6 +66,7 @@ type PlanetVisual = {
   launchPulse: number;
   nextJamSparkAt: number;
   nextDamagePulseAt: number;
+  destroyedAt: number;
   state: PlanetState;
   body?: RAPIER.RigidBody;
 };
@@ -71,14 +78,21 @@ type PlayerVisual = {
   rightArm: THREE.Group;
   leftLeg: THREE.Group;
   rightLeg: THREE.Group;
+  torso: THREE.Mesh;
+  helmet: THREE.Group;
+  visor: THREE.Mesh;
+  backpack: THREE.Group;
   flightTrail: THREE.Line;
   flightTrailPoints: THREE.Vector3[];
   intruderMarker: THREE.Group;
   shoveUntil: number;
   hitPulse: number;
+  landingPulse: number;
+  previousSurfacePlanetId: string | null;
+  lodDetails: THREE.Object3D[];
 };
 type ProjectileVisual = { mesh: THREE.Group; velocity: THREE.Vector3; weapon: WeaponType; ownerId: string; threatening: boolean; trail: THREE.Line; trailPoints: THREE.Vector3[]; maxTrailPoints: number };
-type Particle = { mesh: THREE.Mesh; velocity: THREE.Vector3; life: number; maxLife: number };
+type Particle = { mesh: THREE.Mesh; velocity: THREE.Vector3; life: number; maxLife: number; growth?: number; spin?: number };
 
 export type PromptKind = "idle" | "launch" | "shove" | "sabotage" | "cooldown" | "weapon";
 export type EdgeIndicator = { id: string; label: string; color: string; x: number; y: number; angle: number; danger?: boolean };
@@ -87,6 +101,27 @@ const vec = (v: Vec3) => new THREE.Vector3(v.x, v.y, v.z);
 const plain = (v: THREE.Vector3): Vec3 => ({ x: v.x, y: v.y, z: v.z });
 const particleGeometry = new THREE.IcosahedronGeometry(0.12, 0);
 const damagedPlanetColor = new THREE.Color(0x33243c);
+const atmosphereVertexShader = `
+  varying vec3 vNormal;
+  varying vec3 vWorldPosition;
+  void main() {
+    vNormal = normalize(mat3(modelMatrix) * normal);
+    vec4 world = modelMatrix * vec4(position, 1.0);
+    vWorldPosition = world.xyz;
+    gl_Position = projectionMatrix * viewMatrix * world;
+  }
+`;
+const atmosphereFragmentShader = `
+  uniform vec3 glowColor;
+  uniform float intensity;
+  varying vec3 vNormal;
+  varying vec3 vWorldPosition;
+  void main() {
+    vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
+    float rim = pow(1.0 - abs(dot(viewDirection, vNormal)), 2.35);
+    gl_FragColor = vec4(glowColor, rim * intensity);
+  }
+`;
 
 function seededRandom(seed: string): () => number {
   let value = [...seed].reduce((total, character) => Math.imul(total ^ character.charCodeAt(0), 16777619), 2166136261) >>> 0;
@@ -151,18 +186,24 @@ export class PlanetfallGame {
   private demo = new THREE.Group();
   private demoTime = 0;
   private rope: THREE.Line;
+  private ropeAnchor: THREE.Mesh;
   private trajectory: THREE.Line;
+  private starLayers: THREE.Points[] = [];
+  private particleMaterials = new Map<number, THREE.MeshBasicMaterial>();
   private shake = 0;
   private recentDamage = new Map<string, number>();
   private lastIndicatorUpdate = 0;
   private lastIncomingWarning = 0;
   private lastCriticalWarning = 0;
+  private nextChaosParticleAt = 0;
   private measuredFps = 60;
   private performanceFrames = 0;
   private performanceSampleAt = performance.now();
   private spectatorIndex = 0;
   private wasGrounded = false;
   private mode: "home" | "lobby" | "match" | "results" = "home";
+  private rules: MatchRules = createMatchRules();
+  private readonly reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -177,7 +218,12 @@ export class PlanetfallGame {
     const ropeGeometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
     this.rope = new THREE.Line(ropeGeometry, new THREE.LineBasicMaterial({ color: 0x70f5ff, transparent: true, opacity: 0.9 }));
     this.rope.visible = false;
-    this.scene.add(this.rope);
+    this.ropeAnchor = new THREE.Mesh(
+      new THREE.OctahedronGeometry(.18, 0),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .9 })
+    );
+    this.ropeAnchor.visible = false;
+    this.scene.add(this.rope, this.ropeAnchor);
     this.trajectory = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineDashedMaterial({ color: 0xffdc4f, dashSize: 0.55, gapSize: 0.35, transparent: true, opacity: 0.8 }));
     this.trajectory.visible = false;
     this.scene.add(this.trajectory);
@@ -204,6 +250,7 @@ export class PlanetfallGame {
       this.onIndicators?.([]);
       this.trajectory.visible = false;
       this.rope.visible = false;
+      this.ropeAnchor.visible = false;
       this.launchAiming = false;
       this.launchSourcePlanetId = null;
       this.launchTargetPlanetId = null;
@@ -219,6 +266,7 @@ export class PlanetfallGame {
 
   setRoom(room: RoomView): void {
     this.room = room;
+    this.rules = room.rules ?? createMatchRules();
     this.syncPlanets(room.planets);
     this.syncPlayers(room.players);
     this.syncScraps(room.scraps);
@@ -231,6 +279,9 @@ export class PlanetfallGame {
     players: PlayerState[];
     planets: PlanetState[];
     matchStats: RoomView["matchStats"];
+    gameMode: RoomView["gameMode"] | null;
+    activeModifier: RoomView["activeModifier"] | null;
+    rules: MatchRules;
     scraps: RoomView["scraps"];
     launchPads: { planetId: string; position: Vec3 }[];
     cannons: { planetId: string; position: Vec3 }[];
@@ -244,6 +295,9 @@ export class PlanetfallGame {
       players: this.room?.players.map((player) => ({ ...player, position: { ...player.position }, velocity: { ...player.velocity }, rotation: { ...player.rotation } })) ?? [],
       planets: this.room?.planets.map((planet) => ({ ...planet, position: { ...planet.position } })) ?? [],
       matchStats: this.room?.matchStats.map((stats) => ({ ...stats })) ?? [],
+      gameMode: this.room?.gameMode ?? null,
+      activeModifier: this.room?.activeModifier ?? null,
+      rules: { ...this.rules },
       scraps: this.room?.scraps.map((scrap) => ({ ...scrap, position: { ...scrap.position } })) ?? [],
       launchPads: this.room?.planets.map((planet) => ({ planetId: planet.id, position: launchPadPosition(planet) })) ?? [],
       cannons: this.room?.planets.map((planet) => ({ planetId: planet.id, position: cannonPosition(planet) })) ?? [],
@@ -293,6 +347,7 @@ export class PlanetfallGame {
       (ownerPlanet.muzzle.material as THREE.MeshStandardMaterial).emissiveIntensity = 5;
       const muzzlePosition = ownerPlanet.muzzle.getWorldPosition(new THREE.Vector3());
       this.spawnBurst(muzzlePosition, [0xffdc4f, 0xffffff, 0x9fb4ca], projectile.weapon === "asteroid" ? 14 : 9, projectile.weapon === "asteroid" ? 5 : 3.5);
+      this.spawnPulse(muzzlePosition, projectile.weapon === "asteroid" ? 0xff8a4f : 0xffdc4f, projectile.weapon === "asteroid" ? 1.3 : .85);
     }
     projectile.weapon === "rocket" ? this.audio.rocket() : this.audio.asteroid();
     if (threatening && performance.now() - this.lastIncomingWarning > 1400) {
@@ -319,6 +374,7 @@ export class PlanetfallGame {
     this.audio.explosion(payload.weapon === "asteroid");
     this.shake = payload.weapon === "asteroid" ? 0.8 : 0.48;
     this.spawnPulse(position, colors[1], payload.weapon === "asteroid" ? 2.6 : 1.8);
+    this.spawnShockwave(position, payload.weapon === "asteroid" ? 0xff8a4f : 0x70f5ff, payload.weapon === "asteroid" ? 7 : 4.5);
   }
 
   collectScrap(payload: { scrapId: string; playerId: string; planetId: string; ownerId: string; position: Vec3; value: number; stolen: boolean }): void {
@@ -365,6 +421,7 @@ export class PlanetfallGame {
       const outward = player.group.position.clone().sub(planet.group.position).normalize();
       this.spawnBurst(player.group.position.clone().addScaledVector(outward, -0.65), [0xd7e5ff, 0x9fb4ca, 0x70f5ff], 12, 3.2);
       player.hitPulse = Math.max(player.hitPulse, .48);
+      player.landingPulse = 1;
       this.spawnPulse(player.group.position.clone().addScaledVector(outward, -.55), new THREE.Color(player.state.color).getHex(), .72);
     }
     if (payload.playerId === this.localId) {
@@ -385,8 +442,9 @@ export class PlanetfallGame {
     if (target) {
       target.state.velocity = { ...payload.velocity };
       target.hitPulse = 1;
-      this.spawnBurst(target.group.position.clone().add(new THREE.Vector3(0, 1, 0)), [0xffdc4f, 0xffffff, 0xff6b8a], 11, 4.2);
-      this.spawnPulse(target.group.position.clone().add(new THREE.Vector3(0, 1, 0)), 0xffdc4f, 0.65);
+      const superShove = this.room?.activeModifier === "super-shove";
+      this.spawnBurst(target.group.position.clone().add(new THREE.Vector3(0, 1, 0)), [0xffdc4f, 0xffffff, 0xff6b8a], superShove ? 18 : 11, superShove ? 6.2 : 4.2);
+      this.spawnPulse(target.group.position.clone().add(new THREE.Vector3(0, 1, 0)), 0xffdc4f, superShove ? 1.05 : 0.65);
     }
     if (payload.targetId === this.localId) {
       this.localVelocity.copy(vec(payload.velocity));
@@ -423,6 +481,7 @@ export class PlanetfallGame {
     const position = visual.repair.getWorldPosition(new THREE.Vector3());
     this.spawnBurst(position, [0x70f5ff, 0x8affbd, 0xffffff], 18, 3.4);
     this.spawnPulse(position, 0x70f5ff, 1.25);
+    this.spawnShockwave(visual.group.position, 0x62f4bd, BALANCE.planetRadius * 1.08);
     if (payload.playerId === this.localId) this.audio.repair();
   }
 
@@ -453,9 +512,14 @@ export class PlanetfallGame {
   destroyPlanet(planetId: string): void {
     const visual = this.planets.get(planetId);
     if (!visual) return;
-    visual.shell.material.emissive.setHex(0xffffff);
-    visual.shell.material.emissiveIntensity = 3;
-    visual.group.scale.setScalar(1.04);
+    visual.destroyedAt = performance.now();
+    const center = visual.group.position.clone();
+    const flashShell = new THREE.Mesh(
+      new THREE.IcosahedronGeometry(BALANCE.planetRadius * 1.015, 2),
+      new THREE.MeshBasicMaterial({ color: 0xfff2c2, transparent: true, opacity: .82, wireframe: true, depthWrite: false })
+    );
+    flashShell.position.copy(center); this.scene.add(flashShell);
+    this.particles.push({ mesh: flashShell, velocity: new THREE.Vector3(), life: .48, maxLife: .48, growth: 1.2, spin: 1.8 });
     visual.shell.visible = false;
     visual.cannon.visible = false;
     visual.repair.visible = false;
@@ -467,13 +531,19 @@ export class PlanetfallGame {
         new THREE.DodecahedronGeometry(Math.random() * 1.4 + 0.55, 0),
         new THREE.MeshStandardMaterial({ color: i % 3 === 0 ? 0xff794c : visual.shell.material.color, roughness: 0.9, flatShading: true })
       );
-      mesh.position.copy(visual.group.position).add(new THREE.Vector3().randomDirection().multiplyScalar(Math.random() * 4));
+      mesh.position.copy(center).add(new THREE.Vector3().randomDirection().multiplyScalar(Math.random() * 3.4));
       this.scene.add(mesh);
-      this.particles.push({ mesh, velocity: new THREE.Vector3().randomDirection().multiplyScalar(Math.random() * 7 + 2), life: 4 + Math.random() * 2, maxLife: 6 });
+      this.particles.push({ mesh, velocity: new THREE.Vector3().randomDirection().multiplyScalar(Math.random() * 8 + 3), life: 3.4 + Math.random() * 1.8, maxLife: 5.2, spin: 1.5 + Math.random() * 2.5 });
     }
     this.audio.explosion(true);
-    this.shake = 1.4;
-    this.spawnPulse(visual.group.position, 0xffd25c, 4.5);
+    this.shake = this.reducedMotion ? .35 : 1.3;
+    this.spawnBurst(center, [0xfff0b3, 0xff7a48, 0x4b2947, 0xb67cff], 44, 9);
+    this.spawnPulse(center, 0xffd25c, 4.5);
+    this.spawnShockwave(center, 0xffd25c, 13);
+    setTimeout(() => {
+      this.spawnBurst(center, [0x9a7798, 0x55435f, 0xff8a4f], 20, 4.4);
+      this.spawnShockwave(center, 0xb67cff, 17);
+    }, 130);
   }
 
   resetVisualEffects(): void {
@@ -485,41 +555,53 @@ export class PlanetfallGame {
     this.onIndicators?.([]);
     for (const planet of this.planets.values()) {
       for (const child of [...planet.cracks.children]) if (!child.userData.stageMark) { planet.cracks.remove(child); this.disposeObject(child); }
-      planet.shell.visible = true; planet.cannon.visible = true; planet.repair.visible = true; planet.launchPad.visible = true; planet.props.visible = true;
+      planet.shell.visible = true; planet.cannon.visible = true; planet.repair.visible = true; planet.launchPad.visible = true; planet.props.visible = true; planet.surfacePatches.visible = true;
       planet.launchHighlight.visible = false;
       planet.label.visible = true;
-      planet.group.scale.setScalar(1); planet.shell.material.emissive.setHex(0x000000);
+      planet.group.scale.setScalar(1); planet.shell.material.emissive.setHex(0x000000); planet.destroyedAt = 0;
     }
   }
 
   private setupScene(): void {
-    const ambient = new THREE.HemisphereLight(0xb9e2ff, 0x35245c, 2.55);
+    const ambient = new THREE.HemisphereLight(0xbdeaff, 0x251942, 2.35);
     this.scene.add(ambient);
-    const sun = new THREE.DirectionalLight(0xfff0d0, 3.2);
+    const sun = new THREE.DirectionalLight(0xffeed3, 3.45);
     sun.position.set(-35, 46, 28);
     this.scene.add(sun);
-    const rim = new THREE.PointLight(0x8d5cff, 90, 110, 2);
+    const coolFill = new THREE.DirectionalLight(0x70dfff, 1.1);
+    coolFill.position.set(35, -18, 16); this.scene.add(coolFill);
+    const rim = new THREE.PointLight(0xa56dff, 105, 125, 2);
     rim.position.set(30, -8, -35);
     this.scene.add(rim);
 
-    const starCount = 1500;
-    const positions = new Float32Array(starCount * 3);
-    const colors = new Float32Array(starCount * 3);
-    for (let i = 0; i < starCount; i++) {
-      const p = new THREE.Vector3().randomDirection().multiplyScalar(90 + Math.random() * 190);
-      positions.set([p.x, p.y, p.z], i * 3);
-      const c = new THREE.Color(i % 7 === 0 ? 0xffb3e7 : i % 5 === 0 ? 0x83eaff : 0xffffff);
-      colors.set([c.r, c.g, c.b], i * 3);
+    const random = seededRandom("planetfall-space");
+    for (const [layer, count, near, spread, size, opacity] of [
+      [0, 1250, 95, 195, .24, .72],
+      [1, 430, 72, 115, .48, .68],
+      [2, 95, 64, 80, .92, .82]
+    ] as const) {
+      const positions = new Float32Array(count * 3);
+      const colors = new Float32Array(count * 3);
+      for (let i = 0; i < count; i++) {
+        const theta = random() * Math.PI * 2;
+        const z = random() * 2 - 1;
+        const radius = Math.sqrt(1 - z * z);
+        const distance = near + random() * spread;
+        positions.set([Math.cos(theta) * radius * distance, z * distance, Math.sin(theta) * radius * distance], i * 3);
+        const c = new THREE.Color((i + layer) % 11 === 0 ? 0xffb4e4 : (i + layer) % 7 === 0 ? 0x75eaff : (i + layer) % 17 === 0 ? 0xffe5a3 : 0xffffff);
+        colors.set([c.r, c.g, c.b], i * 3);
+      }
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+      geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+      const points = new THREE.Points(geometry, new THREE.PointsMaterial({ size, vertexColors: true, transparent: true, opacity, sizeAttenuation: true, depthWrite: false, fog: false }));
+      points.userData.speed = .0025 + layer * .0015;
+      this.starLayers.push(points); this.scene.add(points);
     }
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-    const stars = new THREE.Points(geometry, new THREE.PointsMaterial({ size: 0.32, vertexColors: true, transparent: true, opacity: 0.9, sizeAttenuation: true }));
-    this.scene.add(stars);
 
-    const dustPositions = new Float32Array(360 * 3);
-    for (let i = 0; i < 360; i++) {
-      const point = new THREE.Vector3().randomDirection().multiplyScalar(45 + Math.random() * 60);
+    const dustPositions = new Float32Array(280 * 3);
+    for (let i = 0; i < 280; i++) {
+      const point = new THREE.Vector3(random() * 2 - 1, random() * 2 - 1, random() * 2 - 1).normalize().multiplyScalar(46 + random() * 72);
       dustPositions.set([point.x, point.y, point.z], i * 3);
     }
     const dustGeometry = new THREE.BufferGeometry();
@@ -527,12 +609,26 @@ export class PlanetfallGame {
     this.scene.add(new THREE.Points(dustGeometry, new THREE.PointsMaterial({ color: 0x7a64c9, size: 0.8, transparent: true, opacity: 0.16, depthWrite: false })));
 
     for (const [position, color, radius] of [
-      [new THREE.Vector3(-62, 28, -95), 0x6f45c7, 13],
-      [new THREE.Vector3(78, -22, -120), 0x1aa5b8, 18],
-      [new THREE.Vector3(10, 58, -150), 0xe05491, 9]
+      [new THREE.Vector3(-68, 31, -105), 0x7651c9, 14],
+      [new THREE.Vector3(84, -24, -128), 0x1aa5b8, 19],
+      [new THREE.Vector3(8, 62, -158), 0xe05491, 10]
     ] as const) {
-      const distant = new THREE.Mesh(new THREE.SphereGeometry(radius, 16, 12), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.16, fog: false }));
-      distant.position.copy(position); this.scene.add(distant);
+      const distant = new THREE.Group();
+      const world = new THREE.Mesh(new THREE.IcosahedronGeometry(radius, 2), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .2, fog: false }));
+      const halo = new THREE.Mesh(new THREE.SphereGeometry(radius * 1.08, 16, 12), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .055, side: THREE.BackSide, depthWrite: false, fog: false }));
+      distant.add(world, halo); distant.position.copy(position); this.scene.add(distant);
+    }
+    for (let index = 0; index < 13; index++) {
+      const rock = new THREE.Mesh(
+        new THREE.DodecahedronGeometry(1.1 + random() * 2.6, 0),
+        new THREE.MeshStandardMaterial({ color: index % 3 === 0 ? 0x41385f : 0x252844, roughness: 1, flatShading: true })
+      );
+      const angle = random() * Math.PI * 2;
+      const radius = 74 + random() * 65;
+      rock.position.set(Math.cos(angle) * radius, (random() * 2 - 1) * 46, Math.sin(angle) * radius - 42);
+      rock.rotation.set(random() * Math.PI, random() * Math.PI, random() * Math.PI);
+      rock.userData.spaceRock = true;
+      this.scene.add(rock);
     }
   }
 
@@ -542,7 +638,7 @@ export class PlanetfallGame {
     const b = this.makePlanet({ id: "demo-b", ownerId: "", position: { x: -12, y: 3, z: -18 }, integrity: 58, alive: true, palette: 3, damageStage: 2, cannonDisabledUntil: 0, repairDisabledUntil: 0, cannonSabotageImmuneUntil: 0, repairSabotageImmuneUntil: 0 });
     b.group.scale.setScalar(0.7);
     this.demo.add(a.group, b.group);
-    const astronaut = this.makePlayer({ id: "demo", name: "", isBot: false, color: "#ffdc4f", planetId: "", connected: true, ready: true, alive: true, scrap: 0, position: { x: 13, y: 9.5, z: -4 }, velocity: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, lastInputSequence: 0, surfacePlanetId: "demo-a", launchCooldownUntil: 0, shoveCooldownUntil: 0 });
+    const astronaut = this.makePlayer({ id: "demo", name: "", isBot: false, color: "#ffdc4f", planetId: "", connected: true, ready: true, alive: true, scrap: 0, position: { x: 13, y: 9.5, z: -4 }, velocity: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, lastInputSequence: 0, surfacePlanetId: "demo-a", launchCooldownUntil: 0, shoveCooldownUntil: 0, crowns: 0 });
     astronaut.group.position.set(13, 9.4, -4);
     astronaut.group.scale.setScalar(1.2);
     this.demo.add(astronaut.group);
@@ -558,7 +654,8 @@ export class PlanetfallGame {
     const positions = shellGeometry.getAttribute("position") as THREE.BufferAttribute;
     for (let i = 0; i < positions.count; i++) {
       const point = new THREE.Vector3().fromBufferAttribute(positions, i).normalize();
-      const variation = Math.sin(point.x * 11 + point.z * 7) * .065
+      const broad = Math.sin(point.x * 3.7 + state.palette) * Math.cos(point.z * 3.2 - state.palette) * .11;
+      const variation = broad + Math.sin(point.x * 11 + point.z * 7) * .065
         + Math.sin(point.y * 13 - point.x * 5) * .045
         + Math.cos((point.x + point.y + point.z) * 17) * .025;
       point.multiplyScalar(BALANCE.planetRadius + variation);
@@ -568,15 +665,33 @@ export class PlanetfallGame {
     const baseColor = new THREE.Color(palette.ground);
     const shell = new THREE.Mesh(
       shellGeometry,
-      new THREE.MeshStandardMaterial({ color: baseColor, roughness: 0.82, metalness: 0.02, flatShading: true })
+      new THREE.MeshStandardMaterial({ color: baseColor, roughness: 0.86, metalness: 0.015, flatShading: true })
     );
     shell.castShadow = false; shell.receiveShadow = false;
     group.add(shell);
     const atmosphere = new THREE.Mesh(
-      new THREE.SphereGeometry(BALANCE.planetRadius * 1.035, 32, 18),
-      new THREE.MeshBasicMaterial({ color: palette.accent, transparent: true, opacity: 0.1, side: THREE.BackSide, depthWrite: false })
+      new THREE.SphereGeometry(BALANCE.planetRadius * 1.075, 24, 16),
+      new THREE.ShaderMaterial({
+        uniforms: { glowColor: { value: new THREE.Color(palette.accent) }, intensity: { value: .46 } },
+        vertexShader: atmosphereVertexShader, fragmentShader: atmosphereFragmentShader,
+        transparent: true, side: THREE.BackSide, depthWrite: false, blending: THREE.AdditiveBlending
+      })
     );
     group.add(atmosphere);
+    const surfacePatches = new THREE.Group(); group.add(surfacePatches);
+    const patchMaterial = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(palette.ground).lerp(new THREE.Color(palette.accent), .2),
+      roughness: .92, flatShading: true, polygonOffset: true, polygonOffsetFactor: -1
+    });
+    for (let index = 0; index < 9; index++) {
+      const normal = new THREE.Vector3(random() * 2 - 1, random() * 2 - 1, random() * 2 - 1).normalize();
+      const patch = new THREE.Mesh(new THREE.CircleGeometry(.65 + random() * 1.05, 9), patchMaterial);
+      patch.position.copy(normal.clone().multiplyScalar(BALANCE.planetRadius + .04));
+      patch.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+      patch.scale.set(1, .45 + random() * .4, 1);
+      patch.rotation.z = random() * Math.PI;
+      surfacePatches.add(patch);
+    }
     const labelCanvas = document.createElement("canvas"); labelCanvas.width = 384; labelCanvas.height = 112;
     const labelContext = labelCanvas.getContext("2d")!;
     const labelTexture = new THREE.CanvasTexture(labelCanvas); labelTexture.colorSpace = THREE.SRGBColorSpace;
@@ -584,33 +699,49 @@ export class PlanetfallGame {
     label.position.set(0, BALANCE.planetRadius + 4.1, 0); label.scale.set(7.2, 2.1, 1); label.renderOrder = 8; group.add(label);
     const cracks = new THREE.Group(); group.add(cracks);
     for (let stage = 1; stage <= 3; stage++) {
-      const scar = new THREE.Mesh(
-        new THREE.TorusGeometry(BALANCE.planetRadius + 0.05, 0.035 + stage * 0.015, 4, 28, Math.PI * (0.55 + stage * 0.12)),
-        new THREE.MeshBasicMaterial({ color: stage === 3 ? 0xff6c4c : 0x372039, transparent: true, opacity: 0.72, depthWrite: false })
-      );
-      scar.rotation.set(random() * Math.PI, random() * Math.PI, random() * Math.PI);
-      scar.visible = state.damageStage >= stage;
-      scar.userData.stageMark = stage;
-      cracks.add(scar);
+      for (let branch = 0; branch < stage + 1; branch++) {
+        const scar = new THREE.Mesh(
+          new THREE.TorusGeometry(BALANCE.planetRadius + .055, .025 + stage * .014, 4, 18 + stage * 5, Math.PI * (.34 + random() * .42)),
+          new THREE.MeshBasicMaterial({ color: stage === 3 ? 0xff7a48 : 0x33213d, transparent: true, opacity: .54 + stage * .12, depthWrite: false })
+        );
+        scar.rotation.set(random() * Math.PI, random() * Math.PI, random() * Math.PI);
+        scar.visible = state.damageStage >= stage;
+        scar.userData.stageMark = stage;
+        cracks.add(scar);
+      }
     }
 
+    const ownerColor = this.room?.players.find((player) => player.id === state.ownerId)?.color ?? palette.accent;
+    const cannonAccent = new THREE.MeshStandardMaterial({ color: ownerColor, emissive: ownerColor, emissiveIntensity: .22, metalness: .4, roughness: .3 });
     const cannon = new THREE.Group();
-    const base = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.5, 0.9, 10), new THREE.MeshStandardMaterial({ color: 0x30375c, metalness: 0.45, roughness: 0.5, flatShading: true }));
+    const baseMaterial = new THREE.MeshStandardMaterial({ color: 0x30375c, metalness: 0.52, roughness: 0.42, flatShading: true });
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(1.25, 1.62, 0.86, 10), baseMaterial);
+    const baseTrim = new THREE.Mesh(new THREE.TorusGeometry(1.28, .12, 6, 14), cannonAccent); baseTrim.rotation.x = Math.PI / 2; baseTrim.position.y = .43;
+    const swivel = new THREE.Mesh(new THREE.CylinderGeometry(.82, 1, .56, 10), baseMaterial); swivel.position.y = .72;
     const barrelRig = new THREE.Group(); barrelRig.position.y = 1.4;
-    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.58, 3.4, 10), new THREE.MeshStandardMaterial({ color: 0x697399, metalness: 0.55, roughness: 0.35 }));
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.62, 3.5, 10), new THREE.MeshStandardMaterial({ color: 0x697399, metalness: 0.62, roughness: 0.28, flatShading: true }));
     barrel.rotation.x = Math.PI / 2; barrel.position.z = -0.8;
-    const muzzle = new THREE.Mesh(new THREE.TorusGeometry(0.48, 0.15, 6, 12), new THREE.MeshStandardMaterial({ color: 0xffdc4f, emissive: 0x7a3b00, emissiveIntensity: 1.1 }));
+    const barrelBand = new THREE.Mesh(new THREE.TorusGeometry(.48, .09, 6, 12), cannonAccent); barrelBand.position.z = -.55;
+    const muzzle = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.17, 6, 12), new THREE.MeshStandardMaterial({ color: 0xffdc4f, emissive: 0x7a3b00, emissiveIntensity: 1.1 }));
     muzzle.position.set(0, 0, -2.45); muzzle.rotation.x = Math.PI / 2;
     const braceMaterial = new THREE.MeshStandardMaterial({ color: 0x485173, metalness: 0.55, roughness: 0.42 });
-    const leftBrace = new THREE.Mesh(new THREE.BoxGeometry(0.22, 1.45, 0.28), braceMaterial); leftBrace.position.set(-0.72, 0.68, 0);
+    const leftBrace = new THREE.Mesh(new THREE.BoxGeometry(0.28, 1.55, 0.38), braceMaterial); leftBrace.position.set(-0.74, 0.7, 0);
     const rightBrace = leftBrace.clone(); rightBrace.position.x = 0.72;
-    barrelRig.add(barrel, muzzle);
-    cannon.add(base, leftBrace, rightBrace, barrelRig); cannon.position.set(0, BALANCE.planetRadius + 0.15, 0); group.add(cannon);
+    const hubLeft = new THREE.Mesh(new THREE.CylinderGeometry(.34, .34, .2, 10), cannonAccent); hubLeft.rotation.z = Math.PI / 2; hubLeft.position.set(-.78, 1.35, 0);
+    const hubRight = hubLeft.clone(); hubRight.position.x = .78;
+    barrelRig.add(barrel, barrelBand, muzzle);
+    cannon.add(base, baseTrim, swivel, leftBrace, rightBrace, hubLeft, hubRight, barrelRig); cannon.position.set(0, BALANCE.planetRadius + 0.15, 0); group.add(cannon);
 
     const repair = new THREE.Group();
-    const core = new THREE.Mesh(new THREE.OctahedronGeometry(0.8, 0), new THREE.MeshStandardMaterial({ color: 0x70f5ff, emissive: 0x247a91, emissiveIntensity: 1.5, metalness: 0.25 }));
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.12, 8, 20), new THREE.MeshStandardMaterial({ color: 0xa4b2e6, metalness: 0.5 }));
-    ring.rotation.y = Math.PI / 2; repair.add(core, ring); repair.position.set(BALANCE.planetRadius + 0.65, 0, 0); repair.rotation.z = -Math.PI / 2; group.add(repair);
+    const core = new THREE.Mesh(new THREE.OctahedronGeometry(0.82, 0), new THREE.MeshStandardMaterial({ color: 0x70f5ff, emissive: 0x247a91, emissiveIntensity: 1.5, metalness: 0.25 }));
+    const repairRings = new THREE.Group();
+    for (let index = 0; index < 3; index++) {
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(1.12 + index * .18, .07 + index * .02, 7, 20), new THREE.MeshStandardMaterial({ color: index === 1 ? ownerColor : 0xa4b2e6, emissive: index === 1 ? ownerColor : 0x182044, emissiveIntensity: .45, metalness: 0.5 }));
+      ring.rotation.set(index === 0 ? Math.PI / 2 : 0, index === 1 ? Math.PI / 2 : 0, index === 2 ? Math.PI / 2 : 0);
+      repairRings.add(ring);
+    }
+    const repairBase = new THREE.Mesh(new THREE.CylinderGeometry(1.02, 1.24, .38, 10), baseMaterial); repairBase.position.y = -.86;
+    repair.add(core, repairRings, repairBase); repair.position.set(BALANCE.planetRadius + 0.65, 0, 0); repair.rotation.z = -Math.PI / 2; group.add(repair);
 
     const padNormal = vec(launchPadNormal(state));
     const launchPad = new THREE.Group();
@@ -622,11 +753,17 @@ export class PlanetfallGame {
     const arrowStem = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.13, 1.05), padGlow); arrowStem.position.set(0, 0.25, -0.15);
     const arrowHead = new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.8, 5), padGlow); arrowHead.rotation.x = -Math.PI / 2; arrowHead.position.set(0, 0.25, -0.88);
     const armMaterial = new THREE.MeshStandardMaterial({ color: 0x7582aa, metalness: 0.58, roughness: 0.35 });
+    const launchArms = new THREE.Group();
     for (const x of [-0.88, 0.88]) {
       const arm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.62, 0.3), armMaterial);
-      arm.position.set(x, 0.28, 0.05); arm.rotation.z = x * -0.22; launchPad.add(arm);
+      arm.position.set(x, 0.28, 0.05); arm.rotation.z = x * -0.22; launchArms.add(arm);
     }
-    launchPad.add(platform, launchRing, arrowStem, arrowHead);
+    const padNodes = new THREE.Group();
+    for (let index = 0; index < 4; index++) {
+      const node = new THREE.Mesh(new THREE.SphereGeometry(.12, 7, 5), cannonAccent);
+      const angle = index * Math.PI / 2; node.position.set(Math.cos(angle) * 1.27, .18, Math.sin(angle) * 1.27); padNodes.add(node);
+    }
+    launchPad.add(platform, launchRing, arrowStem, arrowHead, launchArms, padNodes);
     launchPad.position.copy(padNormal.clone().multiplyScalar(BALANCE.planetRadius + 0.2));
     launchPad.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), padNormal);
     group.add(launchPad);
@@ -657,28 +794,74 @@ export class PlanetfallGame {
     const damageDebris = new THREE.Group(); group.add(damageDebris);
     const propMaterial = new THREE.MeshStandardMaterial({ color: palette.accent, roughness: 0.85, flatShading: true, emissive: state.palette === 3 || state.palette === 5 ? palette.rock : 0x000000, emissiveIntensity: 0.18 });
     const rockMaterial = new THREE.MeshStandardMaterial({ color: palette.rock, roughness: 0.95, flatShading: true });
-    for (let i = 0; i < 22; i++) {
-      const normal = new THREE.Vector3(random() * 2 - 1, random() * 2 - 1, random() * 2 - 1).normalize();
-      if (Math.abs(normal.y) > 0.82 || normal.x > 0.88 || normal.dot(padNormal) > 0.86) continue;
-      let prop: THREE.Object3D;
-      let height = 0.22;
-      if (state.palette === 0 || state.palette === 4) {
+    const glowMaterial = new THREE.MeshStandardMaterial({ color: palette.accent, emissive: palette.accent, emissiveIntensity: .8, roughness: .35, flatShading: true });
+    const paleMaterial = new THREE.MeshStandardMaterial({ color: state.palette === 2 ? 0xf3fcff : 0xfff1bb, roughness: .72, flatShading: true });
+    const clusterCenters = Array.from({ length: 4 }, () => new THREE.Vector3(random() * 2 - 1, random() * 1.7 - .85, random() * 2 - 1).normalize());
+    const makeBiomeProp = (index: number): THREE.Object3D => {
+      const landmark = index < 4 ? 1.35 : .8 + random() * .45;
+      if (state.palette === 0) {
         const tree = new THREE.Group();
-        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.16, 0.68, 6), rockMaterial); trunk.position.y = 0.34;
-        const crown = new THREE.Mesh(new THREE.IcosahedronGeometry(0.45 + random() * 0.2, 1), propMaterial); crown.position.y = 0.9;
-        tree.add(trunk, crown); prop = tree; height = 0.08;
-      } else if (state.palette === 1) {
-        prop = i % 3 === 0 ? new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.18, 1.15, 6), propMaterial) : new THREE.Mesh(new THREE.DodecahedronGeometry(0.3 + random() * 0.38, 0), rockMaterial);
-        height = i % 3 === 0 ? 0.56 : 0.2;
-      } else if (state.palette === 2 || state.palette === 5) {
-        prop = new THREE.Mesh(new THREE.ConeGeometry(0.24 + random() * 0.22, 1 + random() * 1.1, 5), i % 3 === 0 ? propMaterial : rockMaterial); height = 0.62;
-      } else {
-        prop = i % 4 === 0 ? new THREE.Mesh(new THREE.TorusGeometry(0.38, 0.1, 5, 10), propMaterial) : new THREE.Mesh(new THREE.DodecahedronGeometry(0.32 + random() * 0.42, 0), rockMaterial); height = 0.22;
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(.1 * landmark, .16 * landmark, .72 * landmark, 6), rockMaterial); trunk.position.y = .36 * landmark;
+        const crownA = new THREE.Mesh(new THREE.IcosahedronGeometry(.43 * landmark, 1), propMaterial); crownA.position.y = .88 * landmark;
+        const crownB = new THREE.Mesh(new THREE.IcosahedronGeometry(.29 * landmark, 1), propMaterial); crownB.position.set(.22 * landmark, 1.12 * landmark, 0);
+        tree.add(trunk, crownA, crownB);
+        if (index % 5 === 0) {
+          const flower = new THREE.Mesh(new THREE.SphereGeometry(.1, 6, 4), paleMaterial); flower.position.set(-.28, .16, .12); tree.add(flower);
+        }
+        return tree;
       }
-      prop.position.copy(normal.clone().multiplyScalar(BALANCE.planetRadius + height));
+      if (state.palette === 1) {
+        if (index % 3 === 0) {
+          const cactus = new THREE.Group();
+          const stem = new THREE.Mesh(new THREE.CylinderGeometry(.13, .18, 1.25 * landmark, 6), propMaterial); stem.position.y = .62 * landmark;
+          cactus.add(stem);
+          for (const side of [-1, 1]) {
+            const arm = new THREE.Mesh(new THREE.CylinderGeometry(.08, .1, .5 * landmark, 6), propMaterial);
+            arm.position.set(side * .2, .68 * landmark, 0); arm.rotation.z = side * .9; cactus.add(arm);
+          }
+          return cactus;
+        }
+        const mesa = new THREE.Mesh(new THREE.CylinderGeometry(.28 * landmark, .46 * landmark, .48 * landmark, 7), rockMaterial); mesa.position.y = .24 * landmark; return mesa;
+      }
+      if (state.palette === 2) {
+        const crystal = new THREE.Group();
+        for (let shard = 0; shard < 3; shard++) {
+          const spike = new THREE.Mesh(new THREE.ConeGeometry((.13 + shard * .04) * landmark, (.72 + shard * .2) * landmark, 5), shard === 1 ? glowMaterial : paleMaterial);
+          spike.position.set((shard - 1) * .18 * landmark, (.36 + shard * .1) * landmark, shard % 2 * .08); spike.rotation.z = (shard - 1) * .17; crystal.add(spike);
+        }
+        return crystal;
+      }
+      if (state.palette === 3) {
+        const vent = new THREE.Group();
+        const rock = new THREE.Mesh(new THREE.ConeGeometry(.38 * landmark, .62 * landmark, 7, 1, true), rockMaterial); rock.position.y = .28 * landmark;
+        const ember = new THREE.Mesh(new THREE.SphereGeometry(.11 * landmark, 6, 4), glowMaterial); ember.position.y = .63 * landmark;
+        vent.add(rock, ember); vent.userData.vent = true; return vent;
+      }
+      if (state.palette === 4) {
+        const plant = new THREE.Group();
+        const stalk = new THREE.Mesh(new THREE.CylinderGeometry(.07, .12, .72 * landmark, 6), rockMaterial); stalk.position.y = .36 * landmark;
+        const bulb = new THREE.Mesh(new THREE.SphereGeometry(.34 * landmark, 9, 6), propMaterial); bulb.scale.y = 1.22; bulb.position.y = .86 * landmark;
+        const spore = new THREE.Mesh(new THREE.SphereGeometry(.1 * landmark, 6, 4), glowMaterial); spore.position.set(.24 * landmark, 1.04 * landmark, 0);
+        plant.add(stalk, bulb, spore); plant.userData.bulb = true; return plant;
+      }
+      const formation = new THREE.Group();
+      const shard = new THREE.Mesh(new THREE.OctahedronGeometry(.42 * landmark, 0), glowMaterial); shard.scale.y = 1.75; shard.position.y = .58 * landmark;
+      const orbit = new THREE.Mesh(new THREE.TorusGeometry(.48 * landmark, .045, 5, 14), paleMaterial); orbit.rotation.x = Math.PI / 2; orbit.position.y = .56 * landmark;
+      const floater = new THREE.Mesh(new THREE.DodecahedronGeometry(.14 * landmark, 0), rockMaterial); floater.position.set(.45 * landmark, 1.02 * landmark, 0);
+      formation.add(shard, orbit, floater); formation.userData.cosmic = true; return formation;
+    };
+    for (let index = 0; index < 26; index++) {
+      const center = clusterCenters[index % clusterCenters.length];
+      const scatter = new THREE.Vector3(random() * 2 - 1, random() * 2 - 1, random() * 2 - 1).multiplyScalar(index < 4 ? .12 : .38);
+      const normal = center.clone().multiplyScalar(.92).add(scatter).normalize();
+      const worldPosition = vec(state.position).addScaledVector(normal, BALANCE.planetRadius + .25);
+      if (Math.abs(normal.y) > .86 || normal.x > .86 || normal.dot(padNormal) > .84) continue;
+      if ([cannonPosition(state), repairPosition(state), launchPadPosition(state)].some((structure) => worldPosition.distanceTo(vec(structure)) < 3)) continue;
+      const prop = makeBiomeProp(index);
+      prop.position.copy(normal.clone().multiplyScalar(BALANCE.planetRadius + .04));
       prop.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
       prop.rotateY(random() * Math.PI * 2);
-      prop.traverse((child) => { child.castShadow = true; }); props.add(prop);
+      prop.traverse((child) => { child.castShadow = false; }); props.add(prop);
     }
     for (let i = 0; i < 7; i++) {
       const fragment = new THREE.Mesh(new THREE.DodecahedronGeometry(.13 + random() * .18, 0), rockMaterial);
@@ -686,32 +869,68 @@ export class PlanetfallGame {
       fragment.visible = false; fragment.userData.damageLevel = 1 + i % 3; damageDebris.add(fragment);
     }
     return {
-      group, shell, atmosphere, cracks, props, damageDebris, cannon, barrel: barrelRig, muzzle, repair, repairCore: core,
-      launchPad, launchRing, launchHighlight, cannonJam, repairJam,
+      group, shell, atmosphere, surfacePatches, cracks, props, damageDebris, cannon, barrel: barrelRig, muzzle, cannonAccent,
+      repair, repairCore: core, repairRings, launchPad, launchRing, launchArms, launchHighlight, cannonJam, repairJam,
       label, labelCanvas, labelContext, labelTexture, labelKey: "",
-      baseColor, recoil: 0, repairPulse: 0, launchPulse: 0, nextJamSparkAt: 0, nextDamagePulseAt: 0, state
+      baseColor, recoil: 0, repairPulse: 0, launchPulse: 0, nextJamSparkAt: 0, nextDamagePulseAt: 0, destroyedAt: 0, state
     };
   }
 
   private makePlayer(state: PlayerState): PlayerVisual {
     const group = new THREE.Group();
-    const suit = new THREE.MeshStandardMaterial({ color: state.color, roughness: 0.65, flatShading: true });
-    const white = new THREE.MeshStandardMaterial({ color: 0xe8f4ff, roughness: 0.55 });
-    const visor = new THREE.MeshStandardMaterial({ color: 0x14294b, metalness: 0.75, roughness: 0.2, emissive: 0x0b3760, emissiveIntensity: 0.5 });
-    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.45, 0.55, 5, 9), suit); body.position.y = 0.7;
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.5, 12, 8), white); head.position.y = 1.45;
-    const face = new THREE.Mesh(new THREE.SphereGeometry(0.39, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), visor); face.position.set(0, 1.46, 0.28); face.scale.set(0.94, 0.74, 0.42);
-    const pack = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.7, 0.3), suit); pack.position.set(0, 0.85, -0.43);
-    const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.55, 6), new THREE.MeshStandardMaterial({ color: 0x70f5ff, emissive: 0x174c64, emissiveIntensity: 0.8 })); tank.position.set(0.22, 0.85, -0.61);
-    const limbGeometry = new THREE.CapsuleGeometry(0.115, 0.42, 3, 6);
-    const bootGeometry = new THREE.SphereGeometry(0.23, 8, 6);
-    const makeLeg = (x: number) => { const rig = new THREE.Group(); rig.position.set(x, 0.48, 0); const leg = new THREE.Mesh(limbGeometry, suit); leg.position.y = -0.24; const boot = new THREE.Mesh(bootGeometry, white); boot.position.set(0, -0.57, 0.1); boot.scale.set(1, .7, 1.4); rig.add(leg, boot); return rig; };
-    const makeArm = (x: number) => { const rig = new THREE.Group(); rig.position.set(x, 1.02, 0); const arm = new THREE.Mesh(limbGeometry, suit); arm.position.y = -0.24; const glove = new THREE.Mesh(new THREE.SphereGeometry(.15, 7, 5), white); glove.position.y = -.55; rig.add(arm, glove); rig.rotation.z = x > 0 ? -.16 : .16; return rig; };
-    const leftLeg = makeLeg(-0.25); const rightLeg = makeLeg(0.25); const leftArm = makeArm(-0.55); const rightArm = makeArm(0.55);
-    const antenna = new THREE.Mesh(new THREE.CylinderGeometry(.025, .025, .42, 5), white); antenna.position.set(.3, 1.95, -.05); antenna.rotation.z = -.2;
-    const antennaTip = new THREE.Mesh(new THREE.SphereGeometry(.07, 6, 4), new THREE.MeshBasicMaterial({ color: state.isBot ? 0xff7f9b : 0x70f5ff })); antennaTip.position.set(.34, 2.16, -.05);
-    for (const mesh of [body, head, face, pack, tank, antenna, antennaTip]) { mesh.castShadow = true; group.add(mesh); }
-    group.add(leftLeg, rightLeg, leftArm, rightArm);
+    const lodDetails: THREE.Object3D[] = [];
+    const suit = new THREE.MeshStandardMaterial({ color: state.color, roughness: .58, flatShading: true });
+    const white = new THREE.MeshStandardMaterial({ color: 0xf0f6ff, roughness: .48, flatShading: true });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x202747, roughness: .72, flatShading: true });
+    const glow = new THREE.MeshStandardMaterial({ color: state.color, emissive: state.color, emissiveIntensity: .75, metalness: .25, roughness: .3 });
+    const visorMaterial = new THREE.MeshStandardMaterial({ color: 0x102344, metalness: .82, roughness: .12, emissive: 0x0b4167, emissiveIntensity: .6 });
+    const torso = new THREE.Mesh(new THREE.CapsuleGeometry(.48, .52, 5, 9), white); torso.position.y = .72; torso.scale.set(1.06, 1, .92);
+    const chest = new THREE.Mesh(new THREE.BoxGeometry(.62, .36, .12), suit); chest.position.set(0, .82, .43);
+    const chestLight = new THREE.Mesh(new THREE.BoxGeometry(.3, .07, .025), glow); chestLight.position.set(0, .86, .505);
+    const belt = new THREE.Mesh(new THREE.TorusGeometry(.43, .075, 5, 10), dark); belt.rotation.x = Math.PI / 2; belt.position.y = .45; belt.scale.z = .78;
+    const helmet = new THREE.Group(); helmet.position.y = 1.46;
+    const helmetShell = new THREE.Mesh(new THREE.SphereGeometry(.56, 12, 9), white); helmetShell.scale.set(1.02, .98, .98);
+    const helmetBand = new THREE.Mesh(new THREE.TorusGeometry(.48, .055, 5, 12), suit); helmetBand.rotation.x = Math.PI / 2; helmetBand.position.y = -.18;
+    const visor = new THREE.Mesh(new THREE.SphereGeometry(.43, 12, 8, 0, Math.PI * 2, 0, Math.PI * .58), visorMaterial); visor.position.set(0, .02, .31); visor.scale.set(.98, .74, .42);
+    const visorGlint = new THREE.Mesh(new THREE.SphereGeometry(.08, 6, 4), new THREE.MeshBasicMaterial({ color: 0xbef8ff, transparent: true, opacity: .75 })); visorGlint.position.set(-.2, .17, .58); visorGlint.scale.set(1.8, .6, .35);
+    helmet.add(helmetShell, helmetBand, visor, visorGlint);
+    lodDetails.push(chestLight, belt, helmetBand, visorGlint);
+    const backpack = new THREE.Group(); backpack.position.set(0, .86, -.45);
+    const pack = new THREE.Mesh(new THREE.BoxGeometry(.66, .74, .32), dark); pack.scale.z = 1.12;
+    const tankMaterial = new THREE.MeshStandardMaterial({ color: 0xa9bad9, metalness: .45, roughness: .35 });
+    for (const x of [-.22, .22]) {
+      const tank = new THREE.Mesh(new THREE.CylinderGeometry(.1, .12, .56, 7), tankMaterial); tank.position.set(x, .02, -.22); backpack.add(tank);
+      const nozzle = new THREE.Mesh(new THREE.ConeGeometry(.1, .2, 7, 1, true), glow); nozzle.rotation.x = Math.PI; nozzle.position.set(x, -.39, -.22); backpack.add(nozzle);
+      lodDetails.push(tank, nozzle);
+    }
+    backpack.add(pack);
+    const limbGeometry = new THREE.CapsuleGeometry(.13, .4, 3, 7);
+    const bootGeometry = new THREE.SphereGeometry(.24, 8, 6);
+    const makeLeg = (x: number) => {
+      const rig = new THREE.Group(); rig.position.set(x, .48, 0);
+      const leg = new THREE.Mesh(limbGeometry, dark); leg.position.y = -.25;
+      const knee = new THREE.Mesh(new THREE.SphereGeometry(.15, 7, 5), suit); knee.position.set(0, -.28, .1);
+      const boot = new THREE.Mesh(bootGeometry, white); boot.position.set(0, -.58, .13); boot.scale.set(1.05, .72, 1.5);
+      const sole = new THREE.Mesh(new THREE.BoxGeometry(.36, .08, .48), dark); sole.position.set(0, -.73, .18);
+      lodDetails.push(knee, sole);
+      rig.add(leg, knee, boot, sole); return rig;
+    };
+    const makeArm = (x: number) => {
+      const rig = new THREE.Group(); rig.position.set(x, 1.02, 0);
+      const shoulder = new THREE.Mesh(new THREE.SphereGeometry(.19, 7, 5), suit); shoulder.scale.set(1.2, .8, 1);
+      const arm = new THREE.Mesh(limbGeometry, dark); arm.position.y = -.27;
+      const cuff = new THREE.Mesh(new THREE.CylinderGeometry(.15, .15, .14, 7), suit); cuff.position.y = -.48;
+      const glove = new THREE.Mesh(new THREE.SphereGeometry(.18, 7, 5), white); glove.position.y = -.61;
+      lodDetails.push(shoulder, cuff);
+      rig.add(shoulder, arm, cuff, glove); rig.rotation.z = x > 0 ? -.17 : .17; return rig;
+    };
+    const leftLeg = makeLeg(-.26); const rightLeg = makeLeg(.26); const leftArm = makeArm(-.57); const rightArm = makeArm(.57);
+    const antenna = new THREE.Mesh(new THREE.CylinderGeometry(.025, .025, .38, 5), white); antenna.position.set(.3, .39, -.05); antenna.rotation.z = -.2;
+    const antennaTip = new THREE.Mesh(new THREE.SphereGeometry(.075, 6, 4), new THREE.MeshBasicMaterial({ color: state.isBot ? 0xff7f9b : state.color })); antennaTip.position.set(.34, .6, -.05);
+    helmet.add(antenna, antennaTip);
+    lodDetails.push(antenna, antennaTip);
+    for (const object of [torso, chest, chestLight, belt, helmet, backpack]) object.traverse((child) => { (child as THREE.Mesh).castShadow = false; });
+    group.add(torso, chest, chestLight, belt, helmet, backpack, leftLeg, rightLeg, leftArm, rightArm);
     const intruderMarker = new THREE.Group();
     const markerDiamond = new THREE.Mesh(new THREE.OctahedronGeometry(0.18, 0), new THREE.MeshBasicMaterial({ color: state.color }));
     markerDiamond.position.y = 2.75; intruderMarker.add(markerDiamond);
@@ -731,34 +950,55 @@ export class PlanetfallGame {
     const flightTrail = new THREE.Line(trailGeometry, new THREE.LineBasicMaterial({ color: state.color, transparent: true, opacity: 0.72 }));
     flightTrail.visible = false;
     return {
-      group, target: group.position.clone(), state, leftArm, rightArm, leftLeg, rightLeg,
-      flightTrail, flightTrailPoints: [], intruderMarker, shoveUntil: 0, hitPulse: 0
+      group, target: group.position.clone(), state, leftArm, rightArm, leftLeg, rightLeg, torso, helmet, visor, backpack,
+      flightTrail, flightTrailPoints: [], intruderMarker, shoveUntil: 0, hitPulse: 0, landingPulse: 0,
+      previousSurfacePlanetId: state.surfacePlanetId, lodDetails
     };
   }
 
   private makeScrap(): THREE.Group {
     const group = new THREE.Group();
     const material = new THREE.MeshStandardMaterial({ color: 0xffdc4f, emissive: 0xa84d00, emissiveIntensity: 1.2, metalness: 0.55, roughness: 0.25 });
-    const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(0.43, 0), material);
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.06, 5, 12), new THREE.MeshBasicMaterial({ color: 0xffed9b }));
+    const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(.4, 0), material); crystal.scale.y = 1.25;
+    const bolt = new THREE.Mesh(new THREE.CylinderGeometry(.12, .12, .64, 6), new THREE.MeshStandardMaterial({ color: 0xb8c8e8, metalness: .8, roughness: .2 })); bolt.rotation.z = Math.PI / 2;
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.055, 5, 12), new THREE.MeshBasicMaterial({ color: 0xffed9b, transparent: true, opacity: .82 }));
     ring.rotation.x = Math.PI / 2;
-    group.add(crystal, ring);
+    group.add(crystal, bolt, ring);
+    group.userData.ring = ring;
     return group;
   }
 
   private makeProjectile(weapon: WeaponType): THREE.Group {
     const group = new THREE.Group();
     if (weapon === "rocket") {
-      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.3, 1.45, 8), new THREE.MeshStandardMaterial({ color: 0xf1f5ff, metalness: 0.3, roughness: 0.4 }));
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.31, 1.45, 8), new THREE.MeshStandardMaterial({ color: 0xf1f5ff, metalness: 0.35, roughness: 0.34, flatShading: true }));
       body.rotation.x = Math.PI / 2;
       const nose = new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.52, 8), new THREE.MeshStandardMaterial({ color: 0xff547d, emissive: 0x55111f }));
       nose.rotation.x = -Math.PI / 2; nose.position.z = -0.98;
       const flame = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.9, 7), new THREE.MeshBasicMaterial({ color: 0x70f5ff, transparent: true, opacity: 0.85 }));
       flame.rotation.x = Math.PI / 2; flame.position.z = 1.05;
-      group.add(body, nose, flame);
+      const innerFlame = new THREE.Mesh(new THREE.ConeGeometry(.1, .62, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .9 })); innerFlame.rotation.x = Math.PI / 2; innerFlame.position.z = 1.02;
+      const finMaterial = new THREE.MeshStandardMaterial({ color: 0xff547d, roughness: .48, flatShading: true });
+      for (const angle of [0, Math.PI / 2, Math.PI, Math.PI * 1.5]) {
+        const fin = new THREE.Mesh(new THREE.ConeGeometry(.2, .48, 3), finMaterial); fin.position.set(Math.cos(angle) * .28, Math.sin(angle) * .28, .54); fin.rotation.z = angle; group.add(fin);
+      }
+      const windowBand = new THREE.Mesh(new THREE.TorusGeometry(.265, .045, 5, 10), new THREE.MeshStandardMaterial({ color: 0x70f5ff, emissive: 0x17627d, emissiveIntensity: .9 })); windowBand.position.z = -.38;
+      group.add(body, nose, flame, innerFlame, windowBand);
+      group.userData.flame = flame; group.userData.innerFlame = innerFlame;
     } else {
-      const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.9, 1), new THREE.MeshStandardMaterial({ color: 0x8e5779, emissive: 0x59223b, emissiveIntensity: 0.8, roughness: 0.9, flatShading: true }));
-      const glow = new THREE.PointLight(0xff704c, 15, 8); group.add(rock, glow);
+      const rockMaterial = new THREE.MeshStandardMaterial({ color: 0x70445f, emissive: 0x5c1e2d, emissiveIntensity: .85, roughness: .96, flatShading: true });
+      const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(.92, 1), rockMaterial); rock.scale.set(1.18, .92, 1.05);
+      for (let index = 0; index < 5; index++) {
+        const chunk = new THREE.Mesh(new THREE.DodecahedronGeometry(.28 + index * .035, 0), rockMaterial);
+        chunk.position.set(Math.sin(index * 2.3) * .68, Math.cos(index * 1.7) * .52, Math.sin(index * 1.1) * .55); group.add(chunk);
+      }
+      const crackMaterial = new THREE.MeshBasicMaterial({ color: 0xff8a4f, transparent: true, opacity: .9 });
+      for (let index = 0; index < 3; index++) {
+        const crack = new THREE.Mesh(new THREE.TorusGeometry(.76 + index * .06, .025, 4, 10, Math.PI * .75), crackMaterial);
+        crack.rotation.set(index * 1.4, index * .8, index * .4); group.add(crack);
+      }
+      const glow = new THREE.PointLight(0xff704c, 18, 9); group.add(rock, glow);
+      group.userData.rock = rock;
     }
     return group;
   }
@@ -783,6 +1023,7 @@ export class PlanetfallGame {
       visual.damageDebris.children.forEach((fragment) => { fragment.visible = state.alive && state.damageStage >= fragment.userData.damageLevel; });
       visual.props.rotation.z = state.damageStage >= 3 ? Math.sin(this.demoTime * 2 + state.palette) * 0.007 : 0;
       visual.props.visible = state.alive;
+      visual.surfacePatches.visible = state.alive;
       this.updatePlanetLabel(visual);
       if (!state.alive) { visual.shell.visible = false; visual.cannon.visible = false; visual.repair.visible = false; visual.launchPad.visible = false; visual.launchHighlight.visible = false; visual.label.visible = false; }
       else { visual.shell.visible = true; visual.cannon.visible = true; visual.repair.visible = true; visual.launchPad.visible = true; }
@@ -829,7 +1070,7 @@ export class PlanetfallGame {
     const jammed = visual.state.cannonDisabledUntil > now || visual.state.repairDisabledUntil > now;
     const critical = visual.state.integrity <= 25;
     const status = intruder ? "INTRUDER" : jammed ? "JAMMED" : critical ? "CRITICAL" : owner.id === this.localId ? "YOUR PLANET" : "";
-    const integrity = Math.round(visual.state.integrity);
+    const integrity = Math.round(visual.state.integrity / Math.max(1, this.rules.maxIntegrity) * 100);
     const key = `${owner.name}|${owner.color}|${integrity}|${status}|${visual.state.alive}`;
     if (key === visual.labelKey) return;
     visual.labelKey = key;
@@ -851,7 +1092,11 @@ export class PlanetfallGame {
 
   private syncScraps(states: RoomView["scraps"]): void {
     for (const state of states) {
-      if (!this.scraps.has(state.id)) { const mesh = this.makeScrap(); mesh.position.copy(vec(state.position)); this.scene.add(mesh); this.scraps.set(state.id, mesh); }
+      if (!this.scraps.has(state.id)) {
+        const mesh = this.makeScrap(); mesh.position.copy(vec(state.position)); mesh.scale.setScalar(.1); mesh.userData.spawnedAt = performance.now();
+        this.scene.add(mesh); this.scraps.set(state.id, mesh);
+        if (this.mode === "match") this.spawnPulse(mesh.position, 0xffdc4f, .55);
+      }
     }
     for (const [id, mesh] of this.scraps) if (!states.some((s) => s.id === id)) { this.scene.remove(mesh); this.disposeObject(mesh); this.scraps.delete(id); }
   }
@@ -901,7 +1146,12 @@ export class PlanetfallGame {
     const dt = Math.min(0.05, (now - this.lastFrame) / 1000);
     this.lastFrame = now;
     this.demoTime += dt;
+    this.starLayers.forEach((layer, index) => {
+      layer.rotation.y += dt * layer.userData.speed;
+      layer.rotation.x = Math.sin(this.demoTime * .04 + index) * .018;
+    });
     if (this.mode === "home" || this.mode === "lobby") this.updateDemo(dt);
+    else if (this.mode === "results") this.updateResults(dt);
     else this.updateMatch(dt, now);
     this.updateEffects(dt);
     if (this.physics) this.physics.step();
@@ -921,6 +1171,19 @@ export class PlanetfallGame {
     const cameraPosition = compact ? new THREE.Vector3(0, 8, 36) : new THREE.Vector3(20, 10, 32);
     this.camera.position.lerp(cameraPosition, 0.025);
     this.camera.lookAt(target);
+  }
+
+  private updateResults(dt: number): void {
+    const winner = this.room?.winnerId ? this.room.players.find((player) => player.id === this.room!.winnerId) : undefined;
+    const planet = winner ? this.planets.get(winner.planetId) : [...this.planets.values()].find((candidate) => candidate.state.alive);
+    if (!planet) return;
+    const angle = this.demoTime * .12;
+    const desired = planet.group.position.clone().add(new THREE.Vector3(Math.cos(angle) * 23, 12, Math.sin(angle) * 23));
+    this.camera.position.lerp(desired, 1 - Math.exp(-dt * 2.2));
+    this.camera.up.lerp(new THREE.Vector3(0, 1, 0), 1 - Math.exp(-dt * 3)).normalize();
+    this.camera.lookAt(planet.group.position);
+    this.camera.fov += (52 - this.camera.fov) * (1 - Math.exp(-dt * 3));
+    this.camera.updateProjectionMatrix();
   }
 
   private updateMatch(dt: number, now: number): void {
@@ -950,7 +1213,7 @@ export class PlanetfallGame {
     const cameraCollision = this.preventCameraClip(desired, this.localPosition, planet.group.position);
     this.camera.position.lerp(cameraCollision, 1 - Math.exp(-dt * (flightAmount > 0.15 ? 5 : 8)));
     this.camera.up.lerp(outward, 1 - Math.exp(-dt * 10)).normalize();
-    const shakeOffset = new THREE.Vector3().randomDirection().multiplyScalar(this.shake * 0.25);
+    const shakeOffset = new THREE.Vector3().randomDirection().multiplyScalar(this.reducedMotion ? 0 : this.shake * 0.25);
     this.camera.position.add(shakeOffset);
     this.camera.lookAt(this.localPosition.clone().addScaledVector(outward, 1.1).addScaledVector(planarForward, 1.6).addScaledVector(destinationDirection, flightAmount * 2.7));
     const targetFov = 58 + flightAmount * 8;
@@ -984,8 +1247,8 @@ export class PlanetfallGame {
     const tangentVelocity = this.localVelocity.clone().projectOnPlane(outward);
     const desired = move.multiplyScalar(BALANCE.moveSpeed);
     tangentVelocity.lerp(desired, clamp(BALANCE.acceleration * (grounded ? 1 : BALANCE.airControl) * dt / BALANCE.moveSpeed, 0, 1));
-    let radialSpeed = this.localVelocity.dot(outward) - BALANCE.gravity * dt;
-    if (this.jumpLatch && grounded) { radialSpeed = BALANCE.jumpSpeed; this.audio.jump(); this.spawnThruster(this.localPosition, outward, 8); }
+    let radialSpeed = this.localVelocity.dot(outward) - this.rules.gravity * dt;
+    if (this.jumpLatch && grounded) { radialSpeed = this.rules.jumpSpeed; this.audio.jump(); this.spawnThruster(this.localPosition, outward, 8); }
     this.localVelocity.copy(tangentVelocity).addScaledVector(outward, radialSpeed);
     if (this.burstLatch && now - this.lastLocalBurst > BALANCE.burstCooldownMs) {
       this.lastLocalBurst = now;
@@ -1028,8 +1291,13 @@ export class PlanetfallGame {
       this.jumpLatch = false; this.burstLatch = false;
     }
     this.rope.visible = Boolean(this.grappleHeld && this.grapplePoint);
+    this.ropeAnchor.visible = this.rope.visible;
     if (this.rope.visible && this.grapplePoint) {
       this.rope.geometry.setFromPoints([this.localPosition.clone().addScaledVector(nextUp, 1), this.grapplePoint]);
+      this.ropeAnchor.position.copy(this.grapplePoint);
+      this.ropeAnchor.rotation.y += dt * 8;
+      this.ropeAnchor.scale.setScalar(1 + Math.sin(this.demoTime * 20) * .18);
+      (this.rope.material as THREE.LineBasicMaterial).opacity = .68 + Math.min(.28, this.localVelocity.length() * .012);
     }
   }
 
@@ -1243,7 +1511,7 @@ export class PlanetfallGame {
       const nearest = this.nearestPlanet(position, true);
       if (!nearest) break;
       const outward = position.clone().sub(nearest.group.position).normalize();
-      velocity.addScaledVector(outward, -BALANCE.gravity * step);
+      velocity.addScaledVector(outward, -this.rules.gravity * step);
       if (index * step * 1000 < BALANCE.launch.assistMs) velocity.addScaledVector(landing.clone().sub(position).normalize(), BALANCE.launch.assist * step);
       if (velocity.length() > BALANCE.launch.speed * 1.12) velocity.setLength(BALANCE.launch.speed * 1.12);
       position.addScaledVector(velocity, step);
@@ -1271,9 +1539,30 @@ export class PlanetfallGame {
   private updateEffects(dt: number): void {
     const wallNow = Date.now();
     const animationNow = performance.now();
+    if (this.mode === "match" && this.room?.activeModifier === "low-gravity" && animationNow >= this.nextChaosParticleAt) {
+      this.nextChaosParticleAt = animationNow + 240;
+      const local = this.players.get(this.localId);
+      if (local) {
+        const mesh = new THREE.Mesh(particleGeometry, this.particleMaterial(Math.random() > .5 ? 0x70f5ff : 0xb67cff));
+        mesh.userData.sharedParticleMaterial = true;
+        mesh.position.copy(local.group.position).add(new THREE.Vector3().randomDirection().multiplyScalar(3 + Math.random() * 3));
+        mesh.scale.setScalar(.45); this.scene.add(mesh);
+        this.particles.push({ mesh, velocity: new THREE.Vector3(0, .3, 0), life: 1.1, maxLife: 1.1, spin: .6 });
+      }
+    }
     for (const [id, projectile] of this.projectiles) {
       projectile.mesh.position.addScaledVector(projectile.velocity, dt);
-      projectile.mesh.rotation.z += dt * (projectile.weapon === "asteroid" ? 2.2 : 0);
+      projectile.mesh.rotation.z += dt * (projectile.weapon === "asteroid" ? 2.2 : .55);
+      if (projectile.weapon === "asteroid") {
+        projectile.mesh.rotation.x += dt * 1.4;
+        const rock = projectile.mesh.userData.rock as THREE.Mesh | undefined;
+        if (rock) rock.scale.set(1.18 + Math.sin(this.demoTime * 13) * .035, .92, 1.05);
+      } else {
+        const flame = projectile.mesh.userData.flame as THREE.Mesh | undefined;
+        const innerFlame = projectile.mesh.userData.innerFlame as THREE.Mesh | undefined;
+        if (flame) flame.scale.set(1 + Math.sin(this.demoTime * 28) * .16, 1 + Math.sin(this.demoTime * 21) * .28, 1);
+        if (innerFlame) innerFlame.scale.setScalar(.82 + Math.sin(this.demoTime * 34) * .12);
+      }
       projectile.trailPoints.unshift(projectile.mesh.position.clone());
       projectile.trailPoints.length = Math.min(projectile.trailPoints.length, projectile.maxTrailPoints);
       const positionAttribute = projectile.trail.geometry.getAttribute("position") as THREE.BufferAttribute;
@@ -1284,26 +1573,54 @@ export class PlanetfallGame {
       trailMaterial.opacity = .48 + Math.sin(this.demoTime * 15) * .12;
       if (projectile.mesh.position.length() > 170) { this.disposeProjectile(projectile); this.projectiles.delete(id); }
     }
-    for (const mesh of this.scraps.values()) { mesh.rotation.y += dt * 1.8; mesh.rotation.x += dt * 0.7; mesh.scale.setScalar(1 + Math.sin(this.demoTime * 4 + mesh.position.x) * .08); }
+    for (const mesh of this.scraps.values()) {
+      mesh.rotation.y += dt * 1.8; mesh.rotation.x += dt * .62;
+      const age = (animationNow - Number(mesh.userData.spawnedAt ?? 0)) / 260;
+      const spawnScale = clamp(age, 0, 1);
+      mesh.scale.setScalar(spawnScale * (1 + Math.sin(this.demoTime * 4 + mesh.position.x) * .08));
+      const ring = mesh.userData.ring as THREE.Mesh | undefined;
+      if (ring) ring.rotation.z += dt * 2.3;
+    }
     for (const visual of this.planets.values()) {
       this.updatePlanetLabel(visual);
       const cameraDistance = this.camera.position.distanceTo(visual.group.position);
       visual.label.visible = visual.state.alive && this.mode === "match" && cameraDistance > 16;
-      visual.cannon.rotation.y += Math.sin(this.demoTime + visual.group.position.x) * dt * .08;
-      visual.repair.rotation.y += dt * 1.1;
+      const propBudget = cameraDistance < 24 ? visual.props.children.length : cameraDistance < 45 ? 14 : 8;
+      visual.props.children.forEach((prop, index) => {
+        const survivedDamage = visual.state.damageStage < 2 || index % (visual.state.damageStage === 2 ? 4 : 2) !== 0;
+        prop.visible = visual.state.alive && index < propBudget && survivedDamage;
+      });
+      const patchBudget = cameraDistance < 30 ? visual.surfacePatches.children.length : 5;
+      visual.surfacePatches.children.forEach((patch, index) => { patch.visible = visual.state.alive && index < patchBudget; });
+      const cannonJammed = visual.state.cannonDisabledUntil > wallNow;
+      const repairJammed = visual.state.repairDisabledUntil > wallNow;
+      if (!cannonJammed) visual.cannon.rotation.y += Math.sin(this.demoTime + visual.group.position.x) * dt * .065;
+      visual.repairRings.children.forEach((ring, index) => {
+        ring.rotation.z += dt * (index % 2 ? -1.15 : .8) * (repairJammed ? .18 : 1);
+      });
+      visual.repairCore.rotation.y += dt * (repairJammed ? .35 : 1.35);
       visual.recoil *= Math.pow(.045, dt);
       visual.barrel.position.z = visual.recoil * .72;
       (visual.muzzle.material as THREE.MeshStandardMaterial).emissiveIntensity = 1.1 + visual.recoil * 4;
       visual.repairPulse *= Math.pow(.03, dt);
       visual.repair.scale.setScalar(1 + visual.repairPulse * .35);
       visual.launchPulse *= Math.pow(.025, dt);
-      const idlePulse = 1 + Math.sin(this.demoTime * 3.2 + visual.state.palette) * .035;
-      visual.launchRing.scale.setScalar(idlePulse + visual.launchPulse * .42);
+      const padRate = this.room?.activeModifier === "launch-party" ? 7.2 : 3.2;
+      const idlePulse = 1 + Math.sin(this.demoTime * padRate + visual.state.palette) * (this.room?.activeModifier === "launch-party" ? .07 : .035);
+      const padOwner = this.players.get(visual.state.ownerId);
+      const cooldownRemaining = Math.max(0, (padOwner?.state.launchCooldownUntil ?? 0) - wallNow);
+      const recharge = cooldownRemaining > 0 ? 1 - cooldownRemaining / Math.max(1, this.rules.launchCooldownMs) : 1;
+      visual.launchRing.scale.setScalar((.74 + recharge * .26) * idlePulse + visual.launchPulse * .42);
+      const launchMaterial = visual.launchRing.material as THREE.MeshStandardMaterial;
+      launchMaterial.emissiveIntensity = cooldownRemaining > 0 ? .22 + recharge * 1.1 : 2.1 + (this.room?.activeModifier === "launch-party" ? .8 : 0);
       visual.launchPad.scale.set(1 + visual.launchPulse * .12, 1 - visual.launchPulse * .28, 1 + visual.launchPulse * .12);
+      visual.launchArms.children.forEach((arm, index) => {
+        arm.rotation.z = (index ? -.2 : .2) + visual.launchPulse * (index ? -.42 : .42);
+      });
       visual.launchHighlight.rotation.y += dt * 0.35;
       visual.launchHighlight.scale.setScalar(1 + Math.sin(this.demoTime * 4) * .015);
-      visual.cannonJam.visible = visual.state.cannonDisabledUntil > wallNow;
-      visual.repairJam.visible = visual.state.repairDisabledUntil > wallNow;
+      visual.cannonJam.visible = cannonJammed;
+      visual.repairJam.visible = repairJammed;
       if (visual.cannonJam.visible) {
         visual.cannonJam.rotation.y += dt * 5; visual.cannonJam.rotation.z += dt * 2.2;
         (visual.muzzle.material as THREE.MeshStandardMaterial).emissiveIntensity = .15 + Math.sin(this.demoTime * 23) * .1;
@@ -1318,8 +1635,9 @@ export class PlanetfallGame {
         this.spawnBurst(jammed.getWorldPosition(new THREE.Vector3()), [0xff5d8f, 0xb67cff, 0x70f5ff], 3, 2.4);
       }
       const critical = visual.state.alive && visual.state.integrity <= 25;
-      visual.atmosphere.material.opacity = critical ? .12 + Math.max(0, Math.sin(this.demoTime * 3 + visual.state.palette)) * .12 : .1 + visual.state.damageStage * .025;
-      visual.atmosphere.material.color.set(critical ? 0xff5d67 : PLANET_PALETTES[visual.state.palette % PLANET_PALETTES.length].accent);
+      const atmosphereUniforms = visual.atmosphere.material.uniforms as { glowColor: { value: THREE.Color }; intensity: { value: number } };
+      atmosphereUniforms.intensity.value = critical ? .62 + Math.max(0, Math.sin(this.demoTime * 3 + visual.state.palette)) * .3 : .42 + visual.state.damageStage * .07;
+      atmosphereUniforms.glowColor.value.set(critical ? 0xff5d67 : PLANET_PALETTES[visual.state.palette % PLANET_PALETTES.length].accent);
       if (critical) {
         visual.shell.material.emissive.setHex(0x711624);
         visual.shell.material.emissiveIntensity = .22 + Math.max(0, Math.sin(this.demoTime * 4.2 + visual.state.palette)) * .35;
@@ -1333,24 +1651,44 @@ export class PlanetfallGame {
       }
       visual.damageDebris.rotation.y += dt * (.08 + visual.state.damageStage * .06);
       visual.damageDebris.rotation.x += dt * .025;
+      visual.props.children.forEach((prop, index) => {
+        if (prop.userData.vent) prop.scale.y = 1 + Math.max(0, Math.sin(this.demoTime * 3.8 + index)) * .08;
+        if (prop.userData.bulb) prop.scale.setScalar(1 + Math.sin(this.demoTime * 1.8 + index) * .035);
+        if (prop.userData.cosmic) { prop.rotation.y += dt * .45; const floater = prop.children[2]; if (floater) floater.position.y = 1.02 + Math.sin(this.demoTime * 2.4 + index) * .12; }
+      });
     }
     for (const visual of this.players.values()) {
+      const showMascotDetails = visual.state.id === this.localId || visual.group.position.distanceTo(this.camera.position) < 10;
+      for (const detail of visual.lodDetails) detail.visible = showMascotDetails;
       const velocity = visual.state.id === this.localId ? this.localVelocity : vec(visual.state.velocity);
       const speed = velocity.length();
       const stride = Math.sin(this.demoTime * (5 + Math.min(speed, 7))) * Math.min(.62, speed * .09);
       visual.leftLeg.rotation.x = stride; visual.rightLeg.rotation.x = -stride;
       visual.leftArm.rotation.x = -stride * .72; visual.rightArm.rotation.x = stride * .72;
+      visual.leftArm.rotation.z = .17; visual.rightArm.rotation.z = -.17;
       if (animationNow < visual.shoveUntil) { visual.rightArm.rotation.x = -1.7; visual.rightArm.rotation.z = -0.7; }
-      else visual.rightArm.rotation.z = -.16;
       if (visual.state.id === this.localId && this.grappleHeld) visual.rightArm.rotation.x = -2.15;
+      else if (visual.state.id === this.localId && this.activeSabotage) {
+        visual.leftArm.rotation.x = -1.6; visual.rightArm.rotation.x = -1.35;
+        visual.leftArm.rotation.z = .44; visual.rightArm.rotation.z = -.44;
+      }
       else if (!visual.state.surfacePlanetId && speed > 10) {
         visual.leftArm.rotation.x = -1.35; visual.rightArm.rotation.x = -1.35;
         visual.leftLeg.rotation.x = .35; visual.rightLeg.rotation.x = .35;
       }
-      visual.group.children[0].position.y = .7 + Math.abs(stride) * .045;
+      visual.torso.position.y = .72 + Math.abs(stride) * .045;
+      visual.torso.rotation.x = clamp(-speed * .018, -.17, 0);
+      visual.helmet.position.y = 1.46 + Math.abs(stride) * .025;
+      visual.helmet.rotation.z = Math.sin(this.demoTime * 2.2 + visual.group.position.x) * (speed < .25 ? .025 : .01) + visual.hitPulse * .14;
+      visual.backpack.rotation.x = clamp(speed * .012, 0, .12);
       visual.hitPulse *= Math.pow(.025, dt);
+      visual.landingPulse *= Math.pow(.018, dt);
       const idleScale = 1 + (speed < .25 ? Math.sin(this.demoTime * 2.4 + visual.group.position.x) * .018 : 0);
-      visual.group.scale.set(idleScale + visual.hitPulse * .12, idleScale - visual.hitPulse * .09, idleScale + visual.hitPulse * .12);
+      visual.group.scale.set(
+        idleScale + visual.hitPulse * .12 + visual.landingPulse * .14,
+        idleScale - visual.hitPulse * .09 - visual.landingPulse * .18,
+        idleScale + visual.hitPulse * .12 + visual.landingPulse * .14
+      );
       visual.intruderMarker.position.y = Math.sin(this.demoTime * 4 + visual.group.position.x) * .08;
       if (visual.state.isBot) visual.group.rotation.z += Math.sin(this.demoTime * 1.7 + visual.group.position.x) * dt * .025;
       const inFlight = visual.state.alive && !visual.state.surfacePlanetId && speed > 10;
@@ -1371,9 +1709,11 @@ export class PlanetfallGame {
       particle.life -= dt;
       particle.mesh.position.addScaledVector(particle.velocity, dt);
       particle.velocity.multiplyScalar(Math.pow(.18, dt));
-      particle.mesh.rotation.x += dt * 2; particle.mesh.rotation.y += dt * 1.4;
+      particle.mesh.rotation.x += dt * (particle.spin ?? 2); particle.mesh.rotation.y += dt * (particle.spin ?? 1.4);
+      if (particle.growth) particle.mesh.scale.addScalar(particle.growth * dt);
       const material = particle.mesh.material as THREE.Material & { opacity?: number };
-      if (material.opacity !== undefined) material.opacity = clamp(particle.life / Math.min(1, particle.maxLife), 0, 1);
+      if (material.opacity !== undefined && !particle.mesh.userData.sharedParticleMaterial) material.opacity = clamp(particle.life / Math.min(1, particle.maxLife), 0, 1);
+      if (particle.mesh.userData.sharedParticleMaterial) particle.mesh.scale.multiplyScalar(clamp(particle.life / Math.min(.32, particle.maxLife), .76, 1));
       if (particle.life <= 0) { this.disposeParticle(particle); this.particles.splice(i, 1); }
     }
     while (this.particles.length > 180) this.disposeParticle(this.particles.shift()!);
@@ -1386,27 +1726,47 @@ export class PlanetfallGame {
 
   private spawnBurst(position: THREE.Vector3, colors: number[], count: number, speed: number): void {
     for (let i = 0; i < count; i++) {
-      const mesh = new THREE.Mesh(particleGeometry, new THREE.MeshBasicMaterial({ color: colors[i % colors.length], transparent: true, opacity: 1 }));
+      const mesh = new THREE.Mesh(particleGeometry, this.particleMaterial(colors[i % colors.length]));
+      mesh.userData.sharedParticleMaterial = true;
       mesh.position.copy(position); mesh.scale.setScalar(.55 + Math.random() * 1.25); this.scene.add(mesh);
       const life = .42 + Math.random() * .45;
-      this.particles.push({ mesh, velocity: new THREE.Vector3().randomDirection().multiplyScalar(speed * (.4 + Math.random())), life, maxLife: life });
+      this.particles.push({ mesh, velocity: new THREE.Vector3().randomDirection().multiplyScalar(speed * (.4 + Math.random())), life, maxLife: life, spin: 1.2 + Math.random() * 3 });
     }
   }
 
   private spawnPulse(position: THREE.Vector3, color: number, size: number): void {
     const mesh = new THREE.Mesh(new THREE.TorusGeometry(.55, .06, 5, 24), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .9, depthWrite: false }));
     mesh.position.copy(position); mesh.lookAt(this.camera.position); mesh.scale.setScalar(size); this.scene.add(mesh);
-    this.particles.push({ mesh, velocity: new THREE.Vector3(), life: .55, maxLife: .55 });
+    this.particles.push({ mesh, velocity: new THREE.Vector3(), life: .55, maxLife: .55, growth: size * 2.2 });
+  }
+
+  private spawnShockwave(position: THREE.Vector3, color: number, targetSize: number): void {
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(.55, 12, 8),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .34, wireframe: true, depthWrite: false, blending: THREE.AdditiveBlending })
+    );
+    mesh.position.copy(position); mesh.scale.setScalar(.2); this.scene.add(mesh);
+    this.particles.push({ mesh, velocity: new THREE.Vector3(), life: .5, maxLife: .5, growth: targetSize * 3.4 });
   }
 
   private spawnThruster(position: THREE.Vector3, direction: THREE.Vector3, count: number): void {
     const origin = position.clone().addScaledVector(direction.clone().normalize(), .4);
     for (let i = 0; i < count; i++) {
-      const mesh = new THREE.Mesh(particleGeometry, new THREE.MeshBasicMaterial({ color: i % 2 ? 0x70f5ff : 0xffffff, transparent: true }));
+      const mesh = new THREE.Mesh(particleGeometry, this.particleMaterial(i % 2 ? 0x70f5ff : 0xffffff));
+      mesh.userData.sharedParticleMaterial = true;
       mesh.position.copy(origin); mesh.scale.setScalar(.45 + Math.random() * .5); this.scene.add(mesh);
       const velocity = direction.clone().normalize().multiplyScalar(2 + Math.random() * 4).add(new THREE.Vector3().randomDirection().multiplyScalar(1.2));
       this.particles.push({ mesh, velocity, life: .25 + Math.random() * .25, maxLife: .5 });
     }
+  }
+
+  private particleMaterial(color: number): THREE.MeshBasicMaterial {
+    let material = this.particleMaterials.get(color);
+    if (!material) {
+      material = new THREE.MeshBasicMaterial({ color, toneMapped: false });
+      this.particleMaterials.set(color, material);
+    }
+    return material;
   }
 
   private nearOwnCannon(): boolean {
@@ -1542,7 +1902,7 @@ export class PlanetfallGame {
   private disposeParticle(particle: Particle): void {
     this.scene.remove(particle.mesh);
     if (particle.mesh.geometry !== particleGeometry) particle.mesh.geometry.dispose();
-    this.disposeMaterial(particle.mesh.material);
+    if (!particle.mesh.userData.sharedParticleMaterial) this.disposeMaterial(particle.mesh.material);
   }
 
   private disposeObject(object: THREE.Object3D): void {

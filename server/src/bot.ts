@@ -14,6 +14,8 @@ import {
   type PlanetState,
   type PlayerInput,
   type PlayerState,
+  type ChaosModifier,
+  type MatchRules,
   type RoomPhase,
   type ScrapState,
   type Vec3,
@@ -41,6 +43,8 @@ export interface BotContext {
   planets: PlanetState[];
   players: PlayerState[];
   scraps: ScrapState[];
+  rules: MatchRules;
+  activeModifier: ChaosModifier | null;
 }
 
 export interface BotDecision {
@@ -131,7 +135,8 @@ export class BotBrain {
     const input = this.makeInput(context, target);
     const decision: BotDecision = { mode: this.mode, input };
     const nearbyEnemy = context.players.find((candidate) => candidate.alive && candidate.id !== context.player.id && candidate.surfacePlanetId && candidate.surfacePlanetId === context.player.surfacePlanetId && distance(candidate.position, context.player.position) <= BALANCE.shove.range);
-    if (nearbyEnemy && this.random() < 0.035) decision.shoveTargetId = nearbyEnemy.id;
+    const shoveChance = context.activeModifier === "super-shove" ? 0.075 : 0.035;
+    if (nearbyEnemy && this.random() < shoveChance) decision.shoveTargetId = nearbyEnemy.id;
     return decision;
   }
 
@@ -157,8 +162,9 @@ export class BotBrain {
 
     if (this.raidTargetPlanetId === context.ownPlanet.id) this.raidTargetPlanetId = null;
 
+    const repairThreshold = this.profile.repairThreshold + (context.activeModifier === "fragile-worlds" ? 8 : 0);
     const shouldRepair = context.phase !== "overtime"
-      && context.ownPlanet.integrity <= this.profile.repairThreshold
+      && context.ownPlanet.integrity <= Math.min(context.rules.maxIntegrity - 1, repairThreshold)
       && context.player.scrap >= BALANCE.repair.cost;
     if (shouldRepair) {
       const station = repairPosition(context.ownPlanet);
@@ -169,7 +175,8 @@ export class BotBrain {
     }
 
     const raidTarget = this.chooseTarget(context);
-    if (raidTarget && context.now >= context.player.launchCooldownUntil && this.random() < this.profile.aggression * this.profile.riskTolerance * 0.09) {
+    const raidBoost = context.activeModifier === "launch-party" ? 1.65 : 1;
+    if (raidTarget && context.now >= context.player.launchCooldownUntil && this.random() < this.profile.aggression * this.profile.riskTolerance * 0.09 * raidBoost) {
       this.raidTargetPlanetId = raidTarget.id;
       this.raidEndsAt = context.now + 8500 + this.random() * 6500;
       this.mode = "MoveToLaunch";
@@ -177,7 +184,8 @@ export class BotBrain {
     }
 
     const canAttack = context.player.scrap >= BALANCE.weapons.rocket.cost;
-    const attackNow = canAttack && this.random() < this.profile.aggression * 0.38;
+    const spendBoost = context.activeModifier === "scrap-rush" ? 1.3 : 1;
+    const attackNow = canAttack && this.random() < this.profile.aggression * 0.38 * spendBoost;
     if (attackNow) {
       this.targetPlanetId = this.chooseTarget(context)?.id ?? null;
       const cannon = cannonPosition(context.ownPlanet);
@@ -222,8 +230,8 @@ export class BotBrain {
       cameraForward: direction,
       jump: false,
       burst: moving && this.random() < 0.0025,
-      grapple: this.mode === "Recover" && context.player.launchCooldownUntil <= context.now,
-      grapplePoint: this.mode === "Recover" && context.player.launchCooldownUntil <= context.now && target ? target : undefined
+      grapple: this.mode === "Recover" && (context.activeModifier === "low-gravity" || context.player.launchCooldownUntil <= context.now),
+      grapplePoint: this.mode === "Recover" && (context.activeModifier === "low-gravity" || context.player.launchCooldownUntil <= context.now) && target ? target : undefined
     };
   }
 

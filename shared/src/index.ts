@@ -3,6 +3,19 @@ export type Quat = { x: number; y: number; z: number; w: number };
 export type WeaponType = "rocket" | "asteroid";
 export type StructureType = "cannon" | "repair";
 export type RoomPhase = "lobby" | "countdown" | "playing" | "overtime" | "results";
+export type GameMode = "classic" | "chaos";
+export type ChaosModifier = "low-gravity" | "scrap-rush" | "fragile-worlds" | "launch-party" | "super-shove";
+
+export interface MatchRules {
+  gravity: number;
+  jumpSpeed: number;
+  scrapSpawnMs: number;
+  scrapMaxPerPlanet: number;
+  maxIntegrity: number;
+  launchCooldownMs: number;
+  shoveForce: number;
+  shoveCooldownMs: number;
+}
 
 export const BALANCE = {
   minPlayers: 2,
@@ -41,6 +54,42 @@ export const BALANCE = {
   }
 } as const;
 
+export const CHAOS_MODIFIERS: readonly ChaosModifier[] = [
+  "low-gravity", "scrap-rush", "fragile-worlds", "launch-party", "super-shove"
+];
+
+export const CHAOS_COPY: Record<ChaosModifier, { title: string; description: string }> = {
+  "low-gravity": { title: "LOW GRAVITY", description: "Jump farther." },
+  "scrap-rush": { title: "SCRAP RUSH", description: "Scrap is everywhere." },
+  "fragile-worlds": { title: "FRAGILE WORLDS", description: "Planets break fast." },
+  "launch-party": { title: "LAUNCH PARTY", description: "Launch pads recharge fast." },
+  "super-shove": { title: "SUPER SHOVE", description: "Shoves hit harder." }
+};
+
+export function createMatchRules(modifier: ChaosModifier | null = null): MatchRules {
+  const rules: MatchRules = {
+    gravity: BALANCE.gravity,
+    jumpSpeed: BALANCE.jumpSpeed,
+    scrapSpawnMs: BALANCE.scrapSpawnMs,
+    scrapMaxPerPlanet: BALANCE.scrapMaxPerPlanet,
+    maxIntegrity: BALANCE.maxIntegrity,
+    launchCooldownMs: BALANCE.launch.cooldownMs,
+    shoveForce: BALANCE.shove.force,
+    shoveCooldownMs: BALANCE.shove.cooldownMs
+  };
+  if (modifier === "low-gravity") { rules.gravity = BALANCE.gravity * 0.65; rules.jumpSpeed = 7.8; }
+  if (modifier === "scrap-rush") { rules.scrapSpawnMs = 4500; rules.scrapMaxPerPlanet = 8; }
+  if (modifier === "fragile-worlds") rules.maxIntegrity = 70;
+  if (modifier === "launch-party") rules.launchCooldownMs = 2250;
+  if (modifier === "super-shove") { rules.shoveForce = 14; rules.shoveCooldownMs = 900; }
+  return rules;
+}
+
+export function selectChaosModifier(previous: ChaosModifier | null, random = Math.random): ChaosModifier {
+  const choices = previous ? CHAOS_MODIFIERS.filter((modifier) => modifier !== previous) : CHAOS_MODIFIERS;
+  return choices[Math.min(choices.length - 1, Math.floor(clamp(random(), 0, 0.999999) * choices.length))];
+}
+
 export const PLAYER_COLORS = ["#70f5ff", "#ff6b8a", "#ffd84d", "#9d7bff", "#63ef8b", "#ff934d"] as const;
 export const PLANET_PALETTES = [
   { ground: "#39c886", accent: "#9affca", rock: "#176c61" },
@@ -68,6 +117,7 @@ export interface PlayerState {
   surfacePlanetId: string | null;
   launchCooldownUntil: number;
   shoveCooldownUntil: number;
+  crowns: number;
 }
 
 export interface PlanetState {
@@ -123,7 +173,11 @@ export interface MatchResult {
   placements: MatchPlacement[];
   stats: MatchStats[];
   awards: MatchAward[];
+  crowns: { playerId: string; crowns: number }[];
+  winStreak: WinStreak | null;
 }
+
+export interface WinStreak { playerId: string; count: number; }
 
 export type MatchEventType = "launch" | "stolen" | "shove" | "sabotage" | "damage" | "destroyed";
 export interface MatchEvent {
@@ -151,6 +205,10 @@ export interface RoomView {
   rematchVotes: string[];
   matchStats: MatchStats[];
   matchResult: MatchResult | null;
+  gameMode: GameMode;
+  activeModifier: ChaosModifier | null;
+  rules: MatchRules;
+  winStreak: WinStreak | null;
 }
 
 export interface PlayerInput {
@@ -186,6 +244,7 @@ export interface ClientToServerEvents {
   "room:ready": (payload: { ready: boolean }) => void;
   "room:bot:add": () => void;
   "room:bot:remove": (payload: { botId: string }) => void;
+  "room:mode": (payload: { mode: GameMode }) => void;
   "match:start": () => void;
   "player:input": (payload: PlayerInput) => void;
   "player:interact": (payload: PlayerInteraction) => void;
@@ -197,7 +256,7 @@ export interface ClientToServerEvents {
 export interface ServerToClientEvents {
   "room:state": (room: RoomView) => void;
   "match:snapshot": (snapshot: ServerSnapshot) => void;
-  "match:countdown": (payload: { startsAt: number }) => void;
+  "match:countdown": (payload: { startsAt: number; mode: GameMode; modifier: ChaosModifier | null; rules: MatchRules }) => void;
   "projectile:spawned": (projectile: ProjectileState) => void;
   "projectile:exploded": (payload: { id: string; position: Vec3; weapon: WeaponType; planetId?: string }) => void;
   "scrap:collected": (payload: { scrapId: string; playerId: string; planetId: string; ownerId: string; position: Vec3; value: number; stolen: boolean }) => void;

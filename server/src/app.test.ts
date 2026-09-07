@@ -223,7 +223,7 @@ describe("Planetfall multiplayer server", () => {
     const reset = await lobby;
     expect(reset.code).toBe(result.room.code);
     expect(reset.players.filter((player) => player.isBot)).toHaveLength(3);
-    expect(reset.players.find((player) => player.id === result.playerId)?.ready).toBe(false);
+    expect(reset.players.find((player) => player.id === result.playerId)?.ready).toBe(true);
   });
 
   it("completes a mixed match by destruction and keeps the room for a rematch", async () => {

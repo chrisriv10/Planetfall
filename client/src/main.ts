@@ -1,5 +1,5 @@
 import "./style.css";
-import { BALANCE, type JoinResult, type MatchEvent, type MatchResult, type RoomView, type WeaponType } from "@planetfall/shared";
+import { BALANCE, CHAOS_COPY, type ChaosModifier, type GameMode, type JoinResult, type MatchEvent, type MatchResult, type RoomView, type WeaponType } from "@planetfall/shared";
 import { createGameSocket } from "./network";
 
 const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -26,6 +26,10 @@ const countdown = byId("countdown");
 const eventFeed = byId("event-feed");
 const matchHint = byId("match-hint");
 const edgeRegion = byId("edge-indicators");
+const modeClassicButton = byId<HTMLButtonElement>("mode-classic");
+const modeChaosButton = byId<HTMLButtonElement>("mode-chaos");
+const modifierChip = byId("modifier-chip");
+const modifierReveal = byId("modifier-reveal");
 createButton.disabled = true; soloButton.disabled = true; joinButton.disabled = true;
 nameInput.value = nameInput.value || localStorage.getItem("planetfall:name") || "";
 
@@ -66,7 +70,10 @@ socket.on("match:snapshot", (snapshot) => {
     updateHud();
   }
 });
-socket.on("match:countdown", ({ startsAt }) => runCountdown(startsAt));
+socket.on("match:countdown", ({ startsAt, modifier }) => {
+  runCountdown(startsAt);
+  if (modifier) revealModifier(modifier);
+});
 socket.on("projectile:spawned", (projectile) => game.spawnProjectile(projectile));
 socket.on("projectile:exploded", (payload) => game.explode(payload));
 socket.on("scrap:collected", (payload) => {
@@ -96,7 +103,14 @@ socket.on("planet:repaired", (payload) => game.repairPlanet(payload));
 socket.on("planet:destroyed", ({ planetId }) => game.destroyPlanet(planetId));
 socket.on("match:event", (event) => appendMatchEvent(event));
 socket.on("match:ended", ({ winnerId, result }) => {
-  if (room) room.matchResult = result;
+  if (room) {
+    room.matchResult = result;
+    room.winStreak = result.winStreak;
+    for (const crown of result.crowns) {
+      const player = room.players.find((entry) => entry.id === crown.playerId);
+      if (player) player.crowns = crown.crowns;
+    }
+  }
   showResults(winnerId, result);
 });
 
@@ -142,6 +156,8 @@ readyButton.addEventListener("click", () => {
 });
 startButton.addEventListener("click", () => { game.audio.click(); socket.emit("match:start"); });
 addBotButton.addEventListener("click", () => { game.audio.click(); socket.emit("room:bot:add"); });
+modeClassicButton.addEventListener("click", () => setGameMode("classic"));
+modeChaosButton.addEventListener("click", () => setGameMode("chaos"));
 copyButton.addEventListener("click", async () => {
   if (!room) return;
   try { await navigator.clipboard.writeText(room.code); toast("Room code copied!"); }
@@ -214,7 +230,8 @@ function renderLobby(): void {
     const botBadge = player.isBot ? `<span class="bot-badge">BOT</span>` : "";
     const status = player.isBot ? "CPU PILOT" : player.id === room!.hostId ? "HOST" : player.connected ? "ONLINE" : "RECONNECTING";
     const remove = player.isBot && room!.hostId === playerId ? `<button class="remove-bot" aria-label="Remove ${escapeHtml(player.name)}">×</button>` : "";
-    row.innerHTML = `<i class="player-orb" style="background:${player.color};color:${player.color}"></i><div class="player-meta"><b>${escapeHtml(player.name)}${botBadge}</b><br><small>${status}</small></div><span class="ready-badge ${player.ready ? "" : "waiting"}">${player.ready ? "READY" : "WAIT"}</span>${remove}`;
+    const crowns = player.crowns > 0 ? `<span class="crown-count" title="Session Crowns">♛ ${player.crowns}</span>` : "";
+    row.innerHTML = `<i class="player-orb" style="background:${player.color};color:${player.color}"></i><div class="player-meta"><b>${escapeHtml(player.name)}${botBadge}</b><br><small>${status}</small></div>${crowns}<span class="ready-badge ${player.ready ? "" : "waiting"}">${player.ready ? "READY" : "WAIT"}</span>${remove}`;
     row.querySelector<HTMLButtonElement>(".remove-bot")?.addEventListener("click", () => socket.emit("room:bot:remove", { botId: player.id }));
     return row;
   }));
@@ -225,19 +242,28 @@ function renderLobby(): void {
   const waitingForReconnect = room.players.some((player) => !player.connected);
   startButton.toggleAttribute("disabled", waitingForReconnect || room.players.filter((p) => p.connected).length < BALANCE.minPlayers || !room.players.filter((p) => p.connected).every((p) => p.ready));
   byId("lobby-hint").textContent = waitingForReconnect ? "Waiting for player to reconnect" : room.players.length < 2 ? "Waiting for players" : room.hostId === playerId ? "Start when everyone is ready" : "Waiting for host";
+  const isHost = room.hostId === playerId;
+  modeClassicButton.disabled = !isHost;
+  modeChaosButton.disabled = !isHost;
+  modeClassicButton.classList.toggle("selected", room.gameMode === "classic");
+  modeChaosButton.classList.toggle("selected", room.gameMode === "chaos");
+  document.body.dataset.gameMode = room.gameMode;
 }
 
 function updateHud(): void {
   if (!room) return;
   const me = room.players.find((p) => p.id === playerId);
   const planet = me ? room.planets.find((p) => p.id === me.planetId) : undefined;
-  const integrity = Math.round(planet?.integrity ?? 0);
+  const integrity = Math.round((planet?.integrity ?? 0) / Math.max(1, room.rules.maxIntegrity) * 100);
   byId("health-value").textContent = String(integrity);
   const meter = byId<HTMLElement>("health-meter");
   meter.closest(".health-block")?.classList.toggle("danger", integrity <= 25);
   meter.style.width = `${integrity}%`;
   meter.style.background = integrity <= 25 ? "linear-gradient(90deg,#ff415d,#ff9b4d)" : integrity <= 50 ? "linear-gradient(90deg,#ff9b4d,#ffdc4f)" : "linear-gradient(90deg,#43e899,#70f5ff)";
   byId("scrap-value").textContent = String(me?.scrap ?? 0);
+  const modifier = room.activeModifier;
+  modifierChip.hidden = !modifier;
+  if (modifier) modifierChip.querySelector("span")!.textContent = CHAOS_COPY[modifier].title;
   const aliveList = byId("alive-list");
   aliveList.replaceChildren(...room.players.map((player) => {
     const chip = document.createElement("div"); chip.className = `alive-chip ${player.alive ? "" : "dead"}`;
@@ -275,6 +301,17 @@ function runCountdown(startsAt: number): void {
   tick(); countdownTimer = window.setInterval(tick, 80);
 }
 
+function revealModifier(modifier: ChaosModifier): void {
+  const copy = CHAOS_COPY[modifier];
+  modifierReveal.querySelector("b")!.textContent = copy.title;
+  modifierReveal.querySelector("span")!.textContent = copy.description;
+  modifierReveal.classList.remove("visible");
+  void modifierReveal.offsetWidth;
+  modifierReveal.classList.add("visible");
+  game.audio.chaos();
+  window.setTimeout(() => modifierReveal.classList.remove("visible"), 2350);
+}
+
 function showResults(winnerId: string | null, result: MatchResult | null = room?.matchResult ?? null): void {
   if (!room) return;
   room.winnerId = winnerId; room.phase = "results";
@@ -283,8 +320,10 @@ function showResults(winnerId: string | null, result: MatchResult | null = room?
   const isMe = winnerId === playerId;
   if (announcedWinner !== winnerId) { game.audio.result(isMe); announcedWinner = winnerId; }
   byId("results-title").textContent = winner ? isMe ? "You win!" : `${winner.name} wins` : "Draw";
+  const crownTotal = result?.crowns.find((entry) => entry.playerId === winnerId)?.crowns ?? winner?.crowns ?? 0;
+  const streak = result?.winStreak?.playerId === winnerId && (result.winStreak?.count ?? 0) >= 2 ? ` · ${result.winStreak!.count} WIN STREAK` : "";
   byId("winner-copy").innerHTML = winner
-    ? `${winner.isBot ? '<span class="bot-badge">BOT</span> ' : ""}${isMe ? "Your planet survived." : `${escapeHtml(winner.name)} held on.`}`
+    ? `${winner.isBot ? '<span class="bot-badge">BOT</span> ' : ""}${isMe ? "Your planet survived." : `${escapeHtml(winner.name)} held on.`} <strong class="result-crowns">♛ ${crownTotal}${streak}</strong>`
     : "No planets left.";
   const standings = byId("results-standings");
   const awards = byId("results-awards");
@@ -295,7 +334,9 @@ function showResults(winnerId: string | null, result: MatchResult | null = room?
     const stats = finalStats.find((entry) => entry.playerId === placement.playerId);
     const row = document.createElement("div"); row.className = "standing";
     row.style.setProperty("--player-color", player?.color ?? "#70f5ff");
-    row.innerHTML = `<b>#${placement.place}</b><div><div class="standing-name">${escapeHtml(player?.name ?? "Pilot")}${player?.isBot ? ' <span class="bot-badge">BOT</span>' : ""}</div><div class="standing-stats">${Math.round(stats?.damageDealt ?? 0)} dmg · ${stats?.stolenScrap ?? 0} stolen · ${stats?.successfulShoves ?? 0} shoves</div></div><span class="standing-integrity">${Math.round(placement.integrity)}%</span>`;
+    const crowns = finalResult?.crowns.find((entry) => entry.playerId === placement.playerId)?.crowns ?? player?.crowns ?? 0;
+    const integrity = Math.round(placement.integrity / Math.max(1, room!.rules.maxIntegrity) * 100);
+    row.innerHTML = `<b>#${placement.place}</b><div><div class="standing-name">${escapeHtml(player?.name ?? "Pilot")}${player?.isBot ? ' <span class="bot-badge">BOT</span>' : ""} <span class="standing-crowns">♛ ${crowns}</span></div><div class="standing-stats">${Math.round(stats?.damageDealt ?? 0)} dmg · ${stats?.stolenScrap ?? 0} stolen · ${stats?.successfulShoves ?? 0} shoves</div></div><span class="standing-integrity">${integrity}%</span>`;
     return row;
   }));
   awards.replaceChildren(...(finalResult?.awards ?? []).map((award) => {
@@ -305,7 +346,15 @@ function showResults(winnerId: string | null, result: MatchResult | null = room?
     return card;
   }));
   const humans = room.players.filter((p) => p.connected && !p.isBot);
-  byId("rematch-count").textContent = `${room.rematchVotes.filter((id) => humans.some((player) => player.id === id)).length} / ${humans.length} votes`;
+  const votes = room.rematchVotes.filter((id) => humans.some((player) => player.id === id)).length;
+  byId("rematch-count").textContent = `${votes} / ${humans.length} READY`;
+  byId<HTMLButtonElement>("rematch-button").disabled = room.rematchVotes.includes(playerId);
+}
+
+function setGameMode(mode: GameMode): void {
+  if (!room || room.hostId !== playerId || room.phase !== "lobby" || room.gameMode === mode) return;
+  game.audio.click();
+  socket.emit("room:mode", { mode });
 }
 
 function showScreen(name: keyof typeof screens): void {

@@ -23,6 +23,8 @@ The development server prints the client address when it starts.
 
 Choose **Play Solo** for a match with three bots, or **Create Room** and share the room code. In multiplayer, everyone selects **Ready** before the host starts.
 
+Hosts can keep the original **Classic** rules or choose **Chaos** for one randomly selected round modifier. Winners earn session Crowns that last through rematches while the room stays open.
+
 ## Controls
 
 | Input | Action |

@@ -4,6 +4,7 @@ import {
   BALANCE,
   add,
   cannonPosition,
+  createMatchRules,
   distance,
   launchPadNormal,
   launchPadPosition,
@@ -42,8 +43,8 @@ function createRoom(socket: TestSocket, name: string): Promise<JoinResult> {
   return new Promise((resolve) => socket.emit("room:create", { name }, resolve));
 }
 
-function joinRoom(socket: TestSocket, code: string, name: string): Promise<JoinResult> {
-  return new Promise((resolve) => socket.emit("room:join", { code, name }, resolve));
+function joinRoom(socket: TestSocket, code: string, name: string, sessionToken?: string): Promise<JoinResult> {
+  return new Promise((resolve) => socket.emit("room:join", { code, name, sessionToken }, resolve));
 }
 
 async function duel() {
@@ -59,7 +60,8 @@ async function duel() {
   const room = server.manager.rooms.get(created.room.code)!;
   room.phase = "playing";
   return {
-    server, room, hostSocket, guestSocket,
+    server, room, hostSocket, guestSocket, url,
+    code: created.room.code, hostSessionToken: created.sessionToken,
     host: room.players.get(created.playerId)!, guest: room.players.get(joined.playerId)!,
     hostPlanet: room.planets.get(room.players.get(created.playerId)!.planetId)!,
     guestPlanet: room.planets.get(room.players.get(joined.playerId)!.planetId)!
@@ -276,5 +278,83 @@ describe("planet raids", () => {
     await destroyedEvent;
     expect(events).toContain("damage");
     expect(events).toContain("destroyed");
+  });
+
+  it("keeps Classic as the default and lets only the lobby host select Chaos", async () => {
+    const { room, host, guest } = await duel();
+    room.phase = "lobby";
+    expect(room.view()).toMatchObject({ gameMode: "classic", activeModifier: null, rules: createMatchRules() });
+    room.setMode(guest.id, "chaos");
+    expect(room.gameMode).toBe("classic");
+    room.setMode(host.id, "chaos");
+    expect(room.gameMode).toBe("chaos");
+    host.ready = true; guest.ready = true;
+    room.start(host.id);
+    const selected = room.activeModifier;
+    expect(selected).not.toBeNull();
+    expect(room.rules).toEqual(createMatchRules(selected));
+    room.setMode(host.id, "classic");
+    expect(room.gameMode).toBe("chaos");
+    expect(room.activeModifier).toBe(selected);
+  });
+
+  it("caps Fragile Worlds repairs at the effective round integrity", async () => {
+    const { room, host, hostPlanet } = await duel();
+    room.rules = createMatchRules("fragile-worlds");
+    hostPlanet.integrity = 64;
+    host.scrap = 100;
+    place(host, repairPosition(hostPlanet), hostPlanet.id);
+    room.repair(host.id);
+    expect(hostPlanet.integrity).toBe(70);
+    const scrapAfterRepair = host.scrap;
+    room.repair(host.id, Date.now() + 500);
+    expect(hostPlanet.integrity).toBe(70);
+    expect(host.scrap).toBe(scrapAfterRepair);
+  });
+
+  it("awards session Crowns, preserves them through reconnects/rematches, and tracks streaks", async () => {
+    const { room, host, guest, url, code, hostSessionToken } = await duel();
+    const finish = room as unknown as { end: (winnerId: string | null, reason: "last-standing" | "timer", now?: number) => void };
+    finish.end(host.id, "last-standing");
+    expect(host.crowns).toBe(1);
+    expect(room.matchResult?.crowns).toContainEqual({ playerId: host.id, crowns: 1 });
+    expect(room.winStreak).toEqual({ playerId: host.id, count: 1 });
+
+    room.disconnect(host.id);
+    const reconnectSocket = await openClient(url);
+    const rejoined = await joinRoom(reconnectSocket, code, "Chris", hostSessionToken);
+    expect(rejoined.ok).toBe(true);
+    if (!rejoined.ok) return;
+    expect(rejoined.playerId).toBe(host.id);
+    expect(rejoined.room.players.find((player) => player.id === host.id)?.crowns).toBe(1);
+
+    room.voteRematch(host.id); room.voteRematch(guest.id);
+    expect(room.phase).toBe("lobby");
+    expect(host.crowns).toBe(1);
+    expect(host.ready).toBe(true);
+    expect(guest.ready).toBe(true);
+    room.start(host.id);
+    finish.end(host.id, "timer");
+    expect(host.crowns).toBe(2);
+    expect(room.winStreak).toEqual({ playerId: host.id, count: 2 });
+    room.voteRematch(host.id); room.voteRematch(guest.id);
+    room.start(host.id);
+    finish.end(guest.id, "timer");
+    expect(guest.crowns).toBe(1);
+    expect(room.winStreak).toEqual({ playerId: guest.id, count: 1 });
+  });
+
+  it("chooses a different Chaos modifier on the next same-room match", async () => {
+    const { room, host, guest } = await duel();
+    const finish = room as unknown as { end: (winnerId: string | null, reason: "last-standing" | "timer") => void };
+    room.phase = "lobby"; room.setMode(host.id, "chaos"); host.ready = true; guest.ready = true;
+    room.start(host.id);
+    const first = room.activeModifier;
+    expect(first).not.toBeNull();
+    finish.end(host.id, "timer");
+    room.voteRematch(host.id); room.voteRematch(guest.id);
+    room.start(host.id);
+    expect(room.activeModifier).not.toBeNull();
+    expect(room.activeModifier).not.toBe(first);
   });
 });
