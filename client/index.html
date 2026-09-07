@@ -25,8 +25,8 @@
               <button id="join-room" class="button button-secondary">Join Game</button>
             </div>
           </div>
-          <div class="control-strip" aria-label="Game controls">
-            <span><kbd>WASD</kbd> Run</span><span><kbd>E</kbd> Interact</span><span><kbd>RMB</kbd> Grapple</span>
+          <div id="home-controls" class="control-strip" aria-label="Game controls">
+            <span><kbd>WASD</kbd> Move</span><span><kbd>E</kbd> Interact</span><span><kbd>RMB</kbd> Grapple</span>
           </div>
           <p class="service-note">Server may need a moment to wake up.</p>
         </div>
@@ -68,10 +68,53 @@
         <div id="event-feed" class="event-feed" aria-live="polite"></div>
         <div id="match-hint" class="match-hint" aria-live="polite"></div>
         <div class="weapon-panel">
-          <span>WEAPON <kbd>Q</kbd></span>
+          <span>WEAPON <kbd id="weapon-key">Q</kbd></span>
           <button id="weapon-button"><i></i><b id="weapon-name">BASIC ROCKET</b><small id="weapon-cost">8 scrap</small></button>
         </div>
-        <div class="control-help"><span><kbd>WASD</kbd> Move</span><span><kbd>Space</kbd> Jump</span><span><kbd>Shift</kbd> Burst</span><span><kbd>E</kbd> Interact</span><span><kbd>RMB</kbd> Grapple</span></div>
+        <div id="control-help" class="control-help"><span><kbd>WASD</kbd> Move</span><span><kbd>SPACE</kbd> Jump</span><span><kbd>SHIFT</kbd> Burst</span><span><kbd>E</kbd> Interact</span><span><kbd>RMB</kbd> Grapple</span></div>
+        <button id="pause-button" class="icon-button pause-button" aria-label="Pause menu" title="Pause menu">Ⅱ</button>
+      </section>
+
+      <button id="settings-open" class="icon-button settings-open" aria-label="Settings" title="Settings">⚙</button>
+
+      <section id="pause-overlay" class="overlay" aria-labelledby="pause-title" hidden>
+        <div class="overlay-card pause-card glass">
+          <div class="panel-kicker">MATCH STILL RUNNING</div>
+          <h2 id="pause-title">Paused locally</h2>
+          <div id="pause-controls" class="control-reference"></div>
+          <button id="resume-button" class="button button-primary">Resume</button>
+          <button id="pause-settings" class="button button-secondary">Settings</button>
+          <button id="pause-leave" class="button button-quiet">Leave Match</button>
+        </div>
+      </section>
+
+      <section id="settings-overlay" class="overlay" aria-labelledby="settings-title" hidden>
+        <div class="overlay-card settings-card glass">
+          <div class="panel-kicker">PILOT CONSOLE</div>
+          <h2 id="settings-title">Settings</h2>
+          <div class="setting-section"><b>CONTROLS</b>
+            <label for="mouse-sensitivity"><span>Mouse Sensitivity</span><output id="mouse-sensitivity-value">1.0x</output></label>
+            <input id="mouse-sensitivity" type="range" min="0.4" max="2" step="0.1" />
+            <label for="controller-sensitivity"><span>Controller Sensitivity</span><output id="controller-sensitivity-value">1.0x</output></label>
+            <input id="controller-sensitivity" type="range" min="0.4" max="2" step="0.1" />
+            <label class="toggle-row" for="invert-y"><span>Invert Camera Y</span><input id="invert-y" type="checkbox" /></label>
+          </div>
+          <div class="setting-grid">
+            <div class="setting-section"><b>AUDIO</b>
+              <label for="music-volume"><span>Music</span><output id="music-volume-value">80%</output></label>
+              <input id="music-volume" type="range" min="0" max="1" step="0.05" />
+              <label for="sfx-volume"><span>SFX</span><output id="sfx-volume-value">90%</output></label>
+              <input id="sfx-volume" type="range" min="0" max="1" step="0.05" />
+            </div>
+            <div class="setting-section"><b>COMFORT</b>
+              <label for="camera-shake"><span>Camera Shake</span></label>
+              <select id="camera-shake"><option value="full">Full</option><option value="reduced">Reduced</option><option value="off">Off</option></select>
+              <label for="graphics-quality"><span>Quality</span></label>
+              <select id="graphics-quality"><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select>
+            </div>
+          </div>
+          <button id="settings-close" class="button button-primary">Done</button>
+        </div>
       </section>
 
       <section id="results-screen" class="screen" aria-labelledby="results-title">

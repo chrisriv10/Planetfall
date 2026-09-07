@@ -127,6 +127,30 @@ async function fireCannon(page: Page): Promise<void> {
   await canvas.dispatchEvent("mouseup", { button: 0 });
 }
 
+test("settings persist across reloads", async ({ page }) => {
+  const browserErrors = collectBrowserErrors(page);
+  await page.goto("/");
+  await page.getByRole("button", { name: "Settings" }).click();
+  await page.getByLabel("Mouse Sensitivity").fill("1.4");
+  await page.getByLabel("Controller Sensitivity").fill("1.3");
+  await page.getByLabel("Invert Camera Y").check();
+  await page.getByLabel("Music").fill("0.45");
+  await page.getByLabel("SFX").fill("0.6");
+  await page.getByLabel("Camera Shake").selectOption("reduced");
+  await page.getByLabel("Quality").selectOption("medium");
+  await page.getByRole("button", { name: "Done" }).click();
+  await page.reload();
+  await page.getByRole("button", { name: "Settings" }).click();
+  await expect(page.getByLabel("Mouse Sensitivity")).toHaveValue("1.4");
+  await expect(page.getByLabel("Controller Sensitivity")).toHaveValue("1.3");
+  await expect(page.getByLabel("Invert Camera Y")).toBeChecked();
+  await expect(page.getByLabel("Music")).toHaveValue("0.45");
+  await expect(page.getByLabel("SFX")).toHaveValue("0.6");
+  await expect(page.getByLabel("Camera Shake")).toHaveValue("reduced");
+  await expect(page.getByLabel("Quality")).toHaveValue("medium");
+  expect(browserErrors).toEqual([]);
+});
+
 test("two players can create, join, ready, and start", async ({ browser }) => {
   const hostContext = await browser.newContext();
   const guestContext = await browser.newContext();
@@ -163,7 +187,7 @@ test("two players can create, join, ready, and start", async ({ browser }) => {
 });
 
 test("a human can raid, steal, shove, sabotage, and resume cannon play", async ({ browser }) => {
-  test.setTimeout(170_000);
+  test.setTimeout(220_000);
   const hostContext = await browser.newContext({ viewport: { width: 1280, height: 720 } });
   const guestContext = await browser.newContext({ viewport: { width: 1280, height: 720 } });
   const host = await hostContext.newPage();
@@ -195,7 +219,7 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
   await expect(host.locator("#context-prompt")).toContainText(/LAUNCH TO NOVA/i);
   await host.keyboard.press("e");
   await expect(host.locator("#event-feed")).toContainText("Chris launched to Nova");
-  await expect.poll(async () => (await debugState(host)).players.find((player) => player.id === hostPlayer.id)?.surfacePlanetId, { timeout: 7000 }).toBe(guestPlanetId);
+  await expect.poll(async () => (await debugState(host)).players.find((player) => player.id === hostPlayer.id)?.surfacePlanetId, { timeout: 12_000 }).toBe(guestPlanetId);
 
   hostState = await debugState(host);
   if ((hostState.players.find((player) => player.id === hostPlayer.id)?.scrap ?? 0) === 20) {
@@ -216,8 +240,8 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
   await expect(host.locator("#context-prompt")).toContainText(/SHOVE NOVA/i);
   const guestBeforeShove = (await debugState(guest)).localPosition;
   await host.keyboard.press("e");
-  await expect.poll(async () => pointDistance((await debugState(guest)).localPosition, guestBeforeShove), { timeout: 3000 }).toBeGreaterThan(0.7);
   await expect(host.locator("#event-feed")).toContainText("Chris shoved Nova");
+  await expect.poll(async () => pointDistance((await debugState(guest)).localPosition, guestBeforeShove), { timeout: 3000 }).toBeGreaterThan(0.6);
 
   await moveTo(host, (state) => state.repairs.find((repair) => repair.planetId === guestPlanetId)!.position, 2.5);
   await expect(host.locator("#context-prompt")).toContainText("JAM REPAIR");

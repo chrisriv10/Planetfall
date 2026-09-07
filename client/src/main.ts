@@ -1,6 +1,8 @@
 import "./style.css";
 import { BALANCE, CHAOS_COPY, type ChaosModifier, type GameMode, type JoinResult, type MatchEvent, type MatchResult, type RoomView, type WeaponType } from "@planetfall/shared";
 import { createGameSocket } from "./network";
+import { inputLabel, type InputMethod } from "./input";
+import { SETTINGS_STORAGE_KEY, parseStoredSettings, type UserSettings } from "./settings";
 
 const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const canvas = byId<HTMLCanvasElement>("game-canvas");
@@ -30,12 +32,34 @@ const modeClassicButton = byId<HTMLButtonElement>("mode-classic");
 const modeChaosButton = byId<HTMLButtonElement>("mode-chaos");
 const modifierChip = byId("modifier-chip");
 const modifierReveal = byId("modifier-reveal");
-createButton.disabled = true; soloButton.disabled = true; joinButton.disabled = true;
+const settingsOpenButton = byId<HTMLButtonElement>("settings-open");
+const settingsOverlay = byId<HTMLElement>("settings-overlay");
+const settingsCloseButton = byId<HTMLButtonElement>("settings-close");
+const pauseOverlay = byId<HTMLElement>("pause-overlay");
+const pauseButton = byId<HTMLButtonElement>("pause-button");
+const resumeButton = byId<HTMLButtonElement>("resume-button");
+const pauseSettingsButton = byId<HTMLButtonElement>("pause-settings");
+const pauseLeaveButton = byId<HTMLButtonElement>("pause-leave");
+const controlHelp = byId("control-help");
+const pauseControls = byId("pause-controls");
+const homeControls = byId("home-controls");
+const mouseSensitivity = byId<HTMLInputElement>("mouse-sensitivity");
+const controllerSensitivity = byId<HTMLInputElement>("controller-sensitivity");
+const invertY = byId<HTMLInputElement>("invert-y");
+const musicVolume = byId<HTMLInputElement>("music-volume");
+const sfxVolume = byId<HTMLInputElement>("sfx-volume");
+const cameraShake = byId<HTMLSelectElement>("camera-shake");
+const graphicsQuality = byId<HTMLSelectElement>("graphics-quality");
+createButton.disabled = true; soloButton.disabled = true; joinButton.disabled = true; settingsOpenButton.disabled = true;
 nameInput.value = nameInput.value || localStorage.getItem("planetfall:name") || "";
+
+const prefersReducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let settings = parseStoredSettings(localStorage.getItem(SETTINGS_STORAGE_KEY), prefersReducedMotion);
 
 const socket = createGameSocket();
 const { PlanetfallGame } = await import("./game");
 const game = new PlanetfallGame(canvas);
+game.setSettings(settings);
 
 let room: RoomView | null = null;
 let playerId = "";
@@ -46,12 +70,15 @@ let countdownTimer = 0;
 let countdownNumber = -1;
 let announcedWinner: string | null | undefined;
 let hintTimer = 0;
+let controlsTimer = 0;
+let currentScreen: keyof typeof screens = "home";
+let settingsReturn: "pause" | "screen" = "screen";
 const indicatorNodes = new Map<string, HTMLElement>();
 
 await game.init();
 if (import.meta.env.DEV) Object.defineProperty(window, "__PLANETFALL_DEBUG__", { value: () => game.debugState(), configurable: true });
 showScreen("home");
-createButton.disabled = false; soloButton.disabled = false; joinButton.disabled = false;
+createButton.disabled = false; soloButton.disabled = false; joinButton.disabled = false; settingsOpenButton.disabled = false;
 if (socket.connected) setConnection("online", "Online");
 
 socket.on("connect", () => {
@@ -143,6 +170,22 @@ game.onIndicators = (indicators) => {
   }
 };
 game.onHint = (id, text) => showHint(id, text);
+game.onInputMethod = (method) => renderInputUi(method);
+game.onMenuNavigate = (action) => navigateUi(action);
+game.onPauseRequest = () => togglePause();
+
+settingsOpenButton.addEventListener("click", () => openSettings("screen"));
+settingsCloseButton.addEventListener("click", closeSettings);
+pauseButton.addEventListener("click", () => togglePause(true));
+resumeButton.addEventListener("click", closePause);
+pauseSettingsButton.addEventListener("click", () => openSettings("pause"));
+pauseLeaveButton.addEventListener("click", () => location.reload());
+for (const control of [mouseSensitivity, controllerSensitivity, invertY, musicVolume, sfxVolume, cameraShake, graphicsQuality]) {
+  control.addEventListener("input", updateSettingsFromUi);
+  control.addEventListener("change", updateSettingsFromUi);
+}
+hydrateSettings();
+renderInputUi(game.getInputMethod());
 
 createButton.addEventListener("click", () => joinOrCreate("create"));
 soloButton.addEventListener("click", () => joinOrCreate("solo"));
@@ -351,6 +394,135 @@ function showResults(winnerId: string | null, result: MatchResult | null = room?
   byId<HTMLButtonElement>("rematch-button").disabled = room.rematchVotes.includes(playerId);
 }
 
+function hydrateSettings(): void {
+  mouseSensitivity.value = String(settings.mouseSensitivity);
+  controllerSensitivity.value = String(settings.controllerSensitivity);
+  invertY.checked = settings.invertY;
+  musicVolume.value = String(settings.musicVolume);
+  sfxVolume.value = String(settings.sfxVolume);
+  cameraShake.value = settings.cameraShake;
+  graphicsQuality.value = settings.graphicsQuality;
+  updateSettingOutputs();
+}
+
+function updateSettingsFromUi(): void {
+  settings = parseStoredSettings(JSON.stringify({
+    mouseSensitivity: Number(mouseSensitivity.value),
+    controllerSensitivity: Number(controllerSensitivity.value),
+    invertY: invertY.checked,
+    musicVolume: Number(musicVolume.value),
+    sfxVolume: Number(sfxVolume.value),
+    cameraShake: cameraShake.value,
+    graphicsQuality: graphicsQuality.value
+  } satisfies Record<keyof UserSettings, unknown>), prefersReducedMotion);
+  localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+  game.setSettings(settings);
+  updateSettingOutputs();
+}
+
+function updateSettingOutputs(): void {
+  byId<HTMLOutputElement>("mouse-sensitivity-value").value = `${settings.mouseSensitivity.toFixed(1)}x`;
+  byId<HTMLOutputElement>("controller-sensitivity-value").value = `${settings.controllerSensitivity.toFixed(1)}x`;
+  byId<HTMLOutputElement>("music-volume-value").value = `${Math.round(settings.musicVolume * 100)}%`;
+  byId<HTMLOutputElement>("sfx-volume-value").value = `${Math.round(settings.sfxVolume * 100)}%`;
+}
+
+function openSettings(origin: "pause" | "screen"): void {
+  settingsReturn = origin;
+  if (origin === "pause") pauseOverlay.hidden = true;
+  settingsOverlay.hidden = false;
+  game.setUiCaptured(true);
+  focusFirst(settingsOverlay);
+}
+
+function closeSettings(): void {
+  settingsOverlay.hidden = true;
+  if (settingsReturn === "pause") {
+    pauseOverlay.hidden = false;
+    game.setUiCaptured(true);
+    focusFirst(pauseOverlay);
+  } else {
+    game.setUiCaptured(false);
+    focusFirst(screens[currentScreen]);
+  }
+}
+
+function togglePause(forceOpen = false): void {
+  if (!room || !["countdown", "playing", "overtime"].includes(room.phase)) return;
+  if (!settingsOverlay.hidden) return closeSettings();
+  if (!pauseOverlay.hidden && !forceOpen) return closePause();
+  pauseOverlay.hidden = false;
+  game.setUiCaptured(true);
+  focusFirst(pauseOverlay);
+}
+
+function closePause(): void {
+  pauseOverlay.hidden = true;
+  game.setUiCaptured(false);
+  if (game.getInputMethod() === "keyboard") void canvas.requestPointerLock().catch(() => undefined);
+}
+
+function renderInputUi(method: InputMethod): void {
+  document.body.dataset.input = method;
+  const controls = method === "gamepad"
+    ? [["LS", "Move"], ["RS", "Camera"], ["A", "Jump"], ["B", "Burst"], ["X", "Interact"], ["LT", "Grapple"], ["RT", "Fire"], ["RB", "Repair"], ["Y", "Weapon"]]
+    : [["WASD", "Move"], ["MOUSE", "Camera"], ["SPACE", "Jump"], ["SHIFT", "Burst"], ["E", "Interact"], ["RMB", "Grapple"], ["LMB", "Fire"], ["R", "Repair"], ["Q", "Weapon"]];
+  const html = controls.map(([key, label]) => `<span><kbd>${key}</kbd>${label}</span>`).join("");
+  controlHelp.innerHTML = html;
+  pauseControls.innerHTML = html;
+  homeControls.innerHTML = controls.filter(([, label]) => ["Move", "Interact", "Grapple"].includes(label)).map(([key, label]) => `<span><kbd>${key}</kbd> ${label}</span>`).join("");
+  byId("weapon-key").textContent = inputLabel("switchWeapon", method);
+}
+
+function showFirstMatchControls(): void {
+  const key = "planetfall:controls-seen:v1";
+  if (localStorage.getItem(key)) return;
+  localStorage.setItem(key, "seen");
+  controlHelp.classList.add("visible");
+  clearTimeout(controlsTimer);
+  controlsTimer = window.setTimeout(() => controlHelp.classList.remove("visible"), 7500);
+}
+
+function navigateUi(action: "up" | "down" | "left" | "right" | "confirm" | "back"): void {
+  if (action === "back") {
+    if (!settingsOverlay.hidden) return closeSettings();
+    if (!pauseOverlay.hidden) return closePause();
+    if (currentScreen === "lobby") location.reload();
+    return;
+  }
+  const root = !settingsOverlay.hidden ? settingsOverlay : !pauseOverlay.hidden ? pauseOverlay : screens[currentScreen];
+  const elements = [...root.querySelectorAll<HTMLElement>("button:not([disabled]):not([hidden]), input[type='range'], input[type='checkbox'], select")]
+    .filter((element) => element.offsetParent !== null);
+  if (!settingsOpenButton.hidden) elements.push(settingsOpenButton);
+  if (!elements.length) return;
+  let index = elements.indexOf(document.activeElement as HTMLElement);
+  if (index < 0) index = action === "up" || action === "left" ? 0 : -1;
+  if (index < 0 && action === "confirm") index = 0;
+  const current = elements[index];
+  if ((action === "left" || action === "right") && (current instanceof HTMLInputElement && current.type === "range")) {
+    current.stepUp(action === "right" ? 1 : -1); current.dispatchEvent(new Event("input", { bubbles: true })); return;
+  }
+  if ((action === "left" || action === "right") && current instanceof HTMLSelectElement) {
+    current.selectedIndex = Math.max(0, Math.min(current.options.length - 1, current.selectedIndex + (action === "right" ? 1 : -1)));
+    current.dispatchEvent(new Event("change", { bubbles: true })); return;
+  }
+  if (action === "confirm") {
+    if (current instanceof HTMLButtonElement || (current instanceof HTMLInputElement && current.type === "checkbox")) current.click();
+    return;
+  }
+  const direction = action === "up" || action === "left" ? -1 : 1;
+  const next = elements[(index + direction + elements.length) % elements.length];
+  document.querySelectorAll(".gamepad-focus").forEach((element) => element.classList.remove("gamepad-focus"));
+  next.classList.add("gamepad-focus");
+  next.focus({ preventScroll: false });
+}
+
+function focusFirst(root: HTMLElement): void {
+  document.querySelectorAll(".gamepad-focus").forEach((element) => element.classList.remove("gamepad-focus"));
+  const first = root.querySelector<HTMLElement>("button:not([disabled]):not([hidden]), input[type='range'], input[type='checkbox'], select");
+  if (game.getInputMethod() === "gamepad" && first) { first.classList.add("gamepad-focus"); first.focus(); }
+}
+
 function setGameMode(mode: GameMode): void {
   if (!room || room.hostId !== playerId || room.phase !== "lobby" || room.gameMode === mode) return;
   game.audio.click();
@@ -358,7 +530,10 @@ function setGameMode(mode: GameMode): void {
 }
 
 function showScreen(name: keyof typeof screens): void {
+  currentScreen = name;
   for (const [key, screen] of Object.entries(screens)) screen.classList.toggle("active", key === name);
+  settingsOpenButton.hidden = name === "hud";
+  if (name === "hud") showFirstMatchControls();
 }
 
 function setConnection(state: "online" | "offline" | "", text: string): void {
@@ -386,8 +561,8 @@ function appendMatchEvent(event: MatchEvent): void {
   row.style.setProperty("--event-color", actor?.color ?? "#70f5ff");
   eventFeed.prepend(row);
   while (eventFeed.children.length > 4) eventFeed.lastElementChild?.remove();
-  setTimeout(() => row.classList.add("leaving"), 4100);
-  setTimeout(() => row.remove(), 4600);
+  setTimeout(() => row.classList.add("leaving"), 5600);
+  setTimeout(() => row.remove(), 6200);
 }
 
 function showHint(id: string, text: string): void {

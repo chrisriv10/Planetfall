@@ -13,7 +13,7 @@
     "test": "npm run build -w @planetfall/shared && vitest run --configLoader native",
     "test:e2e": "playwright test",
     "pretypecheck": "npm run build -w @planetfall/shared",
-    "typecheck": "npm run typecheck -ws --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

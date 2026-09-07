@@ -2,7 +2,10 @@ export class GameAudio {
   private context: AudioContext | null = null;
   private music: HTMLAudioElement;
   private musicFade: ReturnType<typeof setInterval> | null = null;
-  private readonly musicTarget = .145;
+  private musicVolume = .8;
+  private sfxVolume = .9;
+
+  private get musicTarget(): number { return .18 * this.musicVolume; }
 
   constructor() {
     this.music = new Audio("/audio/bot-city.ogg");
@@ -17,6 +20,12 @@ export class GameAudio {
     if (this.music.paused) {
       void this.music.play().then(() => this.fadeMusicIn()).catch(() => undefined);
     }
+  }
+
+  setVolumes(music: number, sfx: number): void {
+    this.musicVolume = Math.min(1, Math.max(0, music));
+    this.sfxVolume = Math.min(1, Math.max(0, sfx));
+    if (!this.music.paused) this.music.volume = this.musicTarget;
   }
 
   click(): void { this.tone(360, 0.04, "square", 0.025, 520); }
@@ -74,7 +83,7 @@ export class GameAudio {
     oscillator.type = type;
     oscillator.frequency.setValueAtTime(start, now);
     oscillator.frequency.exponentialRampToValueAtTime(Math.max(20, end), now + duration);
-    volume.gain.setValueAtTime(gain, now);
+    volume.gain.setValueAtTime(Math.max(.0001, gain * this.sfxVolume), now);
     volume.gain.exponentialRampToValueAtTime(0.0001, now + duration);
     oscillator.connect(volume).connect(this.context.destination);
     oscillator.start(now);
@@ -92,7 +101,7 @@ export class GameAudio {
     const volume = this.context.createGain();
     filter.type = "lowpass";
     filter.frequency.value = cutoff;
-    volume.gain.value = gain;
+    volume.gain.value = gain * this.sfxVolume;
     source.buffer = buffer;
     source.connect(filter).connect(volume).connect(this.context.destination);
     source.start();

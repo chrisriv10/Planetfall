@@ -27,19 +27,19 @@ Hosts can keep the original **Classic** rules or choose **Chaos** for one random
 
 ## Controls
 
-| Input | Action |
-| --- | --- |
-| `WASD` | Move across any planet |
-| Mouse | Aim and look |
-| Mouse wheel | Cycle launch targets while aiming |
-| `Space` | Jump |
-| `Shift` | Burst |
-| `Left click` | Fire your cannon |
-| `Right click` | Grapple |
-| `E` | Launch, shove, or hold to jam enemy structures |
-| `Esc` | Cancel launch aiming |
-| `Q` | Switch weapon |
-| `R` | Repair your planet |
+| Action | Keyboard and mouse | Gamepad |
+| --- | --- | --- |
+| Move | `WASD` | Left stick |
+| Camera | Mouse | Right stick |
+| Jump | `Space` | `A` |
+| Burst or cancel | `Shift` / `Esc` | `B` |
+| Launch, shove, or jam | `E` | `X` |
+| Fire cannon | Left click | `RT` |
+| Grapple | Right click | `LT` |
+| Repair | `R` | `RB` |
+| Switch weapon | `Q` | `Y` |
+| Cycle targets | Mouse wheel | `LB` / `RB` |
+| Match menu | `Esc` | Menu |
 
 ## Stack
 
@@ -54,7 +54,7 @@ Vite, TypeScript, Three.js, Rapier, Socket.IO, Express, and an in-memory authori
 
 See [deployment settings and hosted checks](docs/DEPLOYMENT.md) for the exact values and release checklist. A live demo link can be added here after those checks pass.
 
-Rooms exist only in memory and disappear on server restart. Render Free may take about a minute to wake up. Desktop keyboard and mouse are supported.
+Rooms exist only in memory and disappear on server restart. Render Free may take about a minute to wake up. Desktop keyboard, mouse, and standard gamepads are supported.
 
 ## Validate
 

@@ -588,7 +588,8 @@ export class GameRoom {
       let forward = normalize(projectOnPlane(input.cameraForward, outward));
       if (length(forward) < 0.1) forward = normalize(cross(outward, { x: 1, y: 0, z: 0 }));
       const right = normalize(cross(forward, outward));
-      const desired = scale(normalize(add(scale(right, input.moveX), scale(forward, input.moveY))), BALANCE.moveSpeed);
+      const inputMagnitude = Math.min(1, Math.hypot(input.moveX, input.moveY));
+      const desired = scale(normalize(add(scale(right, input.moveX), scale(forward, input.moveY))), BALANCE.moveSpeed * inputMagnitude);
       const hasMove = Math.abs(input.moveX) + Math.abs(input.moveY) > 0.05;
       const control = grounded ? 1 : BALANCE.airControl;
       const delta = sub(hasMove ? desired : { x: 0, y: 0, z: 0 }, tangentVelocity);
