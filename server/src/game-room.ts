@@ -5,6 +5,11 @@ import {
   BALANCE,
   PLAYER_COLORS,
   add,
+  applyBurstVelocity,
+  applyGrappleVelocity,
+  applyLaunchGuidance,
+  applyShoveVelocity,
+  canExecuteBufferedJump,
   cannonPosition,
   clamp,
   createMatchRules,
@@ -13,19 +18,28 @@ import {
   damageStage,
   distance,
   dot,
+  explosionFalloff,
+  gravityAcceleration,
+  grappleRestLength,
+  isShoveTarget,
   isFiniteVec3,
-  launchLandingPosition,
+  launchGravityAcceleration,
   launchPadPosition,
   launchVelocity,
   length,
+  limitSpeed,
   normalize,
   projectOnPlane,
   repairPosition,
   sanitizeName,
   selectChaosModifier,
+  selectGravityPlanetId,
   selectMatchAwards,
+  segmentSphereHit,
   scale,
+  stepTangentVelocity,
   sub,
+  updateGroundedState,
   type ClientToServerEvents,
   type ChaosModifier,
   type GameMode,
@@ -64,6 +78,12 @@ interface PlayerRecord extends PlayerState {
   launchSourcePlanetId: string | null;
   launchTargetPlanetId: string | null;
   launchAssistUntil: number;
+  grounded: boolean;
+  lastGroundedAt: number;
+  jumpQueuedUntil: number;
+  jumpSignalActive: boolean;
+  grappleAnchor: Vec3 | null;
+  grappleRestLength: number;
   sabotage: { planetId: string; structure: StructureType; startedAt: number } | null;
   input: PlayerInput | null;
   body: RAPIER.RigidBody;
@@ -75,7 +95,9 @@ function clonePlayer(player: PlayerRecord): PlayerState {
   const {
     socketId: _a, sessionToken: _b, disconnectedAt: _c, lastBurstAt: _d, lastFireAt: _e,
     lastInputAt: _f, lastRepairAt: _g, launchSourcePlanetId: _h, launchTargetPlanetId: _i,
-    launchAssistUntil: _j, sabotage: _k, input: _l, body: _m, ...view
+    launchAssistUntil: _j, grounded: _k, lastGroundedAt: _l, jumpQueuedUntil: _m,
+    jumpSignalActive: _n, grappleAnchor: _o, grappleRestLength: _p,
+    sabotage: _q, input: _r, body: _s, ...view
   } = player;
   return view;
 }
@@ -127,6 +149,9 @@ export class GameRoom {
       returning.socketId = socket.id;
       returning.disconnectedAt = null;
       returning.name = name;
+      returning.lastInputSequence = 0;
+      returning.lastInputAt = 0;
+      returning.input = null;
       socket.join(this.code);
       socket.data.roomCode = this.code;
       socket.data.playerId = returning.id;
@@ -158,6 +183,7 @@ export class GameRoom {
       rotation: { x: 0, y: 0, z: 0, w: 1 },
       lastInputSequence: 0,
       surfacePlanetId: null,
+      gravityPlanetId: null,
       launchCooldownUntil: 0,
       shoveCooldownUntil: 0,
       crowns: 0,
@@ -171,6 +197,12 @@ export class GameRoom {
       launchSourcePlanetId: null,
       launchTargetPlanetId: null,
       launchAssistUntil: 0,
+      grounded: false,
+      lastGroundedAt: 0,
+      jumpQueuedUntil: 0,
+      jumpSignalActive: false,
+      grappleAnchor: null,
+      grappleRestLength: 0,
       sabotage: null,
       input: null,
       body
@@ -203,11 +235,13 @@ export class GameRoom {
       alive: true, scrap: BALANCE.startingScrap,
       position: { x: 0, y: 0, z: 0 }, velocity: { x: 0, y: 0, z: 0 },
       rotation: { x: 0, y: 0, z: 0, w: 1 }, lastInputSequence: 0,
-      surfacePlanetId: null, launchCooldownUntil: 0, shoveCooldownUntil: 0,
+      surfacePlanetId: null, gravityPlanetId: null, launchCooldownUntil: 0, shoveCooldownUntil: 0,
       crowns: 0,
       socketId: null, sessionToken: "", disconnectedAt: null,
       lastBurstAt: 0, lastFireAt: 0, lastInputAt: 0, lastRepairAt: 0,
-      launchSourcePlanetId: null, launchTargetPlanetId: null, launchAssistUntil: 0, sabotage: null,
+      launchSourcePlanetId: null, launchTargetPlanetId: null, launchAssistUntil: 0,
+      grounded: false, lastGroundedAt: 0, jumpQueuedUntil: 0, jumpSignalActive: false,
+      grappleAnchor: null, grappleRestLength: 0, sabotage: null,
       input: null, body
     };
     this.players.set(playerId, bot);
@@ -244,6 +278,11 @@ export class GameRoom {
     player.connected = false;
     player.socketId = null;
     player.disconnectedAt = Date.now();
+    player.input = null;
+    player.jumpSignalActive = false;
+    player.jumpQueuedUntil = 0;
+    player.grappleAnchor = null;
+    player.grappleRestLength = 0;
     player.sabotage = null;
     if (player.id === this.hostId) this.migrateHost();
     this.emitRoom();
@@ -292,6 +331,9 @@ export class GameRoom {
     const now = Date.now();
     if (!player.isBot && now - player.lastInputAt < 20) return;
     const grapplePoint = isFiniteVec3(candidate.grapplePoint) ? { ...candidate.grapplePoint } : undefined;
+    const jumpSignal = candidate.jump === true;
+    if (jumpSignal && !player.jumpSignalActive) player.jumpQueuedUntil = now + BALANCE.ground.jumpBufferMs;
+    player.jumpSignalActive = jumpSignal;
     player.input = {
       sequence: candidate.sequence!,
       dt: clamp(Number(candidate.dt) || 0, 0, 0.1),
@@ -346,6 +388,12 @@ export class GameRoom {
     player.launchTargetPlanetId = target.id;
     player.launchAssistUntil = now + BALANCE.launch.assistMs;
     player.surfacePlanetId = null;
+    player.gravityPlanetId = source.id;
+    player.grounded = false;
+    player.lastGroundedAt = 0;
+    player.jumpQueuedUntil = 0;
+    player.grappleAnchor = null;
+    player.grappleRestLength = 0;
     this.io.to(this.code).emit("player:launched", {
       playerId, sourcePlanetId: source.id, targetPlanetId: target.id,
       position: { ...player.position }, velocity: { ...player.velocity }, cooldownUntil: player.launchCooldownUntil
@@ -363,10 +411,13 @@ export class GameRoom {
     const targetPlanet = this.nearestAlivePlanet(target.position);
     if (!planet || targetPlanet?.id !== planet.id) return false;
     if (distance(player.position, planet.position) - BALANCE.planetRadius > 2 || distance(target.position, planet.position) - BALANCE.planetRadius > 2) return false;
+    if (!isShoveTarget(player.position, target.position, planet.position, player.input?.cameraForward ?? sub(target.position, player.position))) return false;
     const outward = normalize(sub(target.position, planet.position));
-    let away = normalize(projectOnPlane(sub(target.position, player.position), outward));
-    if (length(away) < 0.1) away = normalize(projectOnPlane(player.input?.cameraForward ?? { x: 0, y: 0, z: 1 }, outward));
-    target.velocity = add(target.velocity, add(scale(away, this.rules.shoveForce), scale(outward, BALANCE.shove.lift)));
+    const tangentAway = projectOnPlane(sub(target.position, player.position), outward);
+    let away = length(tangentAway) >= 0.1 ? normalize(tangentAway) : normalize(projectOnPlane(player.input?.cameraForward ?? { x: 0, y: 0, z: 1 }, outward));
+    target.velocity = applyShoveVelocity(target.velocity, away, outward, this.rules.shoveForce);
+    target.grounded = false;
+    target.jumpQueuedUntil = 0;
     player.shoveCooldownUntil = now + this.rules.shoveCooldownMs;
     this.stat(player.id).successfulShoves += 1;
     this.stat(target.id).timesShoved += 1;
@@ -407,7 +458,7 @@ export class GameRoom {
     if (now - player.lastFireAt < config.cooldownMs) return;
     if (planet.cannonDisabledUntil > now) return this.error(playerId, "Cannon jammed.");
     const cannon = cannonPosition(planet);
-    if (distance(player.position, cannon) > 5) return this.error(playerId, "Stand beside your cannon to fire.");
+    if (distance(player.position, cannon) > BALANCE.cannonRange) return this.error(playerId, "Stand beside your cannon to fire.");
     if (player.scrap < config.cost) return this.error(playerId, "Not enough scrap.");
     const aim = normalize(direction);
     if (dot(aim, normalize(sub(cannon, planet.position))) < -0.35) return;
@@ -433,7 +484,7 @@ export class GameRoom {
     if (now - player.lastRepairAt < 250) return;
     if (planet.repairDisabledUntil > now) return this.error(playerId, "Repair core jammed.");
     const station = repairPosition(planet);
-    if (distance(player.position, station) > 4) return this.error(playerId, "Stand beside the repair core.");
+    if (distance(player.position, station) > BALANCE.repair.range) return this.error(playerId, "Stand beside the repair core.");
     if (player.scrap < BALANCE.repair.cost) return this.error(playerId, "Not enough scrap.");
     if (planet.integrity >= this.rules.maxIntegrity) return this.error(playerId, "Your planet is already at full integrity.");
     player.scrap -= BALANCE.repair.cost;
@@ -476,11 +527,18 @@ export class GameRoom {
         p.input = null;
         p.lastInputSequence = 0;
         p.surfacePlanetId = p.planetId;
+        p.gravityPlanetId = p.planetId;
         p.launchCooldownUntil = 0;
         p.shoveCooldownUntil = 0;
         p.launchSourcePlanetId = null;
         p.launchTargetPlanetId = null;
         p.launchAssistUntil = 0;
+        p.grounded = true;
+        p.lastGroundedAt = Date.now();
+        p.jumpQueuedUntil = 0;
+        p.jumpSignalActive = false;
+        p.grappleAnchor = null;
+        p.grappleRestLength = 0;
         p.sabotage = null;
       }
       this.rebuildPlanets();
@@ -550,6 +608,9 @@ export class GameRoom {
       player.position = add(position, { x: 0, y: BALANCE.planetRadius + 1.15, z: 0 });
       player.velocity = { x: 0, y: 0, z: 0 };
       player.surfacePlanetId = planetId;
+      player.gravityPlanetId = planetId;
+      player.grounded = true;
+      player.lastGroundedAt = Date.now();
       player.body.setNextKinematicTranslation(player.position);
       this.planets.set(planetId, {
         id: planetId, ownerId: player.id, position,
@@ -570,66 +631,125 @@ export class GameRoom {
       player.alive = player.connected; player.scrap = BALANCE.startingScrap; player.input = null;
       player.lastInputSequence = 0; player.lastFireAt = 0; player.lastBurstAt = 0; player.lastInputAt = 0; player.lastRepairAt = 0;
       player.surfacePlanetId = player.planetId; player.launchCooldownUntil = 0; player.shoveCooldownUntil = 0;
-      player.launchSourcePlanetId = null; player.launchTargetPlanetId = null; player.launchAssistUntil = 0; player.sabotage = null;
+      player.gravityPlanetId = player.planetId;
+      player.launchSourcePlanetId = null; player.launchTargetPlanetId = null; player.launchAssistUntil = 0;
+      player.grounded = true; player.lastGroundedAt = Date.now(); player.jumpQueuedUntil = 0; player.jumpSignalActive = false;
+      player.grappleAnchor = null; player.grappleRestLength = 0; player.sabotage = null;
     }
     for (const planet of this.planets.values()) for (let i = 0; i < 3; i++) this.spawnScrap(planet);
   }
 
   private updatePlayer(player: PlayerRecord, dt: number, now: number): void {
     if (!player.alive) return;
-    const planet = this.nearestAlivePlanet(player.position);
+    const activeLaunch = now < player.launchAssistUntil
+      && Boolean(player.launchSourcePlanetId && player.launchTargetPlanetId);
+    const surfacePlanet = player.surfacePlanetId ? this.planets.get(player.surfacePlanetId) : undefined;
+    const preferredGravityId = activeLaunch ? player.launchTargetPlanetId : null;
+    player.gravityPlanetId = surfacePlanet?.alive
+      ? surfacePlanet.id
+      : selectGravityPlanetId(player.position, [...this.planets.values()], player.gravityPlanetId, preferredGravityId);
+    const planet = player.gravityPlanetId ? this.planets.get(player.gravityPlanetId) : this.nearestAlivePlanet(player.position);
     if (!planet) return;
     const outward = normalize(sub(player.position, planet.position));
     const altitude = distance(player.position, planet.position) - BALANCE.planetRadius;
-    const grounded = altitude <= 1.25;
+    player.grounded = !activeLaunch && updateGroundedState(player.grounded, altitude, dot(player.velocity, outward));
+    if (player.grounded) player.lastGroundedAt = now;
     const input = player.input;
     let tangentVelocity = projectOnPlane(player.velocity, outward);
+    let desired: Vec3 = { x: 0, y: 0, z: 0 };
+    let hasMove = false;
     if (input) {
-      let forward = normalize(projectOnPlane(input.cameraForward, outward));
-      if (length(forward) < 0.1) forward = normalize(cross(outward, { x: 1, y: 0, z: 0 }));
+      const projectedForward = projectOnPlane(input.cameraForward, outward);
+      const forward = length(projectedForward) >= 0.1 ? normalize(projectedForward) : normalize(cross(
+        outward, Math.abs(outward.y) > .9 ? { x: 1, y: 0, z: 0 } : { x: 0, y: 1, z: 0 }
+      ));
       const right = normalize(cross(forward, outward));
       const inputMagnitude = Math.min(1, Math.hypot(input.moveX, input.moveY));
-      const desired = scale(normalize(add(scale(right, input.moveX), scale(forward, input.moveY))), BALANCE.moveSpeed * inputMagnitude);
-      const hasMove = Math.abs(input.moveX) + Math.abs(input.moveY) > 0.05;
-      const control = grounded ? 1 : BALANCE.airControl;
-      const delta = sub(hasMove ? desired : { x: 0, y: 0, z: 0 }, tangentVelocity);
-      tangentVelocity = add(tangentVelocity, scale(delta, Math.min(1, BALANCE.acceleration * control * dt / Math.max(length(delta), 1))));
-      if (input.jump && grounded) player.velocity = add(tangentVelocity, scale(outward, this.rules.jumpSpeed));
-      else player.velocity = add(tangentVelocity, scale(outward, dot(player.velocity, outward) - this.rules.gravity * dt));
+      const moveDirection = add(scale(right, input.moveX), scale(forward, input.moveY));
+      hasMove = length(moveDirection) > 0.05;
+      desired = hasMove ? scale(normalize(moveDirection), BALANCE.moveSpeed * inputMagnitude) : desired;
+      tangentVelocity = stepTangentVelocity(
+        tangentVelocity,
+        desired,
+        hasMove,
+        player.grounded,
+        dt,
+        now - player.lastBurstAt < BALANCE.burstRecoveryMs
+      );
+      const jump = canExecuteBufferedJump(now, player.jumpQueuedUntil, player.lastGroundedAt, player.grounded);
+      let radialSpeed = dot(player.velocity, outward);
+      if (jump) {
+        radialSpeed = this.rules.jumpSpeed;
+        player.jumpQueuedUntil = 0;
+        player.grounded = false;
+      } else if (player.grounded && radialSpeed < 0.5) {
+        radialSpeed = Math.min(radialSpeed, -BALANCE.ground.adhesionSpeed);
+      }
+      player.velocity = add(tangentVelocity, scale(outward, radialSpeed));
+      if (!jump) {
+        const source = player.launchSourcePlanetId ? this.planets.get(player.launchSourcePlanetId) : undefined;
+        const target = player.launchTargetPlanetId ? this.planets.get(player.launchTargetPlanetId) : undefined;
+        const gravity = activeLaunch && source?.alive && target?.alive
+          ? launchGravityAcceleration(player.position, source, target, this.rules.gravity)
+          : gravityAcceleration(player.position, planet, this.rules.gravity);
+        player.velocity = add(player.velocity, scale(gravity, dt));
+      }
       if (input.burst && now - player.lastBurstAt > BALANCE.burstCooldownMs) {
         player.lastBurstAt = now;
-        player.velocity = add(player.velocity, scale(hasMove ? normalize(desired) : forward, BALANCE.burstSpeed));
+        player.velocity = applyBurstVelocity(player.velocity, hasMove ? desired : forward, outward, player.grounded);
       }
       if (input.grapple && input.grapplePoint && this.validGrapple(player.position, input.grapplePoint)) {
-        const rope = sub(input.grapplePoint, player.position);
-        player.velocity = add(player.velocity, scale(normalize(rope), BALANCE.grapplePull * dt * clamp(length(rope) / 8, 0.5, 2)));
+        if (!player.grappleAnchor || distance(player.grappleAnchor, input.grapplePoint) > 0.35) {
+          player.grappleAnchor = { ...input.grapplePoint };
+          player.grappleRestLength = grappleRestLength(distance(player.position, input.grapplePoint));
+        }
+        player.velocity = applyGrappleVelocity(player.velocity, player.position, player.grappleAnchor, player.grappleRestLength, dt);
+      } else {
+        player.grappleAnchor = null;
+        player.grappleRestLength = 0;
       }
     } else {
-      player.velocity = add(tangentVelocity, scale(outward, dot(player.velocity, outward) - this.rules.gravity * dt));
+      tangentVelocity = stepTangentVelocity(tangentVelocity, { x: 0, y: 0, z: 0 }, false, player.grounded, dt);
+      let radialSpeed = dot(player.velocity, outward);
+      if (player.grounded && radialSpeed < 0.5) radialSpeed = Math.min(radialSpeed, -BALANCE.ground.adhesionSpeed);
+      const source = player.launchSourcePlanetId ? this.planets.get(player.launchSourcePlanetId) : undefined;
+      const target = player.launchTargetPlanetId ? this.planets.get(player.launchTargetPlanetId) : undefined;
+      const gravity = activeLaunch && source?.alive && target?.alive
+        ? launchGravityAcceleration(player.position, source, target, this.rules.gravity)
+        : gravityAcceleration(player.position, planet, this.rules.gravity);
+      player.velocity = add(add(tangentVelocity, scale(outward, radialSpeed)), scale(gravity, dt));
+      player.grappleAnchor = null;
+      player.grappleRestLength = 0;
     }
     const launchTarget = player.launchTargetPlanetId ? this.planets.get(player.launchTargetPlanetId) : undefined;
     const launchSource = player.launchSourcePlanetId ? this.planets.get(player.launchSourcePlanetId) : undefined;
-    if (launchTarget?.alive && launchSource && now < player.launchAssistUntil && !player.surfacePlanetId) {
-      const guide = normalize(sub(launchLandingPosition(launchSource, launchTarget), player.position));
-      player.velocity = add(player.velocity, scale(guide, BALANCE.launch.assist * dt));
-      const maxLaunchSpeed = BALANCE.launch.speed * 1.12;
-      if (length(player.velocity) > maxLaunchSpeed) player.velocity = scale(normalize(player.velocity), maxLaunchSpeed);
+    if (launchTarget?.alive && launchSource?.alive && activeLaunch && !player.surfacePlanetId) {
+      player.velocity = applyLaunchGuidance(player.velocity, player.position, launchSource, launchTarget, dt);
     }
+    if (length(player.position) > BALANCE.softBoundaryRadius) {
+      const recovery = this.nearestAlivePlanet(player.position);
+      if (recovery) player.velocity = add(player.velocity, scale(normalize(sub(recovery.position, player.position)), BALANCE.softBoundaryPull * dt));
+    }
+    player.velocity = length(player.velocity) > BALANCE.maxPlayerSpeed ? scale(normalize(player.velocity), BALANCE.maxPlayerSpeed) : player.velocity;
     player.position = add(player.position, scale(player.velocity, dt));
-    const nextOutward = normalize(sub(player.position, planet.position));
+    const collisionPlanet = this.nearestAlivePlanet(player.position) ?? planet;
+    const nextOutward = normalize(sub(player.position, collisionPlanet.position));
     const minDistance = BALANCE.planetRadius + 0.95;
-    const radialDistance = distance(player.position, planet.position);
+    const radialDistance = distance(player.position, collisionPlanet.position);
     if (radialDistance < minDistance) {
-      player.position = add(planet.position, scale(nextOutward, minDistance));
+      player.position = add(collisionPlanet.position, scale(nextOutward, minDistance));
       const inwardSpeed = dot(player.velocity, nextOutward);
       if (inwardSpeed < 0) player.velocity = sub(player.velocity, scale(nextOutward, inwardSpeed));
     }
     player.body.setNextKinematicTranslation(player.position);
     const surface = this.nearestAlivePlanet(player.position);
     const surfaceAltitude = surface ? distance(player.position, surface.position) - BALANCE.planetRadius : Infinity;
-    if (surface && surfaceAltitude <= 1.2) {
+    if (surface && surfaceAltitude <= BALANCE.ground.enterAltitude) {
       if (player.surfacePlanetId !== surface.id) {
         player.surfacePlanetId = surface.id;
+        player.gravityPlanetId = surface.id;
+        player.grounded = true;
+        player.lastGroundedAt = now;
         player.launchSourcePlanetId = null;
         player.launchTargetPlanetId = null;
         player.launchAssistUntil = 0;
@@ -645,20 +765,36 @@ export class GameRoom {
           }
         }
       }
-    } else if (surfaceAltitude > 1.8) {
+    } else if (surfaceAltitude > BALANCE.ground.detachAltitude) {
       player.surfacePlanetId = null;
     }
   }
 
   private updateProjectiles(dt: number, now: number): void {
     for (const projectile of [...this.projectiles.values()]) {
-      projectile.position = add(projectile.position, scale(projectile.velocity, dt));
+      const start = projectile.position;
+      const end = add(start, scale(projectile.velocity, dt));
       let hit: PlanetState | undefined;
+      let hitT = Number.POSITIVE_INFINITY;
       if (now - projectile.spawnedAt > 180) {
-        hit = [...this.planets.values()].find((p) => p.alive && distance(projectile.position, p.position) <= BALANCE.planetRadius + (projectile.weapon === "asteroid" ? 0.9 : 0.35));
+        const projectileRadius = projectile.weapon === "asteroid" ? 0.9 : 0.35;
+        for (const candidate of this.planets.values()) {
+          if (!candidate.alive) continue;
+          const intersection = segmentSphereHit(start, end, candidate.position, BALANCE.planetRadius + projectileRadius);
+          if (intersection !== null && intersection < hitT) {
+            hit = candidate;
+            hitT = intersection;
+          }
+        }
       }
-      if (hit) this.explode(projectile, hit);
-      else if (now - projectile.spawnedAt > 12000 || length(projectile.position) > 150) this.projectiles.delete(projectile.id);
+      if (hit) {
+        projectile.position = add(start, scale(sub(end, start), hitT));
+        this.explode(projectile, hit);
+      }
+      else {
+        projectile.position = end;
+        if (now - projectile.spawnedAt > 12000 || length(projectile.position) > 150) this.projectiles.delete(projectile.id);
+      }
     }
   }
 
@@ -683,8 +819,18 @@ export class GameRoom {
     }
     for (const player of this.players.values()) {
       const d = distance(player.position, projectile.position);
-      if (player.alive && d < config.radius * 1.8) {
-        player.velocity = add(player.velocity, scale(normalize(sub(player.position, projectile.position)), config.knockback * (1 - d / (config.radius * 1.8))));
+      const falloff = explosionFalloff(d, config.radius * 1.8);
+      if (player.alive && falloff > 0) {
+        const blastDirection = normalize(sub(player.position, projectile.position));
+        const localPlanet = this.nearestAlivePlanet(player.position);
+        const surfaceOutward = localPlanet ? normalize(sub(player.position, localPlanet.position)) : blastDirection;
+        const impulseDirection = normalize(add(blastDirection, scale(surfaceOutward, 0.32)));
+        player.velocity = limitSpeed(
+          add(player.velocity, scale(impulseDirection, config.knockback * falloff)),
+          BALANCE.maxPlayerSpeed
+        );
+        player.grounded = false;
+        player.jumpQueuedUntil = 0;
       }
     }
     if (planet.integrity <= 0) {
@@ -708,7 +854,7 @@ export class GameRoom {
       const planet = this.planets.get(channel.planetId);
       if (
         !player.alive || !planet?.alive || planet.ownerId === player.id
-        || distance(player.position, this.structurePosition(planet, channel.structure)) > BALANCE.sabotage.range
+        || distance(player.position, this.structurePosition(planet, channel.structure)) > BALANCE.sabotage.cancelRange
       ) {
         this.cancelSabotage(player, true);
         continue;
@@ -748,7 +894,13 @@ export class GameRoom {
 
   private collectScrap(): void {
     for (const scrap of [...this.scraps.values()]) {
-      const collector = [...this.players.values()].find((p) => p.alive && distance(p.position, scrap.position) < 1.8);
+      let collector: PlayerRecord | undefined;
+      for (const player of this.players.values()) {
+        if (player.alive && distance(player.position, scrap.position) < BALANCE.scrapPickupRadius) {
+          collector = player;
+          break;
+        }
+      }
       if (collector) {
         collector.scrap += BALANCE.scrapValue;
         const stats = this.stat(collector.id);
@@ -787,7 +939,17 @@ export class GameRoom {
   }
 
   private nearestAlivePlanet(position: Vec3): PlanetState | undefined {
-    return [...this.planets.values()].filter((p) => p.alive).sort((a, b) => distance(position, a.position) - distance(position, b.position))[0];
+    let nearest: PlanetState | undefined;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    for (const planet of this.planets.values()) {
+      if (!planet.alive) continue;
+      const candidateDistance = distance(position, planet.position);
+      if (candidateDistance < nearestDistance) {
+        nearest = planet;
+        nearestDistance = candidateDistance;
+      }
+    }
+    return nearest;
   }
 
   private validGrapple(from: Vec3, point: Vec3): boolean {

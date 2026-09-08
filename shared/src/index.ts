@@ -24,22 +24,33 @@ export const BALANCE = {
   arenaRadius: 30,
   playerHeight: 1.35,
   moveSpeed: 6.5,
-  acceleration: 26,
+  acceleration: 32,
+  braking: 27,
+  turnAcceleration: 40,
   airControl: 0.35,
   jumpSpeed: 7.2,
   gravity: 18,
   burstSpeed: 10,
   burstCooldownMs: 2200,
+  burstRecoveryMs: 280,
+  burstSpeedCap: 17.5,
+  maxPlayerSpeed: 40,
+  ground: { enterAltitude: 1.18, exitAltitude: 1.48, detachAltitude: 1.8, coyoteMs: 130, jumpBufferMs: 140, adhesionSpeed: 0.7 },
+  gravitySwitchRatio: 0.82,
+  softBoundaryRadius: 105,
+  softBoundaryPull: 7,
   grappleRange: 30,
-  grapplePull: 14,
-  launch: { range: 3.25, cooldownMs: 5000, speed: 32, assist: 16, assistMs: 3800 },
-  shove: { range: 2.2, cooldownMs: 1200, force: 9.5, lift: 4.2 },
-  sabotage: { range: 3.2, channelMs: 1250, durationMs: 7000, immunityMs: 10000 },
+  grapple: { reelRatio: 0.74, minRestLength: 3, spring: 3.2, damping: 2.4, basePull: 3, maxForce: 32, speedCap: 38 },
+  launch: { range: 3.25, cooldownMs: 5000, speed: 32, assist: 13, assistMs: 4200, arrivalRadius: 8, arrivalSpeed: 19 },
+  shove: { range: 2.2, cooldownMs: 1200, force: 9.5, lift: 4.2, facingDot: 0.2, speedCap: 23 },
+  sabotage: { range: 3.2, cancelRange: 3.55, channelMs: 1250, durationMs: 7000, immunityMs: 10000 },
   maxIntegrity: 100,
   startingScrap: 20,
   scrapValue: 5,
+  scrapPickupRadius: 2.05,
   scrapSpawnMs: 8000,
   scrapMaxPerPlanet: 6,
+  cannonRange: 5,
   matchMs: 7 * 60 * 1000,
   overtimeMs: 30 * 1000,
   reconnectGraceMs: 30 * 1000,
@@ -47,7 +58,7 @@ export const BALANCE = {
   serverRate: 30,
   snapshotRate: 15,
   interpolationMs: 100,
-  repair: { cost: 10, heal: 15 },
+  repair: { cost: 10, heal: 15, range: 4 },
   weapons: {
     rocket: { cost: 8, damage: 14, speed: 22, radius: 4.5, knockback: 9, cooldownMs: 900 },
     asteroid: { cost: 16, damage: 26, speed: 14, radius: 7, knockback: 16, cooldownMs: 1800 }
@@ -115,6 +126,7 @@ export interface PlayerState {
   rotation: Quat;
   lastInputSequence: number;
   surfacePlanetId: string | null;
+  gravityPlanetId: string | null;
   launchCooldownUntil: number;
   shoveCooldownUntil: number;
   crowns: number;
@@ -295,6 +307,177 @@ export function cross(a: Vec3, b: Vec3): Vec3 {
 }
 export function projectOnPlane(v: Vec3, normal: Vec3): Vec3 { return sub(v, scale(normal, dot(v, normal))); }
 export function distance(a: Vec3, b: Vec3): number { return length(sub(a, b)); }
+
+export function moveTowards(current: Vec3, target: Vec3, maxDelta: number): Vec3 {
+  const delta = sub(target, current);
+  const deltaLength = length(delta);
+  return deltaLength <= maxDelta || deltaLength < 1e-8 ? { ...target } : add(current, scale(delta, maxDelta / deltaLength));
+}
+
+export function limitSpeed(velocity: Vec3, maximum: number): Vec3 {
+  const speed = length(velocity);
+  return speed > maximum ? scale(velocity, maximum / speed) : velocity;
+}
+
+export function updateGroundedState(wasGrounded: boolean, altitude: number, outwardSpeed = 0): boolean {
+  if (!wasGrounded && outwardSpeed > .65) return false;
+  return altitude <= (wasGrounded ? BALANCE.ground.exitAltitude : BALANCE.ground.enterAltitude);
+}
+
+export function canExecuteBufferedJump(now: number, queuedUntil: number, lastGroundedAt: number, grounded: boolean): boolean {
+  return queuedUntil >= now && (grounded || now - lastGroundedAt <= BALANCE.ground.coyoteMs);
+}
+
+export function stepTangentVelocity(current: Vec3, desired: Vec3, hasInput: boolean, grounded: boolean, dt: number, recoveringFromBurst = false): Vec3 {
+  let rate: number = hasInput ? BALANCE.acceleration : BALANCE.braking;
+  if (hasInput && length(current) > 0.1 && length(desired) > 0.1 && dot(normalize(current), normalize(desired)) < 0.35) rate = BALANCE.turnAcceleration;
+  if (!grounded) rate *= BALANCE.airControl;
+  if (recoveringFromBurst) rate *= 0.42;
+  return moveTowards(current, desired, Math.max(0, rate * dt));
+}
+
+export function selectGravityPlanetId(
+  position: Vec3,
+  planets: readonly Pick<PlanetState, "id" | "position" | "alive">[],
+  currentId: string | null,
+  preferredId: string | null = null
+): string | null {
+  let closest: Pick<PlanetState, "id" | "position" | "alive"> | undefined;
+  let closestDistance = Infinity;
+  for (const planet of planets) {
+    if (!planet.alive) continue;
+    const d = distance(position, planet.position);
+    if (d < closestDistance) { closest = planet; closestDistance = d; }
+  }
+  if (!closest) return null;
+  const current = planets.find((planet) => planet.alive && planet.id === currentId);
+  if (!current) return closest.id;
+  const currentDistance = distance(position, current.position);
+  const preferred = planets.find((planet) => planet.alive && planet.id === preferredId);
+  if (preferred && preferred.id !== current.id && distance(position, preferred.position) < currentDistance * 0.94) return preferred.id;
+  if (closest.id !== current.id && closestDistance < currentDistance * BALANCE.gravitySwitchRatio) return closest.id;
+  return current.id;
+}
+
+export function gravityAcceleration(position: Vec3, planet: Pick<PlanetState, "position">, gravity: number): Vec3 {
+  return scale(normalize(sub(planet.position, position)), gravity);
+}
+
+export function launchGravityAcceleration(
+  position: Vec3,
+  source: Pick<PlanetState, "position">,
+  target: Pick<PlanetState, "position">,
+  gravity: number
+): Vec3 {
+  const sourceDistance = Math.max(0, distance(position, source.position) - BALANCE.planetRadius);
+  const targetDistance = Math.max(0, distance(position, target.position) - BALANCE.planetRadius);
+  const rawProgress = sourceDistance / Math.max(0.001, sourceDistance + targetDistance);
+  const progress = clamp((rawProgress - 0.28) / 0.44, 0, 1);
+  const blend = progress * progress * (3 - 2 * progress);
+  return add(
+    scale(normalize(sub(source.position, position)), gravity * (1 - blend)),
+    scale(normalize(sub(target.position, position)), gravity * blend)
+  );
+}
+
+export function applyBurstVelocity(velocity: Vec3, direction: Vec3, outward: Vec3, grounded: boolean): Vec3 {
+  const projectedDirection = projectOnPlane(direction, outward);
+  const dash = length(projectedDirection) > 1e-5 ? normalize(projectedDirection) : { x: 0, y: 0, z: 0 };
+  const tangent = projectOnPlane(velocity, outward);
+  const radial = scale(outward, dot(velocity, outward));
+  const carry = grounded ? 0.48 : 0.68;
+  const impulse = BALANCE.burstSpeed * (grounded ? 1 : 0.82);
+  const burstTangent = limitSpeed(add(scale(tangent, carry), scale(dash, impulse)), BALANCE.burstSpeedCap);
+  return limitSpeed(add(burstTangent, radial), BALANCE.maxPlayerSpeed);
+}
+
+export function grappleRestLength(distanceToAnchor: number): number {
+  return Math.max(BALANCE.grapple.minRestLength, distanceToAnchor * BALANCE.grapple.reelRatio);
+}
+
+export function applyGrappleVelocity(velocity: Vec3, position: Vec3, anchor: Vec3, restLength: number, dt: number): Vec3 {
+  const rope = sub(anchor, position);
+  const ropeLength = length(rope);
+  if (ropeLength < 1e-6) return velocity;
+  const toward = scale(rope, 1 / ropeLength);
+  const stretch = Math.max(0, ropeLength - restLength);
+  if (stretch <= 0) return limitSpeed(velocity, BALANCE.grapple.speedCap);
+  const awaySpeed = Math.max(0, -dot(velocity, toward));
+  const force = Math.min(BALANCE.grapple.maxForce, BALANCE.grapple.basePull + stretch * BALANCE.grapple.spring + awaySpeed * BALANCE.grapple.damping);
+  return limitSpeed(add(velocity, scale(toward, force * dt)), BALANCE.grapple.speedCap);
+}
+
+export function applyLaunchGuidance(
+  velocity: Vec3,
+  position: Vec3,
+  source: Pick<PlanetState, "position">,
+  target: Pick<PlanetState, "position">,
+  dt: number
+): Vec3 {
+  const landing = launchLandingPosition(source, target);
+  const toLanding = sub(landing, position);
+  const surfaceDistance = Math.max(0, distance(position, target.position) - BALANCE.planetRadius);
+  const arrival = clamp(surfaceDistance / BALANCE.launch.arrivalRadius, 0, 1);
+  const desiredSpeed = BALANCE.launch.arrivalSpeed + (BALANCE.launch.speed - BALANCE.launch.arrivalSpeed) * arrival;
+  const desired = scale(normalize(toLanding), desiredSpeed);
+  const guided = moveTowards(velocity, desired, BALANCE.launch.assist * dt * (surfaceDistance < BALANCE.launch.arrivalRadius ? 1.25 : 1));
+  return limitSpeed(guided, BALANCE.launch.speed * 1.12);
+}
+
+export function isShoveTarget(
+  attacker: Vec3,
+  target: Vec3,
+  planetCenter: Vec3,
+  facing: Vec3,
+  range = BALANCE.shove.range
+): boolean {
+  if (distance(attacker, target) > range) return false;
+  const outward = normalize(sub(attacker, planetCenter));
+  const targetDirection = projectOnPlane(sub(target, attacker), outward);
+  const facingDirection = projectOnPlane(facing, outward);
+  if (length(targetDirection) < 1e-5 || length(facingDirection) < 1e-5) return false;
+  const towardTarget = normalize(targetDirection);
+  const forward = normalize(facingDirection);
+  return dot(forward, towardTarget) >= BALANCE.shove.facingDot;
+}
+
+export function applyShoveVelocity(velocity: Vec3, away: Vec3, outward: Vec3, force: number, lift = BALANCE.shove.lift): Vec3 {
+  const tangentMomentum = scale(projectOnPlane(velocity, outward), 0.7);
+  const existingLift = Math.max(0, dot(velocity, outward)) * 0.45;
+  const tangentAway = projectOnPlane(away, outward);
+  const shoveDirection = length(tangentAway) > 1e-5 ? normalize(tangentAway) : { x: 0, y: 0, z: 0 };
+  const result = add(tangentMomentum, add(scale(shoveDirection, force), scale(outward, lift + existingLift)));
+  return limitSpeed(result, force > BALANCE.shove.force ? BALANCE.shove.speedCap * 1.2 : BALANCE.shove.speedCap);
+}
+
+export function explosionFalloff(distanceFromImpact: number, outerRadius: number): number {
+  return Math.sqrt(clamp(1 - distanceFromImpact / Math.max(0.001, outerRadius), 0, 1));
+}
+
+export function segmentSphereHit(start: Vec3, end: Vec3, center: Vec3, radius: number): number | null {
+  const segment = sub(end, start);
+  const offset = sub(start, center);
+  if (dot(offset, offset) <= radius * radius) return 0;
+  const a = dot(segment, segment);
+  if (a < 1e-10) return distance(start, center) <= radius ? 0 : null;
+  const b = 2 * dot(offset, segment);
+  const c = dot(offset, offset) - radius * radius;
+  const discriminant = b * b - 4 * a * c;
+  if (discriminant < 0) return null;
+  const root = Math.sqrt(discriminant);
+  const enter = (-b - root) / (2 * a);
+  const exit = (-b + root) / (2 * a);
+  if (enter >= 0 && enter <= 1) return enter;
+  if (exit >= 0 && exit <= 1) return exit;
+  return null;
+}
+
+export function reconciliationStrength(error: number): number {
+  if (error < 0.06) return 0;
+  if (error < 0.75) return 0.1;
+  if (error < 4.5) return 0.22;
+  return 1;
+}
 
 export function ballisticPosition(origin: Vec3, velocity: Vec3, ageSeconds: number): Vec3 {
   return add(origin, scale(velocity, ageSeconds));

@@ -4,22 +4,35 @@ import {
   BALANCE,
   PLANET_PALETTES,
   add,
+  applyBurstVelocity,
+  applyGrappleVelocity,
+  applyLaunchGuidance,
+  canExecuteBufferedJump,
   cannonPosition,
   clamp,
   createMatchRules,
   cross,
   distance,
   dot,
+  explosionFalloff,
+  gravityAcceleration,
+  grappleRestLength,
+  isShoveTarget,
   length,
-  launchLandingPosition,
+  launchGravityAcceleration,
   launchPadNormal,
   launchPadPosition,
   launchVelocity,
+  limitSpeed,
   normalize,
   projectOnPlane,
   repairPosition,
+  reconciliationStrength,
   scale,
+  selectGravityPlanetId,
+  stepTangentVelocity,
   sub,
+  updateGroundedState,
   type PlanetState,
   type MatchRules,
   type PlayerInput,
@@ -92,6 +105,8 @@ type PlayerVisual = {
   hitPulse: number;
   landingPulse: number;
   previousSurfacePlanetId: string | null;
+  presentationUp: THREE.Vector3;
+  presentationForward: THREE.Vector3;
   lodDetails: THREE.Object3D[];
 };
 type ProjectileVisual = { mesh: THREE.Group; velocity: THREE.Vector3; weapon: WeaponType; ownerId: string; threatening: boolean; trail: THREE.Line; trailPoints: THREE.Vector3[]; maxTrailPoints: number };
@@ -181,9 +196,17 @@ export class PlanetfallGame {
   private correction = new THREE.Vector3();
   private localInitialized = false;
   private jumpLatch = false;
+  private jumpQueuedUntil = 0;
   private burstLatch = false;
   private grappleHeld = false;
   private grapplePoint: THREE.Vector3 | null = null;
+  private grappleRestLength = 0;
+  private grappleTension = 0;
+  private localSurfacePlanetId: string | null = null;
+  private localGravityPlanetId: string | null = null;
+  private localGrounded = false;
+  private lastLocalGroundedAt = 0;
+  private previousRadialSpeed = 0;
   private launchAiming = false;
   private launchSourcePlanetId: string | null = null;
   private launchTargetPlanetId: string | null = null;
@@ -275,7 +298,16 @@ export class PlanetfallGame {
     }
   }
 
-  setLocalId(id: string): void { this.localId = id; this.localInitialized = false; }
+  setLocalId(id: string): void {
+    this.localId = id;
+    this.localInitialized = false;
+    this.localSurfacePlanetId = null;
+    this.localGravityPlanetId = null;
+    this.localGrounded = false;
+    this.lastLocalGroundedAt = 0;
+    this.jumpQueuedUntil = 0;
+    this.grappleRestLength = 0;
+  }
 
   setSettings(settings: UserSettings): void {
     this.settings = settings;
@@ -291,6 +323,8 @@ export class PlanetfallGame {
       this.burstLatch = false;
       this.grappleHeld = false;
       this.grapplePoint = null;
+      this.grappleRestLength = 0;
+      this.grappleTension = 0;
       if (this.activeSabotage) {
         this.onInteract?.({ action: "sabotage", planetId: this.activeSabotage.planetId, structure: this.activeSabotage.structure, active: false });
         this.activeSabotage = null;
@@ -324,7 +358,9 @@ export class PlanetfallGame {
     cannons: { planetId: string; position: Vec3 }[];
     repairs: { planetId: string; position: Vec3 }[];
     performance: { fps: number; drawCalls: number; triangles: number; particles: number; projectiles: number };
+    mechanics: { speed: number; grounded: boolean; gravityPlanetId: string | null; altitude: number | null; correction: number; grappleTension: number; launchAssist: boolean };
   } {
+    const gravityPlanet = this.localGravityPlanetId ? this.planets.get(this.localGravityPlanetId) : undefined;
     return {
       localId: this.localId,
       localPosition: plain(this.localPosition),
@@ -342,6 +378,12 @@ export class PlanetfallGame {
       performance: {
         fps: this.measuredFps, drawCalls: this.renderer.info.render.calls, triangles: this.renderer.info.render.triangles,
         particles: this.particles.length, projectiles: this.projectiles.size
+      },
+      mechanics: {
+        speed: this.localVelocity.length(), grounded: this.localGrounded, gravityPlanetId: this.localGravityPlanetId,
+        altitude: gravityPlanet ? this.localPosition.distanceTo(gravityPlanet.group.position) - BALANCE.planetRadius : null,
+        correction: this.correction.length(), grappleTension: this.grappleTension,
+        launchAssist: performance.now() < this.localLaunchAssistUntil
       }
     };
   }
@@ -399,6 +441,22 @@ export class PlanetfallGame {
     if (projectile) this.disposeProjectile(projectile);
     this.projectiles.delete(payload.id);
     const position = vec(payload.position);
+    const local = this.players.get(this.localId);
+    const config = BALANCE.weapons[payload.weapon];
+    const knockbackFalloff = local?.state.alive ? explosionFalloff(this.localPosition.distanceTo(position), config.radius * 1.8) : 0;
+    if (knockbackFalloff > 0) {
+      const gravityPlanet = (this.localGravityPlanetId ? this.planets.get(this.localGravityPlanetId) : undefined)
+        ?? this.nearestPlanet(this.localPosition, true);
+      const blastDirection = this.localPosition.clone().sub(position).normalize();
+      const surfaceOutward = gravityPlanet
+        ? this.localPosition.clone().sub(gravityPlanet.group.position).normalize()
+        : blastDirection.clone();
+      const impulseDirection = blastDirection.addScaledVector(surfaceOutward, .32).normalize();
+      this.localVelocity.addScaledVector(impulseDirection, config.knockback * knockbackFalloff);
+      this.localVelocity.copy(vec(limitSpeed(plain(this.localVelocity), BALANCE.maxPlayerSpeed)));
+      this.localGrounded = false;
+      this.jumpQueuedUntil = 0;
+    }
     const count = Math.round((payload.weapon === "asteroid" ? 34 : 22) * this.quality.particleScale);
     const colors = payload.weapon === "asteroid" ? [0xff794c, 0xffcf57, 0xb67cff] : [0xff496c, 0xffd45c, 0x70f5ff];
     for (let i = 0; i < count; i++) {
@@ -434,6 +492,7 @@ export class PlanetfallGame {
     if (player) {
       player.state.velocity = { ...payload.velocity };
       player.state.surfacePlanetId = null;
+      player.state.gravityPlanetId = payload.sourcePlanetId;
       player.state.launchCooldownUntil = payload.cooldownUntil;
     }
     const source = this.planets.get(payload.sourcePlanetId);
@@ -447,6 +506,10 @@ export class PlanetfallGame {
       this.localPosition.copy(vec(payload.position));
       this.localVelocity.copy(vec(payload.velocity));
       this.correction.set(0, 0, 0);
+      this.localSurfacePlanetId = null;
+      this.localGravityPlanetId = payload.sourcePlanetId;
+      this.localGrounded = false;
+      this.jumpQueuedUntil = 0;
       this.localLaunchTargetPlanetId = payload.targetPlanetId;
       this.localLaunchSourcePlanetId = payload.sourcePlanetId;
       this.localLaunchAssistUntil = performance.now() + BALANCE.launch.assistMs;
@@ -459,8 +522,12 @@ export class PlanetfallGame {
   landPlayer(payload: { playerId: string; planetId: string; ownerId: string; intruder: boolean }): void {
     const player = this.players.get(payload.playerId);
     const planet = this.planets.get(payload.planetId);
-    if (player) player.state.surfacePlanetId = payload.planetId;
-    if (player && planet) {
+    const predictedLocalLanding = payload.playerId === this.localId && this.localSurfacePlanetId === payload.planetId;
+    if (player) {
+      player.state.surfacePlanetId = payload.planetId;
+      player.state.gravityPlanetId = payload.planetId;
+    }
+    if (player && planet && !predictedLocalLanding) {
       const outward = player.group.position.clone().sub(planet.group.position).normalize();
       this.spawnBurst(player.group.position.clone().addScaledVector(outward, -0.65), [0xd7e5ff, 0x9fb4ca, 0x70f5ff], 12, 3.2);
       player.hitPulse = Math.max(player.hitPulse, .48);
@@ -468,10 +535,14 @@ export class PlanetfallGame {
       this.spawnPulse(player.group.position.clone().addScaledVector(outward, -.55), new THREE.Color(player.state.color).getHex(), .72);
     }
     if (payload.playerId === this.localId) {
+      this.localSurfacePlanetId = payload.planetId;
+      this.localGravityPlanetId = payload.planetId;
+      this.localGrounded = true;
+      this.lastLocalGroundedAt = performance.now();
       this.localLaunchTargetPlanetId = null;
       this.localLaunchSourcePlanetId = null;
       this.localLaunchAssistUntil = 0;
-      this.audio.land();
+      if (!predictedLocalLanding) this.audio.land();
       this.shake = Math.max(this.shake, 0.24);
       this.input.vibrate(95, .24);
     } else if (payload.ownerId === this.localId && payload.intruder) {
@@ -493,6 +564,8 @@ export class PlanetfallGame {
     if (payload.targetId === this.localId) {
       this.localVelocity.copy(vec(payload.velocity));
       this.correction.set(0, 0, 0);
+      this.localGrounded = false;
+      this.jumpQueuedUntil = 0;
       this.shake = Math.max(this.shake, 0.38);
       this.canvas.classList.remove("shove-impact");
       void this.canvas.offsetWidth;
@@ -685,7 +758,7 @@ export class PlanetfallGame {
     const b = this.makePlanet({ id: "demo-b", ownerId: "", position: { x: -12, y: 3, z: -18 }, integrity: 58, alive: true, palette: 3, damageStage: 2, cannonDisabledUntil: 0, repairDisabledUntil: 0, cannonSabotageImmuneUntil: 0, repairSabotageImmuneUntil: 0 });
     b.group.scale.setScalar(0.7);
     this.demo.add(a.group, b.group);
-    const astronaut = this.makePlayer({ id: "demo", name: "", isBot: false, color: "#ffdc4f", planetId: "", connected: true, ready: true, alive: true, scrap: 0, position: { x: 13, y: 9.5, z: -4 }, velocity: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, lastInputSequence: 0, surfacePlanetId: "demo-a", launchCooldownUntil: 0, shoveCooldownUntil: 0, crowns: 0 });
+    const astronaut = this.makePlayer({ id: "demo", name: "", isBot: false, color: "#ffdc4f", planetId: "", connected: true, ready: true, alive: true, scrap: 0, position: { x: 13, y: 9.5, z: -4 }, velocity: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, lastInputSequence: 0, surfacePlanetId: "demo-a", gravityPlanetId: "demo-a", launchCooldownUntil: 0, shoveCooldownUntil: 0, crowns: 0 });
     astronaut.group.position.set(13, 9.4, -4);
     astronaut.group.scale.setScalar(1.2);
     this.demo.add(astronaut.group);
@@ -1005,7 +1078,10 @@ export class PlanetfallGame {
     return {
       group, target: group.position.clone(), state, leftArm, rightArm, leftLeg, rightLeg, torso, helmet, visor, backpack,
       flightTrail, flightTrailPoints: [], intruderMarker, localMarker, shoveUntil: 0, hitPulse: 0, landingPulse: 0,
-      previousSurfacePlanetId: state.surfacePlanetId, lodDetails
+      previousSurfacePlanetId: state.surfacePlanetId,
+      presentationUp: new THREE.Vector3(0, 1, 0),
+      presentationForward: new THREE.Vector3(0, 0, 1),
+      lodDetails
     };
   }
 
@@ -1101,12 +1177,31 @@ export class PlanetfallGame {
       visual.localMarker.visible = state.alive && state.id === this.localId && this.mode === "match";
       if (state.id === this.localId) {
         if (!this.localInitialized) {
-          this.localPosition.copy(visual.target); this.localVelocity.copy(vec(state.velocity)); this.localInitialized = true;
+          this.localPosition.copy(visual.target);
+          this.localVelocity.copy(vec(state.velocity));
+          this.localSurfacePlanetId = state.surfacePlanetId;
+          this.localGravityPlanetId = state.gravityPlanetId ?? state.surfacePlanetId;
+          this.localGrounded = Boolean(state.surfacePlanetId);
+          this.lastLocalGroundedAt = this.localGrounded ? performance.now() : 0;
+          this.localInitialized = true;
         } else {
           const error = visual.target.clone().sub(this.localPosition);
-          if (error.length() > 5) this.localPosition.copy(visual.target);
-          else this.correction.copy(error).multiplyScalar(0.15);
-          this.localVelocity.lerp(vec(state.velocity), 0.08);
+          const strength = reconciliationStrength(error.length());
+          if (strength >= 1) {
+            this.localPosition.copy(visual.target);
+            this.correction.set(0, 0, 0);
+          } else if (strength > 0) this.correction.copy(error).multiplyScalar(strength);
+          else this.correction.set(0, 0, 0);
+          this.localVelocity.lerp(vec(state.velocity), .06 + strength * .18);
+          this.localSurfacePlanetId = state.surfacePlanetId;
+          this.localGravityPlanetId = state.gravityPlanetId ?? state.surfacePlanetId ?? this.localGravityPlanetId;
+          const authoritativePlanet = this.localGravityPlanetId ? this.planets.get(this.localGravityPlanetId) : undefined;
+          if (authoritativePlanet) {
+            const altitude = this.localPosition.distanceTo(authoritativePlanet.group.position) - BALANCE.planetRadius;
+            const outward = this.localPosition.clone().sub(authoritativePlanet.group.position).normalize();
+            this.localGrounded = Boolean(state.surfacePlanetId) && updateGroundedState(this.localGrounded, altitude, this.localVelocity.dot(outward));
+            if (this.localGrounded) this.lastLocalGroundedAt = performance.now();
+          }
         }
       }
     }
@@ -1215,7 +1310,16 @@ export class PlanetfallGame {
     }
     if (this.launchAiming && (frame.cancel.pressed || frame.burst.pressed)) this.cancelLaunchAim();
     else if (frame.switchWeapon.pressed) this.toggleWeapon();
-    if (frame.repair.pressed && !this.launchAiming) this.onRepair?.();
+    if (frame.repair.pressed && !this.launchAiming) {
+      const ownPlanet = this.planets.get(local.state.planetId);
+      const nearRepair = ownPlanet && distance(plain(this.localPosition), repairPosition(ownPlanet.state)) <= BALANCE.repair.range;
+      const canRepair = ownPlanet && nearRepair && this.room?.phase !== "overtime"
+        && ownPlanet.state.repairDisabledUntil <= Date.now()
+        && ownPlanet.state.integrity < this.rules.maxIntegrity
+        && local.state.scrap >= BALANCE.repair.cost;
+      if (canRepair) this.onRepair?.();
+      else if (nearRepair) this.audio.denied();
+    }
     if (frame.interact.pressed) this.handleInteractDown();
     if (frame.interact.released && this.activeSabotage) {
       this.onInteract?.({ action: "sabotage", planetId: this.activeSabotage.planetId, structure: this.activeSabotage.structure, active: false });
@@ -1225,18 +1329,37 @@ export class PlanetfallGame {
       if (frame.previousTarget.pressed) this.cycleLaunchTarget(-1);
       if (frame.nextTarget.pressed || frame.repair.pressed) this.cycleLaunchTarget(1);
     }
-    if (frame.jump.pressed) this.jumpLatch = true;
+    if (frame.jump.pressed) {
+      this.jumpLatch = true;
+      this.jumpQueuedUntil = performance.now() + BALANCE.ground.jumpBufferMs;
+    }
     if (frame.burst.pressed && !this.launchAiming) this.burstLatch = true;
     if (frame.fire.pressed && !this.launchAiming && this.nearOwnCannon()) {
-      this.onFire?.(this.weapon, plain(this.cameraForward));
-      this.input.vibrate(this.weapon === "asteroid" ? 150 : 80, this.weapon === "asteroid" ? .48 : .2);
+      const ownPlanet = this.planets.get(local.state.planetId);
+      const canFire = ownPlanet && ownPlanet.state.cannonDisabledUntil <= Date.now()
+        && local.state.scrap >= BALANCE.weapons[this.weapon].cost;
+      if (canFire) {
+        ownPlanet.recoil = Math.max(ownPlanet.recoil, .28);
+        (ownPlanet.muzzle.material as THREE.MeshStandardMaterial).emissiveIntensity = 2.4;
+        this.audio.cannonTrigger(this.weapon === "asteroid");
+        this.onFire?.(this.weapon, plain(this.cameraForward));
+        this.input.vibrate(this.weapon === "asteroid" ? 150 : 80, this.weapon === "asteroid" ? .48 : .2);
+      } else this.audio.denied();
     }
     if (frame.grapple.pressed) {
       this.grapplePoint = this.findGrapplePoint();
-      if (this.grapplePoint) this.audio.grapple();
+      if (this.grapplePoint) {
+        this.grappleRestLength = grappleRestLength(this.localPosition.distanceTo(this.grapplePoint));
+        this.audio.grapple();
+      }
     }
     this.grappleHeld = frame.grapple.held && Boolean(this.grapplePoint);
-    if (frame.grapple.released) this.grapplePoint = null;
+    if (frame.grapple.released) {
+      if (this.grapplePoint) this.audio.grappleRelease();
+      this.grapplePoint = null;
+      this.grappleRestLength = 0;
+      this.grappleTension = 0;
+    }
     this.applyLook(frame, dt);
   }
 
@@ -1289,11 +1412,13 @@ export class PlanetfallGame {
     if (!local.state.alive) { this.updateSpectator(dt); return; }
     this.predictLocal(dt, now);
     local.group.position.copy(this.localPosition);
-    const planet = this.nearestPlanet(this.localPosition, true);
+    const planet = (this.localGravityPlanetId ? this.planets.get(this.localGravityPlanetId) : undefined)
+      ?? this.nearestPlanet(this.localPosition, true);
     if (!planet) return;
     const outward = this.localPosition.clone().sub(planet.group.position).normalize();
-    if (this.cameraLocalUp.dot(outward) < -.92) this.cameraLocalUp.copy(outward);
-    else this.cameraLocalUp.lerp(outward, 1 - Math.exp(-dt * (local.state.surfacePlanetId ? 9 : 3.4))).normalize();
+    const upRotation = new THREE.Quaternion().setFromUnitVectors(this.cameraLocalUp, outward);
+    const upStep = new THREE.Quaternion().slerp(upRotation, 1 - Math.exp(-dt * (this.localSurfacePlanetId ? 9 : 3.1)));
+    this.cameraLocalUp.applyQuaternion(upStep).normalize();
     const yawAxis = this.cameraLocalUp;
     const baseForward = this.cameraForward.clone().projectOnPlane(this.cameraLocalUp);
     if (baseForward.lengthSq() < .01) {
@@ -1309,7 +1434,7 @@ export class PlanetfallGame {
     const planarForward = this.cameraForward.clone().projectOnPlane(outward).normalize();
     const facing = this.localVelocity.clone().projectOnPlane(outward);
     const modelForward = facing.lengthSq() > 0.2 ? facing.normalize() : planarForward;
-    this.orientPlayer(local.group, outward, modelForward);
+    this.orientPlayer(local.group, outward, modelForward, dt);
     const flightAmount = clamp((this.localVelocity.length() - 8) / 12, 0, 1) * (local.state.surfacePlanetId ? 0.35 : 1);
     const destination = this.localLaunchTargetPlanetId ? this.planets.get(this.localLaunchTargetPlanetId) : undefined;
     const destinationDirection = destination ? destination.group.position.clone().sub(this.localPosition).normalize() : new THREE.Vector3();
@@ -1325,24 +1450,52 @@ export class PlanetfallGame {
 
     for (const [id, player] of this.players) {
       if (id === this.localId) continue;
-      player.group.position.lerp(player.target, 1 - Math.exp(-dt * 12));
-      const nearest = this.nearestPlanet(player.group.position, true);
-      if (nearest) {
-        const up = player.group.position.clone().sub(nearest.group.position).normalize();
-        const velocity = vec(player.state.velocity).projectOnPlane(up);
-        this.orientPlayer(player.group, up, velocity.lengthSq() > 0.1 ? velocity.normalize() : new THREE.Vector3(0, 0, 1).projectOnPlane(up).normalize());
+      const airborne = !player.state.surfacePlanetId;
+      player.group.position.lerp(player.target, 1 - Math.exp(-dt * (airborne ? 8 : 13)));
+      const gravityPlanet = (player.state.gravityPlanetId ? this.planets.get(player.state.gravityPlanetId) : undefined)
+        ?? this.nearestPlanet(player.group.position, true);
+      if (gravityPlanet) {
+        const up = player.group.position.clone().sub(gravityPlanet.group.position).normalize();
+        const upRotation = new THREE.Quaternion().setFromUnitVectors(player.presentationUp, up);
+        player.presentationUp.applyQuaternion(new THREE.Quaternion().slerp(upRotation, 1 - Math.exp(-dt * (airborne ? 3.5 : 10)))).normalize();
+        const velocity = vec(player.state.velocity).projectOnPlane(player.presentationUp);
+        const desiredFacing = velocity.lengthSq() > 0.1
+          ? velocity.normalize()
+          : player.presentationForward.clone().projectOnPlane(player.presentationUp).normalize();
+        if (desiredFacing.lengthSq() > .01) {
+          player.presentationForward.lerp(desiredFacing, 1 - Math.exp(-dt * 11)).projectOnPlane(player.presentationUp).normalize();
+        }
+        this.orientPlayer(player.group, player.presentationUp, player.presentationForward, dt);
       }
     }
     this.updateContext();
   }
 
   private predictLocal(dt: number, now: number): void {
-    const planet = this.nearestPlanet(this.localPosition, true);
+    const activeLaunch = now < this.localLaunchAssistUntil
+      && Boolean(this.localLaunchSourcePlanetId && this.localLaunchTargetPlanetId);
+    const planetStates = [...this.planets.values()].map((visual) => visual.state);
+    const surfacePlanet = this.localSurfacePlanetId ? this.planets.get(this.localSurfacePlanetId) : undefined;
+    this.localGravityPlanetId = surfacePlanet?.state.alive
+      ? surfacePlanet.state.id
+      : selectGravityPlanetId(
+        plain(this.localPosition),
+        planetStates,
+        this.localGravityPlanetId,
+        activeLaunch ? this.localLaunchTargetPlanetId : null
+      );
+    const planet = (this.localGravityPlanetId ? this.planets.get(this.localGravityPlanetId) : undefined)
+      ?? this.nearestPlanet(this.localPosition, true);
     if (!planet) return;
     const outward = this.localPosition.clone().sub(planet.group.position).normalize();
     const altitude = this.localPosition.distanceTo(planet.group.position) - BALANCE.planetRadius;
-    const grounded = altitude <= 1.25;
-    const tangentCamera = this.cameraForward.clone().projectOnPlane(outward).normalize();
+    this.localGrounded = !activeLaunch && updateGroundedState(this.localGrounded, altitude, this.localVelocity.dot(outward));
+    if (this.localGrounded) this.lastLocalGroundedAt = now;
+    const tangentCamera = this.cameraForward.clone().projectOnPlane(outward);
+    if (tangentCamera.lengthSq() < .01) {
+      tangentCamera.crossVectors(outward, Math.abs(outward.y) > .9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0));
+    }
+    tangentCamera.normalize();
     const right = new THREE.Vector3().crossVectors(tangentCamera, outward).normalize();
     const moveX = this.uiCaptured ? 0 : this.inputFrame?.moveX ?? 0;
     const moveY = this.uiCaptured ? 0 : this.inputFrame?.moveY ?? 0;
@@ -1350,40 +1503,109 @@ export class PlanetfallGame {
     const moveMagnitude = Math.min(1, Math.hypot(moveX, moveY));
     if (move.lengthSq() > 0) move.normalize().multiplyScalar(moveMagnitude);
     const tangentVelocity = this.localVelocity.clone().projectOnPlane(outward);
-    const desired = move.multiplyScalar(BALANCE.moveSpeed);
-    tangentVelocity.lerp(desired, clamp(BALANCE.acceleration * (grounded ? 1 : BALANCE.airControl) * dt / BALANCE.moveSpeed, 0, 1));
-    let radialSpeed = this.localVelocity.dot(outward) - this.rules.gravity * dt;
-    if (this.jumpLatch && grounded) { radialSpeed = this.rules.jumpSpeed; this.audio.jump(); this.spawnThruster(this.localPosition, outward, 8); }
-    this.localVelocity.copy(tangentVelocity).addScaledVector(outward, radialSpeed);
+    const desired = move.clone().multiplyScalar(BALANCE.moveSpeed);
+    const steppedTangent = stepTangentVelocity(
+      plain(tangentVelocity),
+      plain(desired),
+      move.lengthSq() > .0025,
+      this.localGrounded,
+      dt,
+      now - this.lastLocalBurst < BALANCE.burstRecoveryMs
+    );
+    let radialSpeed = this.localVelocity.dot(outward);
+    const jump = canExecuteBufferedJump(now, this.jumpQueuedUntil, this.lastLocalGroundedAt, this.localGrounded);
+    if (jump) {
+      radialSpeed = this.rules.jumpSpeed;
+      this.jumpQueuedUntil = 0;
+      this.localGrounded = false;
+      this.audio.jump();
+      this.spawnThruster(this.localPosition, outward, 8);
+    } else if (this.localGrounded && radialSpeed < .5) {
+      radialSpeed = Math.min(radialSpeed, -BALANCE.ground.adhesionSpeed);
+    }
+    this.localVelocity.copy(vec(add(steppedTangent, scale(plain(outward), radialSpeed))));
+    if (!jump) {
+      const launchTarget = this.localLaunchTargetPlanetId ? this.planets.get(this.localLaunchTargetPlanetId) : undefined;
+      const launchSource = this.localLaunchSourcePlanetId ? this.planets.get(this.localLaunchSourcePlanetId) : undefined;
+      const gravity = activeLaunch && launchTarget?.state.alive && launchSource?.state.alive
+        ? launchGravityAcceleration(plain(this.localPosition), launchSource.state, launchTarget.state, this.rules.gravity)
+        : gravityAcceleration(plain(this.localPosition), planet.state, this.rules.gravity);
+      this.localVelocity.addScaledVector(vec(gravity), dt);
+    }
     if (this.burstLatch && now - this.lastLocalBurst > BALANCE.burstCooldownMs) {
       this.lastLocalBurst = now;
-      this.localVelocity.addScaledVector(desired.lengthSq() ? desired.clone().normalize() : this.cameraForward, BALANCE.burstSpeed);
-      this.audio.burst(); this.spawnThruster(this.localPosition, desired.lengthSq() ? desired.clone().normalize().negate() : this.cameraForward.clone().negate(), 14);
+      const burstDirection = desired.lengthSq() ? desired.clone().normalize() : this.cameraForward.clone().projectOnPlane(outward).normalize();
+      this.localVelocity.copy(vec(applyBurstVelocity(
+        plain(this.localVelocity), plain(burstDirection), plain(outward), this.localGrounded
+      )));
+      this.audio.burst();
+      this.spawnThruster(this.localPosition, burstDirection.clone().negate(), 14);
     }
     if (this.grappleHeld && this.grapplePoint) {
-      const rope = this.grapplePoint.clone().sub(this.localPosition);
-      const ropeLength = rope.length();
-      this.localVelocity.addScaledVector(rope.normalize(), BALANCE.grapplePull * dt * clamp(ropeLength / 8, .5, 2));
+      const ropeLength = this.grapplePoint.distanceTo(this.localPosition);
+      this.grappleTension = Math.max(0, ropeLength - this.grappleRestLength);
+      this.localVelocity.copy(vec(applyGrappleVelocity(
+        plain(this.localVelocity), plain(this.localPosition), plain(this.grapplePoint), this.grappleRestLength, dt
+      )));
+    } else {
+      this.grappleTension = 0;
     }
     const launchTarget = this.localLaunchTargetPlanetId ? this.planets.get(this.localLaunchTargetPlanetId) : undefined;
     const launchSource = this.localLaunchSourcePlanetId ? this.planets.get(this.localLaunchSourcePlanetId) : undefined;
-    if (launchTarget && launchSource && now < this.localLaunchAssistUntil) {
-      const guide = vec(launchLandingPosition(launchSource.state, launchTarget.state)).sub(this.localPosition).normalize();
-      this.localVelocity.addScaledVector(guide, BALANCE.launch.assist * dt);
-      const maxLaunchSpeed = BALANCE.launch.speed * 1.12;
-      if (this.localVelocity.length() > maxLaunchSpeed) this.localVelocity.setLength(maxLaunchSpeed);
+    if (launchTarget?.state.alive && launchSource?.state.alive && activeLaunch && !this.localSurfacePlanetId) {
+      this.localVelocity.copy(vec(applyLaunchGuidance(
+        plain(this.localVelocity), plain(this.localPosition), launchSource.state, launchTarget.state, dt
+      )));
     }
+    if (this.localPosition.length() > BALANCE.softBoundaryRadius) {
+      const recovery = this.nearestPlanet(this.localPosition, true);
+      if (recovery) this.localVelocity.addScaledVector(recovery.group.position.clone().sub(this.localPosition).normalize(), BALANCE.softBoundaryPull * dt);
+    }
+    this.localVelocity.copy(vec(limitSpeed(plain(this.localVelocity), BALANCE.maxPlayerSpeed)));
     this.localPosition.addScaledVector(this.localVelocity, dt).add(this.correction);
-    this.correction.multiplyScalar(0.7);
-    const nextUp = this.localPosition.clone().sub(planet.group.position).normalize();
+    this.correction.multiplyScalar(0.72);
+    const collisionPlanet = this.nearestPlanet(this.localPosition, true) ?? planet;
+    const nextUp = this.localPosition.clone().sub(collisionPlanet.group.position).normalize();
     const minDistance = BALANCE.planetRadius + 0.95;
-    if (this.localPosition.distanceTo(planet.group.position) < minDistance) {
-      this.localPosition.copy(planet.group.position).addScaledVector(nextUp, minDistance);
+    let landingSpeed = 0;
+    if (this.localPosition.distanceTo(collisionPlanet.group.position) < minDistance) {
+      this.localPosition.copy(collisionPlanet.group.position).addScaledVector(nextUp, minDistance);
       const inward = this.localVelocity.dot(nextUp);
-      if (inward < 0) this.localVelocity.addScaledVector(nextUp, -inward);
+      if (inward < 0) {
+        landingSpeed = -inward;
+        this.localVelocity.addScaledVector(nextUp, -inward);
+      }
     }
-    if (grounded && !this.wasGrounded && this.localVelocity.length() > 2.5) { this.audio.land(); this.shake = Math.max(this.shake, .12); }
-    this.wasGrounded = grounded;
+    const surface = this.nearestPlanet(this.localPosition, true);
+    const surfaceAltitude = surface ? this.localPosition.distanceTo(surface.group.position) - BALANCE.planetRadius : Infinity;
+    const surfaceUp = surface ? this.localPosition.clone().sub(surface.group.position).normalize() : nextUp;
+    if (surface && surfaceAltitude <= BALANCE.ground.enterAltitude && this.localVelocity.dot(surfaceUp) <= .5) {
+      this.localSurfacePlanetId = surface.state.id;
+      this.localGravityPlanetId = surface.state.id;
+      this.localGrounded = true;
+      this.lastLocalGroundedAt = now;
+      this.localLaunchTargetPlanetId = null;
+      this.localLaunchSourcePlanetId = null;
+      this.localLaunchAssistUntil = 0;
+    } else if (surfaceAltitude > BALANCE.ground.detachAltitude) {
+      this.localSurfacePlanetId = null;
+    }
+    if (this.localGrounded && !this.wasGrounded) {
+      const impact = Math.max(landingSpeed, Math.max(0, -this.previousRadialSpeed));
+      if (impact > 2.2) {
+        this.audio.land(impact);
+        this.shake = Math.max(this.shake, impact > 10 ? .3 : impact > 6 ? .2 : .1);
+        this.input.vibrate(45 + Math.min(80, impact * 5), Math.min(.38, .1 + impact * .018));
+        const localVisual = this.players.get(this.localId);
+        if (localVisual) {
+          localVisual.landingPulse = Math.min(1.35, .45 + impact * .07);
+          this.spawnBurst(this.localPosition.clone().addScaledVector(surfaceUp, -.7), [0xd7e5ff, 0x9fb4ca, 0x70f5ff], impact > 9 ? 15 : 9, impact > 9 ? 4 : 2.6);
+          this.spawnPulse(this.localPosition.clone().addScaledVector(surfaceUp, -.65), new THREE.Color(localVisual.state.color).getHex(), impact > 9 ? .9 : .55);
+        }
+      }
+    }
+    this.wasGrounded = this.localGrounded;
+    this.previousRadialSpeed = this.localVelocity.dot(surfaceUp);
     this.inputAccumulator += dt;
     if (this.inputAccumulator >= 1 / BALANCE.inputRate) {
       this.inputAccumulator = 0;
@@ -1401,8 +1623,8 @@ export class PlanetfallGame {
       this.rope.geometry.setFromPoints([this.localPosition.clone().addScaledVector(nextUp, 1), this.grapplePoint]);
       this.ropeAnchor.position.copy(this.grapplePoint);
       this.ropeAnchor.rotation.y += dt * 8;
-      this.ropeAnchor.scale.setScalar(1 + Math.sin(this.demoTime * 20) * .18);
-      (this.rope.material as THREE.LineBasicMaterial).opacity = .68 + Math.min(.28, this.localVelocity.length() * .012);
+      this.ropeAnchor.scale.setScalar(1 + Math.sin(this.demoTime * 20) * .18 + Math.min(.18, this.grappleTension * .025));
+      (this.rope.material as THREE.LineBasicMaterial).opacity = .68 + Math.min(.3, this.grappleTension * .045);
     }
   }
 
@@ -1420,7 +1642,7 @@ export class PlanetfallGame {
     if (this.activeSabotage) {
       const planet = this.planets.get(this.activeSabotage.planetId);
       const position = planet ? vec(this.activeSabotage.structure === "cannon" ? cannonPosition(planet.state) : repairPosition(planet.state)) : null;
-      if (!planet || !this.inputFrame?.interact.held || !position || position.distanceTo(this.localPosition) > BALANCE.sabotage.range + 0.2) {
+      if (!planet || !this.inputFrame?.interact.held || !position || position.distanceTo(this.localPosition) > BALANCE.sabotage.cancelRange) {
         this.onInteract?.({ action: "sabotage", planetId: this.activeSabotage.planetId, structure: this.activeSabotage.structure, active: false });
         this.activeSabotage = null;
       } else {
@@ -1482,28 +1704,37 @@ export class PlanetfallGame {
     }
 
     const nearCannon = this.nearOwnCannon();
-    const nearRepair = distance(plain(this.localPosition), repairPosition(ownPlanet.state)) < 4;
+    const nearRepair = distance(plain(this.localPosition), repairPosition(ownPlanet.state)) < BALANCE.repair.range;
     if (nearCannon && ownPlanet.state.cannonDisabledUntil > Date.now()) {
       this.onPrompt?.(`CANNON JAMMED  ${Math.ceil((ownPlanet.state.cannonDisabledUntil - Date.now()) / 1000)}s`, false, undefined, "cooldown");
     } else if (nearRepair && ownPlanet.state.repairDisabledUntil > Date.now()) {
       this.onPrompt?.(`REPAIR JAMMED  ${Math.ceil((ownPlanet.state.repairDisabledUntil - Date.now()) / 1000)}s`, false, undefined, "cooldown");
     } else if (nearCannon) {
       const origin = vec(cannonPosition(ownPlanet.state)).addScaledVector(this.cameraForward, 1.8);
-      const points = Array.from({ length: 20 }, (_, i) => origin.clone().addScaledVector(this.cameraForward, i * 1.25));
+      const points = Array.from({ length: 56 }, (_, i) => origin.clone().addScaledVector(this.cameraForward, i * 1.65));
       this.trajectory.geometry.setFromPoints(points);
       (this.trajectory as THREE.Line<THREE.BufferGeometry, THREE.LineDashedMaterial>).computeLineDistances();
       const flatAim = this.cameraForward.clone().projectOnPlane(new THREE.Vector3(0, 1, 0)).normalize();
       if (flatAim.lengthSq() > 0.1) ownPlanet.cannon.rotation.y = Math.atan2(-flatAim.x, -flatAim.z);
       this.trajectory.visible = true;
       this.onHint?.("cannon", "Fire at rival planets");
-      this.onPrompt?.(`${this.label("fire")}  FIRE CANNON`, true, `${this.weapon === "rocket" ? "ROCKET" : "ASTEROID"} · ${BALANCE.weapons[this.weapon].cost} SCRAP`, "weapon");
+      const weaponCost = BALANCE.weapons[this.weapon].cost;
+      this.onPrompt?.(
+        local.state.scrap < weaponCost ? `NEED ${weaponCost - local.state.scrap} MORE SCRAP` : `${this.label("fire")}  FIRE CANNON`,
+        true,
+        `${this.weapon === "rocket" ? "ROCKET" : "ASTEROID"} · ${weaponCost} SCRAP`,
+        local.state.scrap < weaponCost ? "cooldown" : "weapon"
+      );
     } else if (nearRepair) {
       this.onHint?.("repair", `${this.label("repair")} repairs your planet`);
-      this.onPrompt?.(`${this.label("repair")}  REPAIR ${BALANCE.repair.heal}% FOR ${BALANCE.repair.cost} SCRAP`, false, undefined, "idle");
+      if (this.room?.phase === "overtime") this.onPrompt?.("REPAIRS OFFLINE IN OVERTIME", false, undefined, "cooldown");
+      else if (ownPlanet.state.integrity >= this.rules.maxIntegrity) this.onPrompt?.("PLANET AT FULL INTEGRITY", false, undefined, "idle");
+      else if (local.state.scrap < BALANCE.repair.cost) this.onPrompt?.(`NEED ${BALANCE.repair.cost - local.state.scrap} MORE SCRAP`, false, undefined, "cooldown");
+      else this.onPrompt?.(`${this.label("repair")}  REPAIR ${BALANCE.repair.heal}% FOR ${BALANCE.repair.cost} SCRAP`, false, undefined, "idle");
     } else if (this.input.method === "keyboard" && document.pointerLockElement !== this.canvas) this.onPrompt?.("CLICK THE ARENA TO TAKE CONTROL", false, undefined, "idle");
     else {
-      if (!local.state.surfacePlanetId && this.localVelocity.length() > 8) this.onHint?.("grapple-space", `${this.label("grapple")} to grapple back`);
-      else if (local.state.surfacePlanetId && local.state.surfacePlanetId !== local.state.planetId) this.onHint?.("enemy-world", "Steal scrap, shove defenders, or jam structures");
+      if (!this.localSurfacePlanetId && this.localVelocity.length() > 8) this.onHint?.("grapple-space", `${this.label("grapple")} to grapple back`);
+      else if (this.localSurfacePlanetId && this.localSurfacePlanetId !== local.state.planetId) this.onHint?.("enemy-world", "Steal scrap, shove defenders, or jam structures");
       else if ([...this.scraps.values()].some((scrap) => scrap.position.distanceTo(this.localPosition) < 4)) this.onHint?.("scrap", "Collect scrap to fire and repair");
       this.onPrompt?.("COLLECT · RAID · DEFEND", false, undefined, "idle");
     }
@@ -1524,6 +1755,8 @@ export class PlanetfallGame {
     }
     const shoveTarget = this.nearbyPlayer();
     if (shoveTarget) {
+      const localPlayer = this.players.get(this.localId);
+      if (localPlayer && localPlayer.state.shoveCooldownUntil <= Date.now()) localPlayer.shoveUntil = performance.now() + 280;
       this.onInteract?.({ action: "shove", targetPlayerId: shoveTarget.state.id });
       return;
     }
@@ -1565,12 +1798,18 @@ export class PlanetfallGame {
   }
 
   private nearbyPlayer(): PlayerVisual | null {
+    const local = this.players.get(this.localId);
+    const surfacePlanetId = this.localSurfacePlanetId ?? local?.state.surfacePlanetId ?? null;
+    const planet = surfacePlanetId ? this.planets.get(surfacePlanetId) : undefined;
+    if (!local || !planet) return null;
     let nearest: PlayerVisual | null = null;
     let nearestDistance: number = BALANCE.shove.range;
     for (const player of this.players.values()) {
-      if (!player.state.alive || player.state.id === this.localId) continue;
+      if (!player.state.alive || player.state.id === this.localId || player.state.surfacePlanetId !== surfacePlanetId) continue;
       const d = player.group.position.distanceTo(this.localPosition);
-      if (d <= nearestDistance) { nearest = player; nearestDistance = d; }
+      if (d <= nearestDistance && isShoveTarget(
+        plain(this.localPosition), plain(player.group.position), planet.state.position, plain(this.cameraForward)
+      )) { nearest = player; nearestDistance = d; }
     }
     return nearest;
   }
@@ -1610,17 +1849,22 @@ export class PlanetfallGame {
   private updateLaunchTrajectory(source: PlanetVisual, target: PlanetVisual): void {
     const points: THREE.Vector3[] = [this.localPosition.clone()];
     const position = this.localPosition.clone();
-    const velocity = vec(launchVelocity(plain(position), source.state, target.state));
-    const landing = vec(launchLandingPosition(source.state, target.state));
+    let velocity = launchVelocity(plain(position), source.state, target.state);
+    let gravityPlanetId: string | null = source.state.id;
+    const planetStates = [...this.planets.values()].map((visual) => visual.state);
     const step = 0.075;
     for (let index = 0; index < 48; index++) {
-      const nearest = this.nearestPlanet(position, true);
-      if (!nearest) break;
-      const outward = position.clone().sub(nearest.group.position).normalize();
-      velocity.addScaledVector(outward, -this.rules.gravity * step);
-      if (index * step * 1000 < BALANCE.launch.assistMs) velocity.addScaledVector(landing.clone().sub(position).normalize(), BALANCE.launch.assist * step);
-      if (velocity.length() > BALANCE.launch.speed * 1.12) velocity.setLength(BALANCE.launch.speed * 1.12);
-      position.addScaledVector(velocity, step);
+      const elapsed = index * step * 1000;
+      gravityPlanetId = selectGravityPlanetId(plain(position), planetStates, gravityPlanetId, target.state.id);
+      const gravityPlanet = gravityPlanetId ? this.planets.get(gravityPlanetId) : undefined;
+      if (!gravityPlanet) break;
+      const gravity = elapsed < BALANCE.launch.assistMs
+        ? launchGravityAcceleration(plain(position), source.state, target.state, this.rules.gravity)
+        : gravityAcceleration(plain(position), gravityPlanet.state, this.rules.gravity);
+      velocity = add(velocity, scale(gravity, step));
+      if (elapsed < BALANCE.launch.assistMs) velocity = applyLaunchGuidance(velocity, plain(position), source.state, target.state, step);
+      const next = add(plain(position), scale(velocity, step));
+      position.copy(vec(next));
       points.push(position.clone());
       if (position.distanceTo(target.group.position) <= BALANCE.planetRadius + 1) break;
     }
@@ -1779,12 +2023,14 @@ export class PlanetfallGame {
         visual.leftArm.rotation.x = -1.6; visual.rightArm.rotation.x = -1.35;
         visual.leftArm.rotation.z = .44; visual.rightArm.rotation.z = -.44;
       }
-      else if (!visual.state.surfacePlanetId && speed > 10) {
+      else if (!(visual.state.id === this.localId ? this.localSurfacePlanetId : visual.state.surfacePlanetId) && speed > 10) {
         visual.leftArm.rotation.x = -1.35; visual.rightArm.rotation.x = -1.35;
         visual.leftLeg.rotation.x = .35; visual.rightLeg.rotation.x = .35;
       }
       visual.torso.position.y = .72 + Math.abs(stride) * .045;
-      visual.torso.rotation.x = clamp(-speed * .018, -.17, 0);
+      const burstLean = visual.state.id === this.localId && animationNow - this.lastLocalBurst < 220 ? .16 : 0;
+      const grappleLean = visual.state.id === this.localId ? Math.min(.13, this.grappleTension * .012) : 0;
+      visual.torso.rotation.x = clamp(-speed * .018 - burstLean - grappleLean, -.38, 0);
       visual.helmet.position.y = 1.46 + Math.abs(stride) * .025;
       visual.helmet.rotation.z = Math.sin(this.demoTime * 2.2 + visual.group.position.x) * (speed < .25 ? .025 : .01) + visual.hitPulse * .14;
       visual.backpack.rotation.x = clamp(speed * .012, 0, .12);
@@ -1798,8 +2044,14 @@ export class PlanetfallGame {
       );
       visual.intruderMarker.position.y = Math.sin(this.demoTime * 4 + visual.group.position.x) * .08;
       visual.localMarker.scale.setScalar(1 + Math.sin(this.demoTime * 4.5) * .045);
+      if (visual.state.id === this.localId) {
+        const burstReady = animationNow - this.lastLocalBurst >= BALANCE.burstCooldownMs;
+        const ring = visual.localMarker.children[0] as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial> | undefined;
+        if (ring?.material) ring.material.opacity = burstReady ? .58 + Math.max(0, Math.sin(this.demoTime * 5)) * .18 : .2;
+      }
       if (visual.state.isBot) visual.group.rotation.z += Math.sin(this.demoTime * 1.7 + visual.group.position.x) * dt * .025;
-      const inFlight = visual.state.alive && !visual.state.surfacePlanetId && speed > 10;
+      const visualSurfacePlanetId = visual.state.id === this.localId ? this.localSurfacePlanetId : visual.state.surfacePlanetId;
+      const inFlight = visual.state.alive && !visualSurfacePlanetId && speed > 10;
       visual.flightTrail.visible = inFlight && this.mode === "match";
       if (visual.flightTrail.visible) {
         const point = visual.group.position.clone().addScaledVector(velocity.clone().normalize(), -0.8);
@@ -1884,7 +2136,7 @@ export class PlanetfallGame {
     const planet = local ? this.planets.get(local.state.planetId) : undefined;
     if (!planet) return false;
     const cannon = cannonPosition(planet.state);
-    return distance(plain(this.localPosition), cannon) < 5;
+    return distance(plain(this.localPosition), cannon) < BALANCE.cannonRange;
   }
 
   private findGrapplePoint(): THREE.Vector3 | null {
@@ -1906,7 +2158,17 @@ export class PlanetfallGame {
   }
 
   private nearestPlanet(position: THREE.Vector3, aliveOnly: boolean): PlanetVisual | undefined {
-    return [...this.planets.values()].filter((p) => !aliveOnly || p.state.alive).sort((a, b) => position.distanceTo(a.group.position) - position.distanceTo(b.group.position))[0];
+    let nearest: PlanetVisual | undefined;
+    let nearestDistanceSquared = Number.POSITIVE_INFINITY;
+    for (const planet of this.planets.values()) {
+      if (aliveOnly && !planet.state.alive) continue;
+      const candidateDistanceSquared = position.distanceToSquared(planet.group.position);
+      if (candidateDistanceSquared < nearestDistanceSquared) {
+        nearest = planet;
+        nearestDistanceSquared = candidateDistanceSquared;
+      }
+    }
+    return nearest;
   }
 
   private threatensLocalPlanet(projectile: ProjectileState): boolean {
@@ -2004,12 +2266,12 @@ export class PlanetfallGame {
     return nearestHit < distanceToCamera ? target.clone().addScaledVector(direction, Math.max(.8, nearestHit - .3)) : result;
   }
 
-  private orientPlayer(group: THREE.Group, up: THREE.Vector3, forward: THREE.Vector3): void {
+  private orientPlayer(group: THREE.Group, up: THREE.Vector3, forward: THREE.Vector3, dt: number): void {
     const right = new THREE.Vector3().crossVectors(up, forward).normalize();
     const correctedForward = new THREE.Vector3().crossVectors(right, up).normalize();
     const matrix = new THREE.Matrix4().makeBasis(right, up, correctedForward);
     const target = new THREE.Quaternion().setFromRotationMatrix(matrix);
-    group.quaternion.slerp(target, 0.22);
+    group.quaternion.slerp(target, 1 - Math.exp(-dt * 15));
   }
 
   private toggleWeapon(): void {

@@ -1,5 +1,37 @@
 import { describe, expect, it } from "vitest";
-import { BALANCE, CHAOS_MODIFIERS, ballisticPosition, cannonPosition, createMatchRules, createMatchStats, damageStage, distance, dot, launchPadPosition, launchVelocity, normalize, projectOnPlane, repairPosition, sanitizeName, selectChaosModifier, selectMatchAwards, sub } from "./index.js";
+import {
+  BALANCE,
+  CHAOS_MODIFIERS,
+  applyBurstVelocity,
+  applyGrappleVelocity,
+  applyShoveVelocity,
+  ballisticPosition,
+  canExecuteBufferedJump,
+  cannonPosition,
+  createMatchRules,
+  createMatchStats,
+  damageStage,
+  distance,
+  dot,
+  explosionFalloff,
+  isShoveTarget,
+  launchGravityAcceleration,
+  launchPadPosition,
+  launchVelocity,
+  length,
+  normalize,
+  projectOnPlane,
+  reconciliationStrength,
+  repairPosition,
+  sanitizeName,
+  segmentSphereHit,
+  selectChaosModifier,
+  selectGravityPlanetId,
+  selectMatchAwards,
+  stepTangentVelocity,
+  sub,
+  updateGroundedState
+} from "./index.js";
 
 describe("shared gameplay math", () => {
   it("projects movement onto a spherical tangent", () => {
@@ -39,6 +71,76 @@ describe("shared gameplay math", () => {
     const velocity = launchVelocity(pad, source, target);
     expect(Math.hypot(velocity.x, velocity.y, velocity.z)).toBeCloseTo(BALANCE.launch.speed);
     expect(dot(normalize(sub(pad, source.position)), normalize(velocity))).toBeGreaterThan(0.3);
+  });
+
+  it("keeps grounded state stable and accepts buffered or coyote jumps once", () => {
+    expect(updateGroundedState(false, BALANCE.ground.enterAltitude + .01)).toBe(false);
+    expect(updateGroundedState(false, BALANCE.ground.enterAltitude - .01)).toBe(true);
+    expect(updateGroundedState(false, BALANCE.ground.enterAltitude - .1, 2)).toBe(false);
+    expect(updateGroundedState(true, BALANCE.ground.exitAltitude - .01)).toBe(true);
+    expect(updateGroundedState(true, BALANCE.ground.exitAltitude + .01)).toBe(false);
+    expect(canExecuteBufferedJump(1_000, 1_050, 880, false)).toBe(true);
+    expect(canExecuteBufferedJump(1_000, 999, 990, true)).toBe(false);
+    expect(canExecuteBufferedJump(1_000, 1_050, 800, false)).toBe(false);
+  });
+
+  it("separates acceleration, braking, turning, and analog target speed", () => {
+    const accelerated = stepTangentVelocity({ x: 0, y: 0, z: 0 }, { x: 6.5, y: 0, z: 0 }, true, true, .1);
+    const analog = stepTangentVelocity({ x: 0, y: 0, z: 0 }, { x: 3.25, y: 0, z: 0 }, true, true, .1);
+    const braked = stepTangentVelocity({ x: 6.5, y: 0, z: 0 }, { x: 0, y: 0, z: 0 }, false, true, .1);
+    const turned = stepTangentVelocity({ x: 6.5, y: 0, z: 0 }, { x: -6.5, y: 0, z: 0 }, true, true, .1);
+    expect(length(accelerated)).toBeCloseTo(3.2);
+    expect(length(analog)).toBeCloseTo(3.2);
+    expect(length(braked)).toBeCloseTo(3.8);
+    expect(turned.x).toBeCloseTo(2.5);
+  });
+
+  it("uses hysteresis for gravity ownership and blends launch gravity", () => {
+    const planets = [
+      { id: "a", position: { x: 0, y: 0, z: 0 }, alive: true },
+      { id: "b", position: { x: 10, y: 0, z: 0 }, alive: true }
+    ];
+    expect(selectGravityPlanetId({ x: 5.2, y: 0, z: 0 }, planets, "a")).toBe("a");
+    expect(selectGravityPlanetId({ x: 6, y: 0, z: 0 }, planets, "a")).toBe("b");
+    expect(selectGravityPlanetId({ x: 5.2, y: 0, z: 0 }, planets, "a", "b")).toBe("b");
+    const nearSource = launchGravityAcceleration({ x: 1, y: 0, z: 0 }, planets[0], planets[1], BALANCE.gravity);
+    const nearTarget = launchGravityAcceleration({ x: 9, y: 0, z: 0 }, planets[0], planets[1], BALANCE.gravity);
+    expect(nearSource.x).toBeLessThan(0);
+    expect(nearTarget.x).toBeGreaterThan(0);
+  });
+
+  it("preserves swing momentum while applying bounded grapple tension", () => {
+    const slack = applyGrappleVelocity({ x: 0, y: 5, z: 0 }, { x: 0, y: 0, z: 0 }, { x: 5, y: 0, z: 0 }, 7, .1);
+    expect(slack).toEqual({ x: 0, y: 5, z: 0 });
+    const tensioned = applyGrappleVelocity({ x: 0, y: 5, z: 0 }, { x: 0, y: 0, z: 0 }, { x: 10, y: 0, z: 0 }, 7, .1);
+    expect(tensioned.x).toBeGreaterThan(0);
+    expect(tensioned.y).toBeCloseTo(5);
+    expect(length(applyGrappleVelocity({ x: 0, y: 100, z: 0 }, { x: 0, y: 0, z: 0 }, { x: 10, y: 0, z: 0 }, 7, .1))).toBeCloseTo(BALANCE.grapple.speedCap);
+  });
+
+  it("shapes burst, shove, and explosion impulses without replacing all momentum", () => {
+    expect(isShoveTarget(
+      { x: 0, y: 9, z: 0 }, { x: 1.5, y: 9, z: 0 }, { x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }
+    )).toBe(true);
+    expect(isShoveTarget(
+      { x: 0, y: 9, z: 0 }, { x: -1.5, y: 9, z: 0 }, { x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }
+    )).toBe(false);
+    const burst = applyBurstVelocity({ x: 12, y: 2, z: 0 }, { x: 1, y: 0, z: 0 }, { x: 0, y: 1, z: 0 }, true);
+    expect(length(burst)).toBeLessThanOrEqual(BALANCE.burstSpeedCap + 2.01);
+    const shoved = applyShoveVelocity({ x: 0, y: 0, z: 2 }, { x: 1, y: 0, z: 0 }, { x: 0, y: 1, z: 0 }, BALANCE.shove.force);
+    expect(shoved.x).toBeGreaterThan(9);
+    expect(shoved.y).toBeCloseTo(BALANCE.shove.lift);
+    expect(shoved.z).toBeGreaterThan(1);
+    expect(explosionFalloff(0, 10)).toBe(1);
+    expect(explosionFalloff(7.5, 10)).toBeCloseTo(.5);
+    expect(explosionFalloff(10, 10)).toBe(0);
+  });
+
+  it("detects swept projectile impacts between simulation ticks", () => {
+    expect(segmentSphereHit({ x: -5, y: 0, z: 0 }, { x: 5, y: 0, z: 0 }, { x: 0, y: 0, z: 0 }, 1)).toBeCloseTo(.4);
+    expect(segmentSphereHit({ x: -5, y: 2, z: 0 }, { x: 5, y: 2, z: 0 }, { x: 0, y: 0, z: 0 }, 1)).toBeNull();
+    expect(segmentSphereHit({ x: 0, y: 0, z: 0 }, { x: 5, y: 0, z: 0 }, { x: 0, y: 0, z: 0 }, 1)).toBe(0);
+    expect([.02, .2, 1, 5].map(reconciliationStrength)).toEqual([0, .1, .22, 1]);
   });
 
   it("initializes match statistics and selects deterministic meaningful awards", () => {

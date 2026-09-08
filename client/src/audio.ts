@@ -32,9 +32,16 @@ export class GameAudio {
   pickup(): void { this.tone(720, 0.1, "sine", 0.05, 1180); }
   stolen(): void { this.tone(610, 0.08, "square", 0.045, 980); setTimeout(() => this.tone(880, 0.12, "triangle", 0.04, 1320), 65); }
   jump(): void { this.tone(190, 0.12, "triangle", 0.04, 330); }
-  land(): void { this.noise(0.07, 0.025, 180); this.tone(92, 0.08, "sine", 0.025, 62); }
+  land(impact = 5): void {
+    const weight = Math.min(1, Math.max(.35, impact / 11));
+    this.noise(0.05 + weight * .06, 0.018 + weight * .025, 150 + weight * 120);
+    this.tone(105 - weight * 25, 0.06 + weight * .06, "sine", 0.016 + weight * .024, 58);
+  }
   burst(): void { this.noise(0.11, 0.045, 900); this.tone(170, 0.14, "sawtooth", 0.035, 360); }
   grapple(): void { this.tone(130, 0.16, "sawtooth", 0.035, 90); }
+  grappleRelease(): void { this.tone(180, 0.07, "triangle", 0.025, 280); }
+  cannonTrigger(heavy: boolean): void { this.tone(heavy ? 82 : 145, .055, "square", .018, heavy ? 64 : 118); }
+  denied(): void { this.tone(125, .055, "square", .018, 92); }
   launch(): void { this.duckMusic(480, .55); this.noise(0.24, 0.1, 760); this.tone(110, 0.32, "sawtooth", 0.065, 520); }
   shove(): void { this.noise(0.09, 0.065, 420); this.tone(120, 0.11, "square", 0.045, 75); }
   sabotage(): void { this.noise(0.2, 0.035, 1200); this.tone(390, 0.28, "square", 0.035, 105); }

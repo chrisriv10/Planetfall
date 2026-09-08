@@ -108,6 +108,20 @@ describe("planet raids", () => {
     expect(room.view().matchStats.find((entry) => entry.playerId === host.id)?.planetsVisited).toBe(1);
   });
 
+  it("keeps assisted launch and landing reliable under Low Gravity", async () => {
+    const { room, host, hostPlanet, guestPlanet } = await duel();
+    const now = Date.now();
+    room.activeModifier = "low-gravity";
+    room.rules = createMatchRules("low-gravity");
+    place(host, padStandingPosition(hostPlanet), hostPlanet.id);
+    expect(room.launch(host.id, guestPlanet.id, now)).toBe(true);
+    for (let step = 1; step <= 210 && host.surfacePlanetId !== guestPlanet.id; step++) {
+      room.update(1 / BALANCE.serverRate, now + step * (1000 / BALANCE.serverRate));
+    }
+    expect(host.surfacePlanetId).toBe(guestPlanet.id);
+    expect(distance(host.position, guestPlanet.position)).toBeLessThanOrEqual(BALANCE.planetRadius + BALANCE.ground.exitAltitude);
+  });
+
   it("rejects invalid shoves and applies funny but bounded knockback on cooldown", async () => {
     const { room, host, guest, hostPlanet } = await duel();
     const now = Date.now();
@@ -116,7 +130,11 @@ describe("planet raids", () => {
     place(guest, add(surface, { x: BALANCE.shove.range + 0.2, y: 0, z: 0 }), hostPlanet.id);
     expect(room.shove(host.id, guest.id, now)).toBe(false);
     place(guest, add(surface, { x: 1.5, y: 0, z: 0 }), hostPlanet.id);
-    expect(room.shove(host.id, guest.id, now)).toBe(true);
+    room.setInput(host.id, { sequence: 1, dt: .05, moveX: 0, moveY: 0, cameraForward: { x: -1, y: 0, z: 0 }, jump: false, burst: false, grapple: false }, now);
+    expect(room.shove(host.id, guest.id, now)).toBe(false);
+    host.lastInputAt = 0;
+    room.setInput(host.id, { sequence: 2, dt: .05, moveX: 0, moveY: 0, cameraForward: { x: 1, y: 0, z: 0 }, jump: false, burst: false, grapple: false }, now + 30);
+    expect(room.shove(host.id, guest.id, now + 31)).toBe(true);
     const speed = Math.hypot(guest.velocity.x, guest.velocity.y, guest.velocity.z);
     expect(speed).toBeGreaterThan(BALANCE.shove.force * 0.9);
     expect(speed).toBeLessThan(BALANCE.shove.force + BALANCE.shove.lift + 1);
@@ -140,6 +158,64 @@ describe("planet raids", () => {
     place(guest, add(hostPlanet.position, { x: 0, y: BALANCE.planetRadius + 0.95, z: 0 }), hostPlanet.id);
     room.update(1 / BALANCE.serverRate, now + BALANCE.sabotage.channelMs + 1);
     expect(hostPlanet.repairDisabledUntil).toBe(0);
+  });
+
+  it("tolerates small movement during sabotage but still requires the activation range", async () => {
+    const { room, guest, hostPlanet } = await duel();
+    const now = Date.now();
+    const station = repairPosition(hostPlanet);
+    place(guest, station, hostPlanet.id);
+    expect(room.sabotage(guest.id, hostPlanet.id, "repair", true, now)).toBe(true);
+    place(guest, add(station, { x: BALANCE.sabotage.range + .15, y: 0, z: 0 }), hostPlanet.id);
+    room.update(1 / BALANCE.serverRate, now + BALANCE.sabotage.channelMs + 1);
+    expect(hostPlanet.repairDisabledUntil).toBeGreaterThan(now);
+  });
+
+  it("authoritatively honors coyote time and a jump queued before landing", async () => {
+    const { room, host, hostPlanet } = await duel();
+    const now = Date.now();
+    const outward = { x: 0, y: 1, z: 0 };
+    place(host, add(hostPlanet.position, scale(outward, BALANCE.planetRadius + 1.55)), hostPlanet.id);
+    host.gravityPlanetId = hostPlanet.id;
+    host.grounded = false;
+    host.lastGroundedAt = now - 70;
+    room.setInput(host.id, { sequence: 1, dt: .05, moveX: 0, moveY: 0, cameraForward: { x: 0, y: 0, z: 1 }, jump: true, burst: false, grapple: false }, now);
+    room.update(1 / BALANCE.serverRate, now + 1);
+    expect(host.velocity.y).toBeGreaterThan(5);
+
+    const second = Date.now();
+    place(host, add(hostPlanet.position, scale(outward, BALANCE.planetRadius + 3)), null);
+    host.gravityPlanetId = hostPlanet.id;
+    host.grounded = false;
+    host.lastGroundedAt = 0;
+    host.lastInputAt = 0;
+    room.setInput(host.id, { sequence: 2, dt: .05, moveX: 0, moveY: 0, cameraForward: { x: 0, y: 0, z: 1 }, jump: false, burst: false, grapple: false }, second);
+    host.lastInputAt = 0;
+    room.setInput(host.id, { sequence: 3, dt: .05, moveX: 0, moveY: 0, cameraForward: { x: 0, y: 0, z: 1 }, jump: true, burst: false, grapple: false }, second + 30);
+    const bufferedUntil = host.jumpQueuedUntil;
+    room.update(1 / BALANCE.serverRate, second + 1);
+    expect(bufferedUntil).toBeGreaterThan(second);
+    expect(host.jumpQueuedUntil).toBe(bufferedUntil);
+    place(host, add(hostPlanet.position, scale(outward, BALANCE.planetRadius + 1.1)), hostPlanet.id);
+    host.gravityPlanetId = hostPlanet.id;
+    host.grounded = false;
+    room.update(1 / BALANCE.serverRate, second + 80);
+    expect(host.velocity.y).toBeGreaterThan(5);
+    expect(host.jumpQueuedUntil).toBe(0);
+  });
+
+  it("uses swept collision for a projectile that crosses a planet within one tick", async () => {
+    const { room, host, guestPlanet } = await duel();
+    const now = Date.now();
+    const start = add(guestPlanet.position, { x: 0, y: BALANCE.planetRadius + 3, z: 0 });
+    room.projectiles.set("swept", {
+      id: "swept", ownerId: host.id, weapon: "rocket", position: start,
+      velocity: { x: 0, y: -120, z: 0 }, spawnedAt: now - 1_000
+    });
+    const before = guestPlanet.integrity;
+    room.update(.2, now);
+    expect(room.projectiles.has("swept")).toBe(false);
+    expect(guestPlanet.integrity).toBe(before - BALANCE.weapons.rocket.damage);
   });
 
   it("jams enemy infrastructure, blocks use, expires, and applies recovery immunity", async () => {

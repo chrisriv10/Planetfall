@@ -283,6 +283,7 @@ describe("Planetfall multiplayer server", () => {
     room.phase = "playing";
     const record = room.players.get(joined.playerId)!;
     record.position = { x: 7, y: 8, z: 9 };
+    record.lastInputSequence = 42;
     guest.disconnect();
     await waitForRoom(host, (next) => next.players.find((player) => player.id === joined.playerId)?.connected === false);
 
@@ -294,6 +295,12 @@ describe("Planetfall multiplayer server", () => {
     const restored = resumed.room.players.find((player) => player.id === joined.playerId)!;
     expect(restored.connected).toBe(true);
     expect(Math.hypot(restored.position.x - 7, restored.position.y - 8, restored.position.z - 9)).toBeLessThan(0.1);
+    returning.emit("player:input", {
+      sequence: 1, dt: .05, moveX: 0, moveY: 1, cameraForward: { x: 0, y: 0, z: 1 },
+      jump: false, burst: false, grapple: false
+    });
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(record.lastInputSequence).toBe(1);
   });
 
   it("eliminates an expired disconnect and rejects the expired session", async () => {

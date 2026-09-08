@@ -3,6 +3,7 @@ import {
   add,
   cannonPosition,
   clamp,
+  cross,
   distance,
   launchLandingPosition,
   launchPadPosition,
@@ -136,13 +137,16 @@ export class BotBrain {
     const decision: BotDecision = { mode: this.mode, input };
     const nearbyEnemy = context.players.find((candidate) => candidate.alive && candidate.id !== context.player.id && candidate.surfacePlanetId && candidate.surfacePlanetId === context.player.surfacePlanetId && distance(candidate.position, context.player.position) <= BALANCE.shove.range);
     const shoveChance = context.activeModifier === "super-shove" ? 0.075 : 0.035;
-    if (nearbyEnemy && this.random() < shoveChance) decision.shoveTargetId = nearbyEnemy.id;
+    if (nearbyEnemy && this.random() < shoveChance) {
+      decision.shoveTargetId = nearbyEnemy.id;
+      decision.input.cameraForward = normalize(sub(nearbyEnemy.position, context.player.position));
+    }
     return decision;
   }
 
   private think(context: BotContext): void {
     this.nextThinkAt = context.now + 500 + this.random() * 500;
-    const navigationPlanet = context.surfacePlanet ?? [...context.planets].sort((a, b) => distance(context.player.position, a.position) - distance(context.player.position, b.position))[0];
+    const navigationPlanet = context.surfacePlanet ?? this.nearestPlanet(context.player.position, context.planets);
     const altitude = navigationPlanet ? distance(context.player.position, navigationPlanet.position) - BALANCE.planetRadius : Infinity;
     if (altitude > 3.5) { this.mode = "Recover"; return; }
 
@@ -153,7 +157,7 @@ export class BotBrain {
         return;
       }
       const enemyScraps = context.scraps.filter((scrap) => scrap.planetId === context.surfacePlanet!.id);
-      const nearestEnemyScrap = enemyScraps.sort((a, b) => distance(context.player.position, a.position) - distance(context.player.position, b.position))[0];
+      const nearestEnemyScrap = this.nearestScrap(context.player.position, enemyScraps);
       if (nearestEnemyScrap) { this.mode = "SeekScrap"; this.targetScrapId = nearestEnemyScrap.id; return; }
       this.mode = "Idle";
       this.chooseWanderPoint(context, context.surfacePlanet);
@@ -196,7 +200,7 @@ export class BotBrain {
     }
 
     const scraps = context.scraps.filter((scrap) => scrap.planetId === context.ownPlanet.id);
-    const nearest = scraps.sort((a, b) => distance(context.player.position, a.position) - distance(context.player.position, b.position))[0];
+    const nearest = this.nearestScrap(context.player.position, scraps);
     if (nearest) { this.mode = "SeekScrap"; this.targetScrapId = nearest.id; return; }
     this.mode = "Idle";
     this.chooseWanderPoint(context, context.ownPlanet);
@@ -206,7 +210,7 @@ export class BotBrain {
     if (this.mode === "Recover") {
       const raidTarget = this.raidTargetPlanetId ? context.planets.find((planet) => planet.id === this.raidTargetPlanetId && planet.alive) : undefined;
       if (raidTarget) return launchLandingPosition(context.surfacePlanet ?? context.ownPlanet, raidTarget);
-      const nearest = [...context.planets].filter((planet) => planet.alive).sort((a, b) => distance(context.player.position, a.position) - distance(context.player.position, b.position))[0] ?? context.ownPlanet;
+      const nearest = this.nearestPlanet(context.player.position, context.planets) ?? context.ownPlanet;
       const outward = normalize(sub(context.player.position, nearest.position));
       return add(nearest.position, scale(outward, BALANCE.planetRadius));
     }
@@ -218,15 +222,24 @@ export class BotBrain {
   }
 
   private makeInput(context: BotContext, target: Vec3 | null): PlayerInput {
-    const navigationPlanet = context.surfacePlanet ?? [...context.planets].filter((planet) => planet.alive).sort((a, b) => distance(context.player.position, a.position) - distance(context.player.position, b.position))[0] ?? context.ownPlanet;
+    const navigationPlanet = context.surfacePlanet ?? this.nearestPlanet(context.player.position, context.planets) ?? context.ownPlanet;
     const outward = normalize(sub(context.player.position, navigationPlanet.position));
-    const direction = target ? normalize(projectOnPlane(sub(target, context.player.position), outward)) : { x: 0, y: 0, z: 1 };
-    const moving = Boolean(target && distance(context.player.position, target) > 1.45 && this.mode !== "Aim" && this.mode !== "Repair");
+    let direction: Vec3 = { x: 0, y: 0, z: 1 };
+    if (target) {
+      const projected = projectOnPlane(sub(target, context.player.position), outward);
+      const projectedLengthSquared = projected.x ** 2 + projected.y ** 2 + projected.z ** 2;
+      direction = projectedLengthSquared > .0001
+        ? normalize(projected)
+        : normalize(cross(outward, Math.abs(outward.y) > .9 ? { x: 1, y: 0, z: 0 } : { x: 0, y: 1, z: 0 }));
+    }
+    const targetDistance = target ? distance(context.player.position, target) : 0;
+    const moving = Boolean(target && targetDistance > 1.45 && this.mode !== "Aim" && this.mode !== "Repair");
+    const moveAmount = moving ? clamp((targetDistance - 1.15) / 3.4, .22, 1) : 0;
     return {
       sequence: ++this.sequence,
       dt: 1 / BALANCE.serverRate,
       moveX: 0,
-      moveY: moving ? 1 : 0,
+      moveY: moveAmount,
       cameraForward: direction,
       jump: false,
       burst: moving && this.random() < 0.0025,
@@ -237,7 +250,34 @@ export class BotBrain {
 
   private chooseTarget(context: BotContext): PlanetState | undefined {
     const enemies = context.planets.filter((planet) => planet.alive && planet.ownerId !== context.player.id);
-    return enemies.sort((a, b) => (a.integrity + this.random() * 24) - (b.integrity + this.random() * 24))[0];
+    let target: PlanetState | undefined;
+    let bestScore = Number.POSITIVE_INFINITY;
+    for (const enemy of enemies) {
+      const score = enemy.integrity + this.random() * 24;
+      if (score < bestScore) { target = enemy; bestScore = score; }
+    }
+    return target;
+  }
+
+  private nearestPlanet(position: Vec3, planets: PlanetState[]): PlanetState | undefined {
+    let nearest: PlanetState | undefined;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    for (const planet of planets) {
+      if (!planet.alive) continue;
+      const candidateDistance = distance(position, planet.position);
+      if (candidateDistance < nearestDistance) { nearest = planet; nearestDistance = candidateDistance; }
+    }
+    return nearest;
+  }
+
+  private nearestScrap(position: Vec3, scraps: ScrapState[]): ScrapState | undefined {
+    let nearest: ScrapState | undefined;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    for (const scrap of scraps) {
+      const candidateDistance = distance(position, scrap.position);
+      if (candidateDistance < nearestDistance) { nearest = scrap; nearestDistance = candidateDistance; }
+    }
+    return nearest;
   }
 
   private chooseWeapon(scrap: number): WeaponType | null {
