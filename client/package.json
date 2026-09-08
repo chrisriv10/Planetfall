@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --configLoader native --host 0.0.0.0 --port 5173",
-    "build": "tsc -p tsconfig.json --noEmit && vite build --configLoader native",
-    "preview": "vite preview --configLoader native --host 0.0.0.0",
+    "dev": "vite --host 0.0.0.0 --port 5173",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
