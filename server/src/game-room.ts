@@ -3,7 +3,10 @@ import type { Server as SocketServer, Socket } from "socket.io";
 import RAPIER from "@dimforge/rapier3d-compat";
 import {
   BALANCE,
+  DEFAULT_COSMETICS,
+  FREE_EMOTES,
   PLAYER_COLORS,
+  SHOP_CATALOG,
   add,
   applyBurstVelocity,
   applyGrappleVelocity,
@@ -19,10 +22,14 @@ import {
   distance,
   dot,
   explosionFalloff,
+  fallbucksReward,
   gravityAcceleration,
   grappleRestLength,
   isShoveTarget,
+  isBotDifficulty,
+  isEmoteType,
   isFiniteVec3,
+  isWeaponType,
   launchGravityAcceleration,
   launchPadPosition,
   launchVelocity,
@@ -41,8 +48,10 @@ import {
   sub,
   updateGroundedState,
   type ClientToServerEvents,
+  type BotDifficulty,
   type ChaosModifier,
   type GameMode,
+  type EmoteType,
   type JoinResult,
   type MatchEvent,
   type MatchEventType,
@@ -57,6 +66,7 @@ import {
   type RoomPhase,
   type RoomView,
   type ScrapState,
+  type ScrapUtility,
   type ServerToClientEvents,
   type StructureType,
   type Vec3,
@@ -75,6 +85,7 @@ interface PlayerRecord extends PlayerState {
   lastFireAt: number;
   lastInputAt: number;
   lastRepairAt: number;
+  lastEmoteAt: number;
   launchSourcePlanetId: string | null;
   launchTargetPlanetId: string | null;
   launchAssistUntil: number;
@@ -94,12 +105,12 @@ function token(): string { return randomBytes(18).toString("base64url"); }
 function clonePlayer(player: PlayerRecord): PlayerState {
   const {
     socketId: _a, sessionToken: _b, disconnectedAt: _c, lastBurstAt: _d, lastFireAt: _e,
-    lastInputAt: _f, lastRepairAt: _g, launchSourcePlanetId: _h, launchTargetPlanetId: _i,
+    lastInputAt: _f, lastRepairAt: _g, lastEmoteAt: _emote, launchSourcePlanetId: _h, launchTargetPlanetId: _i,
     launchAssistUntil: _j, grounded: _k, lastGroundedAt: _l, jumpQueuedUntil: _m,
     jumpSignalActive: _n, grappleAnchor: _o, grappleRestLength: _p,
     sabotage: _q, input: _r, body: _s, ...view
   } = player;
-  return view;
+  return { ...view, ownedCosmetics: [...view.ownedCosmetics], equippedCosmetics: { ...view.equippedCosmetics } };
 }
 
 export class GameRoom {
@@ -117,6 +128,7 @@ export class GameRoom {
   activeModifier: ChaosModifier | null = null;
   rules: MatchRules = createMatchRules();
   winStreak: RoomView["winStreak"] = null;
+  botDifficulty: BotDifficulty = "normal";
   matchEndsAt: number | null = null;
   winnerId: string | null = null;
   countdownStartsAt: number | null = null;
@@ -126,6 +138,8 @@ export class GameRoom {
   private world: RAPIER.World;
   private botBrains = new Map<string, BotBrain>();
   private visitedPlanets = new Map<string, Set<string>>();
+  private burstBumpCooldowns = new Map<string, number>();
+  private hitShots = new Set<string>();
   private lastChaosModifier: ChaosModifier | null = null;
   private matchStartedAt = 0;
   private readonly matchDurationMs = process.env.NODE_ENV === "test" && Number(process.env.PLANETFALL_TEST_MATCH_MS) >= 5000
@@ -187,6 +201,11 @@ export class GameRoom {
       launchCooldownUntil: 0,
       shoveCooldownUntil: 0,
       crowns: 0,
+      fallbucks: 0,
+      ownedCosmetics: [],
+      equippedCosmetics: { ...DEFAULT_COSMETICS },
+      overchargeUntil: 0,
+      launchBoostUntil: 0,
       socketId: socket.id,
       sessionToken: token(),
       disconnectedAt: null,
@@ -194,6 +213,7 @@ export class GameRoom {
       lastFireAt: 0,
       lastInputAt: 0,
       lastRepairAt: 0,
+      lastEmoteAt: 0,
       launchSourcePlanetId: null,
       launchTargetPlanetId: null,
       launchAssistUntil: 0,
@@ -237,8 +257,10 @@ export class GameRoom {
       rotation: { x: 0, y: 0, z: 0, w: 1 }, lastInputSequence: 0,
       surfacePlanetId: null, gravityPlanetId: null, launchCooldownUntil: 0, shoveCooldownUntil: 0,
       crowns: 0,
+      fallbucks: 0, ownedCosmetics: [], equippedCosmetics: { ...DEFAULT_COSMETICS },
+      overchargeUntil: 0, launchBoostUntil: 0,
       socketId: null, sessionToken: "", disconnectedAt: null,
-      lastBurstAt: 0, lastFireAt: 0, lastInputAt: 0, lastRepairAt: 0,
+      lastBurstAt: 0, lastFireAt: 0, lastInputAt: 0, lastRepairAt: 0, lastEmoteAt: 0,
       launchSourcePlanetId: null, launchTargetPlanetId: null, launchAssistUntil: 0,
       grounded: false, lastGroundedAt: 0, jumpQueuedUntil: 0, jumpSignalActive: false,
       grappleAnchor: null, grappleRestLength: 0, sabotage: null,
@@ -304,6 +326,12 @@ export class GameRoom {
     this.emitRoom();
   }
 
+  setBotDifficulty(playerId: string, difficulty: unknown): void {
+    if (this.phase !== "lobby" || playerId !== this.hostId || !isBotDifficulty(difficulty)) return;
+    this.botDifficulty = difficulty;
+    this.emitRoom();
+  }
+
   start(playerId: string): void {
     if (this.phase !== "lobby" || playerId !== this.hostId) return;
     const connected = [...this.players.values()].filter((p) => p.connected);
@@ -362,6 +390,12 @@ export class GameRoom {
       && typeof payload.active === "boolean"
     ) {
       this.sabotage(playerId, payload.planetId, payload.structure, payload.active);
+    } else if (
+      payload.action === "utility"
+      && typeof payload.planetId === "string"
+      && (payload.utility === "shield" || payload.utility === "overcharge" || payload.utility === "launch-boost")
+    ) {
+      this.purchaseUtility(playerId, payload.planetId, payload.utility);
     }
   }
 
@@ -369,23 +403,24 @@ export class GameRoom {
     const player = this.players.get(playerId);
     const target = this.planets.get(targetPlanetId);
     if (!player?.alive || !target?.alive || (this.phase !== "playing" && this.phase !== "overtime")) return false;
-    const source = [...this.planets.values()]
-      .filter((planet) => planet.alive && planet.id !== target.id)
-      .sort((a, b) => distance(player.position, launchPadPosition(a)) - distance(player.position, launchPadPosition(b)))[0];
+    const source = this.nearestLaunchPadPlanet(player.position);
     if (!source || distance(player.position, launchPadPosition(source)) > BALANCE.launch.range) {
       this.error(playerId, "Stand on a launch pad.");
       return false;
     }
+    if (source.id === target.id) return false;
     if (now < player.launchCooldownUntil) {
       this.error(playerId, "Launch pad recharging.");
       return false;
     }
     this.cancelSabotage(player, true);
-    player.velocity = launchVelocity(player.position, source, target);
+    const boosted = player.launchBoostUntil >= now;
+    player.velocity = scale(launchVelocity(player.position, source, target), boosted ? BALANCE.utilities.launchBoost.speedMultiplier : 1);
     player.launchCooldownUntil = now + this.rules.launchCooldownMs;
     player.launchSourcePlanetId = source.id;
     player.launchTargetPlanetId = target.id;
-    player.launchAssistUntil = now + BALANCE.launch.assistMs;
+    player.launchAssistUntil = now + BALANCE.launch.assistMs + (boosted ? BALANCE.utilities.launchBoost.assistBonusMs : 0);
+    player.launchBoostUntil = 0;
     player.surfacePlanetId = null;
     player.gravityPlanetId = source.id;
     player.grounded = false;
@@ -395,7 +430,7 @@ export class GameRoom {
     player.grappleRestLength = 0;
     this.io.to(this.code).emit("player:launched", {
       playerId, sourcePlanetId: source.id, targetPlanetId: target.id,
-      position: { ...player.position }, velocity: { ...player.velocity }, cooldownUntil: player.launchCooldownUntil
+      position: { ...player.position }, velocity: { ...player.velocity }, cooldownUntil: player.launchCooldownUntil, boosted
     });
     this.emitMatchEvent("launch", { actorId: player.id, targetId: target.ownerId, planetId: target.id }, now);
     return true;
@@ -450,7 +485,7 @@ export class GameRoom {
   fire(playerId: string, weapon: unknown, direction: unknown, now = Date.now()): void {
     const player = this.players.get(playerId);
     const planet = player ? this.planets.get(player.planetId) : undefined;
-    if (!player?.alive || !planet?.alive || !isFiniteVec3(direction) || (weapon !== "rocket" && weapon !== "asteroid")) return;
+    if (!player?.alive || !planet?.alive || !isFiniteVec3(direction) || !isWeaponType(weapon)) return;
     if (this.phase !== "playing" && this.phase !== "overtime") return;
     const config = BALANCE.weapons[weapon];
     if (!config) return;
@@ -463,12 +498,19 @@ export class GameRoom {
     if (dot(aim, normalize(sub(cannon, planet.position))) < -0.35) return;
     player.scrap -= config.cost;
     player.lastFireAt = now;
-    if (weapon === "rocket") this.stat(player.id).rocketsFired += 1;
-    else this.stat(player.id).asteroidsFired += 1;
+    const stats = this.stat(player.id);
+    if (weapon === "rocket") stats.rocketsFired += 1;
+    else if (weapon === "asteroid") stats.asteroidsFired += 1;
+    else if (weapon === "cluster") stats.clusterBombsFired += 1;
+    else stats.gravityBombsFired += 1;
+    const overcharged = player.overchargeUntil >= now;
+    player.overchargeUntil = 0;
+    const projectileId = id("shot");
     const projectile: ProjectileState = {
-      id: id("shot"), ownerId: playerId, weapon,
+      id: projectileId, ownerId: playerId, weapon,
       position: add(cannon, scale(aim, 1.8)),
-      velocity: scale(aim, config.speed), spawnedAt: now
+      velocity: scale(aim, config.speed * (overcharged ? BALANCE.utilities.overcharge.speedMultiplier : 1)),
+      spawnedAt: now, shotId: projectileId
     };
     this.projectiles.set(projectile.id, projectile);
     this.io.to(this.code).emit("projectile:spawned", projectile);
@@ -498,6 +540,81 @@ export class GameRoom {
     this.emitRoom();
   }
 
+  purchaseUtility(playerId: string, planetId: string, utility: ScrapUtility, now = Date.now()): boolean {
+    const player = this.players.get(playerId);
+    const planet = this.planets.get(planetId);
+    if (!player?.alive || !planet?.alive || (this.phase !== "playing" && this.phase !== "overtime")) return false;
+    let activeUntil = 0;
+    let cooldownUntil: number | undefined;
+    let cost = 0;
+    if (utility === "shield") {
+      const config = BALANCE.utilities.shield;
+      if (planet.ownerId !== player.id || this.phase === "overtime" || planet.repairDisabledUntil > now) return false;
+      if (distance(player.position, repairPosition(planet)) > config.range || planet.shieldUntil > now || planet.shieldCooldownUntil > now) return false;
+      cost = config.cost;
+      activeUntil = now + config.durationMs;
+      cooldownUntil = activeUntil + config.cooldownMs;
+    } else if (utility === "overcharge") {
+      const config = BALANCE.utilities.overcharge;
+      if (planet.ownerId !== player.id || planet.cannonDisabledUntil > now) return false;
+      if (distance(player.position, cannonPosition(planet)) > config.range || player.overchargeUntil > now) return false;
+      cost = config.cost;
+      activeUntil = now + config.durationMs;
+    } else {
+      const config = BALANCE.utilities.launchBoost;
+      if (distance(player.position, launchPadPosition(planet)) > config.range || player.launchBoostUntil > now) return false;
+      cost = config.cost;
+      activeUntil = now + config.durationMs;
+    }
+    if (player.scrap < cost) return false;
+    player.scrap -= cost;
+    if (utility === "shield") {
+      planet.shieldUntil = activeUntil;
+      planet.shieldCooldownUntil = cooldownUntil!;
+    } else if (utility === "overcharge") player.overchargeUntil = activeUntil;
+    else player.launchBoostUntil = activeUntil;
+    this.stat(player.id).scrapUtilitiesPurchased += 1;
+    this.io.to(this.code).emit("utility:purchased", { playerId, planetId, utility, activeUntil, cooldownUntil });
+    this.emitRoom();
+    return true;
+  }
+
+  playEmote(playerId: string, emote: unknown, direction: unknown, now = Date.now()): boolean {
+    const player = this.players.get(playerId);
+    if (!player?.alive || !isEmoteType(emote) || !isFiniteVec3(direction)) return false;
+    if (this.phase !== "countdown" && this.phase !== "playing" && this.phase !== "overtime" && this.phase !== "results") return false;
+    const unlocked = FREE_EMOTES.includes(emote)
+      || SHOP_CATALOG.some((item) => item.emote === emote && player.ownedCosmetics.includes(item.id));
+    if (!unlocked || now - player.lastEmoteAt < BALANCE.emoteCooldownMs) return false;
+    player.lastEmoteAt = now;
+    this.io.to(this.code).emit("player:emote", { playerId, emote, direction: normalize(direction), startedAt: now });
+    return true;
+  }
+
+  buyShopItem(playerId: string, itemId: unknown): { ok: true } | { ok: false; error: string } {
+    const player = this.players.get(playerId);
+    if (!player || player.isBot || (this.phase !== "lobby" && this.phase !== "results")) return { ok: false, error: "Shop unavailable." };
+    const item = typeof itemId === "string" ? SHOP_CATALOG.find((entry) => entry.id === itemId) : undefined;
+    if (!item) return { ok: false, error: "Item not found." };
+    if (player.ownedCosmetics.includes(item.id)) return { ok: false, error: "Already owned." };
+    if (player.fallbucks < item.price) return { ok: false, error: "Not enough Fallbucks." };
+    player.fallbucks -= item.price;
+    player.ownedCosmetics.push(item.id);
+    this.emitRoom();
+    return { ok: true };
+  }
+
+  equipShopItem(playerId: string, itemId: unknown): { ok: true } | { ok: false; error: string } {
+    const player = this.players.get(playerId);
+    if (!player || player.isBot || (this.phase !== "lobby" && this.phase !== "results")) return { ok: false, error: "Shop unavailable." };
+    const item = typeof itemId === "string" ? SHOP_CATALOG.find((entry) => entry.id === itemId) : undefined;
+    if (!item || !player.ownedCosmetics.includes(item.id)) return { ok: false, error: "Item not owned." };
+    if (item.category === "emote") return { ok: true };
+    player.equippedCosmetics[item.category] = item.id;
+    this.emitRoom();
+    return { ok: true };
+  }
+
   voteRematch(playerId: string): void {
     if (this.phase !== "results" || !this.players.has(playerId)) return;
     this.rematchVotes.add(playerId);
@@ -514,6 +631,8 @@ export class GameRoom {
       this.snapshotAccumulator = 0;
       this.scraps.clear();
       this.projectiles.clear();
+      this.hitShots.clear();
+      this.burstBumpCooldowns.clear();
       this.matchResult = null;
       this.matchStartedAt = 0;
       this.activeModifier = null;
@@ -539,6 +658,9 @@ export class GameRoom {
         p.grappleAnchor = null;
         p.grappleRestLength = 0;
         p.sabotage = null;
+        p.overchargeUntil = 0;
+        p.launchBoostUntil = 0;
+        p.lastEmoteAt = 0;
       }
       this.rebuildPlanets();
       this.resetMatchStats();
@@ -558,6 +680,7 @@ export class GameRoom {
     if (this.phase !== "playing" && this.phase !== "overtime") return;
     this.updateBots(now);
     for (const player of this.players.values()) this.updatePlayer(player, dt, now);
+    this.updateBurstBumps(now);
     this.updateSabotage(now);
     this.updateProjectiles(dt, now);
     this.collectScrap();
@@ -590,7 +713,8 @@ export class GameRoom {
       matchStats: [...this.matchStats.values()].map((entry) => ({ ...entry })),
       matchResult: this.matchResult,
       gameMode: this.gameMode, activeModifier: this.activeModifier, rules: { ...this.rules },
-      winStreak: this.winStreak ? { ...this.winStreak } : null
+      winStreak: this.winStreak ? { ...this.winStreak } : null,
+      botDifficulty: this.botDifficulty
     };
   }
 
@@ -616,14 +740,15 @@ export class GameRoom {
         integrity: this.rules.maxIntegrity, alive: true,
         palette: index % 6, damageStage: this.activeModifier === "fragile-worlds" ? 1 : 0,
         cannonDisabledUntil: 0, repairDisabledUntil: 0,
-        cannonSabotageImmuneUntil: 0, repairSabotageImmuneUntil: 0
+        cannonSabotageImmuneUntil: 0, repairSabotageImmuneUntil: 0,
+        shieldUntil: 0, shieldCooldownUntil: 0
       });
     });
   }
 
   private resetMatch(): void {
     this.scraps.clear(); this.projectiles.clear(); this.rematchVotes.clear(); this.winnerId = null; this.overtimeEndsAt = null;
-    this.matchResult = null; this.matchStartedAt = 0;
+    this.matchResult = null; this.matchStartedAt = 0; this.hitShots.clear(); this.burstBumpCooldowns.clear();
     this.rebuildPlanets();
     this.resetMatchStats();
     for (const player of this.players.values()) {
@@ -634,12 +759,15 @@ export class GameRoom {
       player.launchSourcePlanetId = null; player.launchTargetPlanetId = null; player.launchAssistUntil = 0;
       player.grounded = true; player.lastGroundedAt = Date.now(); player.jumpQueuedUntil = 0; player.jumpSignalActive = false;
       player.grappleAnchor = null; player.grappleRestLength = 0; player.sabotage = null;
+      player.overchargeUntil = 0; player.launchBoostUntil = 0; player.lastEmoteAt = 0;
     }
     for (const planet of this.planets.values()) for (let i = 0; i < 3; i++) this.spawnScrap(planet);
   }
 
   private updatePlayer(player: PlayerRecord, dt: number, now: number): void {
     if (!player.alive) return;
+    if (player.overchargeUntil > 0 && player.overchargeUntil < now) player.overchargeUntil = 0;
+    if (player.launchBoostUntil > 0 && player.launchBoostUntil < now) player.launchBoostUntil = 0;
     const activeLaunch = now < player.launchAssistUntil
       && Boolean(player.launchSourcePlanetId && player.launchTargetPlanetId);
     if (!activeLaunch && player.launchAssistUntil > 0) {
@@ -779,14 +907,54 @@ export class GameRoom {
     }
   }
 
+  private updateBurstBumps(now: number): void {
+    for (const [key, expiresAt] of this.burstBumpCooldowns) if (expiresAt <= now) this.burstBumpCooldowns.delete(key);
+    const players = [...this.players.values()].filter((player) => player.alive && player.surfacePlanetId);
+    for (const attacker of players) {
+      if (now - attacker.lastBurstAt > BALANCE.burstBump.activeMs) continue;
+      const planet = attacker.surfacePlanetId ? this.planets.get(attacker.surfacePlanetId) : undefined;
+      if (!planet?.alive) continue;
+      const outward = normalize(sub(attacker.position, planet.position));
+      const forward = projectOnPlane(attacker.velocity, outward);
+      if (length(forward) < 2) continue;
+      for (const target of players) {
+        if (target.id === attacker.id || target.surfacePlanetId !== planet.id) continue;
+        const key = `${attacker.id}:${target.id}`;
+        if ((this.burstBumpCooldowns.get(key) ?? 0) > now || distance(attacker.position, target.position) > BALANCE.burstBump.range) continue;
+        if (!isShoveTarget(attacker.position, target.position, planet.position, forward, BALANCE.burstBump.range)) continue;
+        const targetOutward = normalize(sub(target.position, planet.position));
+        const tangentAway = normalize(projectOnPlane(sub(target.position, attacker.position), targetOutward));
+        target.velocity = applyShoveVelocity(target.velocity, tangentAway, targetOutward, BALANCE.burstBump.force, BALANCE.burstBump.lift);
+        target.grounded = false;
+        this.cancelSabotage(target, true);
+        this.burstBumpCooldowns.set(key, now + BALANCE.burstBump.perTargetCooldownMs);
+        this.io.to(this.code).emit("player:bumped", {
+          attackerId: attacker.id, targetId: target.id, planetId: planet.id,
+          position: { ...target.position }, velocity: { ...target.velocity }
+        });
+      }
+    }
+  }
+
   private updateProjectiles(dt: number, now: number): void {
     for (const projectile of this.projectiles.values()) {
+      if (projectile.weapon === "cluster" && !projectile.fragment) {
+        const age = now - projectile.spawnedAt;
+        let nearestSurface = Number.POSITIVE_INFINITY;
+        for (const candidate of this.planets.values()) if (candidate.alive && candidate.ownerId !== projectile.ownerId) {
+          nearestSurface = Math.min(nearestSurface, Math.max(0, distance(projectile.position, candidate.position) - BALANCE.planetRadius));
+        }
+        if (age >= BALANCE.weapons.cluster.burstMs || (age >= 350 && nearestSurface <= 4.2)) {
+          this.burstCluster(projectile, now);
+          continue;
+        }
+      }
       const start = projectile.position;
       const end = add(start, scale(projectile.velocity, dt));
       let hit: PlanetState | undefined;
       let hitT = Number.POSITIVE_INFINITY;
       if (now - projectile.spawnedAt > 180) {
-        const projectileRadius = projectile.weapon === "asteroid" ? 0.9 : 0.35;
+        const projectileRadius = projectile.weapon === "asteroid" ? 0.9 : projectile.weapon === "cluster" ? (projectile.fragment ? .22 : .52) : .35;
         for (const candidate of this.planets.values()) {
           if (!candidate.alive) continue;
           const intersection = segmentSphereHit(start, end, candidate.position, BALANCE.planetRadius + projectileRadius);
@@ -798,25 +966,49 @@ export class GameRoom {
       }
       if (hit) {
         projectile.position = add(start, scale(sub(end, start), hitT));
-        this.explode(projectile, hit);
+        this.explode(projectile, hit, now);
       }
       else {
         projectile.position = end;
-        if (now - projectile.spawnedAt > 12000 || length(projectile.position) > 150) this.projectiles.delete(projectile.id);
+        const lifetime = projectile.weapon === "cluster" && projectile.fragment ? 3800 : 12000;
+        if (now - projectile.spawnedAt > lifetime || length(projectile.position) > 150) this.projectiles.delete(projectile.id);
       }
     }
   }
 
-  private explode(projectile: ProjectileState, planet: PlanetState): void {
+  private burstCluster(projectile: ProjectileState, now: number): void {
+    this.projectiles.delete(projectile.id);
+    this.io.to(this.code).emit("projectile:exploded", { id: projectile.id, position: projectile.position, weapon: "cluster", burst: true });
+    const forward = normalize(projectile.velocity);
+    const fallback = Math.abs(forward.y) < .9 ? { x: 0, y: 1, z: 0 } : { x: 1, y: 0, z: 0 };
+    const right = normalize(cross(forward, fallback));
+    const up = normalize(cross(right, forward));
+    for (let index = 0; index < BALANCE.weapons.cluster.fragmentCount; index++) {
+      const angle = index / BALANCE.weapons.cluster.fragmentCount * Math.PI * 2;
+      const spread = add(scale(right, Math.cos(angle) * .34), scale(up, Math.sin(angle) * .34));
+      const fragment: ProjectileState = {
+        id: id("fragment"), ownerId: projectile.ownerId, weapon: "cluster", fragment: true,
+        shotId: projectile.shotId ?? projectile.id, position: { ...projectile.position },
+        velocity: scale(normalize(add(forward, spread)), BALANCE.weapons.cluster.fragmentSpeed), spawnedAt: now
+      };
+      this.projectiles.set(fragment.id, fragment);
+      this.io.to(this.code).emit("projectile:spawned", fragment);
+    }
+  }
+
+  private explode(projectile: ProjectileState, planet: PlanetState, now = Date.now()): void {
     const config = BALANCE.weapons[projectile.weapon];
     const multiplier = this.phase === "overtime" ? 2 : 1;
-    const amount = config.damage * multiplier;
+    const shieldMultiplier = planet.shieldUntil > now ? 1 - BALANCE.utilities.shield.damageReduction : 1;
+    const amount = config.damage * multiplier * shieldMultiplier;
     const before = planet.integrity;
     planet.integrity = Math.max(0, planet.integrity - amount);
     const dealt = before - planet.integrity;
     const attacker = this.stat(projectile.ownerId);
     attacker.damageDealt += dealt;
-    attacker.shotsHit += 1;
+    const shotId = projectile.shotId ?? projectile.id;
+    if (!this.hitShots.has(shotId)) { attacker.shotsHit += 1; this.hitShots.add(shotId); }
+    if (projectile.weapon === "cluster" && projectile.fragment) attacker.clusterFragmentsHit += 1;
     this.stat(planet.ownerId).damageReceived += dealt;
     planet.damageStage = damageStage(planet.integrity);
     this.projectiles.delete(projectile.id);
@@ -830,16 +1022,20 @@ export class GameRoom {
       const d = distance(player.position, projectile.position);
       const falloff = explosionFalloff(d, config.radius * 1.8);
       if (player.alive && falloff > 0) {
-        const blastDirection = normalize(sub(player.position, projectile.position));
+        const blastDirection = projectile.weapon === "gravity-bomb"
+          ? normalize(sub(projectile.position, player.position))
+          : normalize(sub(player.position, projectile.position));
         const localPlanet = this.nearestAlivePlanet(player.position);
         const surfaceOutward = localPlanet ? normalize(sub(player.position, localPlanet.position)) : blastDirection;
-        const impulseDirection = normalize(add(blastDirection, scale(surfaceOutward, 0.32)));
+        const impulseDirection = projectile.weapon === "gravity-bomb" ? blastDirection : normalize(add(blastDirection, scale(surfaceOutward, 0.32)));
         player.velocity = limitSpeed(
           add(player.velocity, scale(impulseDirection, config.knockback * falloff)),
           BALANCE.maxPlayerSpeed
         );
         player.grounded = false;
         player.jumpQueuedUntil = 0;
+        this.cancelSabotage(player, true);
+        if (projectile.weapon === "gravity-bomb") attacker.gravityBombPlayersDisplaced += 1;
       }
     }
     if (planet.integrity <= 0) {
@@ -962,6 +1158,17 @@ export class GameRoom {
     return nearest;
   }
 
+  private nearestLaunchPadPlanet(position: Vec3): PlanetState | undefined {
+    let nearest: PlanetState | undefined;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    for (const planet of this.planets.values()) {
+      if (!planet.alive) continue;
+      const candidateDistance = distance(position, launchPadPosition(planet));
+      if (candidateDistance < nearestDistance) { nearest = planet; nearestDistance = candidateDistance; }
+    }
+    return nearest;
+  }
+
   private validGrapple(from: Vec3, point: Vec3): boolean {
     if (distance(from, point) > BALANCE.grappleRange) return false;
     return [...this.planets.values()].some((p) => p.alive && Math.abs(distance(point, p.position) - BALANCE.planetRadius) < 2.5);
@@ -991,13 +1198,15 @@ export class GameRoom {
         now, phase: this.phase, player, ownPlanet,
         surfacePlanet: player.surfacePlanetId ? this.planets.get(player.surfacePlanetId) : undefined,
         planets, players, scraps,
-        rules: this.rules, activeModifier: this.activeModifier
+        rules: this.rules, activeModifier: this.activeModifier, difficulty: this.botDifficulty,
+        activeSabotage: player.sabotage ? { planetId: player.sabotage.planetId, structure: player.sabotage.structure } : undefined
       });
       this.setInput(botId, decision.input, now);
       if (decision.fire) this.fire(botId, decision.fire.weapon, decision.fire.direction, now);
       if (decision.repair) this.repair(botId, now);
       if (decision.launchTargetId) this.launch(botId, decision.launchTargetId, now);
       if (decision.shoveTargetId) this.shove(botId, decision.shoveTargetId, now);
+      if (decision.sabotage) this.sabotage(botId, decision.sabotage.planetId, decision.sabotage.structure, true, now);
     }
   }
 
@@ -1029,10 +1238,18 @@ export class GameRoom {
       .map(({ playerId, integrity }, index) => ({ playerId, integrity, place: index + 1 }));
     const stats = [...this.matchStats.values()].map((entry) => ({ ...entry }));
     const winnerIntegrity = placements.find((entry) => entry.playerId === winnerId)?.integrity ?? 0;
+    const fallbucks = placements.flatMap((placement) => {
+      const player = this.players.get(placement.playerId);
+      if (!player || player.isBot) return [];
+      const reward = fallbucksReward(placement.place);
+      player.fallbucks += reward;
+      return [{ playerId: player.id, reward, balance: player.fallbucks }];
+    });
     this.matchResult = {
       winnerId, reason, placements, stats, awards: selectMatchAwards(stats, winnerId, winnerIntegrity),
       crowns: [...this.players.values()].map((player) => ({ playerId: player.id, crowns: player.crowns })),
-      winStreak: this.winStreak ? { ...this.winStreak } : null
+      winStreak: this.winStreak ? { ...this.winStreak } : null,
+      fallbucks
     };
     this.io.to(this.code).emit("match:ended", { winnerId, reason, result: this.matchResult });
     this.emitRoom();
@@ -1113,6 +1330,8 @@ export class GameRoom {
     this.matchStats.clear();
     this.visitedPlanets.clear();
     this.rematchVotes.clear();
+    this.burstBumpCooldowns.clear();
+    this.hitShots.clear();
     this.world.free();
   }
 }

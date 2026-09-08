@@ -1,16 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { BALANCE, cannonPosition, createMatchRules, distance, launchPadPosition, repairPosition, type PlanetState, type PlayerState } from "@planetfall/shared";
-import { BotBrain, createBotProfile } from "./bot.js";
+import { BALANCE, WEAPON_ORDER, cannonPosition, createMatchRules, distance, launchPadPosition, repairPosition, type PlanetState, type PlayerState } from "@planetfall/shared";
+import { BotBrain, botDifficultyProfile, createBotProfile } from "./bot.js";
 
-const ownPlanet: PlanetState = { id: "planet-bot", ownerId: "bot", position: { x: 30, y: 0, z: 0 }, integrity: 100, alive: true, palette: 1, damageStage: 0, cannonDisabledUntil: 0, repairDisabledUntil: 0 };
-const enemyPlanet: PlanetState = { id: "planet-human", ownerId: "human", position: { x: -30, y: 0, z: 0 }, integrity: 80, alive: true, palette: 0, damageStage: 0, cannonDisabledUntil: 0, repairDisabledUntil: 0 };
+const ownPlanet: PlanetState = { id: "planet-bot", ownerId: "bot", position: { x: 30, y: 0, z: 0 }, integrity: 100, alive: true, palette: 1, damageStage: 0, cannonDisabledUntil: 0, repairDisabledUntil: 0, cannonSabotageImmuneUntil: 0, repairSabotageImmuneUntil: 0, shieldUntil: 0, shieldCooldownUntil: 0 };
+const enemyPlanet: PlanetState = { id: "planet-human", ownerId: "human", position: { x: -30, y: 0, z: 0 }, integrity: 80, alive: true, palette: 0, damageStage: 0, cannonDisabledUntil: 0, repairDisabledUntil: 0, cannonSabotageImmuneUntil: 0, repairSabotageImmuneUntil: 0, shieldUntil: 0, shieldCooldownUntil: 0 };
 
 function player(position = cannonPosition(ownPlanet)): PlayerState {
   return {
     id: "bot", name: "Nova", isBot: true, color: "#fff", planetId: ownPlanet.id,
     connected: true, ready: true, alive: true, scrap: 20, position,
     velocity: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, lastInputSequence: 0,
-    surfacePlanetId: ownPlanet.id, gravityPlanetId: ownPlanet.id, launchCooldownUntil: 0, shoveCooldownUntil: 0, crowns: 0
+    surfacePlanetId: ownPlanet.id, gravityPlanetId: ownPlanet.id, launchCooldownUntil: 0, shoveCooldownUntil: 0, crowns: 0,
+    fallbucks: 0, ownedCosmetics: [], equippedCosmetics: { suit: "default", trail: "default", victory: "default" }, overchargeUntil: 0, launchBoostUntil: 0
   };
 }
 
@@ -22,32 +23,42 @@ describe("BotBrain", () => {
     expect(profile.aggression).toBeLessThanOrEqual(.75);
     expect(profile.aimErrorRadians).toBeGreaterThan(0);
     expect(profile.reactionMs).toBeGreaterThanOrEqual(850);
+    const easy = botDifficultyProfile(profile, "easy");
+    const hard = botDifficultyProfile(profile, "hard");
+    expect(easy.reactionMs).toBeGreaterThan(profile.reactionMs);
+    expect(easy.aimErrorRadians).toBeGreaterThan(profile.aimErrorRadians);
+    expect(easy.sabotageChance).toBeLessThan(profile.sabotageChance);
+    expect(easy.recoveryDelayMs).toBeGreaterThan(profile.recoveryDelayMs);
+    expect(hard.reactionMs).toBeLessThan(profile.reactionMs);
+    expect(hard.aimErrorRadians).toBeLessThan(profile.aimErrorRadians);
+    expect(hard.sabotageChance).toBeGreaterThan(profile.sabotageChance);
+    expect(hard.recoveryDelayMs).toBeLessThan(profile.recoveryDelayMs);
   });
 
   it("waits before firing and spends only an affordable weapon", () => {
     const brain = new BotBrain("attack-seed");
     let now = 1_000;
-    let decision = brain.update({ now, phase: "playing", player: player(), ownPlanet, surfacePlanet: ownPlanet, planets: [ownPlanet, enemyPlanet], players: [player()], scraps: [], rules: createMatchRules(), activeModifier: null });
+    let decision = brain.update({ now, phase: "playing", player: player(), ownPlanet, surfacePlanet: ownPlanet, planets: [ownPlanet, enemyPlanet], players: [player()], scraps: [], rules: createMatchRules(), activeModifier: null, difficulty: "normal" });
     while (!decision.fire && now < 20_000) {
       now += 1_000;
-      decision = brain.update({ now, phase: "playing", player: player(), ownPlanet, surfacePlanet: ownPlanet, planets: [ownPlanet, enemyPlanet], players: [player()], scraps: [], rules: createMatchRules(), activeModifier: null });
+      decision = brain.update({ now, phase: "playing", player: player(), ownPlanet, surfacePlanet: ownPlanet, planets: [ownPlanet, enemyPlanet], players: [player()], scraps: [], rules: createMatchRules(), activeModifier: null, difficulty: "normal" });
     }
-    expect(decision.fire?.weapon === "rocket" || decision.fire?.weapon === "asteroid").toBe(true);
+    expect(decision.fire?.weapon && WEAPON_ORDER.includes(decision.fire.weapon)).toBeTruthy();
     expect(decision.fire?.direction).toBeDefined();
   });
 
   it("walks to a repair station and repairs only after arriving", () => {
     const brain = new BotBrain("repair-seed");
     const damaged = { ...ownPlanet, integrity: 1, damageStage: 3 as const };
-    const walking = brain.update({ now: 1_000, phase: "playing", player: player(), ownPlanet: damaged, surfacePlanet: damaged, planets: [damaged, enemyPlanet], players: [player()], scraps: [], rules: createMatchRules(), activeModifier: null });
+    const walking = brain.update({ now: 1_000, phase: "playing", player: player(), ownPlanet: damaged, surfacePlanet: damaged, planets: [damaged, enemyPlanet], players: [player()], scraps: [], rules: createMatchRules(), activeModifier: null, difficulty: "normal" });
     expect(walking.mode).toBe("MoveToRepair");
     expect(walking.repair).toBeUndefined();
     const arrivedPlayer = player(repairPosition(damaged));
     let now = 1_400;
-    let repairing = brain.update({ now, phase: "playing", player: arrivedPlayer, ownPlanet: damaged, surfacePlanet: damaged, planets: [damaged, enemyPlanet], players: [arrivedPlayer], scraps: [], rules: createMatchRules(), activeModifier: null });
+    let repairing = brain.update({ now, phase: "playing", player: arrivedPlayer, ownPlanet: damaged, surfacePlanet: damaged, planets: [damaged, enemyPlanet], players: [arrivedPlayer], scraps: [], rules: createMatchRules(), activeModifier: null, difficulty: "normal" });
     while (!repairing.repair && now < 5_000) {
       now += 400;
-      repairing = brain.update({ now, phase: "playing", player: arrivedPlayer, ownPlanet: damaged, surfacePlanet: damaged, planets: [damaged, enemyPlanet], players: [arrivedPlayer], scraps: [], rules: createMatchRules(), activeModifier: null });
+      repairing = brain.update({ now, phase: "playing", player: arrivedPlayer, ownPlanet: damaged, surfacePlanet: damaged, planets: [damaged, enemyPlanet], players: [arrivedPlayer], scraps: [], rules: createMatchRules(), activeModifier: null, difficulty: "normal" });
     }
     expect(repairing.repair).toBe(true);
     expect(arrivedPlayer.scrap).toBeGreaterThanOrEqual(BALANCE.repair.cost);
@@ -58,19 +69,19 @@ describe("BotBrain", () => {
     const raider = player(launchPadPosition(ownPlanet));
     raider.scrap = 0;
     let now = 1_000;
-    let decision = brain.update({ now, phase: "playing", player: raider, ownPlanet, surfacePlanet: ownPlanet, planets: [ownPlanet, enemyPlanet], players: [raider], scraps: [], rules: createMatchRules(), activeModifier: null });
+    let decision = brain.update({ now, phase: "playing", player: raider, ownPlanet, surfacePlanet: ownPlanet, planets: [ownPlanet, enemyPlanet], players: [raider], scraps: [], rules: createMatchRules(), activeModifier: null, difficulty: "normal" });
     while (!decision.launchTargetId && now < 120_000) {
       now += 1_000;
-      decision = brain.update({ now, phase: "playing", player: raider, ownPlanet, surfacePlanet: ownPlanet, planets: [ownPlanet, enemyPlanet], players: [raider], scraps: [], rules: createMatchRules(), activeModifier: null });
+      decision = brain.update({ now, phase: "playing", player: raider, ownPlanet, surfacePlanet: ownPlanet, planets: [ownPlanet, enemyPlanet], players: [raider], scraps: [], rules: createMatchRules(), activeModifier: null, difficulty: "normal" });
     }
     expect(decision.launchTargetId).toBe(enemyPlanet.id);
 
     const invaded = { ...raider, position: launchPadPosition(enemyPlanet), surfacePlanetId: enemyPlanet.id };
     const enemyScrap = { id: "enemy-scrap", planetId: enemyPlanet.id, position: repairPosition(enemyPlanet) };
-    const stealing = brain.update({ now: now + 2_000, phase: "playing", player: invaded, ownPlanet, surfacePlanet: enemyPlanet, planets: [ownPlanet, enemyPlanet], players: [invaded], scraps: [enemyScrap], rules: createMatchRules(), activeModifier: null });
+    const stealing = brain.update({ now: now + 2_000, phase: "playing", player: invaded, ownPlanet, surfacePlanet: enemyPlanet, planets: [ownPlanet, enemyPlanet], players: [invaded], scraps: [enemyScrap], rules: createMatchRules(), activeModifier: null, difficulty: "normal" });
     expect(stealing.mode).toBe("SeekScrap");
 
-    const returning = brain.update({ now: now + 20_000, phase: "playing", player: invaded, ownPlanet, surfacePlanet: enemyPlanet, planets: [ownPlanet, enemyPlanet], players: [invaded], scraps: [], rules: createMatchRules(), activeModifier: null });
+    const returning = brain.update({ now: now + 20_000, phase: "playing", player: invaded, ownPlanet, surfacePlanet: enemyPlanet, planets: [ownPlanet, enemyPlanet], players: [invaded], scraps: [], rules: createMatchRules(), activeModifier: null, difficulty: "normal" });
     expect(returning.mode).toBe("MoveToLaunch");
   });
 
@@ -82,7 +93,7 @@ describe("BotBrain", () => {
     const decision = brain.update({
       now: 10_000, phase: "playing", player: stranded, ownPlanet,
       planets: [enemyPlanet, ownPlanet], players: [stranded], scraps: [],
-      rules: createMatchRules(), activeModifier: null
+      rules: createMatchRules(), activeModifier: null, difficulty: "normal"
     });
     expect(decision.mode).toBe("Recover");
     expect(decision.input.grapple).toBe(true);

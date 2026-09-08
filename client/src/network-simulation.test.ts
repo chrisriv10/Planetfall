@@ -43,7 +43,8 @@ interface SimState {
 
 const SOURCE: PlanetState = {
   id: "source", ownerId: "one", position: { x: -30, y: 0, z: 0 }, integrity: 100, alive: true, palette: 0, damageStage: 0,
-  cannonDisabledUntil: 0, repairDisabledUntil: 0, cannonSabotageImmuneUntil: 0, repairSabotageImmuneUntil: 0
+  cannonDisabledUntil: 0, repairDisabledUntil: 0, cannonSabotageImmuneUntil: 0, repairSabotageImmuneUntil: 0,
+  shieldUntil: 0, shieldCooldownUntil: 0
 };
 const TARGET: PlanetState = { ...SOURCE, id: "target", ownerId: "two", position: { x: 30, y: 0, z: 0 }, palette: 1 };
 

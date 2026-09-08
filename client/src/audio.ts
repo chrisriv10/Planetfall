@@ -53,6 +53,12 @@ export class GameAudio {
   critical(): void { this.tone(160, .16, "triangle", .035, 105); setTimeout(() => this.tone(130, .18, "triangle", .03, 82), 190); }
   rocket(): void { this.noise(0.18, 0.14, 600); this.tone(95, 0.18, "sawtooth", 0.07, 45); }
   asteroid(): void { this.duckMusic(520, .62); this.noise(0.28, 0.19, 320); this.tone(64, 0.3, "square", 0.08, 38); }
+  cluster(): void { this.noise(.13, .08, 880); this.tone(220, .18, "square", .045, 410); }
+  clusterBurst(): void {
+    this.noise(.16, .08, 1100);
+    [420, 560, 740].forEach((note, index) => setTimeout(() => this.tone(note, .07, "triangle", .025, note * 1.22), index * 28));
+  }
+  gravityBomb(): void { this.duckMusic(360, .38); this.tone(260, .32, "sine", .055, 52); this.tone(110, .25, "triangle", .035, 48); }
   explosion(heavy = false): void { if (heavy) this.duckMusic(850, .72); this.noise(heavy ? 0.7 : 0.42, heavy ? 0.3 : 0.2, heavy ? 170 : 260); }
   repair(): void { this.tone(420, 0.22, "sine", 0.04, 820); }
   countdown(value: number): void { this.tone(value === 0 ? 660 : 300 + value * 55, value === 0 ? .22 : .08, "square", value === 0 ? .045 : .025, value === 0 ? 980 : 360 + value * 55); }

@@ -23,7 +23,7 @@ The development server prints the client address when it starts.
 
 Choose **Play Solo** for a match with three bots, or **Create Room** and share the room code. In multiplayer, everyone selects **Ready** before the host starts.
 
-Hosts can keep the original **Classic** rules or choose **Chaos** for one randomly selected round modifier. Winners earn session Crowns that last through rematches while the room stays open.
+Hosts can choose **Classic** or **Chaos**, set bot difficulty, and add bots. Winners earn session Crowns and Fallbucks that last through rematches while the room stays open. Fallbucks buy session-only cosmetics and never affect gameplay.
 
 ## Controls
 
@@ -39,7 +39,10 @@ Hosts can keep the original **Classic** rules or choose **Chaos** for one random
 | Repair | `R` | `RB` |
 | Switch weapon | `Q` | `Y` |
 | Cycle targets | Mouse wheel | `LB` / `RB` |
+| Emote selector | Hold `V` + move | Hold D-pad up + left stick |
 | Match menu | `Esc` | Menu |
+
+Near a structure, the prompt shows its available Scrap utility. Use `E` / `X` for shields or cannon overcharge, and `R` / `RB` at a launch pad for a launch boost.
 
 ## Stack
 
@@ -70,7 +73,7 @@ CI runs install, typecheck, build, and unit/integration tests on pushes and pull
 
 The proposed first release is documented in [v0.1.0 release notes](docs/releases/v0.1.0.md).
 
-## Credits
+## Attribution
 
 Music: “Bot City” from [My Little Bots](https://davidkbd.itch.io/my-little-bots-crazy-music-for-robots-asset-pack) by David KBD, used under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 

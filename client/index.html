@@ -42,6 +42,13 @@
             <button id="mode-classic" class="mode-option selected" type="button"><b>CLASSIC</b><small>Pure planetfall</small></button>
             <button id="mode-chaos" class="mode-option" type="button"><b>CHAOS</b><small>One wild rule</small></button>
           </div>
+          <div class="lobby-options">
+            <span>BOT DIFFICULTY</span>
+            <div id="bot-difficulty" class="difficulty-selector">
+              <button id="bot-easy" type="button">EASY</button><button id="bot-normal" type="button" class="selected">NORMAL</button><button id="bot-hard" type="button">HARD</button>
+            </div>
+            <button id="shop-lobby" class="button button-quiet shop-button" type="button">SHOP · <b id="lobby-fallbucks">0</b> FALLBUCKS</button>
+          </div>
           <div id="player-list" class="player-list"></div>
           <div class="lobby-actions">
             <button id="add-bot" class="button button-quiet" hidden>+ Add Bot</button>
@@ -71,6 +78,7 @@
           <span>WEAPON <kbd id="weapon-key">Q</kbd></span>
           <button id="weapon-button"><i></i><b id="weapon-name">BASIC ROCKET</b><small id="weapon-cost">8 scrap</small></button>
         </div>
+        <div id="emote-wheel" class="emote-wheel" hidden><small>HOLD <kbd>V</kbd> + MOVE</small><b id="emote-name">WAVE</b></div>
         <div id="control-help" class="control-help"><span><kbd>WASD</kbd> Move</span><span><kbd>SPACE</kbd> Jump</span><span><kbd>SHIFT</kbd> Burst</span><span><kbd>E</kbd> Interact</span><span><kbd>RMB</kbd> Grapple</span></div>
         <button id="pause-button" class="icon-button pause-button" aria-label="Pause menu" title="Pause menu">Ⅱ</button>
       </section>
@@ -124,11 +132,22 @@
           <p id="winner-copy">Your planet survived.</p>
           <div id="results-standings" class="results-standings"></div>
           <div id="results-awards" class="results-awards"></div>
+          <div id="fallbucks-reward" class="fallbucks-reward"></div>
           <div class="result-actions">
             <button id="rematch-button" class="button button-primary">Rematch</button>
+            <button id="shop-results" class="button button-secondary">Shop</button>
             <button id="leave-button" class="button button-secondary">Quit</button>
           </div>
           <small id="rematch-count">0 / 0 votes</small>
+        </div>
+      </section>
+
+      <section id="shop-overlay" class="overlay" aria-labelledby="shop-title" hidden>
+        <div class="overlay-card shop-card glass">
+          <div class="shop-heading"><div><div class="panel-kicker">SESSION COSMETICS</div><h2 id="shop-title">Shop</h2></div><strong><span id="shop-balance">0</span> FALLBUCKS</strong></div>
+          <div id="shop-categories" class="shop-categories"></div>
+          <div id="shop-grid" class="shop-grid"></div>
+          <button id="shop-close" class="button button-primary">Done</button>
         </div>
       </section>
 

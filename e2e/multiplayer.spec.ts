@@ -165,12 +165,15 @@ test("two players can create, join, ready, and start", async ({ browser }) => {
   await host.getByRole("button", { name: "Create Room" }).click();
   await expect(host.getByRole("heading", { name: "Players" })).toBeVisible();
   await expect(host.locator("#mode-classic")).toHaveClass(/selected/);
+  await host.locator("#bot-hard").click();
+  await expect(host.locator("#bot-hard")).toHaveClass(/selected/);
   const code = (await host.locator("#lobby-code").textContent())!;
 
   await guest.getByLabel("Name").fill("Orbit");
   await guest.getByLabel("Room code").fill(code);
   await guest.getByRole("button", { name: "Join Game" }).click();
   await expect(guest.getByText("Nova")).toBeVisible();
+  await expect(guest.locator("#bot-hard")).toBeDisabled();
 
   await guest.getByRole("button", { name: "Ready" }).click();
   await host.getByRole("button", { name: "Ready" }).click();
@@ -257,6 +260,13 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
     successfulShoves: 1, sabotagesCompleted: 1
   });
 
+  await moveTo(host, (state) => state.launchPads.find((pad) => pad.planetId === guestPlanetId)!.position, 1.5);
+  await expect(host.locator("#context-prompt")).toContainText(/LAUNCH/i);
+  await host.keyboard.press("e");
+  await expect(host.locator("#context-prompt")).toContainText(/LAUNCH TO CHRIS/i);
+  await host.keyboard.press("e");
+  await expect.poll(async () => (await debugState(host)).players.find((player) => player.id === hostPlayer.id)?.surfacePlanetId, { timeout: 12_000 }).toBe(hostPlanetId);
+
   await moveTo(guest, (state) => state.cannons.find((cannon) => cannon.planetId === guestPlanetId)!.position, 3.7);
   await aimAt(guest, (state) => state.planets.find((planet) => planet.id === hostPlanetId)!.position);
   const scrapBeforeFire = (await debugState(guest)).players.find((player) => player.id === guestPlayer.id)!.scrap;
@@ -277,6 +287,15 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
   await expect(host.locator("#results-awards")).toContainText("MENACE");
   await expect(host.locator("#results-awards")).toContainText("SPACE THIEF");
   await expect(host.locator("#winner-copy .result-crowns")).toContainText("♛ 1");
+  const winnerPage = (await host.locator("#results-title").textContent())?.includes("You win") ? host : guest;
+  await expect(winnerPage.locator("#fallbucks-reward")).toContainText("+100 FALLBUCKS");
+  await winnerPage.getByRole("button", { name: "Shop" }).click();
+  const solarCard = winnerPage.locator(".shop-item").filter({ hasText: "Solar Gold" });
+  await solarCard.getByRole("button", { name: "BUY" }).click();
+  await expect(solarCard.getByRole("button", { name: "EQUIP" })).toBeVisible();
+  await solarCard.getByRole("button", { name: "EQUIP" }).click();
+  await expect(solarCard.getByRole("button", { name: "EQUIPPED" })).toBeVisible();
+  await winnerPage.getByRole("button", { name: "Done" }).click();
   await guest.locator("#rematch-button").click();
   await host.locator("#rematch-button").click();
   await expect(host.locator("#lobby-screen")).toBeVisible();

@@ -76,11 +76,21 @@ export class RoomManager {
     socket.on("room:bot:add", () => { const c = this.current(socket); if (c) c.room.addBot(c.playerId); });
     socket.on("room:bot:remove", (payload) => { const c = this.current(socket); if (c) c.room.removeBot(c.playerId, String(payload?.botId ?? "")); });
     socket.on("room:mode", (payload) => { const c = this.current(socket); if (c) c.room.setMode(c.playerId, payload?.mode); });
+    socket.on("room:bot:difficulty", (payload) => { const c = this.current(socket); if (c) c.room.setBotDifficulty(c.playerId, payload?.difficulty); });
     socket.on("match:start", () => { const c = this.current(socket); if (c) c.room.start(c.playerId); });
     socket.on("player:input", (input) => { const c = this.current(socket); if (c) c.room.setInput(c.playerId, input); });
     socket.on("player:interact", (payload) => { const c = this.current(socket); if (c) c.room.interact(c.playerId, payload); });
     socket.on("cannon:fire", (payload) => { const c = this.current(socket); if (c) c.room.fire(c.playerId, payload?.weapon, payload?.direction); });
     socket.on("repair:buy", () => { const c = this.current(socket); if (c) c.room.repair(c.playerId); });
+    socket.on("player:emote", (payload) => { const c = this.current(socket); if (c) c.room.playEmote(c.playerId, payload?.emote, payload?.direction); });
+    socket.on("shop:buy", (payload, ack) => {
+      const c = this.current(socket);
+      if (typeof ack === "function") ack(c ? c.room.buyShopItem(c.playerId, payload?.itemId) : { ok: false, error: "Not in a room." });
+    });
+    socket.on("shop:equip", (payload, ack) => {
+      const c = this.current(socket);
+      if (typeof ack === "function") ack(c ? c.room.equipShopItem(c.playerId, payload?.itemId) : { ok: false, error: "Not in a room." });
+    });
     socket.on("match:rematch", () => { const c = this.current(socket); if (c) c.room.voteRematch(c.playerId); });
     socket.on("disconnect", () => { const c = this.current(socket); if (c) c.room.disconnect(c.playerId); });
   }

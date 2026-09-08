@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { io as connect, type Socket } from "socket.io-client";
 import {
   BALANCE,
+  SHOP_CATALOG,
   add,
   cannonPosition,
   createMatchRules,
@@ -547,5 +548,205 @@ describe("planet raids", () => {
     });
     room.update(1 / BALANCE.serverRate, now + 250);
     expect(room.projectiles.has("expired")).toBe(false);
+  });
+
+  it("lets humans and bot invaders leave an enemy planet through its launch pad", async () => {
+    const { room, host, guest, hostPlanet, guestPlanet } = await duel();
+    const start = Date.now();
+    place(host, padStandingPosition(hostPlanet), hostPlanet.id);
+    expect(room.launch(host.id, guestPlanet.id, start)).toBe(true);
+    for (let step = 1; step <= 210 && host.surfacePlanetId !== guestPlanet.id; step++) {
+      room.update(1 / BALANCE.serverRate, start + step * (1000 / BALANCE.serverRate));
+    }
+    expect(host.surfacePlanetId).toBe(guestPlanet.id);
+    place(host, padStandingPosition(guestPlanet), guestPlanet.id);
+    host.grappleAnchor = add(guestPlanet.position, scale(launchPadNormal(guestPlanet), BALANCE.planetRadius));
+    host.velocity = { x: 1, y: 2, z: 0 };
+    const escapeAt = start + BALANCE.launch.cooldownMs + 2_000;
+    expect(room.launch(host.id, hostPlanet.id, escapeAt)).toBe(true);
+    expect(host.launchSourcePlanetId).toBe(guestPlanet.id);
+    expect(host.launchTargetPlanetId).toBe(hostPlanet.id);
+    expect(host.grappleAnchor).toBeNull();
+
+    guest.isBot = true;
+    guest.launchCooldownUntil = 0;
+    place(guest, padStandingPosition(hostPlanet), hostPlanet.id);
+    expect(room.launch(guest.id, guestPlanet.id, escapeAt + 1)).toBe(true);
+    expect(guest.launchSourcePlanetId).toBe(hostPlanet.id);
+  });
+
+  it("keeps an enemy launch pad usable after stealing, sabotage, and a shove", async () => {
+    const { room, host, guest, hostPlanet, guestPlanet } = await duel();
+    const now = Date.now();
+    const enemyPad = padStandingPosition(guestPlanet);
+
+    place(host, enemyPad, guestPlanet.id);
+    room.scraps.set("escape-scrap", { id: "escape-scrap", planetId: guestPlanet.id, position: { ...enemyPad } });
+    room.update(1 / BALANCE.serverRate, now + 1);
+    expect(room.scraps.has("escape-scrap")).toBe(false);
+
+    place(host, repairPosition(guestPlanet), guestPlanet.id);
+    expect(room.sabotage(host.id, guestPlanet.id, "repair", true, now + 100)).toBe(true);
+    room.update(1 / BALANCE.serverRate, now + 100 + BALANCE.sabotage.channelMs + 1);
+    expect(guestPlanet.repairDisabledUntil).toBeGreaterThan(now);
+
+    const surface = add(guestPlanet.position, { x: 0, y: BALANCE.planetRadius + .95, z: 0 });
+    place(host, surface, guestPlanet.id);
+    place(guest, add(surface, { x: 1.5, y: 0, z: 0 }), guestPlanet.id);
+    host.lastInputAt = 0;
+    room.setInput(host.id, { sequence: 1, dt: .05, moveX: 0, moveY: 0, cameraForward: { x: 1, y: 0, z: 0 }, jump: false, burst: false, grapple: false }, now + 2_000);
+    expect(room.shove(host.id, guest.id, now + 2_001)).toBe(true);
+
+    place(host, enemyPad, guestPlanet.id);
+    expect(room.launch(host.id, hostPlanet.id, now + 2_100)).toBe(true);
+    expect(host.launchSourcePlanetId).toBe(guestPlanet.id);
+    expect(host.launchTargetPlanetId).toBe(hostPlanet.id);
+  });
+
+  it("applies shield reduction and enforces utility cost, duration, cooldown, and no stacking", async () => {
+    const { room, host, guest, hostPlanet } = await duel();
+    const now = Date.now();
+    host.scrap = 100;
+    place(host, repairPosition(hostPlanet), hostPlanet.id);
+    expect(room.purchaseUtility(host.id, hostPlanet.id, "shield", now)).toBe(true);
+    expect(host.scrap).toBe(100 - BALANCE.utilities.shield.cost);
+    expect(room.purchaseUtility(host.id, hostPlanet.id, "shield", now + 1)).toBe(false);
+    const before = hostPlanet.integrity;
+    room.projectiles.set("shield-hit", {
+      id: "shield-hit", ownerId: guest.id, weapon: "rocket", position: add(hostPlanet.position, { x: 0, y: BALANCE.planetRadius + 3, z: 0 }),
+      velocity: { x: 0, y: -120, z: 0 }, spawnedAt: now - 1000
+    });
+    room.update(.2, now + 10);
+    expect(before - hostPlanet.integrity).toBeCloseTo(BALANCE.weapons.rocket.damage * (1 - BALANCE.utilities.shield.damageReduction), 6);
+    place(host, repairPosition(hostPlanet), hostPlanet.id);
+    expect(room.purchaseUtility(host.id, hostPlanet.id, "shield", hostPlanet.shieldUntil + 1)).toBe(false);
+    expect(room.purchaseUtility(host.id, hostPlanet.id, "shield", hostPlanet.shieldCooldownUntil + 1)).toBe(true);
+  });
+
+  it("consumes overcharge on the next shot and launch boost on the next valid launch", async () => {
+    const { room, host, hostPlanet, guestPlanet } = await duel();
+    const now = Date.now();
+    host.scrap = 100;
+    place(host, cannonPosition(hostPlanet), hostPlanet.id);
+    expect(room.purchaseUtility(host.id, hostPlanet.id, "overcharge", now)).toBe(true);
+    expect(room.purchaseUtility(host.id, hostPlanet.id, "overcharge", now + 1)).toBe(false);
+    const direction = normalize(sub(guestPlanet.position, cannonPosition(hostPlanet)));
+    room.fire(host.id, "rocket", direction, now + 2);
+    const shot = [...room.projectiles.values()][0];
+    expect(Math.hypot(shot.velocity.x, shot.velocity.y, shot.velocity.z)).toBeCloseTo(BALANCE.weapons.rocket.speed * BALANCE.utilities.overcharge.speedMultiplier, 5);
+    expect(host.overchargeUntil).toBe(0);
+
+    room.projectiles.clear(); host.launchCooldownUntil = 0;
+    place(host, padStandingPosition(guestPlanet), guestPlanet.id);
+    expect(room.purchaseUtility(host.id, guestPlanet.id, "launch-boost", now + 10)).toBe(true);
+    expect(room.purchaseUtility(host.id, guestPlanet.id, "launch-boost", now + 10)).toBe(false);
+    expect(room.launch(host.id, hostPlanet.id, now + 11)).toBe(true);
+    expect(Math.hypot(host.velocity.x, host.velocity.y, host.velocity.z)).toBeCloseTo(BALANCE.launch.speed * BALANCE.utilities.launchBoost.speedMultiplier, 5);
+    expect(host.launchAssistUntil).toBe(now + 11 + BALANCE.launch.assistMs + BALANCE.utilities.launchBoost.assistBonusMs);
+    expect(host.launchBoostUntil).toBe(0);
+  });
+
+  it("bursts a Cluster Bomb into a bounded authoritative fragment set", async () => {
+    const { room, host, hostPlanet, guestPlanet } = await duel();
+    const now = Date.now();
+    host.scrap = 100;
+    place(host, cannonPosition(hostPlanet), hostPlanet.id);
+    room.fire(host.id, "cluster", normalize(sub(guestPlanet.position, cannonPosition(hostPlanet))), now);
+    expect(host.scrap).toBe(100 - BALANCE.weapons.cluster.cost);
+    expect(room.projectiles.size).toBe(1);
+    room.update(1 / BALANCE.serverRate, now + 400);
+    expect([...room.projectiles.values()][0]).toMatchObject({ weapon: "cluster" });
+    expect([...room.projectiles.values()][0].fragment).toBeUndefined();
+    room.update(1 / BALANCE.serverRate, now + BALANCE.weapons.cluster.burstMs + 1);
+    const fragments = [...room.projectiles.values()];
+    expect(fragments).toHaveLength(BALANCE.weapons.cluster.fragmentCount);
+    expect(fragments.every((projectile) => projectile.weapon === "cluster" && projectile.fragment && projectile.shotId)).toBe(true);
+    const fragment = fragments[0];
+    fragment.position = add(guestPlanet.position, { x: 0, y: BALANCE.planetRadius + 3, z: 0 });
+    fragment.velocity = { x: 0, y: -120, z: 0 };
+    fragment.spawnedAt = now - 1_000;
+    const integrityBefore = guestPlanet.integrity;
+    room.update(.2, now + BALANCE.weapons.cluster.burstMs + 2);
+    expect(integrityBefore - guestPlanet.integrity).toBe(BALANCE.weapons.cluster.damage);
+    expect(room.view().matchStats.find((stats) => stats.playerId === host.id)).toMatchObject({
+      clusterBombsFired: 1, clusterFragmentsHit: 1, shotsHit: 1
+    });
+
+    const expiring = [...room.projectiles.values()][0];
+    expiring.position = { x: 0, y: 80, z: 0 };
+    expiring.velocity = { x: 0, y: 0, z: 0 };
+    expiring.spawnedAt = now - 4_000;
+    room.update(1 / BALANCE.serverRate, now + BALANCE.weapons.cluster.burstMs + 3);
+    expect(room.projectiles.has(expiring.id)).toBe(false);
+  });
+
+  it("keeps Gravity Bomb displacement finite, bounded, and low damage", async () => {
+    const { room, host, guest, hostPlanet, guestPlanet } = await duel();
+    const now = Date.now();
+    host.scrap = 100;
+    place(host, cannonPosition(hostPlanet), hostPlanet.id);
+    room.fire(host.id, "gravity-bomb", normalize(sub(guestPlanet.position, cannonPosition(hostPlanet))), now);
+    expect(host.scrap).toBe(100 - BALANCE.weapons["gravity-bomb"].cost);
+    room.projectiles.clear();
+    const impactStart = add(guestPlanet.position, { x: 0, y: BALANCE.planetRadius + 3, z: 0 });
+    place(guest, add(guestPlanet.position, { x: 0, y: BALANCE.planetRadius + .95, z: 0 }), guestPlanet.id);
+    room.projectiles.set("gravity", { id: "gravity", ownerId: host.id, weapon: "gravity-bomb", position: impactStart, velocity: { x: 0, y: -120, z: 0 }, spawnedAt: now - 1000 });
+    const before = guestPlanet.integrity;
+    room.update(.2, now);
+    const speed = Math.hypot(guest.velocity.x, guest.velocity.y, guest.velocity.z);
+    expect(before - guestPlanet.integrity).toBe(BALANCE.weapons["gravity-bomb"].damage);
+    expect(Number.isFinite(speed)).toBe(true);
+    expect(speed).toBeLessThanOrEqual(BALANCE.maxPlayerSpeed);
+    expect(room.view().matchStats.find((stats) => stats.playerId === host.id)?.gravityBombPlayersDisplaced).toBeGreaterThan(0);
+  });
+
+  it("keeps Fallbucks and owned cosmetics through rematches and reconnects", async () => {
+    const { room, host, guest, hostPlanet, guestPlanet, hostSessionToken } = await duel();
+    const now = Date.now();
+    guestPlanet.integrity = 1;
+    room.projectiles.set("winner", {
+      id: "winner", ownerId: host.id, weapon: "rocket", position: add(guestPlanet.position, { x: 0, y: BALANCE.planetRadius + 3, z: 0 }),
+      velocity: { x: 0, y: -120, z: 0 }, spawnedAt: now - 1000
+    });
+    room.update(.2, now);
+    expect(room.phase).toBe("results");
+    expect(host.fallbucks).toBe(100);
+    expect(guest.fallbucks).toBe(50);
+    const item = SHOP_CATALOG.find((entry) => entry.id === "solar-gold")!;
+    const scrapBefore = host.scrap;
+    expect(room.buyShopItem(host.id, item.id)).toEqual({ ok: true });
+    expect(host.fallbucks).toBe(0);
+    expect(host.scrap).toBe(scrapBefore);
+    expect(room.buyShopItem(host.id, item.id)).toMatchObject({ ok: false });
+    expect(room.equipShopItem(host.id, "stardust")).toMatchObject({ ok: false });
+    expect(room.equipShopItem(host.id, item.id)).toEqual({ ok: true });
+    expect(host.equippedCosmetics.suit).toBe(item.id);
+
+    room.disconnect(host.id);
+    const rejoined = room.join({ id: "returning-host", data: {}, join: () => undefined } as never, "Chris", hostSessionToken);
+    expect(rejoined.ok).toBe(true);
+    if (!rejoined.ok) return;
+    expect(rejoined.playerId).toBe(host.id);
+    expect(room.players.get(host.id)).toMatchObject({ fallbucks: 0, equippedCosmetics: { suit: item.id } });
+
+    room.phase = "results";
+    room.voteRematch(host.id); room.voteRematch(guest.id);
+    expect(room.players.get(host.id)).toMatchObject({ fallbucks: 0, equippedCosmetics: { suit: item.id } });
+  });
+
+  it("keeps bot difficulty host-controlled and rate-limits cosmetic emotes", async () => {
+    const { room, host, guest } = await duel();
+    room.phase = "lobby";
+    room.setBotDifficulty(guest.id, "hard");
+    expect(room.botDifficulty).toBe("normal");
+    room.setBotDifficulty(host.id, "hard");
+    expect(room.botDifficulty).toBe("hard");
+    room.phase = "playing";
+    const now = Date.now();
+    expect(room.playEmote(host.id, "wave", { x: 1, y: 0, z: 0 }, now)).toBe(true);
+    expect(room.playEmote(host.id, "point", { x: 1, y: 0, z: 0 }, now + 1)).toBe(false);
+    expect(room.playEmote(host.id, "laugh", { x: 1, y: 0, z: 0 }, now + BALANCE.emoteCooldownMs + 1)).toBe(false);
+    host.ownedCosmetics.push("laugh");
+    expect(room.playEmote(host.id, "laugh", { x: 1, y: 0, z: 0 }, now + BALANCE.emoteCooldownMs + 1)).toBe(true);
   });
 });

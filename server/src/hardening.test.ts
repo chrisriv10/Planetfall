@@ -3,6 +3,7 @@ import RAPIER from "@dimforge/rapier3d-compat";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   BALANCE,
+  WEAPON_ORDER,
   add,
   cannonPosition,
   createMatchRules,
@@ -171,7 +172,7 @@ function runSimulation(
       }, now);
     }
     if (step % 300 === 0) {
-      const weapon = step % 600 === 0 ? "asteroid" : "rocket";
+      const weapon = WEAPON_ORDER[Math.floor(step / 300) % WEAPON_ORDER.length];
       room.projectiles.set(`stress-${step}`, {
         id: `stress-${step}`, ownerId: human.id, weapon,
         position: { x: 0, y: 48, z: -25 }, velocity: { x: 0, y: 0, z: BALANCE.weapons[weapon].speed }, spawnedAt: now

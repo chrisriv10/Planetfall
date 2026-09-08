@@ -1,5 +1,5 @@
 export type InputMethod = "keyboard" | "gamepad";
-export type InputAction = "jump" | "burst" | "interact" | "switchWeapon" | "repair" | "fire" | "grapple" | "cancel" | "nextTarget" | "previousTarget" | "pause" | "confirm";
+export type InputAction = "jump" | "burst" | "interact" | "switchWeapon" | "repair" | "fire" | "grapple" | "emote" | "cancel" | "nextTarget" | "previousTarget" | "pause" | "confirm";
 
 export type ButtonState = { held: boolean; pressed: boolean; released: boolean };
 
@@ -16,6 +16,7 @@ export interface InputFrame {
   repair: ButtonState;
   fire: ButtonState;
   grapple: ButtonState;
+  emote: ButtonState;
   cancel: ButtonState;
   nextTarget: ButtonState;
   previousTarget: ButtonState;
@@ -62,6 +63,7 @@ const keyboardMap: Record<string, InputAction> = {
   KeyE: "interact",
   KeyQ: "switchWeapon",
   KeyR: "repair",
+  KeyV: "emote",
   Escape: "cancel",
   ArrowRight: "nextTarget",
   ArrowLeft: "previousTarget",
@@ -188,7 +190,7 @@ export class GameInput {
       lookX: this.mouseLookX + gamepad.look.x,
       lookY: this.mouseLookY + gamepad.look.y,
       jump: button("jump"), burst: button("burst"), interact: button("interact"), switchWeapon: button("switchWeapon"),
-      repair: button("repair"), fire: button("fire"), grapple: button("grapple"), cancel: button("cancel"),
+      repair: button("repair"), fire: button("fire"), grapple: button("grapple"), emote: button("emote"), cancel: button("cancel"),
       nextTarget: button("nextTarget"), previousTarget: button("previousTarget"), pause: button("pause"), confirm: button("confirm"),
       menuX, menuY
     };
@@ -228,6 +230,7 @@ export class GameInput {
     if (pad.buttons[0]?.pressed) actions.add("confirm");
     if (pad.buttons[1]?.pressed) actions.add("cancel");
     if (pad.buttons[5]?.pressed) actions.add("nextTarget");
+    if (pad.buttons[12]?.pressed) actions.add("emote");
     const grappleValue = pad.buttons[6]?.value ?? 0;
     const fireValue = pad.buttons[7]?.value ?? 0;
     this.triggerGrappleHeld = this.triggerGrappleHeld ? grappleValue > 0.35 : grappleValue > 0.55;
@@ -252,12 +255,12 @@ export class GameInput {
   }
 }
 
-export function inputLabel(action: "move" | "jump" | "burst" | "interact" | "switchWeapon" | "repair" | "fire" | "grapple" | "cancel" | "nextTarget" | "previousTarget", method: InputMethod): string {
+export function inputLabel(action: "move" | "jump" | "burst" | "interact" | "switchWeapon" | "repair" | "fire" | "grapple" | "emote" | "cancel" | "nextTarget" | "previousTarget", method: InputMethod): string {
   const gamepad: Record<string, string> = {
-    move: "LS", jump: "A", burst: "B", interact: "X", switchWeapon: "Y", repair: "RB", fire: "RT", grapple: "LT", cancel: "B", nextTarget: "RB", previousTarget: "LB"
+    move: "LS", jump: "A", burst: "B", interact: "X", switchWeapon: "Y", repair: "RB", fire: "RT", grapple: "LT", emote: "D↑", cancel: "B", nextTarget: "RB", previousTarget: "LB"
   };
   const keyboard: Record<string, string> = {
-    move: "WASD", jump: "SPACE", burst: "SHIFT", interact: "E", switchWeapon: "Q", repair: "R", fire: "LMB", grapple: "RMB", cancel: "ESC", nextTarget: "WHEEL", previousTarget: "WHEEL"
+    move: "WASD", jump: "SPACE", burst: "SHIFT", interact: "E", switchWeapon: "Q", repair: "R", fire: "LMB", grapple: "RMB", emote: "V", cancel: "ESC", nextTarget: "WHEEL", previousTarget: "WHEEL"
   };
   return (method === "gamepad" ? gamepad : keyboard)[action];
 }

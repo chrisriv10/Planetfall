@@ -2,7 +2,11 @@ import * as THREE from "three";
 import RAPIER from "@dimforge/rapier3d-compat";
 import {
   BALANCE,
+  FREE_EMOTES,
   PLANET_PALETTES,
+  SHOP_CATALOG,
+  WEAPON_COPY,
+  WEAPON_ORDER,
   add,
   applyBurstVelocity,
   applyGrappleVelocity,
@@ -34,6 +38,7 @@ import {
   sub,
   updateGroundedState,
   type PlanetState,
+  type EmoteType,
   type MatchRules,
   type PlayerInput,
   type PlayerInteraction,
@@ -71,6 +76,7 @@ type PlanetVisual = {
   launchHighlight: THREE.Group;
   cannonJam: THREE.Group;
   repairJam: THREE.Group;
+  structureLabels: { cannon: THREE.Sprite; repair: THREE.Sprite; launch: THREE.Sprite };
   label: THREE.Sprite;
   labelCanvas: HTMLCanvasElement;
   labelContext: CanvasRenderingContext2D;
@@ -101,7 +107,12 @@ type PlayerVisual = {
   flightTrail: THREE.Line;
   flightTrailPoints: THREE.Vector3[];
   intruderMarker: THREE.Group;
+  intruderDiamond: THREE.Mesh;
+  nameLabel: THREE.Sprite;
   localMarker: THREE.Group;
+  suitMaterial: THREE.MeshStandardMaterial;
+  emote: EmoteType | null;
+  emoteUntil: number;
   shoveUntil: number;
   hitPulse: number;
   landingPulse: number;
@@ -110,7 +121,7 @@ type PlayerVisual = {
   presentationForward: THREE.Vector3;
   lodDetails: THREE.Object3D[];
 };
-type ProjectileVisual = { mesh: THREE.Group; velocity: THREE.Vector3; weapon: WeaponType; ownerId: string; threatening: boolean; trail: THREE.Line; trailPoints: THREE.Vector3[]; maxTrailPoints: number };
+type ProjectileVisual = { mesh: THREE.Group; velocity: THREE.Vector3; weapon: WeaponType; ownerId: string; fragment: boolean; threatening: boolean; trail: THREE.Line; trailPoints: THREE.Vector3[]; maxTrailPoints: number };
 type Particle = { mesh: THREE.Mesh; velocity: THREE.Vector3; life: number; maxLife: number; growth?: number; spin?: number };
 
 export type PromptKind = "idle" | "launch" | "shove" | "sabotage" | "cooldown" | "weapon";
@@ -153,6 +164,45 @@ function seededRandom(seed: string): () => number {
   };
 }
 
+function makeWorldLabel(text: string, color = "#70f5ff", width = 256): THREE.Sprite {
+  const canvas = document.createElement("canvas");
+  canvas.width = width; canvas.height = 64;
+  const context = canvas.getContext("2d")!;
+  context.fillStyle = "rgba(5,8,31,.82)";
+  context.beginPath(); context.roundRect(4, 8, width - 8, 48, 15); context.fill();
+  context.strokeStyle = color; context.lineWidth = 3; context.stroke();
+  context.fillStyle = "#fff"; context.font = "900 24px Trebuchet MS";
+  context.textAlign = "center"; context.textBaseline = "middle";
+  context.fillText(text, width / 2, 32, width - 24);
+  const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false, depthWrite: false }));
+  sprite.renderOrder = 9;
+  sprite.userData.canvasTexture = texture;
+  sprite.userData.canvas = canvas;
+  sprite.userData.color = color;
+  sprite.userData.labelKey = `${text}|${color}`;
+  return sprite;
+}
+
+function updateWorldLabel(sprite: THREE.Sprite, text: string, color?: string): void {
+  const nextColor = color ?? String(sprite.userData.color ?? "#70f5ff");
+  const key = `${text}|${nextColor}`;
+  if (sprite.userData.labelKey === key) return;
+  sprite.userData.labelKey = key; sprite.userData.color = nextColor;
+  const canvas = sprite.userData.canvas as HTMLCanvasElement;
+  const context = canvas.getContext("2d")!;
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.fillStyle = "rgba(5,8,31,.82)"; context.beginPath(); context.roundRect(4, 8, canvas.width - 8, 48, 15); context.fill();
+  context.strokeStyle = nextColor; context.lineWidth = 3; context.stroke();
+  context.fillStyle = "#fff"; context.font = "900 24px Trebuchet MS"; context.textAlign = "center"; context.textBaseline = "middle";
+  context.fillText(text, canvas.width / 2, 32, canvas.width - 24);
+  (sprite.userData.canvasTexture as THREE.CanvasTexture).needsUpdate = true;
+}
+
+function cosmeticColor(itemId: string, fallback: string): string {
+  return SHOP_CATALOG.find((item) => item.id === itemId)?.color ?? fallback;
+}
+
 export class PlanetfallGame {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
@@ -165,6 +215,8 @@ export class PlanetfallGame {
   onRepair?: () => void;
   onInteract?: (interaction: PlayerInteraction) => void;
   onWeaponChange?: (weapon: WeaponType) => void;
+  onEmote?: (emote: EmoteType, direction: Vec3) => void;
+  onEmoteMenu?: (open: boolean, selected: EmoteType) => void;
   onPrompt?: (text: string, aiming: boolean, label?: string, kind?: PromptKind, progress?: number) => void;
   onIndicators?: (indicators: EdgeIndicator[]) => void;
   onHint?: (id: string, text: string) => void;
@@ -192,6 +244,7 @@ export class PlanetfallGame {
   private inputAccumulator = 0;
   private cameraForward = new THREE.Vector3(0, 0, -1);
   private cameraLocalUp = new THREE.Vector3(0, 1, 0);
+  private labelPosition = new THREE.Vector3();
   private localPosition = new THREE.Vector3();
   private localVelocity = new THREE.Vector3();
   private correction = new THREE.Vector3();
@@ -213,6 +266,8 @@ export class PlanetfallGame {
   private launchTargetPlanetId: string | null = null;
   private launchTargetOffset = 0;
   private launchTargetCycled = false;
+  private emoteSelecting = false;
+  private emoteSelection: EmoteType = "wave";
   private activeSabotage: { planetId: string; structure: StructureType; startedAt: number } | null = null;
   private localLaunchTargetPlanetId: string | null = null;
   private localLaunchSourcePlanetId: string | null = null;
@@ -410,63 +465,79 @@ export class PlanetfallGame {
 
   spawnProjectile(projectile: ProjectileState): void {
     if (this.projectiles.has(projectile.id)) return;
-    const group = this.makeProjectile(projectile.weapon);
+    const group = this.makeProjectile(projectile);
     group.position.copy(vec(projectile.position));
     group.lookAt(group.position.clone().add(vec(projectile.velocity)));
     this.scene.add(group);
-    const maxTrailPoints = Math.max(5, Math.round((projectile.weapon === "asteroid" ? 9 : 13) * this.quality.trailScale));
+    const maxTrailPoints = Math.max(5, Math.round((projectile.weapon === "asteroid" ? 9 : projectile.weapon === "cluster" ? 11 : 13) * this.quality.trailScale));
     const trailGeometry = new THREE.BufferGeometry();
     trailGeometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(maxTrailPoints * 3), 3).setUsage(THREE.DynamicDrawUsage));
     trailGeometry.setDrawRange(0, 1);
     const trail = new THREE.Line(
       trailGeometry,
-      new THREE.LineBasicMaterial({ color: projectile.weapon === "rocket" ? 0x70f5ff : 0xff7b4d, transparent: true, opacity: 0.72 })
+      new THREE.LineBasicMaterial({ color: projectile.weapon === "rocket" ? 0x70f5ff : projectile.weapon === "cluster" ? 0xffdc4f : projectile.weapon === "gravity-bomb" ? 0xb67cff : 0xff7b4d, transparent: true, opacity: 0.72 })
     );
     this.scene.add(trail);
     const threatening = this.threatensLocalPlanet(projectile);
     this.projectiles.set(projectile.id, {
-      mesh: group, velocity: vec(projectile.velocity), weapon: projectile.weapon, ownerId: projectile.ownerId,
+      mesh: group, velocity: vec(projectile.velocity), weapon: projectile.weapon, ownerId: projectile.ownerId, fragment: Boolean(projectile.fragment),
       threatening, trail, trailPoints: [group.position.clone()], maxTrailPoints
     });
     const ownerPlanet = [...this.planets.values()].find((planet) => planet.state.ownerId === projectile.ownerId);
-    if (ownerPlanet) {
+    if (ownerPlanet && !projectile.fragment) {
       ownerPlanet.recoil = 1;
       (ownerPlanet.muzzle.material as THREE.MeshStandardMaterial).emissiveIntensity = 5;
       const muzzlePosition = ownerPlanet.muzzle.getWorldPosition(new THREE.Vector3());
       this.spawnBurst(muzzlePosition, [0xffdc4f, 0xffffff, 0x9fb4ca], projectile.weapon === "asteroid" ? 14 : 9, projectile.weapon === "asteroid" ? 5 : 3.5);
       this.spawnPulse(muzzlePosition, projectile.weapon === "asteroid" ? 0xff8a4f : 0xffdc4f, projectile.weapon === "asteroid" ? 1.3 : .85);
     }
-    projectile.weapon === "rocket" ? this.audio.rocket() : this.audio.asteroid();
+    if (!projectile.fragment) {
+      if (projectile.weapon === "asteroid") this.audio.asteroid();
+      else if (projectile.weapon === "cluster") this.audio.cluster();
+      else if (projectile.weapon === "gravity-bomb") this.audio.gravityBomb();
+      else this.audio.rocket();
+    }
     if (threatening && performance.now() - this.lastIncomingWarning > 1400) {
       this.lastIncomingWarning = performance.now();
       this.audio.incoming(projectile.weapon === "asteroid");
     }
-    this.shake = Math.max(this.shake, 0.18);
+    if (!projectile.fragment) this.shake = Math.max(this.shake, 0.18);
   }
 
-  explode(payload: { id: string; position: Vec3; weapon: WeaponType }): void {
+  explode(payload: { id: string; position: Vec3; weapon: WeaponType; burst?: boolean }): void {
     const projectile = this.projectiles.get(payload.id);
     if (projectile) this.disposeProjectile(projectile);
     this.projectiles.delete(payload.id);
     const position = vec(payload.position);
+    if (payload.burst) {
+      this.spawnBurst(position, [0xffdc4f, 0xff8bd9, 0xffffff], 18, 5.5);
+      this.spawnPulse(position, 0xffdc4f, 1.2);
+      this.audio.clusterBurst();
+      return;
+    }
     const local = this.players.get(this.localId);
     const config = BALANCE.weapons[payload.weapon];
     const knockbackFalloff = local?.state.alive ? explosionFalloff(this.localPosition.distanceTo(position), config.radius * 1.8) : 0;
     if (knockbackFalloff > 0) {
       const gravityPlanet = (this.localGravityPlanetId ? this.planets.get(this.localGravityPlanetId) : undefined)
         ?? this.nearestPlanet(this.localPosition, true);
-      const blastDirection = this.localPosition.clone().sub(position).normalize();
+      const blastDirection = payload.weapon === "gravity-bomb"
+        ? position.clone().sub(this.localPosition).normalize()
+        : this.localPosition.clone().sub(position).normalize();
       const surfaceOutward = gravityPlanet
         ? this.localPosition.clone().sub(gravityPlanet.group.position).normalize()
         : blastDirection.clone();
-      const impulseDirection = blastDirection.addScaledVector(surfaceOutward, .32).normalize();
+      const impulseDirection = payload.weapon === "gravity-bomb" ? blastDirection : blastDirection.addScaledVector(surfaceOutward, .32).normalize();
       this.localVelocity.addScaledVector(impulseDirection, config.knockback * knockbackFalloff);
       this.localVelocity.copy(vec(limitSpeed(plain(this.localVelocity), BALANCE.maxPlayerSpeed)));
       this.localGrounded = false;
       this.jumpQueuedUntil = 0;
     }
-    const count = Math.round((payload.weapon === "asteroid" ? 34 : 22) * this.quality.particleScale);
-    const colors = payload.weapon === "asteroid" ? [0xff794c, 0xffcf57, 0xb67cff] : [0xff496c, 0xffd45c, 0x70f5ff];
+    const count = Math.round((payload.weapon === "asteroid" ? 34 : payload.weapon === "cluster" ? 17 : 22) * this.quality.particleScale);
+    const colors = payload.weapon === "asteroid" ? [0xff794c, 0xffcf57, 0xb67cff]
+      : payload.weapon === "cluster" ? [0xffdc4f, 0xff8bd9, 0xffffff]
+        : payload.weapon === "gravity-bomb" ? [0xb67cff, 0x70f5ff, 0xffffff]
+          : [0xff496c, 0xffd45c, 0x70f5ff];
     for (let i = 0; i < count; i++) {
       const mesh = new THREE.Mesh(particleGeometry, new THREE.MeshBasicMaterial({ color: colors[i % colors.length], transparent: true }));
       mesh.scale.setScalar(Math.random() * 1.7 + 0.65);
@@ -495,7 +566,7 @@ export class PlanetfallGame {
     if (payload.playerId === this.localId) payload.stolen ? this.audio.stolen() : this.audio.pickup();
   }
 
-  launchPlayer(payload: { playerId: string; sourcePlanetId: string; targetPlanetId: string; position: Vec3; velocity: Vec3; cooldownUntil: number }): void {
+  launchPlayer(payload: { playerId: string; sourcePlanetId: string; targetPlanetId: string; position: Vec3; velocity: Vec3; cooldownUntil: number; boosted: boolean }): void {
     const player = this.players.get(payload.playerId);
     if (player) {
       player.state.velocity = { ...payload.velocity };
@@ -507,7 +578,7 @@ export class PlanetfallGame {
     if (source) {
       source.launchPulse = 1;
       const pad = vec(launchPadPosition(source.state));
-      this.spawnBurst(pad, [0x70f5ff, 0xffdc4f, 0xffffff], 22, 7);
+      this.spawnBurst(pad, payload.boosted ? [0xffdc4f, 0xff8bd9, 0xffffff] : [0x70f5ff, 0xffdc4f, 0xffffff], payload.boosted ? 30 : 22, payload.boosted ? 9 : 7);
       this.spawnPulse(pad, 0x70f5ff, 1.45);
     }
     if (payload.playerId === this.localId) {
@@ -520,7 +591,7 @@ export class PlanetfallGame {
       this.jumpQueuedUntil = 0;
       this.localLaunchTargetPlanetId = payload.targetPlanetId;
       this.localLaunchSourcePlanetId = payload.sourcePlanetId;
-      this.localLaunchAssistUntil = performance.now() + BALANCE.launch.assistMs;
+      this.localLaunchAssistUntil = performance.now() + BALANCE.launch.assistMs + (payload.boosted ? BALANCE.utilities.launchBoost.assistBonusMs : 0);
       this.audio.launch();
       this.shake = Math.max(this.shake, 0.52);
       this.input.vibrate(170, .28, .48);
@@ -582,6 +653,42 @@ export class PlanetfallGame {
       this.input.vibrate(140, .52, .32);
     }
     if (payload.attackerId === this.localId || payload.targetId === this.localId) this.audio.shove();
+  }
+
+  bumpPlayer(payload: { attackerId: string; targetId: string; planetId: string; position: Vec3; velocity: Vec3 }): void {
+    const target = this.players.get(payload.targetId);
+    if (target) {
+      target.state.velocity = { ...payload.velocity };
+      target.hitPulse = Math.max(target.hitPulse, .5);
+      this.spawnBurst(target.group.position.clone().add(new THREE.Vector3(0, .8, 0)), [0x70f5ff, 0xffffff], 6, 2.8);
+    }
+    if (payload.targetId === this.localId) {
+      this.localVelocity.copy(vec(payload.velocity)); this.correction.set(0, 0, 0); this.localGrounded = false;
+      this.shake = Math.max(this.shake, .16); this.input.vibrate(70, .2);
+    }
+  }
+
+  playEmote(payload: { playerId: string; emote: EmoteType; direction: Vec3; startedAt: number }): void {
+    const visual = this.players.get(payload.playerId);
+    if (!visual) return;
+    visual.emote = payload.emote;
+    visual.emoteUntil = performance.now() + (payload.emote === "celebrate" || payload.emote === "panic" ? 1700 : 1350);
+  }
+
+  utilityPurchased(payload: { playerId: string; planetId: string; utility: "shield" | "overcharge" | "launch-boost"; activeUntil: number }): void {
+    const planet = this.planets.get(payload.planetId);
+    const player = this.players.get(payload.playerId);
+    if (payload.utility === "shield" && planet) {
+      planet.state.shieldUntil = payload.activeUntil;
+      this.spawnShockwave(planet.group.position, 0x70f5ff, BALANCE.planetRadius * 1.18);
+    } else if (payload.utility === "overcharge" && player) {
+      player.state.overchargeUntil = payload.activeUntil;
+      if (planet) this.spawnPulse(planet.cannon.getWorldPosition(new THREE.Vector3()), 0xffdc4f, 1.2);
+    } else if (player) {
+      player.state.launchBoostUntil = payload.activeUntil;
+      if (planet) this.spawnPulse(vec(launchPadPosition(planet.state)), 0xff8bd9, 1.05);
+    }
+    if (payload.playerId === this.localId) this.audio.pickup();
   }
 
   sabotageStructure(payload: { playerId: string; planetId: string; ownerId: string; structure: StructureType; disabledUntil: number }): void {
@@ -761,12 +868,12 @@ export class PlanetfallGame {
   }
 
   private createDemo(): void {
-    const a = this.makePlanet({ id: "demo-a", ownerId: "", position: { x: 13, y: -2, z: -4 }, integrity: 100, alive: true, palette: 0, damageStage: 0, cannonDisabledUntil: 0, repairDisabledUntil: 0, cannonSabotageImmuneUntil: 0, repairSabotageImmuneUntil: 0 });
+    const a = this.makePlanet({ id: "demo-a", ownerId: "", position: { x: 13, y: -2, z: -4 }, integrity: 100, alive: true, palette: 0, damageStage: 0, cannonDisabledUntil: 0, repairDisabledUntil: 0, cannonSabotageImmuneUntil: 0, repairSabotageImmuneUntil: 0, shieldUntil: 0, shieldCooldownUntil: 0 });
     a.group.scale.setScalar(1.25);
-    const b = this.makePlanet({ id: "demo-b", ownerId: "", position: { x: -12, y: 3, z: -18 }, integrity: 58, alive: true, palette: 3, damageStage: 2, cannonDisabledUntil: 0, repairDisabledUntil: 0, cannonSabotageImmuneUntil: 0, repairSabotageImmuneUntil: 0 });
+    const b = this.makePlanet({ id: "demo-b", ownerId: "", position: { x: -12, y: 3, z: -18 }, integrity: 58, alive: true, palette: 3, damageStage: 2, cannonDisabledUntil: 0, repairDisabledUntil: 0, cannonSabotageImmuneUntil: 0, repairSabotageImmuneUntil: 0, shieldUntil: 0, shieldCooldownUntil: 0 });
     b.group.scale.setScalar(0.7);
     this.demo.add(a.group, b.group);
-    const astronaut = this.makePlayer({ id: "demo", name: "", isBot: false, color: "#ffdc4f", planetId: "", connected: true, ready: true, alive: true, scrap: 0, position: { x: 13, y: 9.5, z: -4 }, velocity: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, lastInputSequence: 0, surfacePlanetId: "demo-a", gravityPlanetId: "demo-a", launchCooldownUntil: 0, shoveCooldownUntil: 0, crowns: 0 });
+    const astronaut = this.makePlayer({ id: "demo", name: "", isBot: false, color: "#ffdc4f", planetId: "", connected: true, ready: true, alive: true, scrap: 0, position: { x: 13, y: 9.5, z: -4 }, velocity: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, lastInputSequence: 0, surfacePlanetId: "demo-a", gravityPlanetId: "demo-a", launchCooldownUntil: 0, shoveCooldownUntil: 0, crowns: 0, fallbucks: 0, ownedCosmetics: [], equippedCosmetics: { suit: "default", trail: "default", victory: "default" }, overchargeUntil: 0, launchBoostUntil: 0 });
     astronaut.group.position.set(13, 9.4, -4);
     astronaut.group.scale.setScalar(1.2);
     this.demo.add(astronaut.group);
@@ -917,6 +1024,10 @@ export class PlanetfallGame {
     };
     const cannonJam = makeJamIndicator(); cannonJam.position.y = 2.25; cannon.add(cannonJam);
     const repairJam = makeJamIndicator(); repair.add(repairJam);
+    const cannonLabel = makeWorldLabel("CANNON", ownerColor); cannonLabel.position.set(0, BALANCE.planetRadius + 4.2, 0); cannonLabel.scale.set(3.5, .88, 1);
+    const repairLabel = makeWorldLabel("REPAIR", ownerColor); repairLabel.position.set(BALANCE.planetRadius + 3.15, 0, 0); repairLabel.scale.set(3.4, .85, 1);
+    const launchLabel = makeWorldLabel("LAUNCH PAD", "#70f5ff"); launchLabel.position.copy(padNormal.clone().multiplyScalar(BALANCE.planetRadius + 2.9)); launchLabel.scale.set(4.15, 1.02, 1);
+    group.add(cannonLabel, repairLabel, launchLabel);
 
     const props = new THREE.Group(); group.add(props);
     const damageDebris = new THREE.Group(); group.add(damageDebris);
@@ -999,6 +1110,7 @@ export class PlanetfallGame {
     return {
       group, shell, atmosphere, surfacePatches, cracks, props, damageDebris, cannon, barrel: barrelRig, muzzle, cannonAccent,
       repair, repairCore: core, repairRings, launchPad, launchRing, launchArms, launchHighlight, cannonJam, repairJam,
+      structureLabels: { cannon: cannonLabel, repair: repairLabel, launch: launchLabel },
       label, labelCanvas, labelContext, labelTexture, labelKey: "",
       baseColor, recoil: 0, repairPulse: 0, launchPulse: 0, nextJamSparkAt: 0, nextDamagePulseAt: 0, destroyedAt: 0, state
     };
@@ -1007,7 +1119,8 @@ export class PlanetfallGame {
   private makePlayer(state: PlayerState): PlayerVisual {
     const group = new THREE.Group();
     const lodDetails: THREE.Object3D[] = [];
-    const suit = new THREE.MeshStandardMaterial({ color: state.color, roughness: .58, flatShading: true });
+    const suitAccent = cosmeticColor(state.equippedCosmetics.suit, state.color);
+    const suit = new THREE.MeshStandardMaterial({ color: suitAccent, roughness: .58, flatShading: true });
     const white = new THREE.MeshStandardMaterial({ color: 0xf0f6ff, roughness: .48, flatShading: true });
     const dark = new THREE.MeshStandardMaterial({ color: 0x202747, roughness: .72, flatShading: true });
     const glow = new THREE.MeshStandardMaterial({ color: state.color, emissive: state.color, emissiveIntensity: .75, metalness: .25, roughness: .3 });
@@ -1062,15 +1175,8 @@ export class PlanetfallGame {
     const intruderMarker = new THREE.Group();
     const markerDiamond = new THREE.Mesh(new THREE.OctahedronGeometry(0.18, 0), new THREE.MeshBasicMaterial({ color: state.color }));
     markerDiamond.position.y = 2.75; intruderMarker.add(markerDiamond);
-    const labelCanvas = document.createElement("canvas"); labelCanvas.width = 256; labelCanvas.height = 64;
-    const labelContext = labelCanvas.getContext("2d")!;
-    labelContext.fillStyle = "rgba(7,9,30,.82)"; labelContext.fillRect(0, 7, 256, 50);
-    labelContext.strokeStyle = state.color; labelContext.lineWidth = 4; labelContext.strokeRect(2, 9, 252, 46);
-    labelContext.fillStyle = "#ffffff"; labelContext.font = "bold 27px Trebuchet MS"; labelContext.textAlign = "center"; labelContext.textBaseline = "middle";
-    labelContext.fillText(state.name.toUpperCase(), 128, 33, 230);
-    const labelTexture = new THREE.CanvasTexture(labelCanvas); labelTexture.colorSpace = THREE.SRGBColorSpace;
-    const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTexture, transparent: true, depthTest: false }));
-    label.position.y = 3.25; label.scale.set(3.2, 0.8, 1); intruderMarker.add(label); intruderMarker.visible = false; group.add(intruderMarker);
+    const label = makeWorldLabel(`${state.name.toUpperCase()}${state.isBot ? "  BOT" : ""}`, state.color);
+    label.position.y = 3.25; label.scale.set(3.2, 0.8, 1); intruderMarker.add(label); group.add(intruderMarker);
     const localMarker = new THREE.Group();
     const localRing = new THREE.Mesh(new THREE.TorusGeometry(.63, .035, 5, 22), new THREE.MeshBasicMaterial({ color: state.color, transparent: true, opacity: .58, depthWrite: false }));
     localRing.rotation.x = Math.PI / 2; localRing.position.y = -.72;
@@ -1081,11 +1187,12 @@ export class PlanetfallGame {
     const trailGeometry = new THREE.BufferGeometry();
     trailGeometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(12 * 3), 3).setUsage(THREE.DynamicDrawUsage));
     trailGeometry.setDrawRange(0, 0);
-    const flightTrail = new THREE.Line(trailGeometry, new THREE.LineBasicMaterial({ color: state.color, transparent: true, opacity: 0.72 }));
+    const flightTrail = new THREE.Line(trailGeometry, new THREE.LineBasicMaterial({ color: cosmeticColor(state.equippedCosmetics.trail, state.color), transparent: true, opacity: 0.72 }));
     flightTrail.visible = false;
     return {
       group, target: group.position.clone(), state, leftArm, rightArm, leftLeg, rightLeg, torso, helmet, visor, backpack,
-      flightTrail, flightTrailPoints: [], intruderMarker, localMarker, shoveUntil: 0, hitPulse: 0, landingPulse: 0,
+      flightTrail, flightTrailPoints: [], intruderMarker, intruderDiamond: markerDiamond, nameLabel: label, localMarker,
+      suitMaterial: suit, emote: null, emoteUntil: 0, shoveUntil: 0, hitPulse: 0, landingPulse: 0,
       previousSurfacePlanetId: state.surfacePlanetId,
       presentationUp: new THREE.Vector3(0, 1, 0),
       presentationForward: new THREE.Vector3(0, 0, 1),
@@ -1105,8 +1212,9 @@ export class PlanetfallGame {
     return group;
   }
 
-  private makeProjectile(weapon: WeaponType): THREE.Group {
+  private makeProjectile(projectile: ProjectileState): THREE.Group {
     const group = new THREE.Group();
+    const weapon = projectile.weapon;
     if (weapon === "rocket") {
       const body = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.31, 1.45, 8), new THREE.MeshStandardMaterial({ color: 0xf1f5ff, metalness: 0.35, roughness: 0.34, flatShading: true }));
       body.rotation.x = Math.PI / 2;
@@ -1122,7 +1230,7 @@ export class PlanetfallGame {
       const windowBand = new THREE.Mesh(new THREE.TorusGeometry(.265, .045, 5, 10), new THREE.MeshStandardMaterial({ color: 0x70f5ff, emissive: 0x17627d, emissiveIntensity: .9 })); windowBand.position.z = -.38;
       group.add(body, nose, flame, innerFlame, windowBand);
       group.userData.flame = flame; group.userData.innerFlame = innerFlame;
-    } else {
+    } else if (weapon === "asteroid") {
       const rockMaterial = new THREE.MeshStandardMaterial({ color: 0x70445f, emissive: 0x5c1e2d, emissiveIntensity: .85, roughness: .96, flatShading: true });
       const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(.92, 1), rockMaterial); rock.scale.set(1.18, .92, 1.05);
       for (let index = 0; index < 5; index++) {
@@ -1136,6 +1244,26 @@ export class PlanetfallGame {
       }
       const glow = new THREE.PointLight(0xff704c, 18, 9); group.add(rock, glow);
       group.userData.rock = rock;
+    } else if (weapon === "cluster") {
+      const size = projectile.fragment ? .22 : .56;
+      const shell = new THREE.Mesh(
+        new THREE.IcosahedronGeometry(size, 1),
+        new THREE.MeshStandardMaterial({ color: 0xffdc4f, emissive: 0x8a3154, emissiveIntensity: 1.25, metalness: .35, roughness: .28, flatShading: true })
+      );
+      shell.scale.set(1, .82, 1.35);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(size * 1.08, size * .12, 5, 12), new THREE.MeshBasicMaterial({ color: 0xff8bd9 }));
+      ring.rotation.x = Math.PI / 2;
+      group.add(shell, ring);
+      group.userData.flame = ring;
+    } else {
+      const core = new THREE.Mesh(
+        new THREE.SphereGeometry(.5, 12, 8),
+        new THREE.MeshStandardMaterial({ color: 0x31215f, emissive: 0x7447d9, emissiveIntensity: 2.1, metalness: .2, roughness: .18 })
+      );
+      const orbitA = new THREE.Mesh(new THREE.TorusGeometry(.72, .07, 5, 18), new THREE.MeshBasicMaterial({ color: 0xb67cff }));
+      const orbitB = orbitA.clone(); orbitB.rotation.y = Math.PI / 2;
+      group.add(core, orbitA, orbitB);
+      group.userData.flame = orbitA;
     }
     return group;
   }
@@ -1179,9 +1307,13 @@ export class PlanetfallGame {
       let visual = this.players.get(state.id);
       if (!visual) { visual = this.makePlayer(state); this.players.set(state.id, visual); this.scene.add(visual.group, visual.flightTrail); }
       visual.state = state;
+      updateWorldLabel(visual.nameLabel, `${state.name.toUpperCase()}${state.isBot ? "  BOT" : ""}`, state.color);
+      visual.suitMaterial.color.set(cosmeticColor(state.equippedCosmetics.suit, state.color));
+      (visual.flightTrail.material as THREE.LineBasicMaterial).color.set(cosmeticColor(state.equippedCosmetics.trail, state.color));
       visual.target.copy(vec(state.position));
       visual.group.visible = state.alive && (this.mode === "match" || this.mode === "results");
-      visual.intruderMarker.visible = Boolean(state.alive && state.surfacePlanetId && state.surfacePlanetId !== state.planetId && this.mode === "match");
+      visual.intruderMarker.visible = Boolean(state.alive && this.mode === "match");
+      visual.intruderDiamond.visible = Boolean(state.surfacePlanetId && state.surfacePlanetId !== state.planetId);
       visual.localMarker.visible = state.alive && state.id === this.localId && this.mode === "match";
       if (state.id === this.localId) {
         if (!this.localInitialized) {
@@ -1291,7 +1423,7 @@ export class PlanetfallGame {
   }
 
   private processControls(frame: InputFrame, dt: number): void {
-    if (frame.method === "gamepad" && [frame.confirm, frame.jump, frame.burst, frame.interact, frame.fire, frame.grapple, frame.pause].some((state) => state.pressed)) this.audio.unlock();
+    if (frame.method === "gamepad" && [frame.confirm, frame.jump, frame.burst, frame.interact, frame.fire, frame.grapple, frame.emote, frame.pause].some((state) => state.pressed)) this.audio.unlock();
     const navigatingUi = this.mode !== "match" || this.uiCaptured;
     if (navigatingUi && frame.menuY) this.onMenuNavigate?.(frame.menuY < 0 ? "up" : "down");
     if (navigatingUi && frame.menuX) this.onMenuNavigate?.(frame.menuX < 0 ? "left" : "right");
@@ -1317,9 +1449,36 @@ export class PlanetfallGame {
       this.applyLook(frame, dt);
       return;
     }
+    if (frame.emote.pressed) {
+      this.emoteSelecting = true;
+      this.emoteSelection = this.availableEmotes(local.state)[0] ?? "wave";
+      this.onEmoteMenu?.(true, this.emoteSelection);
+    }
+    if (this.emoteSelecting && frame.emote.held) {
+      const available = this.availableEmotes(local.state);
+      if (available.length && Math.hypot(frame.moveX, frame.moveY) > .35) {
+        const angle = Math.atan2(frame.moveY, frame.moveX);
+        const index = ((Math.round((angle + Math.PI) / (Math.PI * 2) * available.length) % available.length) + available.length) % available.length;
+        if (available[index] !== this.emoteSelection) {
+          this.emoteSelection = available[index]; this.onEmoteMenu?.(true, this.emoteSelection);
+        }
+      }
+    }
+    if (this.emoteSelecting && frame.emote.released) {
+      this.emoteSelecting = false;
+      this.onEmoteMenu?.(false, this.emoteSelection);
+      this.onEmote?.(this.emoteSelection, plain(this.cameraForward));
+    }
     if (this.launchAiming && (frame.cancel.pressed || frame.burst.pressed)) this.cancelLaunchAim();
     else if (frame.switchWeapon.pressed) this.toggleWeapon();
     if (frame.repair.pressed && !this.launchAiming) {
+      const nearbyPad = this.nearbyLaunchPad();
+      if (nearbyPad) {
+        if (local.state.launchBoostUntil <= Date.now() && local.state.scrap >= BALANCE.utilities.launchBoost.cost) {
+          this.onInteract?.({ action: "utility", planetId: nearbyPad.state.id, utility: "launch-boost" });
+        } else this.audio.denied();
+        return;
+      }
       const ownPlanet = this.planets.get(local.state.planetId);
       const nearRepair = ownPlanet && distance(plain(this.localPosition), repairPosition(ownPlanet.state)) <= BALANCE.repair.range;
       const canRepair = ownPlanet && nearRepair && this.room?.phase !== "overtime"
@@ -1413,6 +1572,16 @@ export class PlanetfallGame {
     this.camera.lookAt(planet.group.position);
     this.camera.fov += (52 - this.camera.fov) * (1 - Math.exp(-dt * 3));
     this.camera.updateProjectionMatrix();
+    const mascot = winner ? this.players.get(winner.id) : undefined;
+    if (mascot) {
+      const pose = winner!.equippedCosmetics.victory;
+      if (pose === "spin") mascot.group.rotateY(dt * 4.2);
+      if (pose === "hero") { mascot.leftArm.rotation.x = -2.25; mascot.rightArm.rotation.x = -2.25; }
+      if (pose === "double-pump") {
+        const pump = Math.sin(this.demoTime * 9) * .28;
+        mascot.leftArm.rotation.x = -2.1 + pump; mascot.rightArm.rotation.x = -2.1 - pump;
+      }
+    }
   }
 
   private updateMatch(dt: number, now: number): void {
@@ -1715,7 +1884,8 @@ export class PlanetfallGame {
     if (launchPad) {
       const cooldown = Math.max(0, (local.state.launchCooldownUntil - Date.now()) / 1000);
       this.onHint?.("launch", "Launch to rival planets and steal their scrap");
-      this.onPrompt?.(cooldown > 0 ? `LAUNCH READY IN ${cooldown.toFixed(1)}s` : `${this.label("interact")}  LAUNCH`, false, undefined, cooldown > 0 ? "cooldown" : "launch");
+      const boost = local.state.launchBoostUntil > Date.now() ? "BOOST READY" : `${this.label("repair")}  BOOST ${BALANCE.utilities.launchBoost.cost}`;
+      this.onPrompt?.(cooldown > 0 ? `LAUNCH READY IN ${cooldown.toFixed(1)}s  ·  ${boost}` : `${this.label("interact")}  LAUNCH  ·  ${boost}`, false, undefined, cooldown > 0 ? "cooldown" : "launch");
       return;
     }
 
@@ -1735,18 +1905,22 @@ export class PlanetfallGame {
       this.trajectory.visible = true;
       this.onHint?.("cannon", "Fire at rival planets");
       const weaponCost = BALANCE.weapons[this.weapon].cost;
+      const overchargeCopy = local.state.overchargeUntil > Date.now() ? "OVERCHARGE READY" : `${this.label("interact")}  OVERCHARGE ${BALANCE.utilities.overcharge.cost}`;
       this.onPrompt?.(
-        local.state.scrap < weaponCost ? `NEED ${weaponCost - local.state.scrap} MORE SCRAP` : `${this.label("fire")}  FIRE CANNON`,
+        local.state.scrap < weaponCost ? `NEED ${weaponCost - local.state.scrap} MORE SCRAP` : `${this.label("fire")}  FIRE  ·  ${overchargeCopy}`,
         true,
-        `${this.weapon === "rocket" ? "ROCKET" : "ASTEROID"} · ${weaponCost} SCRAP`,
+        `${WEAPON_COPY[this.weapon].name} · ${weaponCost} SCRAP`,
         local.state.scrap < weaponCost ? "cooldown" : "weapon"
       );
     } else if (nearRepair) {
       this.onHint?.("repair", `${this.label("repair")} repairs your planet`);
+      const shieldCopy = ownPlanet.state.shieldUntil > Date.now() ? "SHIELD ACTIVE"
+        : ownPlanet.state.shieldCooldownUntil > Date.now() ? `SHIELD READY IN ${Math.ceil((ownPlanet.state.shieldCooldownUntil - Date.now()) / 1000)}s`
+          : `${this.label("interact")}  SHIELD ${BALANCE.utilities.shield.cost}`;
       if (this.room?.phase === "overtime") this.onPrompt?.("REPAIRS OFFLINE IN OVERTIME", false, undefined, "cooldown");
-      else if (ownPlanet.state.integrity >= this.rules.maxIntegrity) this.onPrompt?.("PLANET AT FULL INTEGRITY", false, undefined, "idle");
+      else if (ownPlanet.state.integrity >= this.rules.maxIntegrity) this.onPrompt?.(`PLANET FULL  ·  ${shieldCopy}`, false, undefined, "idle");
       else if (local.state.scrap < BALANCE.repair.cost) this.onPrompt?.(`NEED ${BALANCE.repair.cost - local.state.scrap} MORE SCRAP`, false, undefined, "cooldown");
-      else this.onPrompt?.(`${this.label("repair")}  REPAIR ${BALANCE.repair.heal}% FOR ${BALANCE.repair.cost} SCRAP`, false, undefined, "idle");
+      else this.onPrompt?.(`${this.label("repair")}  REPAIR ${BALANCE.repair.heal}% · ${shieldCopy}`, false, undefined, "idle");
     } else if (this.input.method === "keyboard" && document.pointerLockElement !== this.canvas) this.onPrompt?.("CLICK THE ARENA TO TAKE CONTROL", false, undefined, "idle");
     else {
       if (!this.localSurfacePlanetId && this.localVelocity.length() > 8) this.onHint?.("grapple-space", `${this.label("grapple")} to grapple back`);
@@ -1776,15 +1950,33 @@ export class PlanetfallGame {
       this.onInteract?.({ action: "shove", targetPlayerId: shoveTarget.state.id });
       return;
     }
-    const pad = this.nearbyLaunchPad();
     const local = this.players.get(this.localId);
-    if (pad && local && local.state.launchCooldownUntil <= Date.now()) {
-      this.launchAiming = true;
-      this.launchSourcePlanetId = pad.state.id;
-      this.launchTargetPlanetId = this.selectLaunchTarget(pad.state.id)?.state.id ?? null;
-      this.launchTargetOffset = 0;
-      this.launchTargetCycled = false;
-      this.audio.click();
+    const ownPlanet = local ? this.planets.get(local.state.planetId) : undefined;
+    const now = Date.now();
+    if (local && ownPlanet && this.nearOwnCannon()) {
+      if (local.state.overchargeUntil <= now && local.state.scrap >= BALANCE.utilities.overcharge.cost && ownPlanet.state.cannonDisabledUntil <= now) {
+        this.onInteract?.({ action: "utility", planetId: ownPlanet.state.id, utility: "overcharge" });
+      } else this.audio.denied();
+      return;
+    }
+    if (local && ownPlanet && distance(plain(this.localPosition), repairPosition(ownPlanet.state)) <= BALANCE.utilities.shield.range) {
+      if (this.room.phase !== "overtime" && local.state.scrap >= BALANCE.utilities.shield.cost
+        && ownPlanet.state.repairDisabledUntil <= now && ownPlanet.state.shieldUntil <= now && ownPlanet.state.shieldCooldownUntil <= now) {
+        this.onInteract?.({ action: "utility", planetId: ownPlanet.state.id, utility: "shield" });
+      } else this.audio.denied();
+      return;
+    }
+    const pad = this.nearbyLaunchPad();
+    if (pad && local) {
+      const target = this.selectLaunchTarget(pad.state.id);
+      if (local.state.launchCooldownUntil <= now && target) {
+        this.launchAiming = true;
+        this.launchSourcePlanetId = pad.state.id;
+        this.launchTargetPlanetId = target.state.id;
+        this.launchTargetOffset = 0;
+        this.launchTargetCycled = false;
+        this.audio.click();
+      } else this.audio.denied();
     }
   }
 
@@ -1952,6 +2144,9 @@ export class PlanetfallGame {
       this.updatePlanetLabel(visual);
       const cameraDistance = this.camera.position.distanceTo(visual.group.position);
       visual.label.visible = visual.state.alive && this.mode === "match" && cameraDistance > 16;
+      visual.structureLabels.cannon.visible = this.shouldShowStructureLabel(visual, visual.structureLabels.cannon);
+      visual.structureLabels.repair.visible = this.shouldShowStructureLabel(visual, visual.structureLabels.repair);
+      visual.structureLabels.launch.visible = this.shouldShowStructureLabel(visual, visual.structureLabels.launch);
       const propBudget = cameraDistance < 24 ? Math.min(visual.props.children.length, this.quality.nearPropLimit) : cameraDistance < 45 ? this.quality.midPropLimit : this.quality.farPropLimit;
       visual.props.children.forEach((prop, index) => {
         const survivedDamage = visual.state.damageStage < 2 || index % (visual.state.damageStage === 2 ? 4 : 2) !== 0;
@@ -1961,6 +2156,11 @@ export class PlanetfallGame {
       visual.surfacePatches.children.forEach((patch, index) => { patch.visible = visual.state.alive && index < patchBudget; });
       const cannonJammed = visual.state.cannonDisabledUntil > wallNow;
       const repairJammed = visual.state.repairDisabledUntil > wallNow;
+      const structureColor = this.players.get(visual.state.ownerId)?.state.color ?? "#70f5ff";
+      updateWorldLabel(visual.structureLabels.cannon, cannonJammed ? "CANNON · JAMMED" : "CANNON", cannonJammed ? "#ff5d8f" : structureColor);
+      updateWorldLabel(visual.structureLabels.repair, repairJammed ? "REPAIR · JAMMED" : "REPAIR", repairJammed ? "#ff5d8f" : structureColor);
+      const localLaunchCooldown = Math.max(0, (this.players.get(this.localId)?.state.launchCooldownUntil ?? 0) - wallNow);
+      updateWorldLabel(visual.structureLabels.launch, localLaunchCooldown > 0 ? `LAUNCH · ${Math.ceil(localLaunchCooldown / 1000)}s` : "LAUNCH PAD", localLaunchCooldown > 0 ? "#7d89ae" : "#70f5ff");
       if (!cannonJammed) visual.cannon.rotation.y += Math.sin(this.demoTime + visual.group.position.x) * dt * .065;
       visual.repairRings.children.forEach((ring, index) => {
         ring.rotation.z += dt * (index % 2 ? -1.15 : .8) * (repairJammed ? .18 : 1);
@@ -1975,11 +2175,16 @@ export class PlanetfallGame {
       const padRate = this.room?.activeModifier === "launch-party" ? 7.2 : 3.2;
       const idlePulse = 1 + Math.sin(this.demoTime * padRate + visual.state.palette) * (this.room?.activeModifier === "launch-party" ? .07 : .035);
       const padOwner = this.players.get(visual.state.ownerId);
-      const cooldownRemaining = Math.max(0, (padOwner?.state.launchCooldownUntil ?? 0) - wallNow);
+      const cannonOvercharged = Boolean(padOwner && padOwner.state.overchargeUntil > wallNow);
+      visual.cannonAccent.emissiveIntensity = cannonOvercharged ? 1.55 + Math.max(0, Math.sin(this.demoTime * 10)) * .65 : .22;
+      const cooldownRemaining = Math.max(0, (this.players.get(this.localId)?.state.launchCooldownUntil ?? 0) - wallNow);
       const recharge = cooldownRemaining > 0 ? 1 - cooldownRemaining / Math.max(1, this.rules.launchCooldownMs) : 1;
       visual.launchRing.scale.setScalar((.74 + recharge * .26) * idlePulse + visual.launchPulse * .42);
       const launchMaterial = visual.launchRing.material as THREE.MeshStandardMaterial;
       launchMaterial.emissiveIntensity = cooldownRemaining > 0 ? .22 + recharge * 1.1 : 2.1 + (this.room?.activeModifier === "launch-party" ? .8 : 0);
+      const localBoost = (this.players.get(this.localId)?.state.launchBoostUntil ?? 0) > wallNow;
+      launchMaterial.color.setHex(localBoost ? 0xff8bd9 : 0x70f5ff);
+      launchMaterial.emissive.setHex(localBoost ? 0x8a3154 : 0x16708a);
       visual.launchPad.scale.set(1 + visual.launchPulse * .12, 1 - visual.launchPulse * .28, 1 + visual.launchPulse * .12);
       visual.launchArms.children.forEach((arm, index) => {
         arm.rotation.z = (index ? -.2 : .2) + visual.launchPulse * (index ? -.42 : .42);
@@ -2002,9 +2207,10 @@ export class PlanetfallGame {
         this.spawnBurst(jammed.getWorldPosition(new THREE.Vector3()), [0xff5d8f, 0xb67cff, 0x70f5ff], 3, 2.4);
       }
       const critical = visual.state.alive && visual.state.integrity <= 25;
+      const shielded = visual.state.shieldUntil > wallNow;
       const atmosphereUniforms = visual.atmosphere.material.uniforms as { glowColor: { value: THREE.Color }; intensity: { value: number } };
-      atmosphereUniforms.intensity.value = (critical ? .62 + Math.max(0, Math.sin(this.demoTime * 3 + visual.state.palette)) * .3 : .42 + visual.state.damageStage * .07) * this.quality.atmosphereScale;
-      atmosphereUniforms.glowColor.value.set(critical ? 0xff5d67 : PLANET_PALETTES[visual.state.palette % PLANET_PALETTES.length].accent);
+      atmosphereUniforms.intensity.value = (shielded ? .9 + Math.sin(this.demoTime * 8) * .1 : critical ? .62 + Math.max(0, Math.sin(this.demoTime * 3 + visual.state.palette)) * .3 : .42 + visual.state.damageStage * .07) * this.quality.atmosphereScale;
+      atmosphereUniforms.glowColor.value.set(shielded ? 0x70f5ff : critical ? 0xff5d67 : PLANET_PALETTES[visual.state.palette % PLANET_PALETTES.length].accent);
       if (critical) {
         visual.shell.material.emissive.setHex(0x711624);
         visual.shell.material.emissiveIntensity = .22 + Math.max(0, Math.sin(this.demoTime * 4.2 + visual.state.palette)) * .35;
@@ -2025,7 +2231,8 @@ export class PlanetfallGame {
       });
     }
     for (const visual of this.players.values()) {
-      const showMascotDetails = visual.state.id === this.localId || visual.group.position.distanceTo(this.camera.position) < 10;
+      const playerDistance = visual.group.position.distanceTo(this.camera.position);
+      const showMascotDetails = visual.state.id === this.localId || playerDistance < 10;
       for (const detail of visual.lodDetails) detail.visible = showMascotDetails;
       const velocity = visual.state.id === this.localId ? this.localVelocity : vec(visual.state.velocity);
       const speed = velocity.length();
@@ -2033,6 +2240,8 @@ export class PlanetfallGame {
       visual.leftLeg.rotation.x = stride; visual.rightLeg.rotation.x = -stride;
       visual.leftArm.rotation.x = -stride * .72; visual.rightArm.rotation.x = stride * .72;
       visual.leftArm.rotation.z = .17; visual.rightArm.rotation.z = -.17;
+      visual.torso.rotation.z = 0;
+      if (animationNow < visual.emoteUntil && visual.emote) this.applyEmotePose(visual, visual.emote, animationNow);
       if (animationNow < visual.shoveUntil) { visual.rightArm.rotation.x = -1.7; visual.rightArm.rotation.z = -0.7; }
       if (visual.state.id === this.localId && this.grappleHeld) visual.rightArm.rotation.x = -2.15;
       else if (visual.state.id === this.localId && this.activeSabotage) {
@@ -2059,6 +2268,19 @@ export class PlanetfallGame {
         idleScale + visual.hitPulse * .12 + visual.landingPulse * .14
       );
       visual.intruderMarker.position.y = Math.sin(this.demoTime * 4 + visual.group.position.x) * .08;
+      const minimumLabelDistance = visual.state.id === this.localId ? 8 : 2.7;
+      visual.nameLabel.visible = playerDistance > minimumLabelDistance && playerDistance < 54;
+      const labelScale = clamp(playerDistance / 14, .78, 1.35) * (visual.state.id === this.localId ? .86 : 1);
+      visual.nameLabel.scale.set(3.2 * labelScale, .8 * labelScale, 1);
+      (visual.nameLabel.material as THREE.SpriteMaterial).opacity = visual.state.id === this.localId ? .68 : clamp((56 - playerDistance) / 18, .48, .94);
+      if (this.mode === "results" && visual.state.id === this.room?.winnerId) {
+        const pose = visual.state.equippedCosmetics.victory;
+        if (pose === "hero") { visual.leftArm.rotation.x = -2.25; visual.rightArm.rotation.x = -2.25; }
+        if (pose === "double-pump") {
+          const pump = Math.sin(this.demoTime * 9) * .28;
+          visual.leftArm.rotation.x = -2.1 + pump; visual.rightArm.rotation.x = -2.1 - pump;
+        }
+      }
       visual.localMarker.scale.setScalar(1 + Math.sin(this.demoTime * 4.5) * .045);
       if (visual.state.id === this.localId) {
         const burstReady = animationNow - this.lastLocalBurst >= BALANCE.burstCooldownMs;
@@ -2098,6 +2320,11 @@ export class PlanetfallGame {
       this.updateIndicators(animationNow);
     }
     this.shake *= Math.pow(0.02, dt);
+  }
+
+  private shouldShowStructureLabel(planet: PlanetVisual, label: THREE.Sprite): boolean {
+    const labelDistance = this.camera.position.distanceTo(label.getWorldPosition(this.labelPosition));
+    return planet.state.alive && this.mode === "match" && labelDistance > 7 && labelDistance < 46;
   }
 
   private spawnBurst(position: THREE.Vector3, colors: number[], count: number, speed: number): void {
@@ -2290,9 +2517,40 @@ export class PlanetfallGame {
     group.quaternion.slerp(target, 1 - Math.exp(-dt * 15));
   }
 
+  private applyEmotePose(visual: PlayerVisual, emote: EmoteType, now: number): void {
+    const phase = now * .012;
+    if (emote === "wave") {
+      visual.rightArm.rotation.x = -2.25; visual.rightArm.rotation.z = -.45 + Math.sin(phase * 1.8) * .45;
+    } else if (emote === "laugh") {
+      visual.leftArm.rotation.x = -1.3; visual.leftArm.rotation.z = .62;
+      visual.torso.rotation.z = Math.sin(phase * 2.3) * .1;
+    } else if (emote === "point") {
+      visual.rightArm.rotation.x = -1.55; visual.rightArm.rotation.z = -.08;
+    } else if (emote === "panic") {
+      visual.leftArm.rotation.x = -1.7 + Math.sin(phase * 2.4) * .55;
+      visual.rightArm.rotation.x = -1.7 - Math.sin(phase * 2.4) * .55;
+      visual.leftArm.rotation.z = .72; visual.rightArm.rotation.z = -.72;
+    } else if (emote === "taunt") {
+      visual.leftArm.rotation.x = -1.1; visual.rightArm.rotation.x = -1.1;
+      visual.torso.rotation.z = Math.sin(phase) * .13;
+    } else {
+      visual.leftArm.rotation.x = -2.45; visual.rightArm.rotation.x = -2.45;
+      visual.leftArm.rotation.z = .45; visual.rightArm.rotation.z = -.45;
+      visual.torso.position.y += Math.max(0, Math.sin(phase)) * .08;
+    }
+  }
+
   private toggleWeapon(): void {
-    this.weapon = this.weapon === "rocket" ? "asteroid" : "rocket";
+    const index = WEAPON_ORDER.indexOf(this.weapon);
+    this.weapon = WEAPON_ORDER[(index + 1) % WEAPON_ORDER.length];
     this.audio.click(); this.onWeaponChange?.(this.weapon);
+  }
+
+  private availableEmotes(player: PlayerState): EmoteType[] {
+    const unlocked = SHOP_CATALOG
+      .filter((item) => item.category === "emote" && item.emote && player.ownedCosmetics.includes(item.id))
+      .map((item) => item.emote!);
+    return [...new Set<EmoteType>([...FREE_EMOTES, ...unlocked])];
   }
 
   private label(action: InputAction): string {

@@ -1,10 +1,48 @@
 export type Vec3 = { x: number; y: number; z: number };
 export type Quat = { x: number; y: number; z: number; w: number };
-export type WeaponType = "rocket" | "asteroid";
+export type WeaponType = "rocket" | "asteroid" | "cluster" | "gravity-bomb";
 export type StructureType = "cannon" | "repair";
 export type RoomPhase = "lobby" | "countdown" | "playing" | "overtime" | "results";
 export type GameMode = "classic" | "chaos";
 export type ChaosModifier = "low-gravity" | "scrap-rush" | "fragile-worlds" | "launch-party" | "super-shove";
+export type BotDifficulty = "easy" | "normal" | "hard";
+export type EmoteType = "wave" | "laugh" | "point" | "panic" | "taunt" | "celebrate";
+export type ScrapUtility = "shield" | "overcharge" | "launch-boost";
+export type CosmeticCategory = "suit" | "trail" | "emote" | "victory";
+
+export interface EquippedCosmetics {
+  suit: string;
+  trail: string;
+  victory: string;
+}
+
+export interface ShopItem {
+  id: string;
+  name: string;
+  category: CosmeticCategory;
+  price: number;
+  color?: string;
+  emote?: EmoteType;
+}
+
+export const FREE_EMOTES: readonly EmoteType[] = ["wave", "point", "celebrate"];
+export const DEFAULT_COSMETICS: EquippedCosmetics = { suit: "default", trail: "default", victory: "default" };
+export const SHOP_CATALOG: readonly ShopItem[] = [
+  { id: "solar-gold", name: "Solar Gold", category: "suit", price: 100, color: "#ffd84d" },
+  { id: "ice-blue", name: "Ice Blue", category: "suit", price: 100, color: "#70f5ff" },
+  { id: "nebula-purple", name: "Nebula Purple", category: "suit", price: 200, color: "#b67cff" },
+  { id: "ember-orange", name: "Ember Orange", category: "suit", price: 100, color: "#ff934d" },
+  { id: "comet", name: "Comet", category: "trail", price: 100, color: "#70f5ff" },
+  { id: "sparks", name: "Sparks", category: "trail", price: 100, color: "#ffd84d" },
+  { id: "bubbles", name: "Bubbles", category: "trail", price: 200, color: "#ff8bd9" },
+  { id: "stardust", name: "Stardust", category: "trail", price: 300, color: "#b67cff" },
+  { id: "laugh", name: "Laugh", category: "emote", price: 100, emote: "laugh" },
+  { id: "panic", name: "Panic", category: "emote", price: 100, emote: "panic" },
+  { id: "taunt", name: "Taunt", category: "emote", price: 200, emote: "taunt" },
+  { id: "hero", name: "Hero", category: "victory", price: 100 },
+  { id: "spin", name: "Spin", category: "victory", price: 200 },
+  { id: "double-pump", name: "Double Fist Pump", category: "victory", price: 200 }
+];
 
 export interface MatchRules {
   gravity: number;
@@ -44,6 +82,8 @@ export const BALANCE = {
   launch: { range: 3.25, cooldownMs: 5000, speed: 32, assist: 13, assistMs: 4200, arrivalRadius: 8, arrivalSpeed: 19 },
   shove: { range: 2.2, cooldownMs: 1200, force: 9.5, lift: 4.2, facingDot: 0.2, speedCap: 23 },
   sabotage: { range: 3.2, cancelRange: 3.55, channelMs: 1250, durationMs: 7000, immunityMs: 10000 },
+  emoteCooldownMs: 1800,
+  burstBump: { range: 1.35, activeMs: 260, perTargetCooldownMs: 850, force: 3.6, lift: 1.25 },
   maxIntegrity: 100,
   startingScrap: 20,
   scrapValue: 5,
@@ -59,11 +99,26 @@ export const BALANCE = {
   snapshotRate: 15,
   interpolationMs: 100,
   repair: { cost: 10, heal: 15, range: 4 },
+  utilities: {
+    shield: { cost: 15, durationMs: 6000, cooldownMs: 12000, damageReduction: 0.38, range: 4 },
+    overcharge: { cost: 10, durationMs: 8000, speedMultiplier: 1.2, range: 5 },
+    launchBoost: { cost: 5, durationMs: 10000, speedMultiplier: 1.12, assistBonusMs: 800, range: 3.25 }
+  },
   weapons: {
     rocket: { cost: 8, damage: 14, speed: 22, radius: 4.5, knockback: 9, cooldownMs: 900 },
-    asteroid: { cost: 16, damage: 26, speed: 14, radius: 7, knockback: 16, cooldownMs: 1800 }
+    asteroid: { cost: 16, damage: 26, speed: 14, radius: 7, knockback: 16, cooldownMs: 1800 },
+    cluster: { cost: 14, damage: 5, speed: 18, radius: 3.6, knockback: 7, cooldownMs: 1400, burstMs: 900, fragmentCount: 5, fragmentSpeed: 15 },
+    "gravity-bomb": { cost: 12, damage: 7, speed: 17, radius: 7.5, knockback: 14, cooldownMs: 1500 }
   }
 } as const;
+
+export const WEAPON_ORDER: readonly WeaponType[] = ["rocket", "asteroid", "cluster", "gravity-bomb"];
+export const WEAPON_COPY: Record<WeaponType, { name: string; role: string }> = {
+  rocket: { name: "BASIC ROCKET", role: "Fast and precise" },
+  asteroid: { name: "HEAVY ASTEROID", role: "Heavy damage" },
+  cluster: { name: "CLUSTER BOMB", role: "Area pressure" },
+  "gravity-bomb": { name: "GRAVITY BOMB", role: "Pulls nearby pilots" }
+};
 
 export const CHAOS_MODIFIERS: readonly ChaosModifier[] = [
   "low-gravity", "scrap-rush", "fragile-worlds", "launch-party", "super-shove"
@@ -130,6 +185,11 @@ export interface PlayerState {
   launchCooldownUntil: number;
   shoveCooldownUntil: number;
   crowns: number;
+  fallbucks: number;
+  ownedCosmetics: string[];
+  equippedCosmetics: EquippedCosmetics;
+  overchargeUntil: number;
+  launchBoostUntil: number;
 }
 
 export interface PlanetState {
@@ -144,6 +204,8 @@ export interface PlanetState {
   repairDisabledUntil: number;
   cannonSabotageImmuneUntil: number;
   repairSabotageImmuneUntil: number;
+  shieldUntil: number;
+  shieldCooldownUntil: number;
 }
 
 export interface ScrapState { id: string; planetId: string; position: Vec3; }
@@ -155,6 +217,8 @@ export interface ProjectileState {
   position: Vec3;
   velocity: Vec3;
   spawnedAt: number;
+  fragment?: boolean;
+  shotId?: string;
 }
 
 export interface MatchStats {
@@ -171,6 +235,11 @@ export interface MatchStats {
   sabotagesCompleted: number;
   rocketsFired: number;
   asteroidsFired: number;
+  clusterBombsFired: number;
+  gravityBombsFired: number;
+  clusterFragmentsHit: number;
+  gravityBombPlayersDisplaced: number;
+  scrapUtilitiesPurchased: number;
   shotsHit: number;
   planetKills: number;
   survivalTimeMs: number;
@@ -187,6 +256,7 @@ export interface MatchResult {
   awards: MatchAward[];
   crowns: { playerId: string; crowns: number }[];
   winStreak: WinStreak | null;
+  fallbucks: { playerId: string; reward: number; balance: number }[];
 }
 
 export interface WinStreak { playerId: string; count: number; }
@@ -221,6 +291,7 @@ export interface RoomView {
   activeModifier: ChaosModifier | null;
   rules: MatchRules;
   winStreak: WinStreak | null;
+  botDifficulty: BotDifficulty;
 }
 
 export interface PlayerInput {
@@ -238,7 +309,10 @@ export interface PlayerInput {
 export type PlayerInteraction =
   | { action: "launch"; targetPlanetId: string }
   | { action: "shove"; targetPlayerId: string }
-  | { action: "sabotage"; planetId: string; structure: StructureType; active: boolean };
+  | { action: "sabotage"; planetId: string; structure: StructureType; active: boolean }
+  | { action: "utility"; planetId: string; utility: ScrapUtility };
+
+export type ShopResult = { ok: true } | { ok: false; error: string };
 
 export interface ServerSnapshot {
   serverTime: number;
@@ -257,11 +331,15 @@ export interface ClientToServerEvents {
   "room:bot:add": () => void;
   "room:bot:remove": (payload: { botId: string }) => void;
   "room:mode": (payload: { mode: GameMode }) => void;
+  "room:bot:difficulty": (payload: { difficulty: BotDifficulty }) => void;
   "match:start": () => void;
   "player:input": (payload: PlayerInput) => void;
   "player:interact": (payload: PlayerInteraction) => void;
   "cannon:fire": (payload: { weapon: WeaponType; direction: Vec3 }) => void;
   "repair:buy": () => void;
+  "player:emote": (payload: { emote: EmoteType; direction: Vec3 }) => void;
+  "shop:buy": (payload: { itemId: string }, ack: (result: ShopResult) => void) => void;
+  "shop:equip": (payload: { itemId: string }, ack: (result: ShopResult) => void) => void;
   "match:rematch": () => void;
 }
 
@@ -270,15 +348,18 @@ export interface ServerToClientEvents {
   "match:snapshot": (snapshot: ServerSnapshot) => void;
   "match:countdown": (payload: { startsAt: number; mode: GameMode; modifier: ChaosModifier | null; rules: MatchRules }) => void;
   "projectile:spawned": (projectile: ProjectileState) => void;
-  "projectile:exploded": (payload: { id: string; position: Vec3; weapon: WeaponType; planetId?: string }) => void;
+  "projectile:exploded": (payload: { id: string; position: Vec3; weapon: WeaponType; planetId?: string; burst?: boolean }) => void;
   "scrap:collected": (payload: { scrapId: string; playerId: string; planetId: string; ownerId: string; position: Vec3; value: number; stolen: boolean }) => void;
-  "player:launched": (payload: { playerId: string; sourcePlanetId: string; targetPlanetId: string; position: Vec3; velocity: Vec3; cooldownUntil: number }) => void;
+  "player:launched": (payload: { playerId: string; sourcePlanetId: string; targetPlanetId: string; position: Vec3; velocity: Vec3; cooldownUntil: number; boosted: boolean }) => void;
   "player:landed": (payload: { playerId: string; planetId: string; ownerId: string; intruder: boolean }) => void;
   "player:shoved": (payload: { attackerId: string; targetId: string; planetId: string; position: Vec3; velocity: Vec3 }) => void;
+  "player:bumped": (payload: { attackerId: string; targetId: string; planetId: string; position: Vec3; velocity: Vec3 }) => void;
+  "player:emote": (payload: { playerId: string; emote: EmoteType; direction: Vec3; startedAt: number }) => void;
   "structure:sabotaged": (payload: { playerId: string; planetId: string; ownerId: string; structure: StructureType; disabledUntil: number }) => void;
   "structure:sabotage-cancelled": (payload: { playerId: string }) => void;
   "planet:damaged": (payload: { planetId: string; integrity: number; amount: number; hit: Vec3 }) => void;
   "planet:repaired": (payload: { planetId: string; playerId: string; integrity: number; amount: number }) => void;
+  "utility:purchased": (payload: { playerId: string; planetId: string; utility: ScrapUtility; activeUntil: number; cooldownUntil?: number }) => void;
   "planet:destroyed": (payload: { planetId: string; ownerId: string }) => void;
   "match:event": (payload: MatchEvent) => void;
   "match:ended": (payload: { winnerId: string | null; reason: "last-standing" | "timer"; result: MatchResult }) => void;
@@ -431,7 +512,7 @@ export function isShoveTarget(
   target: Vec3,
   planetCenter: Vec3,
   facing: Vec3,
-  range = BALANCE.shove.range
+  range: number = BALANCE.shove.range
 ): boolean {
   if (distance(attacker, target) > range) return false;
   const outward = normalize(sub(attacker, planetCenter));
@@ -443,7 +524,7 @@ export function isShoveTarget(
   return dot(forward, towardTarget) >= BALANCE.shove.facingDot;
 }
 
-export function applyShoveVelocity(velocity: Vec3, away: Vec3, outward: Vec3, force: number, lift = BALANCE.shove.lift): Vec3 {
+export function applyShoveVelocity(velocity: Vec3, away: Vec3, outward: Vec3, force: number, lift: number = BALANCE.shove.lift): Vec3 {
   const tangentMomentum = scale(projectOnPlane(velocity, outward), 0.7);
   const existingLift = Math.max(0, dot(velocity, outward)) * 0.45;
   const tangentAway = projectOnPlane(away, outward);
@@ -497,7 +578,9 @@ export function createMatchStats(playerId: string): MatchStats {
     playerId, damageDealt: 0, damageReceived: 0, scrapCollected: 0, stolenScrap: 0,
     repairsPerformed: 0, integrityRepaired: 0, planetsVisited: 0,
     successfulShoves: 0, timesShoved: 0, sabotagesCompleted: 0,
-    rocketsFired: 0, asteroidsFired: 0, shotsHit: 0, planetKills: 0, survivalTimeMs: 0
+    rocketsFired: 0, asteroidsFired: 0, clusterBombsFired: 0, gravityBombsFired: 0,
+    clusterFragmentsHit: 0, gravityBombPlayersDisplaced: 0, scrapUtilitiesPurchased: 0,
+    shotsHit: 0, planetKills: 0, survivalTimeMs: 0
   };
 }
 
@@ -519,7 +602,7 @@ export function selectMatchAwards(stats: MatchStats[], winnerId: string | null, 
   if (winnerId && winnerIntegrity > 0 && winnerIntegrity <= 25) {
     awards.push({ id: "survivor", title: "SURVIVOR", subtitle: `Won at ${Math.round(winnerIntegrity)}% integrity`, playerId: winnerId });
   }
-  const badAim = maxBy((entry) => entry.rocketsFired + entry.asteroidsFired - entry.shotsHit, 2);
+  const badAim = maxBy((entry) => entry.rocketsFired + entry.asteroidsFired + entry.clusterBombsFired + entry.gravityBombsFired - entry.shotsHit, 2);
   if (badAim) awards.push({ id: "bad-aim", title: "BAD AIM", subtitle: "Most shots missed", playerId: badAim.playerId });
   return awards.slice(0, 4);
 }
@@ -533,6 +616,22 @@ export function isFiniteVec3(value: unknown): value is Vec3 {
   if (!value || typeof value !== "object") return false;
   const v = value as Partial<Vec3>;
   return [v.x, v.y, v.z].every((n) => typeof n === "number" && Number.isFinite(n));
+}
+
+export function isWeaponType(value: unknown): value is WeaponType {
+  return typeof value === "string" && (WEAPON_ORDER as readonly string[]).includes(value);
+}
+
+export function isBotDifficulty(value: unknown): value is BotDifficulty {
+  return value === "easy" || value === "normal" || value === "hard";
+}
+
+export function isEmoteType(value: unknown): value is EmoteType {
+  return value === "wave" || value === "laugh" || value === "point" || value === "panic" || value === "taunt" || value === "celebrate";
+}
+
+export function fallbucksReward(place: number): number {
+  return place === 1 ? 100 : place === 2 ? 50 : place === 3 ? 25 : 10;
 }
 
 export function cannonPosition(planet: Pick<PlanetState, "position">): Vec3 {

@@ -1,5 +1,5 @@
 import "./style.css";
-import { BALANCE, CHAOS_COPY, type ChaosModifier, type GameMode, type JoinResult, type MatchEvent, type MatchResult, type RoomView, type WeaponType } from "@planetfall/shared";
+import { BALANCE, CHAOS_COPY, SHOP_CATALOG, WEAPON_COPY, WEAPON_ORDER, type BotDifficulty, type ChaosModifier, type CosmeticCategory, type GameMode, type JoinResult, type MatchEvent, type MatchResult, type RoomView, type WeaponType } from "@planetfall/shared";
 import { createGameSocket } from "./network";
 import { inputLabel, type InputMethod } from "./input";
 import { SETTINGS_STORAGE_KEY, parseStoredSettings, type UserSettings } from "./settings";
@@ -50,6 +50,14 @@ const musicVolume = byId<HTMLInputElement>("music-volume");
 const sfxVolume = byId<HTMLInputElement>("sfx-volume");
 const cameraShake = byId<HTMLSelectElement>("camera-shake");
 const graphicsQuality = byId<HTMLSelectElement>("graphics-quality");
+const botDifficultyButtons: Record<BotDifficulty, HTMLButtonElement> = {
+  easy: byId("bot-easy"), normal: byId("bot-normal"), hard: byId("bot-hard")
+};
+const shopOverlay = byId<HTMLElement>("shop-overlay");
+const shopGrid = byId("shop-grid");
+const shopCategories = byId("shop-categories");
+const emoteWheel = byId<HTMLElement>("emote-wheel");
+let shopCategory: CosmeticCategory = "suit";
 createButton.disabled = true; soloButton.disabled = true; joinButton.disabled = true; settingsOpenButton.disabled = true;
 nameInput.value = nameInput.value || localStorage.getItem("planetfall:name") || "";
 
@@ -118,6 +126,8 @@ socket.on("player:landed", (payload) => {
   else if (payload.intruder && payload.playerId === playerId) toast("Enemy planet reached");
 });
 socket.on("player:shoved", (payload) => game.shovePlayer(payload));
+socket.on("player:bumped", (payload) => game.bumpPlayer(payload));
+socket.on("player:emote", (payload) => game.playEmote(payload));
 socket.on("structure:sabotaged", (payload) => {
   game.sabotageStructure(payload);
   const label = payload.structure === "cannon" ? "Cannon" : "Repair core";
@@ -127,6 +137,10 @@ socket.on("structure:sabotaged", (payload) => {
 socket.on("structure:sabotage-cancelled", ({ playerId: cancelledId }) => game.cancelSabotage(cancelledId));
 socket.on("planet:damaged", ({ planetId, hit, integrity }) => { game.damagePlanet(planetId, hit, integrity); updateHud(); });
 socket.on("planet:repaired", (payload) => game.repairPlanet(payload));
+socket.on("utility:purchased", (payload) => {
+  game.utilityPurchased(payload);
+  if (payload.playerId === playerId) toast(payload.utility === "shield" ? "SHIELD ACTIVE" : payload.utility === "overcharge" ? "CANNON OVERCHARGED" : "LAUNCH BOOST READY");
+});
 socket.on("planet:destroyed", ({ planetId }) => game.destroyPlanet(planetId));
 socket.on("match:event", (event) => appendMatchEvent(event));
 socket.on("match:ended", ({ winnerId, result }) => {
@@ -137,6 +151,10 @@ socket.on("match:ended", ({ winnerId, result }) => {
       const player = room.players.find((entry) => entry.id === crown.playerId);
       if (player) player.crowns = crown.crowns;
     }
+    for (const reward of result.fallbucks) {
+      const player = room.players.find((entry) => entry.id === reward.playerId);
+      if (player) player.fallbucks = reward.balance;
+    }
   }
   showResults(winnerId, result);
 });
@@ -146,6 +164,12 @@ game.onFire = (weapon, direction) => socket.emit("cannon:fire", { weapon, direct
 game.onRepair = () => socket.emit("repair:buy");
 game.onInteract = (interaction) => socket.emit("player:interact", interaction);
 game.onWeaponChange = updateWeapon;
+game.onEmote = (emote, direction) => socket.emit("player:emote", { emote, direction });
+game.onEmoteMenu = (open, selected) => {
+  emoteWheel.hidden = !open;
+  byId("emote-name").textContent = selected.toUpperCase();
+  emoteWheel.querySelector("kbd")!.textContent = inputLabel("emote", game.getInputMethod());
+};
 game.onPrompt = (text, aiming, label, kind = "idle", progress = 0) => {
   contextCopy.textContent = text;
   contextPrompt.dataset.kind = kind;
@@ -201,13 +225,21 @@ startButton.addEventListener("click", () => { game.audio.click(); socket.emit("m
 addBotButton.addEventListener("click", () => { game.audio.click(); socket.emit("room:bot:add"); });
 modeClassicButton.addEventListener("click", () => setGameMode("classic"));
 modeChaosButton.addEventListener("click", () => setGameMode("chaos"));
+for (const [difficulty, button] of Object.entries(botDifficultyButtons) as [BotDifficulty, HTMLButtonElement][]) {
+  button.addEventListener("click", () => {
+    if (room?.hostId === playerId && room.phase === "lobby") socket.emit("room:bot:difficulty", { difficulty });
+  });
+}
+byId("shop-lobby").addEventListener("click", openShop);
+byId("shop-results").addEventListener("click", openShop);
+byId("shop-close").addEventListener("click", closeShop);
 copyButton.addEventListener("click", async () => {
   if (!room) return;
   try { await navigator.clipboard.writeText(room.code); toast("Room code copied!"); }
   catch { toast(`Room code: ${room.code}`); }
 });
 byId("weapon-button").addEventListener("click", () => {
-  game.weapon = game.weapon === "rocket" ? "asteroid" : "rocket";
+  game.weapon = WEAPON_ORDER[(WEAPON_ORDER.indexOf(game.weapon) + 1) % WEAPON_ORDER.length];
   updateWeapon(game.weapon); game.audio.click();
 });
 byId("rematch-button").addEventListener("click", () => { socket.emit("match:rematch"); game.audio.click(); });
@@ -256,12 +288,12 @@ function applyRoom(nextRoom: RoomView): void {
   if (nextRoom.phase === "lobby") {
     announcedWinner = undefined;
     if (previousPhase !== "lobby") { game.resetVisualEffects(); eventFeed.replaceChildren(); }
-    showScreen("lobby"); game.setMode("lobby"); renderLobby();
+    showScreen("lobby"); game.setMode("lobby"); renderLobby(); if (!shopOverlay.hidden) renderShop();
   } else if (nextRoom.phase === "countdown" || nextRoom.phase === "playing" || nextRoom.phase === "overtime") {
     showScreen("hud"); game.setMode("match"); updateHud();
     if (nextRoom.phase === "countdown" && nextRoom.countdownEndsAt && previousPhase !== "countdown") runCountdown(nextRoom.countdownEndsAt);
     if (nextRoom.phase === "overtime" && previousPhase !== "overtime") toast("OVERTIME! Repairs off. Damage doubled.");
-  } else if (nextRoom.phase === "results") showResults(nextRoom.winnerId, nextRoom.matchResult);
+  } else if (nextRoom.phase === "results") { showResults(nextRoom.winnerId, nextRoom.matchResult); if (!shopOverlay.hidden) renderShop(); }
 }
 
 function renderLobby(): void {
@@ -274,7 +306,8 @@ function renderLobby(): void {
     const status = player.isBot ? "CPU PILOT" : player.id === room!.hostId ? "HOST" : player.connected ? "ONLINE" : "RECONNECTING";
     const remove = player.isBot && room!.hostId === playerId ? `<button class="remove-bot" aria-label="Remove ${escapeHtml(player.name)}">×</button>` : "";
     const crowns = player.crowns > 0 ? `<span class="crown-count" title="Session Crowns">♛ ${player.crowns}</span>` : "";
-    row.innerHTML = `<i class="player-orb" style="background:${player.color};color:${player.color}"></i><div class="player-meta"><b>${escapeHtml(player.name)}${botBadge}</b><br><small>${status}</small></div>${crowns}<span class="ready-badge ${player.ready ? "" : "waiting"}">${player.ready ? "READY" : "WAIT"}</span>${remove}`;
+    const fallbucks = !player.isBot ? `<span class="crown-count" title="Session Fallbucks">FALLBUCKS ${player.fallbucks}</span>` : "";
+    row.innerHTML = `<i class="player-orb" style="background:${player.color};color:${player.color}"></i><div class="player-meta"><b>${escapeHtml(player.name)}${botBadge}</b><br><small>${status}</small></div>${crowns}${fallbucks}<span class="ready-badge ${player.ready ? "" : "waiting"}">${player.ready ? "READY" : "WAIT"}</span>${remove}`;
     row.querySelector<HTMLButtonElement>(".remove-bot")?.addEventListener("click", () => socket.emit("room:bot:remove", { botId: player.id }));
     return row;
   }));
@@ -291,6 +324,11 @@ function renderLobby(): void {
   modeClassicButton.classList.toggle("selected", room.gameMode === "classic");
   modeChaosButton.classList.toggle("selected", room.gameMode === "chaos");
   document.body.dataset.gameMode = room.gameMode;
+  for (const [difficulty, button] of Object.entries(botDifficultyButtons) as [BotDifficulty, HTMLButtonElement][]) {
+    button.classList.toggle("selected", room.botDifficulty === difficulty);
+    button.disabled = !isHost;
+  }
+  byId("lobby-fallbucks").textContent = String(me?.fallbucks ?? 0);
 }
 
 function updateHud(): void {
@@ -323,11 +361,12 @@ function updateHud(): void {
 
 function updateWeapon(weapon: WeaponType): void {
   const config = BALANCE.weapons[weapon];
-  byId("weapon-name").textContent = weapon === "rocket" ? "BASIC ROCKET" : "HEAVY ASTEROID";
+  byId("weapon-name").textContent = WEAPON_COPY[weapon].name;
   byId("weapon-cost").textContent = `${config.cost} scrap`;
-  trajectoryLabel.textContent = `${weapon === "rocket" ? "ROCKET" : "ASTEROID"} · ${config.cost} SCRAP`;
+  trajectoryLabel.textContent = `${WEAPON_COPY[weapon].name} · ${config.cost} SCRAP`;
   const icon = byId("weapon-button").querySelector("i")!;
-  icon.setAttribute("style", weapon === "rocket" ? "" : "width:26px;height:26px;border-radius:40% 55% 45% 50%;background:#b67cff;box-shadow:0 0 12px #b67cff");
+  const color = weapon === "rocket" ? "#ff6b8a" : weapon === "asteroid" ? "#b67cff" : weapon === "cluster" ? "#ffdc4f" : "#70f5ff";
+  icon.setAttribute("style", `width:${weapon === "rocket" ? 25 : 26}px;height:${weapon === "rocket" ? 10 : 26}px;border-radius:${weapon === "cluster" ? "50%" : "40% 55% 45% 50%"};background:${color};box-shadow:0 0 12px ${color}`);
 }
 
 function runCountdown(startsAt: number): void {
@@ -388,10 +427,56 @@ function showResults(winnerId: string | null, result: MatchResult | null = room?
     card.innerHTML = `<strong>${escapeHtml(award.title)}</strong><span style="color:${player?.color ?? "#fff"}">${escapeHtml(player?.name ?? "Pilot")}</span><small>${escapeHtml(award.subtitle)}</small>`;
     return card;
   }));
+  const reward = finalResult?.fallbucks.find((entry) => entry.playerId === playerId);
+  byId("fallbucks-reward").textContent = reward ? `+${reward.reward} FALLBUCKS  ·  ${reward.balance} TOTAL` : "";
   const humans = room.players.filter((p) => p.connected && !p.isBot);
   const votes = room.rematchVotes.filter((id) => humans.some((player) => player.id === id)).length;
   byId("rematch-count").textContent = `${votes} / ${humans.length} READY`;
   byId<HTMLButtonElement>("rematch-button").disabled = room.rematchVotes.includes(playerId);
+}
+
+function openShop(): void {
+  if (!room || (room.phase !== "lobby" && room.phase !== "results")) return;
+  shopOverlay.hidden = false;
+  game.setUiCaptured(true);
+  renderShop();
+  focusFirst(shopOverlay);
+}
+
+function closeShop(): void {
+  shopOverlay.hidden = true;
+  game.setUiCaptured(false);
+  focusFirst(screens[currentScreen]);
+}
+
+function renderShop(): void {
+  const me = room?.players.find((player) => player.id === playerId);
+  if (!me) return;
+  byId("shop-balance").textContent = String(me.fallbucks);
+  const categories: { id: CosmeticCategory; label: string }[] = [
+    { id: "suit", label: "SUITS" }, { id: "trail", label: "TRAILS" }, { id: "emote", label: "EMOTES" }, { id: "victory", label: "VICTORY" }
+  ];
+  shopCategories.replaceChildren(...categories.map(({ id, label }) => {
+    const button = document.createElement("button"); button.textContent = label; button.classList.toggle("selected", shopCategory === id);
+    button.addEventListener("click", () => { shopCategory = id; renderShop(); }); return button;
+  }));
+  shopGrid.replaceChildren(...SHOP_CATALOG.filter((item) => item.category === shopCategory).map((item) => {
+    const card = document.createElement("article"); card.className = "shop-item";
+    card.style.setProperty("--item-color", item.color ?? (item.category === "emote" ? "#ff8bd9" : "#70f5ff"));
+    const owned = me.ownedCosmetics.includes(item.id);
+    const equipped = item.category !== "emote" && me.equippedCosmetics[item.category] === item.id;
+    card.innerHTML = `<i></i><b>${escapeHtml(item.name)}</b><small>${owned ? "OWNED" : `${item.price} FALLBUCKS`}</small><button>${equipped ? "EQUIPPED" : owned ? item.category === "emote" ? "OWNED" : "EQUIP" : "BUY"}</button>`;
+    const button = card.querySelector("button")!;
+    button.disabled = equipped || (owned && item.category === "emote") || (!owned && me.fallbucks < item.price);
+    button.addEventListener("click", () => {
+      const event = owned ? "shop:equip" : "shop:buy";
+      socket.emit(event, { itemId: item.id }, (result) => {
+        if (!result.ok) toast(result.error);
+        else { game.audio.click(); toast(owned ? `${item.name} equipped` : `${item.name} unlocked`); }
+      });
+    });
+    return card;
+  }));
 }
 
 function hydrateSettings(): void {
@@ -465,8 +550,8 @@ function closePause(): void {
 function renderInputUi(method: InputMethod): void {
   document.body.dataset.input = method;
   const controls = method === "gamepad"
-    ? [["LS", "Move"], ["RS", "Camera"], ["A", "Jump"], ["B", "Burst"], ["X", "Interact"], ["LT", "Grapple"], ["RT", "Fire"], ["RB", "Repair"], ["Y", "Weapon"]]
-    : [["WASD", "Move"], ["MOUSE", "Camera"], ["SPACE", "Jump"], ["SHIFT", "Burst"], ["E", "Interact"], ["RMB", "Grapple"], ["LMB", "Fire"], ["R", "Repair"], ["Q", "Weapon"]];
+    ? [["LS", "Move"], ["RS", "Camera"], ["A", "Jump"], ["B", "Burst"], ["X", "Interact"], ["LT", "Grapple"], ["RT", "Fire"], ["RB", "Repair"], ["Y", "Weapon"], ["D↑", "Emote"]]
+    : [["WASD", "Move"], ["MOUSE", "Camera"], ["SPACE", "Jump"], ["SHIFT", "Burst"], ["E", "Interact"], ["RMB", "Grapple"], ["LMB", "Fire"], ["R", "Repair"], ["Q", "Weapon"], ["V", "Emote"]];
   const html = controls.map(([key, label]) => `<span><kbd>${key}</kbd>${label}</span>`).join("");
   controlHelp.innerHTML = html;
   pauseControls.innerHTML = html;
@@ -485,12 +570,13 @@ function showFirstMatchControls(): void {
 
 function navigateUi(action: "up" | "down" | "left" | "right" | "confirm" | "back"): void {
   if (action === "back") {
+    if (!shopOverlay.hidden) return closeShop();
     if (!settingsOverlay.hidden) return closeSettings();
     if (!pauseOverlay.hidden) return closePause();
     if (currentScreen === "lobby") location.reload();
     return;
   }
-  const root = !settingsOverlay.hidden ? settingsOverlay : !pauseOverlay.hidden ? pauseOverlay : screens[currentScreen];
+  const root = !shopOverlay.hidden ? shopOverlay : !settingsOverlay.hidden ? settingsOverlay : !pauseOverlay.hidden ? pauseOverlay : screens[currentScreen];
   const elements = [...root.querySelectorAll<HTMLElement>("button:not([disabled]):not([hidden]), input[type='range'], input[type='checkbox'], select")]
     .filter((element) => element.offsetParent !== null);
   if (!settingsOpenButton.hidden) elements.push(settingsOpenButton);

@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   BALANCE,
   CHAOS_MODIFIERS,
+  FREE_EMOTES,
+  SHOP_CATALOG,
+  WEAPON_ORDER,
   applyBurstVelocity,
   applyGrappleVelocity,
   applyShoveVelocity,
@@ -14,6 +17,7 @@ import {
   distance,
   dot,
   explosionFalloff,
+  fallbucksReward,
   isShoveTarget,
   launchGravityAcceleration,
   launchPadPosition,
@@ -179,5 +183,20 @@ describe("shared gameplay math", () => {
     expect(selectChaosModifier(null, () => 0)).toBe("low-gravity");
     expect(selectChaosModifier("low-gravity", () => 0)).toBe("scrap-rush");
     for (const previous of CHAOS_MODIFIERS) expect(selectChaosModifier(previous, () => .999)).not.toBe(previous);
+  });
+
+  it("defines four distinct weapons and a bounded session-only cosmetic catalog", () => {
+    expect(WEAPON_ORDER).toEqual(["rocket", "asteroid", "cluster", "gravity-bomb"]);
+    expect(BALANCE.weapons.cluster.fragmentCount).toBe(5);
+    expect(BALANCE.weapons.cluster.damage * BALANCE.weapons.cluster.fragmentCount).toBeLessThanOrEqual(BALANCE.weapons.asteroid.damage);
+    expect(BALANCE.weapons["gravity-bomb"].damage).toBeLessThan(BALANCE.weapons.rocket.damage);
+    expect(SHOP_CATALOG).toHaveLength(14);
+    expect(new Set(SHOP_CATALOG.map((item) => item.id)).size).toBe(SHOP_CATALOG.length);
+    expect(SHOP_CATALOG.every((item) => item.price >= 100 && item.price <= 300)).toBe(true);
+    expect(FREE_EMOTES).toEqual(["wave", "point", "celebrate"]);
+  });
+
+  it("awards Fallbucks by placement without introducing another match resource", () => {
+    expect([1, 2, 3, 4, 6].map(fallbucksReward)).toEqual([100, 50, 25, 10, 10]);
   });
 });

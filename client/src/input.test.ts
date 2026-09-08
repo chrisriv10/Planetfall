@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EdgeTracker, curveStick, radialDeadzone, responseCurve } from "./input";
+import { EdgeTracker, curveStick, inputLabel, radialDeadzone, responseCurve } from "./input";
 
 describe("controller input math", () => {
   it("applies a radial deadzone and rescales the remaining range", () => {
@@ -28,5 +28,10 @@ describe("controller input math", () => {
     expect(tracker.update(["jump"]).pressed.has("jump")).toBe(true);
     expect(tracker.update(["jump"]).pressed.has("jump")).toBe(false);
     expect(tracker.update([]).released.has("jump")).toBe(true);
+  });
+
+  it("uses input-aware emote prompts", () => {
+    expect(inputLabel("emote", "keyboard")).toBe("V");
+    expect(inputLabel("emote", "gamepad")).toBe("D↑");
   });
 });
