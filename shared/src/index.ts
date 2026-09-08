@@ -338,22 +338,24 @@ export function stepTangentVelocity(current: Vec3, desired: Vec3, hasInput: bool
 
 export function selectGravityPlanetId(
   position: Vec3,
-  planets: readonly Pick<PlanetState, "id" | "position" | "alive">[],
+  planets: Iterable<Pick<PlanetState, "id" | "position" | "alive">>,
   currentId: string | null,
   preferredId: string | null = null
 ): string | null {
   let closest: Pick<PlanetState, "id" | "position" | "alive"> | undefined;
+  let current: Pick<PlanetState, "id" | "position" | "alive"> | undefined;
+  let preferred: Pick<PlanetState, "id" | "position" | "alive"> | undefined;
   let closestDistance = Infinity;
   for (const planet of planets) {
     if (!planet.alive) continue;
+    if (planet.id === currentId) current = planet;
+    if (planet.id === preferredId) preferred = planet;
     const d = distance(position, planet.position);
     if (d < closestDistance) { closest = planet; closestDistance = d; }
   }
   if (!closest) return null;
-  const current = planets.find((planet) => planet.alive && planet.id === currentId);
   if (!current) return closest.id;
   const currentDistance = distance(position, current.position);
-  const preferred = planets.find((planet) => planet.alive && planet.id === preferredId);
   if (preferred && preferred.id !== current.id && distance(position, preferred.position) < currentDistance * 0.94) return preferred.id;
   if (closest.id !== current.id && closestDistance < currentDistance * BALANCE.gravitySwitchRatio) return closest.id;
   return current.id;

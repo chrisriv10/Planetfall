@@ -322,13 +322,12 @@ export class GameRoom {
     });
   }
 
-  setInput(playerId: string, input: unknown): void {
+  setInput(playerId: string, input: unknown, now = Date.now()): void {
     const player = this.players.get(playerId);
     if (!player?.alive || (this.phase !== "playing" && this.phase !== "overtime")) return;
     if (!input || typeof input !== "object") return;
     const candidate = input as Partial<PlayerInput>;
     if (!Number.isInteger(candidate.sequence) || candidate.sequence! <= player.lastInputSequence || !isFiniteVec3(candidate.cameraForward)) return;
-    const now = Date.now();
     if (!player.isBot && now - player.lastInputAt < 20) return;
     const grapplePoint = isFiniteVec3(candidate.grapplePoint) ? { ...candidate.grapplePoint } : undefined;
     const jumpSignal = candidate.jump === true;
@@ -643,11 +642,16 @@ export class GameRoom {
     if (!player.alive) return;
     const activeLaunch = now < player.launchAssistUntil
       && Boolean(player.launchSourcePlanetId && player.launchTargetPlanetId);
+    if (!activeLaunch && player.launchAssistUntil > 0) {
+      player.launchSourcePlanetId = null;
+      player.launchTargetPlanetId = null;
+      player.launchAssistUntil = 0;
+    }
     const surfacePlanet = player.surfacePlanetId ? this.planets.get(player.surfacePlanetId) : undefined;
     const preferredGravityId = activeLaunch ? player.launchTargetPlanetId : null;
     player.gravityPlanetId = surfacePlanet?.alive
       ? surfacePlanet.id
-      : selectGravityPlanetId(player.position, [...this.planets.values()], player.gravityPlanetId, preferredGravityId);
+      : selectGravityPlanetId(player.position, this.planets.values(), player.gravityPlanetId, preferredGravityId);
     const planet = player.gravityPlanetId ? this.planets.get(player.gravityPlanetId) : this.nearestAlivePlanet(player.position);
     if (!planet) return;
     const outward = normalize(sub(player.position, planet.position));
@@ -682,6 +686,8 @@ export class GameRoom {
         radialSpeed = this.rules.jumpSpeed;
         player.jumpQueuedUntil = 0;
         player.grounded = false;
+      } else if (player.jumpQueuedUntil > 0 && now > player.jumpQueuedUntil) {
+        player.jumpQueuedUntil = 0;
       } else if (player.grounded && radialSpeed < 0.5) {
         radialSpeed = Math.min(radialSpeed, -BALANCE.ground.adhesionSpeed);
       }
@@ -694,9 +700,12 @@ export class GameRoom {
           : gravityAcceleration(player.position, planet, this.rules.gravity);
         player.velocity = add(player.velocity, scale(gravity, dt));
       }
-      if (input.burst && now - player.lastBurstAt > BALANCE.burstCooldownMs) {
-        player.lastBurstAt = now;
-        player.velocity = applyBurstVelocity(player.velocity, hasMove ? desired : forward, outward, player.grounded);
+      if (input.burst) {
+        if (now - player.lastBurstAt > BALANCE.burstCooldownMs) {
+          player.lastBurstAt = now;
+          player.velocity = applyBurstVelocity(player.velocity, hasMove ? desired : forward, outward, player.grounded);
+        }
+        input.burst = false;
       }
       if (input.grapple && input.grapplePoint && this.validGrapple(player.position, input.grapplePoint)) {
         if (!player.grappleAnchor || distance(player.grappleAnchor, input.grapplePoint) > 0.35) {
@@ -771,7 +780,7 @@ export class GameRoom {
   }
 
   private updateProjectiles(dt: number, now: number): void {
-    for (const projectile of [...this.projectiles.values()]) {
+    for (const projectile of this.projectiles.values()) {
       const start = projectile.position;
       const end = add(start, scale(projectile.velocity, dt));
       let hit: PlanetState | undefined;
@@ -893,7 +902,7 @@ export class GameRoom {
   }
 
   private collectScrap(): void {
-    for (const scrap of [...this.scraps.values()]) {
+    for (const scrap of this.scraps.values()) {
       let collector: PlayerRecord | undefined;
       for (const player of this.players.values()) {
         if (player.alive && distance(player.position, scrap.position) < BALANCE.scrapPickupRadius) {
@@ -922,7 +931,8 @@ export class GameRoom {
   }
 
   private spawnScrap(planet: PlanetState): void {
-    const count = [...this.scraps.values()].filter((s) => s.planetId === planet.id).length;
+    let count = 0;
+    for (const scrap of this.scraps.values()) if (scrap.planetId === planet.id) count += 1;
     if (count >= this.rules.scrapMaxPerPlanet) return;
     let normal = { x: 0, y: 0, z: 1 };
     for (let attempt = 0; attempt < 8; attempt++) {
@@ -970,6 +980,9 @@ export class GameRoom {
   }
 
   private updateBots(now: number): void {
+    const planets = [...this.planets.values()];
+    const players = [...this.players.values()];
+    const scraps = [...this.scraps.values()];
     for (const [botId, brain] of this.botBrains) {
       const player = this.players.get(botId);
       const ownPlanet = player ? this.planets.get(player.planetId) : undefined;
@@ -977,14 +990,14 @@ export class GameRoom {
       const decision = brain.update({
         now, phase: this.phase, player, ownPlanet,
         surfacePlanet: player.surfacePlanetId ? this.planets.get(player.surfacePlanetId) : undefined,
-        planets: [...this.planets.values()], players: [...this.players.values()], scraps: [...this.scraps.values()],
+        planets, players, scraps,
         rules: this.rules, activeModifier: this.activeModifier
       });
-      this.setInput(botId, decision.input);
-      if (decision.fire) this.fire(botId, decision.fire.weapon, decision.fire.direction);
-      if (decision.repair) this.repair(botId);
-      if (decision.launchTargetId) this.launch(botId, decision.launchTargetId);
-      if (decision.shoveTargetId) this.shove(botId, decision.shoveTargetId);
+      this.setInput(botId, decision.input, now);
+      if (decision.fire) this.fire(botId, decision.fire.weapon, decision.fire.direction, now);
+      if (decision.repair) this.repair(botId, now);
+      if (decision.launchTargetId) this.launch(botId, decision.launchTargetId, now);
+      if (decision.shoveTargetId) this.shove(botId, decision.shoveTargetId, now);
     }
   }
 
@@ -997,6 +1010,7 @@ export class GameRoom {
     if (this.phase === "results") return;
     for (const player of this.players.values()) this.recordSurvival(player.id, now);
     this.phase = "results"; this.winnerId = winnerId; this.matchEndsAt = null; this.overtimeEndsAt = null;
+    this.projectiles.clear();
     if (winnerId) {
       const winner = this.players.get(winnerId);
       if (winner) winner.crowns += 1;

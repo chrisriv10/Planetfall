@@ -210,9 +210,10 @@ export class BotBrain {
     if (this.mode === "Recover") {
       const raidTarget = this.raidTargetPlanetId ? context.planets.find((planet) => planet.id === this.raidTargetPlanetId && planet.alive) : undefined;
       if (raidTarget) return launchLandingPosition(context.surfacePlanet ?? context.ownPlanet, raidTarget);
-      const nearest = this.nearestPlanet(context.player.position, context.planets) ?? context.ownPlanet;
-      const outward = normalize(sub(context.player.position, nearest.position));
-      return add(nearest.position, scale(outward, BALANCE.planetRadius));
+      const gravityPlanet = context.planets.find((planet) => planet.id === context.player.gravityPlanetId && planet.alive);
+      const recoveryPlanet = gravityPlanet ?? this.nearestPlanet(context.player.position, context.planets) ?? context.ownPlanet;
+      const outward = normalize(sub(context.player.position, recoveryPlanet.position));
+      return add(recoveryPlanet.position, scale(outward, BALANCE.planetRadius));
     }
     if (this.mode === "MoveToCannon" || this.mode === "Aim") return cannonPosition(context.ownPlanet);
     if (this.mode === "MoveToRepair" || this.mode === "Repair") return repairPosition(context.ownPlanet);
@@ -222,7 +223,8 @@ export class BotBrain {
   }
 
   private makeInput(context: BotContext, target: Vec3 | null): PlayerInput {
-    const navigationPlanet = context.surfacePlanet ?? this.nearestPlanet(context.player.position, context.planets) ?? context.ownPlanet;
+    const gravityPlanet = context.planets.find((planet) => planet.id === context.player.gravityPlanetId && planet.alive);
+    const navigationPlanet = context.surfacePlanet ?? gravityPlanet ?? this.nearestPlanet(context.player.position, context.planets) ?? context.ownPlanet;
     const outward = normalize(sub(context.player.position, navigationPlanet.position));
     let direction: Vec3 = { x: 0, y: 0, z: 1 };
     if (target) {

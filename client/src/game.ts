@@ -47,6 +47,7 @@ import {
 } from "@planetfall/shared";
 import { GameAudio } from "./audio";
 import { GameInput, inputLabel, type InputAction, type InputFrame, type InputMethod } from "./input";
+import { ReconciliationTracker, interpolationAlpha, shouldAcceptSnapshot, type ReconciliationMetrics } from "./reconciliation";
 import { QUALITY_PRESETS, defaultSettings, shakeMultiplier, type QualityPreset, type UserSettings } from "./settings";
 
 type PlanetVisual = {
@@ -234,6 +235,8 @@ export class PlanetfallGame {
   private measuredFps = 60;
   private performanceFrames = 0;
   private performanceSampleAt = performance.now();
+  private lastSnapshotServerTime = Number.NEGATIVE_INFINITY;
+  private reconciliationTracker = new ReconciliationTracker();
   private spectatorIndex = 0;
   private wasGrounded = false;
   private mode: "home" | "lobby" | "match" | "results" = "home";
@@ -307,6 +310,8 @@ export class PlanetfallGame {
     this.lastLocalGroundedAt = 0;
     this.jumpQueuedUntil = 0;
     this.grappleRestLength = 0;
+    this.lastSnapshotServerTime = Number.NEGATIVE_INFINITY;
+    this.reconciliationTracker.reset();
   }
 
   setSettings(settings: UserSettings): void {
@@ -358,7 +363,7 @@ export class PlanetfallGame {
     cannons: { planetId: string; position: Vec3 }[];
     repairs: { planetId: string; position: Vec3 }[];
     performance: { fps: number; drawCalls: number; triangles: number; particles: number; projectiles: number };
-    mechanics: { speed: number; grounded: boolean; gravityPlanetId: string | null; altitude: number | null; correction: number; grappleTension: number; launchAssist: boolean };
+    mechanics: { speed: number; grounded: boolean; gravityPlanetId: string | null; altitude: number | null; correction: number; grappleTension: number; launchAssist: boolean; reconciliation: ReconciliationMetrics };
   } {
     const gravityPlanet = this.localGravityPlanetId ? this.planets.get(this.localGravityPlanetId) : undefined;
     return {
@@ -383,13 +388,15 @@ export class PlanetfallGame {
         speed: this.localVelocity.length(), grounded: this.localGrounded, gravityPlanetId: this.localGravityPlanetId,
         altitude: gravityPlanet ? this.localPosition.distanceTo(gravityPlanet.group.position) - BALANCE.planetRadius : null,
         correction: this.correction.length(), grappleTension: this.grappleTension,
-        launchAssist: performance.now() < this.localLaunchAssistUntil
+        launchAssist: performance.now() < this.localLaunchAssistUntil,
+        reconciliation: this.reconciliationTracker.summary(performance.now())
       }
     };
   }
 
-  applySnapshot(snapshot: ServerSnapshot): void {
-    if (!this.room) return;
+  applySnapshot(snapshot: ServerSnapshot): boolean {
+    if (!this.room || !shouldAcceptSnapshot(this.lastSnapshotServerTime, snapshot.serverTime)) return false;
+    this.lastSnapshotServerTime = snapshot.serverTime;
     this.room.phase = snapshot.phase;
     this.room.matchEndsAt = snapshot.matchEndsAt;
     this.room.players = snapshot.players;
@@ -398,6 +405,7 @@ export class PlanetfallGame {
     this.syncPlanets(snapshot.planets);
     this.syncPlayers(snapshot.players);
     this.syncScraps(snapshot.scraps);
+    return true;
   }
 
   spawnProjectile(projectile: ProjectileState): void {
@@ -1187,6 +1195,7 @@ export class PlanetfallGame {
         } else {
           const error = visual.target.clone().sub(this.localPosition);
           const strength = reconciliationStrength(error.length());
+          if (import.meta.env.DEV && strength > 0) this.reconciliationTracker.record(error.length(), strength >= 1, performance.now());
           if (strength >= 1) {
             this.localPosition.copy(visual.target);
             this.correction.set(0, 0, 0);
@@ -1451,7 +1460,7 @@ export class PlanetfallGame {
     for (const [id, player] of this.players) {
       if (id === this.localId) continue;
       const airborne = !player.state.surfacePlanetId;
-      player.group.position.lerp(player.target, 1 - Math.exp(-dt * (airborne ? 8 : 13)));
+      player.group.position.lerp(player.target, interpolationAlpha(dt, airborne ? 8 : 13));
       const gravityPlanet = (player.state.gravityPlanetId ? this.planets.get(player.state.gravityPlanetId) : undefined)
         ?? this.nearestPlanet(player.group.position, true);
       if (gravityPlanet) {
@@ -1474,7 +1483,12 @@ export class PlanetfallGame {
   private predictLocal(dt: number, now: number): void {
     const activeLaunch = now < this.localLaunchAssistUntil
       && Boolean(this.localLaunchSourcePlanetId && this.localLaunchTargetPlanetId);
-    const planetStates = [...this.planets.values()].map((visual) => visual.state);
+    if (!activeLaunch && this.localLaunchAssistUntil > 0) {
+      this.localLaunchSourcePlanetId = null;
+      this.localLaunchTargetPlanetId = null;
+      this.localLaunchAssistUntil = 0;
+    }
+    const planetStates = this.room?.planets ?? [];
     const surfacePlanet = this.localSurfacePlanetId ? this.planets.get(this.localSurfacePlanetId) : undefined;
     this.localGravityPlanetId = surfacePlanet?.state.alive
       ? surfacePlanet.state.id
@@ -1520,6 +1534,8 @@ export class PlanetfallGame {
       this.localGrounded = false;
       this.audio.jump();
       this.spawnThruster(this.localPosition, outward, 8);
+    } else if (this.jumpQueuedUntil > 0 && now > this.jumpQueuedUntil) {
+      this.jumpQueuedUntil = 0;
     } else if (this.localGrounded && radialSpeed < .5) {
       radialSpeed = Math.min(radialSpeed, -BALANCE.ground.adhesionSpeed);
     }

@@ -433,4 +433,119 @@ describe("planet raids", () => {
     expect(room.activeModifier).not.toBeNull();
     expect(room.activeModifier).not.toBe(first);
   });
+
+  it("keeps players outside the collision shell and does not let adhesion cancel a jump", async () => {
+    const { room, host, hostPlanet } = await duel();
+    const now = Date.now();
+    place(host, { ...hostPlanet.position }, hostPlanet.id);
+    host.gravityPlanetId = hostPlanet.id;
+    host.grounded = true;
+    host.velocity = { x: 0, y: -20, z: 0 };
+    room.update(1 / BALANCE.serverRate, now);
+    expect(distance(host.position, hostPlanet.position)).toBeGreaterThanOrEqual(BALANCE.planetRadius + .95 - 1e-8);
+
+    place(host, add(hostPlanet.position, { x: 0, y: BALANCE.planetRadius + .95, z: 0 }), hostPlanet.id);
+    host.gravityPlanetId = hostPlanet.id;
+    host.grounded = true;
+    host.lastInputAt = 0;
+    room.setInput(host.id, { sequence: 1, dt: .05, moveX: 0, moveY: 0, cameraForward: { x: 0, y: 0, z: 1 }, jump: true, burst: false, grapple: false });
+    room.update(1 / BALANCE.serverRate, now + 40);
+    expect(host.velocity.y).toBeGreaterThan(5);
+    expect(host.grounded).toBe(false);
+    expect(host.jumpQueuedUntil).toBe(0);
+  });
+
+  it("consumes jump and burst pulses once and clears expired bookkeeping", async () => {
+    const { room, host, hostPlanet } = await duel();
+    const start = Date.now() + 3000;
+    place(host, add(hostPlanet.position, { x: 0, y: BALANCE.planetRadius + 3, z: 0 }), null);
+    host.gravityPlanetId = hostPlanet.id;
+    host.grounded = false;
+    host.lastGroundedAt = 0;
+    host.lastInputAt = 0;
+    room.setInput(host.id, { sequence: 1, dt: .05, moveX: 0, moveY: 0, cameraForward: { x: 0, y: 0, z: 1 }, jump: true, burst: false, grapple: false });
+    expect(host.jumpQueuedUntil).toBeGreaterThan(0);
+    room.update(1 / BALANCE.serverRate, start + BALANCE.ground.jumpBufferMs + 1);
+    expect(host.jumpQueuedUntil).toBe(0);
+
+    place(host, add(hostPlanet.position, { x: 0, y: BALANCE.planetRadius + .95, z: 0 }), hostPlanet.id);
+    host.gravityPlanetId = hostPlanet.id;
+    host.grounded = true;
+    host.lastInputAt = 0;
+    room.setInput(host.id, { sequence: 2, dt: .05, moveX: 0, moveY: 1, cameraForward: { x: 0, y: 0, z: 1 }, jump: false, burst: true, grapple: false });
+    const burstAt = start + BALANCE.ground.jumpBufferMs + 50;
+    room.update(1 / BALANCE.serverRate, burstAt);
+    expect(host.lastBurstAt).toBe(burstAt);
+    for (let step = 1; step <= Math.ceil((BALANCE.burstCooldownMs + 500) / (1000 / BALANCE.serverRate)); step++) {
+      room.update(1 / BALANCE.serverRate, burstAt + step * (1000 / BALANCE.serverRate));
+    }
+    expect(host.lastBurstAt).toBe(burstAt);
+  });
+
+  it("ignores delayed input sequences without rolling authoritative intent backward", async () => {
+    const { room, host } = await duel();
+    const now = Date.now();
+    room.setInput(host.id, { sequence: 20, dt: .05, moveX: .5, moveY: 1, cameraForward: { x: 0, y: 0, z: 1 }, jump: false, burst: false, grapple: false }, now);
+    const accepted = host.input;
+    room.setInput(host.id, { sequence: 19, dt: .05, moveX: -1, moveY: -1, cameraForward: { x: 0, y: 0, z: -1 }, jump: true, burst: true, grapple: false }, now + 100);
+    expect(host.lastInputSequence).toBe(20);
+    expect(host.input).toBe(accepted);
+  });
+
+  it("rejects invalid grapple anchors and releases anchors on destroyed planets", async () => {
+    const { room, host, hostPlanet } = await duel();
+    const now = Date.now();
+    place(host, add(hostPlanet.position, { x: 0, y: BALANCE.planetRadius + .95, z: 0 }), hostPlanet.id);
+    host.gravityPlanetId = hostPlanet.id;
+    host.lastInputAt = 0;
+    room.setInput(host.id, { sequence: 1, dt: .05, moveX: 0, moveY: 0, cameraForward: { x: 0, y: 0, z: 1 }, jump: false, burst: false, grapple: true, grapplePoint: hostPlanet.position });
+    room.update(1 / BALANCE.serverRate, now);
+    expect(host.grappleAnchor).toBeNull();
+
+    const validAnchor = add(hostPlanet.position, { x: 0, y: BALANCE.planetRadius, z: 0 });
+    host.lastInputAt = 0;
+    room.setInput(host.id, { sequence: 2, dt: .05, moveX: 0, moveY: 0, cameraForward: { x: 0, y: 0, z: 1 }, jump: false, burst: false, grapple: true, grapplePoint: validAnchor });
+    room.update(1 / BALANCE.serverRate, now + 40);
+    expect(host.grappleAnchor).toEqual(validAnchor);
+    hostPlanet.alive = false;
+    room.update(1 / BALANCE.serverRate, now + 80);
+    expect(host.grappleAnchor).toBeNull();
+    expect(host.grappleRestLength).toBe(0);
+  });
+
+  it("expires launch assistance and restores ordinary gravity ownership", async () => {
+    const { room, host, hostPlanet, guestPlanet } = await duel();
+    const now = Date.now();
+    place(host, padStandingPosition(hostPlanet), hostPlanet.id);
+    expect(room.launch(host.id, guestPlanet.id, now)).toBe(true);
+    host.launchAssistUntil = now + 10;
+    room.update(1 / BALANCE.serverRate, now + 11);
+    expect(host.launchAssistUntil).toBe(0);
+    expect(host.launchSourcePlanetId).toBeNull();
+    expect(host.launchTargetPlanetId).toBeNull();
+    expect(host.gravityPlanetId).not.toBeNull();
+  });
+
+  it("damages a planet once per projectile and expires old projectiles", async () => {
+    const { room, host, guestPlanet } = await duel();
+    const now = Date.now();
+    const before = guestPlanet.integrity;
+    room.projectiles.set("crossing", {
+      id: "crossing", ownerId: host.id, weapon: "rocket",
+      position: add(guestPlanet.position, { x: -20, y: 0, z: 0 }),
+      velocity: { x: 200, y: 0, z: 0 }, spawnedAt: now - 1000
+    });
+    room.update(.2, now);
+    expect(guestPlanet.integrity).toBe(before - BALANCE.weapons.rocket.damage);
+    expect(room.projectiles.has("crossing")).toBe(false);
+    room.update(.2, now + 200);
+    expect(guestPlanet.integrity).toBe(before - BALANCE.weapons.rocket.damage);
+
+    room.projectiles.set("expired", {
+      id: "expired", ownerId: host.id, weapon: "rocket",
+      position: { x: 0, y: 80, z: 0 }, velocity: { x: 0, y: 0, z: 0 }, spawnedAt: now - 12_001
+    });
+    room.update(1 / BALANCE.serverRate, now + 250);
+    expect(room.projectiles.has("expired")).toBe(false);
+  });
 });

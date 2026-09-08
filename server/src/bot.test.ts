@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BALANCE, cannonPosition, createMatchRules, launchPadPosition, repairPosition, type PlanetState, type PlayerState } from "@planetfall/shared";
+import { BALANCE, cannonPosition, createMatchRules, distance, launchPadPosition, repairPosition, type PlanetState, type PlayerState } from "@planetfall/shared";
 import { BotBrain, createBotProfile } from "./bot.js";
 
 const ownPlanet: PlanetState = { id: "planet-bot", ownerId: "bot", position: { x: 30, y: 0, z: 0 }, integrity: 100, alive: true, palette: 1, damageStage: 0, cannonDisabledUntil: 0, repairDisabledUntil: 0 };
@@ -72,5 +72,21 @@ describe("BotBrain", () => {
 
     const returning = brain.update({ now: now + 20_000, phase: "playing", player: invaded, ownPlanet, surfacePlanet: enemyPlanet, planets: [ownPlanet, enemyPlanet], players: [invaded], scraps: [], rules: createMatchRules(), activeModifier: null });
     expect(returning.mode).toBe("MoveToLaunch");
+  });
+
+  it("recovers toward the authoritative gravity owner instead of fighting it", () => {
+    const brain = new BotBrain("recovery-seed");
+    const stranded = player({ x: 0, y: 0, z: 0 });
+    stranded.surfacePlanetId = null;
+    stranded.gravityPlanetId = ownPlanet.id;
+    const decision = brain.update({
+      now: 10_000, phase: "playing", player: stranded, ownPlanet,
+      planets: [enemyPlanet, ownPlanet], players: [stranded], scraps: [],
+      rules: createMatchRules(), activeModifier: null
+    });
+    expect(decision.mode).toBe("Recover");
+    expect(decision.input.grapple).toBe(true);
+    expect(decision.input.grapplePoint).toBeDefined();
+    expect(Math.abs(distance(decision.input.grapplePoint!, ownPlanet.position) - BALANCE.planetRadius)).toBeLessThan(1e-8);
   });
 });

@@ -90,8 +90,8 @@ socket.io.on("reconnect_attempt", () => setConnection("", "Server waking up...")
 socket.on("server:error", ({ message }) => toast(message));
 socket.on("room:state", (nextRoom) => applyRoom(nextRoom));
 socket.on("match:snapshot", (snapshot) => {
-  game.applySnapshot(snapshot);
-  if (room) {
+  const accepted = game.applySnapshot(snapshot);
+  if (accepted && room) {
     room.players = snapshot.players; room.planets = snapshot.planets; room.scraps = snapshot.scraps;
     room.phase = snapshot.phase; room.matchEndsAt = snapshot.matchEndsAt;
     updateHud();
