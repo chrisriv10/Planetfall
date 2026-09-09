@@ -4,6 +4,7 @@ export class GameAudio {
   private musicScene: "menu" | "game" = "menu";
   private musicUnlocked = false;
   private musicFade: ReturnType<typeof setInterval> | null = null;
+  private musicTransition = 0;
   private musicVolume = .8;
   private sfxVolume = .9;
   private urgency = 0;
@@ -23,20 +24,46 @@ export class GameAudio {
     if (this.context.state === "suspended") void this.context.resume();
     this.musicUnlocked = true;
     const active = this.activeMusic;
+    const transition = ++this.musicTransition;
+    this.cancelMusicFade();
+    this.stopInactiveMusic(active);
     if (active.paused) {
-      void active.play().then(() => this.fadeMusicIn()).catch(() => undefined);
+      active.volume = 0;
+      void active.play().then(() => {
+        if (transition !== this.musicTransition || active !== this.activeMusic) {
+          this.stopMusic(active);
+          return;
+        }
+        this.fadeMusicIn(active, transition);
+      }).catch(() => undefined);
+    } else {
+      this.fadeMusicIn(active, transition);
     }
   }
 
   setMusicScene(scene: "menu" | "game"): void {
-    if (scene === this.musicScene) return;
-    const outgoing = this.activeMusic;
+    if (scene === this.musicScene) {
+      this.stopInactiveMusic(this.activeMusic);
+      return;
+    }
     this.musicScene = scene;
     const incoming = this.activeMusic;
+    const transition = ++this.musicTransition;
+    this.cancelMusicFade();
+    this.stopInactiveMusic(incoming);
     incoming.playbackRate = scene === "game" ? 1 + this.urgency * .035 : 1;
-    if (!this.musicUnlocked) { outgoing.pause(); outgoing.volume = 0; return; }
+    if (!this.musicUnlocked) {
+      this.stopMusic(incoming);
+      return;
+    }
     incoming.volume = 0;
-    void incoming.play().then(() => this.crossfadeMusic(outgoing, incoming)).catch(() => undefined);
+    void incoming.play().then(() => {
+      if (transition !== this.musicTransition || incoming !== this.activeMusic) {
+        this.stopMusic(incoming);
+        return;
+      }
+      this.fadeMusicIn(incoming, transition);
+    }).catch(() => undefined);
   }
 
   setUrgency(level: number): void {
@@ -47,7 +74,9 @@ export class GameAudio {
   setVolumes(music: number, sfx: number): void {
     this.musicVolume = Math.min(1, Math.max(0, music));
     this.sfxVolume = Math.min(1, Math.max(0, sfx));
-    if (!this.activeMusic.paused) this.activeMusic.volume = this.musicTarget;
+    const active = this.activeMusic;
+    this.stopInactiveMusic(active);
+    if (!active.paused) active.volume = this.musicTarget;
   }
 
   click(): void { this.tone(360, 0.04, "square", 0.025, 520); }
@@ -94,39 +123,54 @@ export class GameAudio {
     notes.forEach((note, index) => setTimeout(() => this.tone(note, .18, "triangle", .035, note * 1.04), index * 110));
   }
 
-  private fadeMusicIn(): void {
-    if (this.musicFade) clearInterval(this.musicFade);
-    const active = this.activeMusic;
-    this.musicFade = setInterval(() => {
+  private fadeMusicIn(active: HTMLAudioElement, transition: number): void {
+    this.cancelMusicFade();
+    const timer = setInterval(() => {
+      if (transition !== this.musicTransition || active !== this.activeMusic) {
+        clearInterval(timer);
+        if (this.musicFade === timer) this.musicFade = null;
+        this.stopMusic(active);
+        return;
+      }
       active.volume = Math.min(this.musicTarget, active.volume + .01);
-      if (active.volume >= this.musicTarget && this.musicFade) {
-        clearInterval(this.musicFade);
-        this.musicFade = null;
+      if (active.volume >= this.musicTarget) {
+        clearInterval(timer);
+        if (this.musicFade === timer) this.musicFade = null;
       }
     }, 90);
+    this.musicFade = timer;
   }
   highFive(): void { this.noise(.07, .035, 950); this.tone(520, .1, "square", .035, 840); setTimeout(() => this.tone(960, .1, "triangle", .026, 1220), 60); }
   levelUp(): void { [440, 554, 659, 880].forEach((note, index) => setTimeout(() => this.tone(note, .16, "triangle", .035, note * 1.1), index * 70)); }
   callout(heavy = false): void { this.duckMusic(300, .25); this.tone(heavy ? 110 : 210, .13, "square", heavy ? .044 : .03, heavy ? 72 : 330); }
 
-  private crossfadeMusic(outgoing: HTMLAudioElement, incoming: HTMLAudioElement): void {
-    if (this.musicFade) clearInterval(this.musicFade);
-    this.musicFade = setInterval(() => {
-      outgoing.volume = Math.max(0, outgoing.volume - .012);
-      incoming.volume = Math.min(this.musicTarget, incoming.volume + .012);
-      if (outgoing.volume <= 0) outgoing.pause();
-      if (outgoing.paused && incoming.volume >= this.musicTarget && this.musicFade) {
-        clearInterval(this.musicFade);
-        this.musicFade = null;
-      }
-    }, 70);
+  private cancelMusicFade(): void {
+    if (!this.musicFade) return;
+    clearInterval(this.musicFade);
+    this.musicFade = null;
+  }
+
+  private stopMusic(track: HTMLAudioElement): void {
+    track.pause();
+    track.volume = 0;
+  }
+
+  private stopInactiveMusic(active: HTMLAudioElement): void {
+    for (const track of Object.values(this.music)) {
+      if (track !== active) this.stopMusic(track);
+    }
   }
 
   private duckMusic(duration: number, amount: number): void {
     const active = this.activeMusic;
     if (active.paused) return;
+    const transition = this.musicTransition;
     active.volume = Math.min(active.volume, this.musicTarget * (1 - amount));
-    setTimeout(() => { if (this.activeMusic === active) this.fadeMusicIn(); }, duration);
+    setTimeout(() => {
+      if (this.activeMusic === active && transition === this.musicTransition) {
+        this.fadeMusicIn(active, transition);
+      }
+    }, duration);
   }
 
   private makeMusic(source: string): HTMLAudioElement {
