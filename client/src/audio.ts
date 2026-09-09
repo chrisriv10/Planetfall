@@ -6,6 +6,7 @@ export class GameAudio {
   private musicFade: ReturnType<typeof setInterval> | null = null;
   private musicVolume = .8;
   private sfxVolume = .9;
+  private urgency = 0;
 
   private get activeMusic(): HTMLAudioElement { return this.music[this.musicScene]; }
   private get musicTarget(): number { return (this.musicScene === "menu" ? .14 : .18) * this.musicVolume; }
@@ -32,9 +33,15 @@ export class GameAudio {
     const outgoing = this.activeMusic;
     this.musicScene = scene;
     const incoming = this.activeMusic;
+    incoming.playbackRate = scene === "game" ? 1 + this.urgency * .035 : 1;
     if (!this.musicUnlocked) { outgoing.pause(); outgoing.volume = 0; return; }
     incoming.volume = 0;
     void incoming.play().then(() => this.crossfadeMusic(outgoing, incoming)).catch(() => undefined);
+  }
+
+  setUrgency(level: number): void {
+    this.urgency = Math.min(2, Math.max(0, Math.round(level)));
+    this.music.game.playbackRate = 1 + this.urgency * .035;
   }
 
   setVolumes(music: number, sfx: number): void {
@@ -54,6 +61,7 @@ export class GameAudio {
   }
   burst(): void { this.noise(0.11, 0.045, 900); this.tone(170, 0.14, "sawtooth", 0.035, 360); }
   grapple(): void { this.tone(130, 0.16, "sawtooth", 0.035, 90); }
+  tether(): void { this.tone(220, .12, "triangle", .035, 520); this.tone(92, .18, "sine", .02, 62); }
   grappleRelease(): void { this.tone(180, 0.07, "triangle", 0.025, 280); }
   cannonTrigger(heavy: boolean): void { this.tone(heavy ? 82 : 145, .055, "square", .018, heavy ? 64 : 118); }
   denied(): void { this.tone(125, .055, "square", .018, 92); }
@@ -97,6 +105,9 @@ export class GameAudio {
       }
     }, 90);
   }
+  highFive(): void { this.noise(.07, .035, 950); this.tone(520, .1, "square", .035, 840); setTimeout(() => this.tone(960, .1, "triangle", .026, 1220), 60); }
+  levelUp(): void { [440, 554, 659, 880].forEach((note, index) => setTimeout(() => this.tone(note, .16, "triangle", .035, note * 1.1), index * 70)); }
+  callout(heavy = false): void { this.duckMusic(300, .25); this.tone(heavy ? 110 : 210, .13, "square", heavy ? .044 : .03, heavy ? 72 : 330); }
 
   private crossfadeMusic(outgoing: HTMLAudioElement, incoming: HTMLAudioElement): void {
     if (this.musicFade) clearInterval(this.musicFade);

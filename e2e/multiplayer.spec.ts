@@ -13,7 +13,8 @@ type DebugState = {
   cannons: { planetId: string; position: Point }[];
   repairs: { planetId: string; position: Point }[];
   trajectoryMarkerVisible: boolean;
-  matchStats: { playerId: string; stolenScrap: number; successfulShoves: number; sabotagesCompleted: number }[];
+  lobbyAvatarCount: number;
+  matchStats: { playerId: string; damageDealt: number; stolenScrap: number; successfulShoves: number; sabotagesCompleted: number }[];
   gameMode: "classic" | "chaos" | null;
   activeModifier: string | null;
   rules: { gravity: number; maxIntegrity: number; launchCooldownMs: number; shoveForce: number };
@@ -85,7 +86,7 @@ async function moveTo(
 
 async function aimAt(page: Page, targetFor: (state: DebugState) => Point): Promise<void> {
   await takeControl(page);
-  for (let attempt = 0; attempt < 5; attempt++) {
+  for (let attempt = 0; attempt < 12; attempt++) {
     const state = await debugState(page);
     const target = targetFor(state);
     const planet = [...state.planets].sort((a, b) => pointDistance(state.localPosition, a.position) - pointDistance(state.localPosition, b.position))[0];
@@ -112,13 +113,17 @@ async function aimAt(page: Page, targetFor: (state: DebugState) => Point): Promi
     const yaw = Math.atan2(dot(outward, cross), Math.max(-1, Math.min(1, dot(currentTangent, desiredTangent))));
     const currentPitch = Math.asin(Math.max(-1, Math.min(1, dot(normalize(state.cameraForward), outward))));
     const desiredPitch = Math.asin(Math.max(-1, Math.min(1, dot(desired, outward))));
+    const yawStep = Math.max(-.55, Math.min(.55, yaw));
+    const pitchStep = Math.max(-.3, Math.min(.3, currentPitch - desiredPitch));
     await page.evaluate(({ movementX, movementY }) => {
       const event = new MouseEvent("mousemove");
       Object.defineProperty(event, "movementX", { value: movementX });
       Object.defineProperty(event, "movementY", { value: movementY });
       window.dispatchEvent(event);
-    }, { movementX: -yaw / 0.0022, movementY: (currentPitch - desiredPitch) / 0.0018 });
-    await page.waitForTimeout(60);
+    }, { movementX: -yawStep / 0.0022, movementY: pitchStep / 0.0018 });
+    // Headless WebGL can render below 20 FPS. Give each synthetic look input one
+    // complete frame so repeated corrections do not accumulate into an overshoot.
+    await page.waitForTimeout(180);
   }
 }
 
@@ -192,7 +197,12 @@ test("two players can create, join, ready, and start", async ({ browser }) => {
   await expect(host.getByRole("button", { name: "Create Room" })).toBeEnabled();
   await expect(host.getByLabel("Name")).toHaveValue("Nova");
   await host.getByRole("button", { name: "Create Room" }).click();
-  await expect(host.getByRole("heading", { name: "Players" })).toBeVisible();
+  await expect(host.getByRole("heading", { name: "Crew" })).toBeVisible();
+  await expect.poll(async () => (await debugState(host)).lobbyAvatarCount).toBe(1);
+  await host.getByRole("button", { name: /PLANET PASS/ }).click();
+  await expect(host.getByRole("heading", { name: "Planet Pass" })).toBeVisible();
+  await expect(host.locator("#pass-track .pass-tier")).toHaveCount(10);
+  await host.locator("#pass-close").click();
   await expect(host.locator("#mode-classic")).toHaveClass(/selected/);
   await host.locator("#bot-hard").click();
   await expect(host.locator("#bot-hard")).toHaveClass(/selected/);
@@ -210,6 +220,7 @@ test("two players can create, join, ready, and start", async ({ browser }) => {
   await host.getByRole("button", { name: "Start" }).click();
   await expect(host.locator("#hud")).toBeVisible();
   await expect(guest.locator("#hud")).toBeVisible();
+  await expect(host.locator("#leaderboard-list .leader-row")).toHaveCount(2);
   await expect(host.locator("#timer")).toContainText(":", { timeout: 7000 });
   await expect(host.locator("#modifier-chip")).toBeHidden();
   expect((await debugState(host)).gameMode).toBe("classic");
@@ -228,7 +239,7 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
   await Promise.all([host.goto("/"), guest.goto("/")]);
   await host.getByLabel("Name").fill("Chris");
   await host.getByRole("button", { name: "Create Room" }).click();
-  await expect(host.getByRole("heading", { name: "Players" })).toBeVisible();
+  await expect(host.getByRole("heading", { name: "Crew" })).toBeVisible();
   await expect(host.locator("#lobby-code")).not.toHaveText("------");
   const code = (await host.locator("#lobby-code").textContent())!;
   await guest.getByLabel("Name").fill("Nova");
@@ -268,14 +279,28 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
     return { x: planet.position.x, y: planet.position.y, z: planet.position.z + 8.95 };
   };
   await moveTo(host, neutralPoint, 1.8);
-  await moveTo(guest, (state) => state.players.find((player) => player.id === hostPlayer.id)!.position, 1.25);
+  for (let approach = 0; approach < 4; approach++) {
+    await moveTo(guest, (state) => state.players.find((player) => player.id === hostPlayer.id)!.position, .9, 100);
+    await moveTo(host, (state) => state.players.find((player) => player.id === guestPlayer.id)!.position, .9, 100);
+    await host.waitForTimeout(400);
+    const state = await debugState(host);
+    const attacker = state.players.find((player) => player.id === hostPlayer.id)!;
+    const target = state.players.find((player) => player.id === guestPlayer.id)!;
+    if (attacker.surfacePlanetId === guestPlanetId && target.surfacePlanetId === guestPlanetId
+      && pointDistance(state.localPosition, target.position) < BALANCE.shove.range) break;
+  }
   await expect.poll(async () => {
     const state = await debugState(host);
     const attacker = state.players.find((player) => player.id === hostPlayer.id)!;
     const target = state.players.find((player) => player.id === guestPlayer.id)!;
-    return pointDistance(attacker.position, target.position);
-  }).toBeLessThan(1.6);
-  await aimAt(host, (state) => state.players.find((player) => player.id === guestPlayer.id)!.position);
+    return attacker.surfacePlanetId === guestPlanetId && target.surfacePlanetId === guestPlanetId
+      && pointDistance(state.localPosition, target.position) < BALANCE.shove.range;
+  }).toBe(true);
+  for (let aimAttempt = 0; aimAttempt < 3; aimAttempt++) {
+    await aimAt(host, (state) => state.players.find((player) => player.id === guestPlayer.id)!.position);
+    if (/SHOVE NOVA/i.test(await host.locator("#context-prompt").innerText())) break;
+    await moveTo(host, (state) => state.players.find((player) => player.id === guestPlayer.id)!.position, .8, 60);
+  }
   await expect(host.locator("#context-prompt")).toContainText(/SHOVE NOVA/i);
   const guestBeforeShove = (await debugState(guest)).localPosition;
   await host.keyboard.press("e");
@@ -314,7 +339,7 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
   const scrapAfterFirst = (await debugState(guest)).players.find((player) => player.id === guestPlayer.id)!.scrap;
   await fireCannon(guest);
   await expect.poll(async () => (await debugState(guest)).players.find((player) => player.id === guestPlayer.id)!.scrap, { timeout: 3000 }).toBeLessThan(scrapAfterFirst);
-  await expect.poll(async () => (await debugState(host)).planets.find((planet) => planet.id === hostPlanetId)!.integrity, { timeout: 5000 }).toBeLessThanOrEqual(72);
+  await expect.poll(async () => (await debugState(host)).matchStats.find((stats) => stats.playerId === guestPlayer.id)?.damageDealt ?? 0, { timeout: 5000 }).toBeGreaterThanOrEqual(BALANCE.weapons.rocket.damage);
   await expect(host.locator("#event-feed")).toContainText("Nova hit Chris");
 
   await expect(host.locator("#results-screen")).toBeVisible({ timeout: 55_000 });
@@ -322,6 +347,7 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
   await expect(host.locator("#results-standings .standing")).toHaveCount(2);
   await expect(host.locator("#results-awards")).toContainText("MENACE");
   await expect(host.locator("#results-awards")).toContainText("SPACE THIEF");
+  await expect(host.locator("#progression-reward")).toContainText("XP");
   await expect(host.locator("#winner-copy .result-crowns")).toContainText("♛ 1");
   const winnerPage = (await host.locator("#results-title").textContent())?.includes("You win") ? host : guest;
   await expect(winnerPage.locator("#fallbucks-reward")).toContainText("+100 FALLBUCKS");
@@ -353,11 +379,12 @@ test("the host can start one clearly revealed Chaos modifier", async ({ browser 
   await Promise.all([host.goto("/"), guest.goto("/")]);
   await host.getByLabel("Name").fill("Vega");
   await host.getByRole("button", { name: "Create Room" }).click();
+  await expect(host.locator("#lobby-code")).not.toHaveText("------");
   const code = (await host.locator("#lobby-code").textContent())!;
   await guest.getByLabel("Name").fill("Luna");
   await guest.getByLabel("Room code").fill(code);
   await guest.getByRole("button", { name: "Join Game" }).click();
-  await expect(guest.getByRole("heading", { name: "Players" })).toBeVisible();
+  await expect(guest.getByRole("heading", { name: "Crew" })).toBeVisible();
   await expect(guest.getByText("Vega")).toBeVisible();
   await host.locator("#mode-chaos").click();
   await expect(host.locator("#mode-chaos")).toHaveClass(/selected/);
@@ -387,7 +414,7 @@ test("six participants remain readable and within the visual budget", async ({ p
   await page.getByRole("button", { name: "Ready" }).click();
   await page.getByRole("button", { name: "Start" }).click();
   await expect(page.locator("#hud")).toBeVisible();
-  await expect(page.locator("#alive-list .bot-badge")).toHaveCount(5);
+  await expect(page.locator("#leaderboard-list .bot-badge")).toHaveCount(5);
   await expect(page.locator("#timer")).toContainText(":", { timeout: 7000 });
   await page.waitForTimeout(1000);
   const state = await debugState(page);
@@ -408,7 +435,7 @@ test("solo quick play starts with three clearly marked bots", async ({ page }) =
   await page.getByLabel("Name").fill("Chris");
   await page.getByRole("button", { name: "Play Solo" }).click();
   await expect(page.locator("#hud")).toBeVisible();
-  await expect(page.locator("#alive-list .bot-badge")).toHaveCount(3);
+  await expect(page.locator("#leaderboard-list .bot-badge")).toHaveCount(3);
   await expect(page.locator("#countdown")).toContainText(/[123]|GO!/, { timeout: 4000 });
   await expect(page.locator("#timer")).toContainText(":", { timeout: 7000 });
   const metrics = (await debugState(page)).performance;

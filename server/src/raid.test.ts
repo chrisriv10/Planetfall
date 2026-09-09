@@ -144,6 +144,13 @@ describe("planet raids", () => {
     expect(room.view().matchStats.find((entry) => entry.playerId === guest.id)?.timesShoved).toBe(1);
     expect(room.shove(host.id, guest.id, now + 10)).toBe(false);
     host.shoveCooldownUntil = 0;
+    place(host, surface, hostPlanet.id);
+    place(guest, add(surface, { x: 1.5, y: 0, z: 0 }), hostPlanet.id);
+    host.lastInputAt = 0;
+    room.setInput(host.id, { sequence: 3, dt: .05, moveX: 0, moveY: 0, cameraForward: { x: -1, y: 0, z: 0 }, jump: false, burst: false, grapple: false }, now + 60);
+    room.interact(host.id, { action: "shove", targetPlayerId: guest.id, facing: { x: 1, y: 0, z: 0 } });
+    expect(room.view().matchStats.find((entry) => entry.playerId === host.id)?.successfulShoves).toBe(2);
+    host.shoveCooldownUntil = 0;
     guest.alive = false;
     expect(room.shove(host.id, guest.id, now + BALANCE.shove.cooldownMs + 1)).toBe(false);
   });
@@ -710,12 +717,14 @@ describe("planet raids", () => {
     });
     room.update(.2, now);
     expect(room.phase).toBe("results");
-    expect(host.fallbucks).toBe(100);
+    expect(host.fallbucks).toBe(150);
     expect(guest.fallbucks).toBe(50);
+    expect(host).toMatchObject({ sessionLevel: 2, sessionXp: 15, sessionTotalXp: 115 });
+    expect(guest).toMatchObject({ sessionLevel: 1, sessionXp: 80, sessionTotalXp: 80 });
     const item = SHOP_CATALOG.find((entry) => entry.id === "solar-gold")!;
     const scrapBefore = host.scrap;
     expect(room.buyShopItem(host.id, item.id)).toEqual({ ok: true });
-    expect(host.fallbucks).toBe(0);
+    expect(host.fallbucks).toBe(50);
     expect(host.scrap).toBe(scrapBefore);
     expect(room.buyShopItem(host.id, item.id)).toMatchObject({ ok: false });
     expect(room.equipShopItem(host.id, "stardust")).toMatchObject({ ok: false });
@@ -727,11 +736,11 @@ describe("planet raids", () => {
     expect(rejoined.ok).toBe(true);
     if (!rejoined.ok) return;
     expect(rejoined.playerId).toBe(host.id);
-    expect(room.players.get(host.id)).toMatchObject({ fallbucks: 0, equippedCosmetics: { suit: item.id } });
+    expect(room.players.get(host.id)).toMatchObject({ fallbucks: 50, sessionLevel: 2, sessionTotalXp: 115, equippedCosmetics: { suit: item.id } });
 
     room.phase = "results";
     room.voteRematch(host.id); room.voteRematch(guest.id);
-    expect(room.players.get(host.id)).toMatchObject({ fallbucks: 0, equippedCosmetics: { suit: item.id } });
+    expect(room.players.get(host.id)).toMatchObject({ fallbucks: 50, sessionLevel: 2, sessionTotalXp: 115, equippedCosmetics: { suit: item.id } });
   });
 
   it("keeps bot difficulty host-controlled and rate-limits cosmetic emotes", async () => {
@@ -748,5 +757,75 @@ describe("planet raids", () => {
     expect(room.playEmote(host.id, "laugh", { x: 1, y: 0, z: 0 }, now + BALANCE.emoteCooldownMs + 1)).toBe(false);
     host.ownedCosmetics.push("laugh");
     expect(room.playEmote(host.id, "laugh", { x: 1, y: 0, z: 0 }, now + BALANCE.emoteCooldownMs + 1)).toBe(true);
+  });
+
+  it("authoritatively validates player grapple range, facing, reciprocal tug, and release", async () => {
+    const { room, host, guest, hostPlanet } = await duel();
+    const now = Date.now();
+    const hostPosition = add(hostPlanet.position, { x: 0, y: BALANCE.planetRadius + .95, z: 0 });
+    const guestPosition = add(hostPosition, { x: 2.2, y: 0, z: 0 });
+    place(host, hostPosition, hostPlanet.id); place(guest, guestPosition, hostPlanet.id);
+    room.setInput(host.id, {
+      sequence: 1, dt: 1 / BALANCE.inputRate, moveX: 0, moveY: 0,
+      cameraForward: { x: 1, y: 0, z: 0 }, jump: false, burst: false,
+      grapple: true, grappleTargetPlayerId: guest.id
+    }, now);
+    room.update(1 / BALANCE.serverRate, now + 1);
+    expect(host.grappleTargetPlayerId).toBe(guest.id);
+    expect(Number.isFinite(host.velocity.x + host.velocity.y + host.velocity.z)).toBe(true);
+    expect(Number.isFinite(guest.velocity.x + guest.velocity.y + guest.velocity.z)).toBe(true);
+
+    const timeoutAt = now + BALANCE.playerGrapple.maxDurationMs + 2;
+    room.update(1 / BALANCE.serverRate, timeoutAt);
+    expect(host.grappleTargetPlayerId).toBeNull();
+    room.update(1 / BALANCE.serverRate, timeoutAt + 40);
+    expect(host.grappleTargetPlayerId).toBeNull();
+
+    room.setInput(host.id, {
+      sequence: 2, dt: 1 / BALANCE.inputRate, moveX: 0, moveY: 0,
+      cameraForward: { x: 1, y: 0, z: 0 }, jump: false, burst: false, grapple: false
+    }, timeoutAt + 65);
+    room.update(1 / BALANCE.serverRate, timeoutAt + 66);
+    expect(host.grappleTargetPlayerId).toBeNull();
+
+    place(host, hostPosition, hostPlanet.id); place(guest, guestPosition, hostPlanet.id);
+    room.setInput(host.id, {
+      sequence: 3, dt: 1 / BALANCE.inputRate, moveX: 0, moveY: 0,
+      cameraForward: { x: -1, y: 0, z: 0 }, jump: false, burst: false,
+      grapple: true, grappleTargetPlayerId: guest.id
+    }, timeoutAt + 90);
+    room.update(1 / BALANCE.serverRate, timeoutAt + 91);
+    expect(host.grappleTargetPlayerId).toBeNull();
+  });
+
+  it("replicates rate-limited lobby high fives without changing readiness", async () => {
+    const { room, host, guest, guestSocket } = await duel();
+    room.phase = "lobby";
+    host.ready = false; guest.ready = false;
+    const event = new Promise<{ playerIds: [string, string] }>((resolve) => guestSocket.once("social:high-five", resolve));
+    const now = Date.now();
+    expect(room.playEmote(host.id, "wave", { x: 1, y: 0, z: 0 }, now)).toBe(true);
+    expect(room.playEmote(guest.id, "celebrate", { x: -1, y: 0, z: 0 }, now + 20)).toBe(true);
+    expect((await event).playerIds.sort()).toEqual([host.id, guest.id].sort());
+    expect(host.ready).toBe(false); expect(guest.ready).toBe(false);
+  });
+
+  it("grants Planet Pass levels and rewards exactly once at match end", async () => {
+    const { room, host } = await duel();
+    host.sessionLevel = 2; host.sessionXp = 90; host.sessionTotalXp = 190;
+    (room as unknown as { resetMatchStats: () => void }).resetMatchStats();
+    const stats = room.matchStats.get(host.id)!;
+    stats.damageDealt = 70; stats.planetKills = 8;
+    const finish = (room as unknown as { end: (winnerId: string, reason: "timer", now: number) => void }).end.bind(room);
+    finish(host.id, "timer", Date.now());
+    expect(host).toMatchObject({ sessionLevel: 4, sessionXp: 15, sessionTotalXp: 315, fallbucks: 175 });
+    expect(host.ownedCosmetics).toContain("ion-blue");
+    expect(host.unlockedPassRewards).toEqual(expect.arrayContaining(["default", "ion-blue", "bucks-75"]));
+    expect(room.matchResult?.progression.find((entry) => entry.playerId === host.id)).toMatchObject({
+      xpEarned: 125, previousLevel: 2, level: 4, unlockedLevels: [3, 4], fallbucksGranted: 75
+    });
+    const balance = host.fallbucks; const xp = host.sessionTotalXp;
+    finish(host.id, "timer", Date.now() + 1);
+    expect(host.fallbucks).toBe(balance); expect(host.sessionTotalXp).toBe(xp);
   });
 });

@@ -1,5 +1,5 @@
 import "./style.css";
-import { BALANCE, CHAOS_COPY, SHOP_CATALOG, WEAPON_COPY, WEAPON_ORDER, type BotDifficulty, type ChaosModifier, type CosmeticCategory, type GameMode, type JoinResult, type MatchEvent, type MatchResult, type RoomView, type WeaponType } from "@planetfall/shared";
+import { BALANCE, CHAOS_COPY, PLANET_PASS_REWARDS, SESSION_PROGRESSION, SHOP_CATALOG, WEAPON_COPY, WEAPON_ORDER, type BotDifficulty, type ChaosModifier, type CosmeticCategory, type GameMode, type JoinResult, type MatchCalloutType, type MatchEvent, type MatchResult, type RoomView, type WeaponType } from "@planetfall/shared";
 import { createGameSocket } from "./network";
 import { inputLabel, type InputMethod } from "./input";
 import { SETTINGS_STORAGE_KEY, parseStoredSettings, type UserSettings } from "./settings";
@@ -58,6 +58,11 @@ const shopGrid = byId("shop-grid");
 const shopCategories = byId("shop-categories");
 const shopNote = byId<HTMLElement>("shop-note");
 const shopHomeButton = byId<HTMLButtonElement>("shop-home");
+const passOverlay = byId<HTMLElement>("pass-overlay");
+const leaderboard = byId<HTMLElement>("match-leaderboard");
+const leaderboardList = byId("leaderboard-list");
+const majorCallout = byId("major-callout");
+const warpTransition = byId("warp-transition");
 const emoteWheel = byId<HTMLElement>("emote-wheel");
 let shopCategory: CosmeticCategory = "suit";
 createButton.disabled = true; soloButton.disabled = true; joinButton.disabled = true; settingsOpenButton.disabled = true; shopHomeButton.disabled = true;
@@ -84,6 +89,9 @@ let controlsTimer = 0;
 let currentScreen: keyof typeof screens = "home";
 let settingsReturn: "pause" | "screen" = "screen";
 const indicatorNodes = new Map<string, HTMLElement>();
+const leaderboardNodes = new Map<string, HTMLElement>();
+let leaderboardExpanded = false;
+let lastMinuteCue = 0;
 
 await game.init();
 addEventListener("pointerdown", () => game.audio.unlock(), { once: true, capture: true });
@@ -131,6 +139,8 @@ socket.on("player:landed", (payload) => {
 socket.on("player:shoved", (payload) => game.shovePlayer(payload));
 socket.on("player:bumped", (payload) => game.bumpPlayer(payload));
 socket.on("player:emote", (payload) => game.playEmote(payload));
+socket.on("player:tethered", (payload) => game.playerTethered(payload));
+socket.on("social:high-five", (payload) => game.playHighFive(payload));
 socket.on("structure:sabotaged", (payload) => {
   game.sabotageStructure(payload);
   const label = payload.structure === "cannon" ? "Cannon" : "Repair core";
@@ -146,6 +156,14 @@ socket.on("utility:purchased", (payload) => {
 });
 socket.on("planet:destroyed", ({ planetId }) => game.destroyPlanet(planetId));
 socket.on("match:event", (event) => appendMatchEvent(event));
+socket.on("match:stat", (stats) => {
+  if (!room) return;
+  const index = room.matchStats.findIndex((entry) => entry.playerId === stats.playerId);
+  if (index >= 0) room.matchStats[index] = stats;
+  else room.matchStats.push(stats);
+  renderLeaderboard();
+});
+socket.on("match:callout", ({ type }) => showMajorCallout(type));
 socket.on("match:ended", ({ winnerId, result }) => {
   if (room) {
     room.matchResult = result;
@@ -157,6 +175,18 @@ socket.on("match:ended", ({ winnerId, result }) => {
     for (const reward of result.fallbucks) {
       const player = room.players.find((entry) => entry.id === reward.playerId);
       if (player) player.fallbucks = reward.balance;
+    }
+    for (const progress of result.progression) {
+      const player = room.players.find((entry) => entry.id === progress.playerId);
+      if (!player) continue;
+      player.sessionLevel = progress.level;
+      player.sessionXp = progress.xp;
+      player.sessionTotalXp = progress.totalXp;
+      player.unlockedPassRewards = [...new Set([...player.unlockedPassRewards, ...progress.rewards.map((reward) => reward.id)])];
+      for (const reward of progress.rewards) {
+        if (reward.cosmeticId && !player.ownedCosmetics.includes(reward.cosmeticId)) player.ownedCosmetics.push(reward.cosmeticId);
+        if (reward.badge) player.lobbyBadge = reward.badge;
+      }
     }
   }
   showResults(winnerId, result);
@@ -200,6 +230,10 @@ game.onHint = (id, text) => showHint(id, text);
 game.onInputMethod = (method) => renderInputUi(method);
 game.onMenuNavigate = (action) => navigateUi(action);
 game.onPauseRequest = () => togglePause();
+game.onLeaderboard = (expanded) => {
+  leaderboardExpanded = expanded;
+  leaderboard.classList.toggle("expanded", expanded);
+};
 
 settingsOpenButton.addEventListener("click", () => openSettings("screen"));
 settingsCloseButton.addEventListener("click", closeSettings);
@@ -224,7 +258,12 @@ readyButton.addEventListener("click", () => {
   const me = room?.players.find((p) => p.id === playerId);
   if (me) { game.audio.click(); socket.emit("room:ready", { ready: !me.ready }); }
 });
-startButton.addEventListener("click", () => { game.audio.click(); socket.emit("match:start"); });
+startButton.addEventListener("click", () => {
+  game.audio.click();
+  warpTransition.classList.add("active");
+  window.setTimeout(() => warpTransition.classList.remove("active"), 1050);
+  window.setTimeout(() => socket.emit("match:start"), 380);
+});
 addBotButton.addEventListener("click", () => { game.audio.click(); socket.emit("room:bot:add"); });
 modeClassicButton.addEventListener("click", () => setGameMode("classic"));
 modeChaosButton.addEventListener("click", () => setGameMode("chaos"));
@@ -237,6 +276,18 @@ byId("shop-lobby").addEventListener("click", openShop);
 byId("shop-results").addEventListener("click", openShop);
 shopHomeButton.addEventListener("click", openShop);
 byId("shop-close").addEventListener("click", closeShop);
+byId("pass-lobby").addEventListener("click", openPass);
+byId("pass-results").addEventListener("click", openPass);
+byId("pass-close").addEventListener("click", closePass);
+byId("settings-lobby").addEventListener("click", () => openSettings("screen"));
+addEventListener("keydown", (event) => {
+  if (event.key !== "Tab" || currentScreen !== "hud" || isEditableTarget(event.target)) return;
+  event.preventDefault(); leaderboardExpanded = true; leaderboard.classList.add("expanded");
+});
+addEventListener("keyup", (event) => {
+  if (event.key !== "Tab") return;
+  leaderboardExpanded = false; leaderboard.classList.remove("expanded");
+});
 copyButton.addEventListener("click", async () => {
   if (!room) return;
   try { await navigator.clipboard.writeText(room.code); toast("Room code copied!"); }
@@ -292,13 +343,22 @@ function applyRoom(nextRoom: RoomView): void {
   game.setRoom(nextRoom);
   if (nextRoom.phase === "lobby") {
     announcedWinner = undefined;
+    lastMinuteCue = 0;
+    game.audio.setUrgency(0);
     if (previousPhase !== "lobby") { game.resetVisualEffects(); eventFeed.replaceChildren(); }
-    showScreen("lobby"); game.setMode("lobby"); renderLobby(); if (!shopOverlay.hidden) renderShop();
+    showScreen("lobby"); game.setMode("lobby"); renderLobby();
+    if (!shopOverlay.hidden) renderShop();
+    if (!passOverlay.hidden) renderPass();
   } else if (nextRoom.phase === "countdown" || nextRoom.phase === "playing" || nextRoom.phase === "overtime") {
     showScreen("hud"); game.setMode("match"); updateHud();
     if (nextRoom.phase === "countdown" && nextRoom.countdownEndsAt && previousPhase !== "countdown") runCountdown(nextRoom.countdownEndsAt);
     if (nextRoom.phase === "overtime" && previousPhase !== "overtime") toast("OVERTIME! Repairs off. Damage doubled.");
-  } else if (nextRoom.phase === "results") { showResults(nextRoom.winnerId, nextRoom.matchResult); if (!shopOverlay.hidden) renderShop(); }
+  } else if (nextRoom.phase === "results") {
+    game.audio.setUrgency(0);
+    showResults(nextRoom.winnerId, nextRoom.matchResult);
+    if (!shopOverlay.hidden) renderShop();
+    if (!passOverlay.hidden) renderPass();
+  }
 }
 
 function renderLobby(): void {
@@ -311,8 +371,9 @@ function renderLobby(): void {
     const status = player.isBot ? "CPU PILOT" : player.id === room!.hostId ? "HOST" : player.connected ? "ONLINE" : "RECONNECTING";
     const remove = player.isBot && room!.hostId === playerId ? `<button class="remove-bot" aria-label="Remove ${escapeHtml(player.name)}">×</button>` : "";
     const crowns = player.crowns > 0 ? `<span class="crown-count" title="Session Crowns">♛ ${player.crowns}</span>` : "";
-    const fallbucks = !player.isBot ? `<span class="crown-count" title="Session Fallbucks">FALLBUCKS ${player.fallbucks}</span>` : "";
-    row.innerHTML = `<i class="player-orb" style="background:${player.color};color:${player.color}"></i><div class="player-meta"><b>${escapeHtml(player.name)}${botBadge}</b><br><small>${status}</small></div>${crowns}${fallbucks}<span class="ready-badge ${player.ready ? "" : "waiting"}">${player.ready ? "READY" : "WAIT"}</span>${remove}`;
+    const level = !player.isBot ? `<span class="crown-count" title="Session Level">LV ${player.sessionLevel}</span>` : "";
+    const badge = player.lobbyBadge ? ` · ${escapeHtml(player.lobbyBadge)}` : "";
+    row.innerHTML = `<i class="player-orb" style="background:${player.color};color:${player.color}"></i><div class="player-meta"><b>${escapeHtml(player.name)}${botBadge}</b><br><small>${status}${badge}</small></div>${crowns}${level}<span class="ready-badge ${player.ready ? "" : "waiting"}">${player.ready ? "READY" : "WAIT"}</span>${remove}`;
     row.querySelector<HTMLButtonElement>(".remove-bot")?.addEventListener("click", () => socket.emit("room:bot:remove", { botId: player.id }));
     return row;
   }));
@@ -334,6 +395,8 @@ function renderLobby(): void {
     button.disabled = !isHost;
   }
   byId("lobby-fallbucks").textContent = String(me?.fallbucks ?? 0);
+  byId("lobby-level").textContent = `LEVEL ${me?.sessionLevel ?? 1}`;
+  byId("lobby-emote-hint").querySelector("kbd")!.textContent = inputLabel("emote", game.getInputMethod());
 }
 
 function updateHud(): void {
@@ -350,18 +413,51 @@ function updateHud(): void {
   const modifier = room.activeModifier;
   modifierChip.hidden = !modifier;
   if (modifier) modifierChip.querySelector("span")!.textContent = CHAOS_COPY[modifier].title;
-  const aliveList = byId("alive-list");
-  aliveList.replaceChildren(...room.players.map((player) => {
-    const chip = document.createElement("div"); chip.className = `alive-chip ${player.alive ? "" : "dead"}`;
-    chip.style.color = player.color;
-    chip.innerHTML = `<span>${escapeHtml(player.name)}</span>${player.isBot ? '<b class="bot-badge">BOT</b>' : ""}<i></i>`;
-    return chip;
-  }));
   const remaining = room.phase === "countdown" ? BALANCE.matchMs : Math.max(0, (room.matchEndsAt ?? Date.now()) - Date.now());
   const minutes = Math.floor(remaining / 60000);
   const seconds = Math.floor((remaining % 60000) / 1000);
-  byId("timer").textContent = room.phase === "overtime" ? `OT ${minutes}:${seconds.toString().padStart(2, "0")}` : `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+  const timer = byId("timer");
+  timer.textContent = room.phase === "overtime" ? `OT ${minutes}:${seconds.toString().padStart(2, "0")}` : `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+  const activePlay = room.phase === "playing" || room.phase === "overtime";
+  timer.classList.toggle("final-minute", activePlay && remaining <= 60000);
+  timer.classList.toggle("final-thirty", activePlay && remaining <= 30000);
+  const urgency = activePlay && remaining <= 30000 ? 2 : activePlay && remaining <= 60000 ? 1 : 0;
+  if (urgency !== lastMinuteCue) {
+    lastMinuteCue = urgency;
+    game.audio.setUrgency(urgency);
+    if (urgency > 0) showMajorCallout(urgency === 2 ? "final-thirty" : "final-minute");
+  }
+  renderLeaderboard();
   updateWeapon(game.weapon);
+}
+
+function renderLeaderboard(): void {
+  if (!room) return;
+  const active = new Set(room.players.map((player) => player.id));
+  for (const [id, node] of leaderboardNodes) if (!active.has(id)) { node.remove(); leaderboardNodes.delete(id); }
+  for (const player of room.players) {
+    let node = leaderboardNodes.get(player.id);
+    if (!node) {
+      node = document.createElement("div");
+      node.className = "leader-row";
+      node.innerHTML = '<i></i><span class="leader-name"></span><span class="leader-integrity"><b></b><i></i></span><span class="leader-scrap"></span><small class="leader-extra"></small>';
+      leaderboardNodes.set(player.id, node);
+    }
+    const planet = room.planets.find((candidate) => candidate.id === player.planetId);
+    const percent = Math.round((planet?.integrity ?? 0) / Math.max(1, room.rules.maxIntegrity) * 100);
+    const stats = room.matchStats.find((entry) => entry.playerId === player.id);
+    node.style.setProperty("--player-color", player.color);
+    node.style.setProperty("--integrity", `${Math.max(0, percent)}%`);
+    node.classList.toggle("local", player.id === playerId);
+    node.classList.toggle("dead", !player.alive);
+    node.classList.toggle("critical", player.alive && percent <= 25);
+    node.querySelector(".leader-name")!.innerHTML = `${escapeHtml(player.name)}${player.isBot ? ' <b class="bot-badge">BOT</b>' : ""}`;
+    node.querySelector(".leader-integrity b")!.textContent = player.alive ? `${percent}%` : "OUT";
+    node.querySelector(".leader-scrap")!.textContent = player.alive ? `◇ ${player.scrap}` : "DESTROYED";
+    node.querySelector(".leader-extra")!.textContent = `LV ${player.sessionLevel} · ♛ ${player.crowns} · ${Math.round(stats?.damageDealt ?? 0)} DMG · ${stats?.stolenScrap ?? 0} STOLEN`;
+  }
+  leaderboardList.replaceChildren(...room.players.map((player) => leaderboardNodes.get(player.id)!));
+  leaderboard.classList.toggle("expanded", leaderboardExpanded);
 }
 
 function updateWeapon(weapon: WeaponType): void {
@@ -405,7 +501,11 @@ function showResults(winnerId: string | null, result: MatchResult | null = room?
   showScreen("results"); game.setMode("results");
   const winner = room.players.find((p) => p.id === winnerId);
   const isMe = winnerId === playerId;
-  if (announcedWinner !== winnerId) { game.audio.result(isMe); announcedWinner = winnerId; }
+  if (announcedWinner !== winnerId) {
+    game.audio.result(isMe);
+    if (result?.progression.some((entry) => entry.playerId === playerId && entry.level > entry.previousLevel)) window.setTimeout(() => game.audio.levelUp(), 480);
+    announcedWinner = winnerId;
+  }
   byId("results-title").textContent = winner ? isMe ? "You win!" : `${winner.name} wins` : "Draw";
   const crownTotal = result?.crowns.find((entry) => entry.playerId === winnerId)?.crowns ?? winner?.crowns ?? 0;
   const streak = result?.winStreak?.playerId === winnerId && (result.winStreak?.count ?? 0) >= 2 ? ` · ${result.winStreak!.count} WIN STREAK` : "";
@@ -434,6 +534,11 @@ function showResults(winnerId: string | null, result: MatchResult | null = room?
   }));
   const reward = finalResult?.fallbucks.find((entry) => entry.playerId === playerId);
   byId("fallbucks-reward").textContent = reward ? `+${reward.reward} FALLBUCKS  ·  ${reward.balance} TOTAL` : "";
+  const progress = finalResult?.progression.find((entry) => entry.playerId === playerId);
+  const unlocked = progress?.rewards.map((entry) => entry.label).join(" · ") ?? "";
+  byId("progression-reward").innerHTML = progress
+    ? `<strong>+${progress.xpEarned} XP</strong> · LEVEL ${progress.level}${progress.level > progress.previousLevel ? " · LEVEL UP!" : ""}${unlocked ? `<br><small>${escapeHtml(unlocked)}</small>` : ""}`
+    : "";
   const humans = room.players.filter((p) => p.connected && !p.isBot);
   const votes = room.rematchVotes.filter((id) => humans.some((player) => player.id === id)).length;
   byId("rematch-count").textContent = `${votes} / ${humans.length} READY`;
@@ -468,7 +573,7 @@ function renderShop(): void {
     const button = document.createElement("button"); button.textContent = label; button.classList.toggle("selected", shopCategory === id);
     button.addEventListener("click", () => { shopCategory = id; renderShop(); }); return button;
   }));
-  shopGrid.replaceChildren(...SHOP_CATALOG.filter((item) => item.category === shopCategory).map((item) => {
+  shopGrid.replaceChildren(...SHOP_CATALOG.filter((item) => item.category === shopCategory && !item.passLevel).map((item) => {
     const card = document.createElement("article"); card.className = "shop-item";
     card.style.setProperty("--item-color", item.color ?? (item.category === "emote" ? "#ff8bd9" : "#70f5ff"));
     const owned = me?.ownedCosmetics.includes(item.id) ?? false;
@@ -484,6 +589,40 @@ function renderShop(): void {
       });
     });
     return card;
+  }));
+}
+
+function openPass(): void {
+  if (!room || (room.phase !== "lobby" && room.phase !== "results")) return;
+  game.audio.unlock(); game.audio.click();
+  passOverlay.hidden = false;
+  game.setUiCaptured(true);
+  renderPass();
+  focusFirst(passOverlay);
+}
+
+function closePass(): void {
+  passOverlay.hidden = true;
+  game.setUiCaptured(false);
+  focusFirst(screens[currentScreen]);
+}
+
+function renderPass(): void {
+  const me = room?.players.find((player) => player.id === playerId);
+  const level = me?.sessionLevel ?? 1;
+  const xp = me?.sessionXp ?? 0;
+  byId("pass-level").textContent = `LEVEL ${level}`;
+  byId("pass-xp-copy").textContent = level >= SESSION_PROGRESSION.maxLevel ? "MAX LEVEL" : `${xp} / ${SESSION_PROGRESSION.xpPerLevel} XP`;
+  byId<HTMLElement>("pass-xp-meter").style.width = `${level >= SESSION_PROGRESSION.maxLevel ? 100 : Math.min(100, xp)}%`;
+  byId("pass-track").replaceChildren(...PLANET_PASS_REWARDS.map((reward) => {
+    const tier = document.createElement("article");
+    const unlocked = level >= reward.level || Boolean(me?.unlockedPassRewards.includes(reward.id));
+    tier.className = `pass-tier${unlocked ? " unlocked" : ""}${level === reward.level ? " current" : ""}`;
+    tier.innerHTML = `<strong>${reward.level}</strong><i></i><span>${escapeHtml(reward.label)}</span>`;
+    const cosmetic = reward.cosmeticId ? SHOP_CATALOG.find((item) => item.id === reward.cosmeticId) : undefined;
+    tier.style.setProperty("--reward-color", cosmetic?.color ?? "#70f5ff");
+    if (cosmetic?.color) (tier.querySelector("i") as HTMLElement).style.background = cosmetic.color;
+    return tier;
   }));
 }
 
@@ -565,6 +704,8 @@ function renderInputUi(method: InputMethod): void {
   pauseControls.innerHTML = html;
   homeControls.innerHTML = controls.filter(([, label]) => ["Move", "Interact", "Grapple"].includes(label)).map(([key, label]) => `<span><kbd>${key}</kbd> ${label}</span>`).join("");
   byId("weapon-key").textContent = inputLabel("switchWeapon", method);
+  byId("leaderboard-key").textContent = method === "gamepad" ? "VIEW" : "TAB";
+  byId("lobby-emote-hint").querySelector("kbd")!.textContent = inputLabel("emote", method);
 }
 
 function showFirstMatchControls(): void {
@@ -579,12 +720,13 @@ function showFirstMatchControls(): void {
 function navigateUi(action: "up" | "down" | "left" | "right" | "confirm" | "back"): void {
   if (action === "back") {
     if (!shopOverlay.hidden) return closeShop();
+    if (!passOverlay.hidden) return closePass();
     if (!settingsOverlay.hidden) return closeSettings();
     if (!pauseOverlay.hidden) return closePause();
     if (currentScreen === "lobby") location.reload();
     return;
   }
-  const root = !shopOverlay.hidden ? shopOverlay : !settingsOverlay.hidden ? settingsOverlay : !pauseOverlay.hidden ? pauseOverlay : screens[currentScreen];
+  const root = !shopOverlay.hidden ? shopOverlay : !passOverlay.hidden ? passOverlay : !settingsOverlay.hidden ? settingsOverlay : !pauseOverlay.hidden ? pauseOverlay : screens[currentScreen];
   const elements = [...root.querySelectorAll<HTMLElement>("button:not([disabled]):not([hidden]), input[type='range'], input[type='checkbox'], select")]
     .filter((element) => element.offsetParent !== null);
   if (!settingsOpenButton.hidden) elements.push(settingsOpenButton);
@@ -641,6 +783,24 @@ function toast(message: string): void {
   setTimeout(() => element.remove(), 3200);
 }
 
+function showMajorCallout(type: MatchCalloutType | "final-minute" | "final-thirty"): void {
+  const copy: Record<typeof type, string> = {
+    "first-hit": "FIRST HIT",
+    "first-raid": "FIRST RAID",
+    "planet-down": "PLANET DOWN",
+    "last-two": "LAST TWO",
+    overtime: "OVERTIME",
+    "final-minute": "FINAL MINUTE",
+    "final-thirty": "30 SECONDS"
+  };
+  majorCallout.textContent = copy[type];
+  majorCallout.classList.remove("visible");
+  void majorCallout.offsetWidth;
+  majorCallout.classList.add("visible");
+  game.audio.callout(type === "overtime" || type === "planet-down");
+  window.setTimeout(() => majorCallout.classList.remove("visible"), type === "final-thirty" ? 1150 : 1500);
+}
+
 function appendMatchEvent(event: MatchEvent): void {
   if (!room) return;
   const player = (id?: string) => room!.players.find((entry) => entry.id === id);
@@ -672,6 +832,10 @@ function showHint(id: string, text: string): void {
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]!);
+}
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement;
 }
 
 setInterval(() => { if (room && (room.phase === "playing" || room.phase === "overtime")) updateHud(); }, 250);

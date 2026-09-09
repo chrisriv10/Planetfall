@@ -23,6 +23,16 @@ export interface ShopItem {
   price: number;
   color?: string;
   emote?: EmoteType;
+  passLevel?: number;
+}
+
+export interface PlanetPassReward {
+  id: string;
+  level: number;
+  label: string;
+  fallbucks?: number;
+  cosmeticId?: string;
+  badge?: string;
 }
 
 export const FREE_EMOTES: readonly EmoteType[] = ["wave", "point", "celebrate"];
@@ -41,7 +51,25 @@ export const SHOP_CATALOG: readonly ShopItem[] = [
   { id: "taunt", name: "Taunt", category: "emote", price: 200, emote: "taunt" },
   { id: "hero", name: "Hero", category: "victory", price: 100 },
   { id: "spin", name: "Spin", category: "victory", price: 200 },
-  { id: "double-pump", name: "Double Fist Pump", category: "victory", price: 200 }
+  { id: "double-pump", name: "Double Fist Pump", category: "victory", price: 200 },
+  { id: "ion-blue", name: "Ion Blue", category: "trail", price: 0, color: "#55dfff", passLevel: 3 },
+  { id: "solar-visor", name: "Solar Visor", category: "suit", price: 0, color: "#ffe66b", passLevel: 5 },
+  { id: "warp-spark", name: "Warp Spark", category: "trail", price: 0, color: "#ff79e6", passLevel: 7 },
+  { id: "ace", name: "Ace", category: "victory", price: 0, passLevel: 9 }
+];
+
+export const SESSION_PROGRESSION = { xpPerLevel: 100, maxLevel: 10 } as const;
+export const PLANET_PASS_REWARDS: readonly PlanetPassReward[] = [
+  { id: "default", level: 1, label: "READY FOR LAUNCH" },
+  { id: "bucks-50", level: 2, label: "+50 FALLBUCKS", fallbucks: 50 },
+  { id: "ion-blue", level: 3, label: "ION BLUE TRAIL", cosmeticId: "ion-blue" },
+  { id: "bucks-75", level: 4, label: "+75 FALLBUCKS", fallbucks: 75 },
+  { id: "solar-visor", level: 5, label: "SOLAR VISOR", cosmeticId: "solar-visor" },
+  { id: "bucks-100", level: 6, label: "+100 FALLBUCKS", fallbucks: 100 },
+  { id: "warp-spark", level: 7, label: "WARP SPARK TRAIL", cosmeticId: "warp-spark" },
+  { id: "bucks-125", level: 8, label: "+125 FALLBUCKS", fallbucks: 125 },
+  { id: "ace", level: 9, label: "ACE VICTORY POSE", cosmeticId: "ace" },
+  { id: "ace-pilot", level: 10, label: "+200 FALLBUCKS · ACE PILOT", fallbucks: 200, badge: "ACE PILOT" }
 ];
 
 export interface MatchRules {
@@ -78,6 +106,7 @@ export const BALANCE = {
   softBoundaryRadius: 105,
   softBoundaryPull: 7,
   grappleRange: 30,
+  playerGrapple: { range: 11, facingDot: 0.965, reciprocal: 0.16, maxDurationMs: 4200 },
   grapple: { reelRatio: 0.74, minRestLength: 3, spring: 3.2, damping: 2.4, basePull: 3, maxForce: 32, speedCap: 38 },
   launch: { range: 3.25, cooldownMs: 5000, speed: 32, assist: 13, assistMs: 4200, arrivalRadius: 8, arrivalSpeed: 19 },
   shove: { range: 2.2, cooldownMs: 1200, force: 9.5, lift: 4.2, facingDot: 0.2, speedCap: 23 },
@@ -88,7 +117,7 @@ export const BALANCE = {
   startingScrap: 20,
   scrapValue: 5,
   scrapPickupRadius: 2.05,
-  scrapSpawnMs: 8000,
+  scrapSpawnMs: 6500,
   scrapMaxPerPlanet: 6,
   cannonRange: 5,
   matchMs: 7 * 60 * 1000,
@@ -144,7 +173,7 @@ export function createMatchRules(modifier: ChaosModifier | null = null): MatchRu
     shoveCooldownMs: BALANCE.shove.cooldownMs
   };
   if (modifier === "low-gravity") { rules.gravity = BALANCE.gravity * 0.65; rules.jumpSpeed = 7.8; }
-  if (modifier === "scrap-rush") { rules.scrapSpawnMs = 4500; rules.scrapMaxPerPlanet = 8; }
+  if (modifier === "scrap-rush") { rules.scrapSpawnMs = 4000; rules.scrapMaxPerPlanet = 8; }
   if (modifier === "fragile-worlds") rules.maxIntegrity = 70;
   if (modifier === "launch-party") rules.launchCooldownMs = 2250;
   if (modifier === "super-shove") { rules.shoveForce = 14; rules.shoveCooldownMs = 900; }
@@ -190,6 +219,12 @@ export interface PlayerState {
   equippedCosmetics: EquippedCosmetics;
   overchargeUntil: number;
   launchBoostUntil: number;
+  grappleTargetPlayerId: string | null;
+  sessionLevel: number;
+  sessionXp: number;
+  sessionTotalXp: number;
+  unlockedPassRewards: string[];
+  lobbyBadge?: string;
 }
 
 export interface PlanetState {
@@ -257,11 +292,25 @@ export interface MatchResult {
   crowns: { playerId: string; crowns: number }[];
   winStreak: WinStreak | null;
   fallbucks: { playerId: string; reward: number; balance: number }[];
+  progression: SessionProgressAward[];
+}
+
+export interface SessionProgressAward {
+  playerId: string;
+  xpEarned: number;
+  previousLevel: number;
+  level: number;
+  xp: number;
+  totalXp: number;
+  unlockedLevels: number[];
+  rewards: PlanetPassReward[];
+  fallbucksGranted: number;
 }
 
 export interface WinStreak { playerId: string; count: number; }
 
 export type MatchEventType = "launch" | "stolen" | "shove" | "sabotage" | "damage" | "destroyed";
+export type MatchCalloutType = "first-hit" | "first-raid" | "planet-down" | "last-two" | "overtime";
 export interface MatchEvent {
   id: string;
   type: MatchEventType;
@@ -304,11 +353,12 @@ export interface PlayerInput {
   burst: boolean;
   grapple: boolean;
   grapplePoint?: Vec3;
+  grappleTargetPlayerId?: string;
 }
 
 export type PlayerInteraction =
   | { action: "launch"; targetPlanetId: string }
-  | { action: "shove"; targetPlayerId: string }
+  | { action: "shove"; targetPlayerId: string; facing?: Vec3 }
   | { action: "sabotage"; planetId: string; structure: StructureType; active: boolean }
   | { action: "utility"; planetId: string; utility: ScrapUtility };
 
@@ -355,6 +405,8 @@ export interface ServerToClientEvents {
   "player:shoved": (payload: { attackerId: string; targetId: string; planetId: string; position: Vec3; velocity: Vec3 }) => void;
   "player:bumped": (payload: { attackerId: string; targetId: string; planetId: string; position: Vec3; velocity: Vec3 }) => void;
   "player:emote": (payload: { playerId: string; emote: EmoteType; direction: Vec3; startedAt: number }) => void;
+  "player:tethered": (payload: { playerId: string; targetPlayerId: string; startedAt: number }) => void;
+  "social:high-five": (payload: { playerIds: [string, string]; position: Vec3; startedAt: number }) => void;
   "structure:sabotaged": (payload: { playerId: string; planetId: string; ownerId: string; structure: StructureType; disabledUntil: number }) => void;
   "structure:sabotage-cancelled": (payload: { playerId: string }) => void;
   "planet:damaged": (payload: { planetId: string; integrity: number; amount: number; hit: Vec3 }) => void;
@@ -362,6 +414,8 @@ export interface ServerToClientEvents {
   "utility:purchased": (payload: { playerId: string; planetId: string; utility: ScrapUtility; activeUntil: number; cooldownUntil?: number }) => void;
   "planet:destroyed": (payload: { planetId: string; ownerId: string }) => void;
   "match:event": (payload: MatchEvent) => void;
+  "match:stat": (payload: MatchStats) => void;
+  "match:callout": (payload: { type: MatchCalloutType; createdAt: number }) => void;
   "match:ended": (payload: { winnerId: string | null; reason: "last-standing" | "timer"; result: MatchResult }) => void;
   "server:error": (payload: { message: string; code?: string }) => void;
 }
@@ -632,6 +686,25 @@ export function isEmoteType(value: unknown): value is EmoteType {
 
 export function fallbucksReward(place: number): number {
   return place === 1 ? 100 : place === 2 ? 50 : place === 3 ? 25 : 10;
+}
+
+export function sessionLevelForXp(totalXp: number): number {
+  return Math.min(SESSION_PROGRESSION.maxLevel, Math.floor(Math.max(0, totalXp) / SESSION_PROGRESSION.xpPerLevel) + 1);
+}
+
+export function sessionXpInLevel(totalXp: number): number {
+  const safe = Math.max(0, totalXp);
+  if (sessionLevelForXp(safe) >= SESSION_PROGRESSION.maxLevel) return SESSION_PROGRESSION.xpPerLevel;
+  return safe % SESSION_PROGRESSION.xpPerLevel;
+}
+
+export function sessionMatchXp(place: number, awardCount: number, planetKills: number): number {
+  const placement = place === 1 ? 60 : place === 2 ? 40 : place === 3 ? 25 : 0;
+  return 40 + placement + Math.min(20, Math.max(0, awardCount) * 10) + Math.min(15, Math.max(0, planetKills) * 5);
+}
+
+export function planetPassRewardsBetween(previousLevel: number, nextLevel: number): PlanetPassReward[] {
+  return PLANET_PASS_REWARDS.filter((reward) => reward.level > previousLevel && reward.level <= nextLevel);
 }
 
 export function cannonPosition(planet: Pick<PlanetState, "position">): Vec3 {

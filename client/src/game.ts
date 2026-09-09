@@ -124,6 +124,15 @@ type PlayerVisual = {
 };
 type ProjectileVisual = { mesh: THREE.Group; velocity: THREE.Vector3; weapon: WeaponType; ownerId: string; fragment: boolean; threatening: boolean; trail: THREE.Line; trailPoints: THREE.Vector3[]; maxTrailPoints: number };
 type Particle = { mesh: THREE.Mesh; velocity: THREE.Vector3; life: number; maxLife: number; growth?: number; spin?: number };
+type LobbyPlayerVisual = {
+  player: PlayerVisual;
+  platform: THREE.Group;
+  ring: THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
+  readyLabel: THREE.Sprite;
+  metaLabel: THREE.Sprite;
+  beam: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
+  joinedAt: number;
+};
 
 export type PromptKind = "idle" | "launch" | "shove" | "sabotage" | "cooldown" | "weapon";
 export type EdgeIndicator = { id: string; label: string; color: string; x: number; y: number; angle: number; danger?: boolean };
@@ -227,6 +236,7 @@ export class PlanetfallGame {
   onInputMethod?: (method: InputMethod) => void;
   onMenuNavigate?: (action: "up" | "down" | "left" | "right" | "confirm" | "back") => void;
   onPauseRequest?: () => void;
+  onLeaderboard?: (expanded: boolean) => void;
 
   private physics!: RAPIER.World;
   private room: RoomView | null = null;
@@ -258,6 +268,7 @@ export class PlanetfallGame {
   private burstLatch = false;
   private grappleHeld = false;
   private grapplePoint: THREE.Vector3 | null = null;
+  private grappleTargetPlayerId: string | null = null;
   private grappleRestLength = 0;
   private grappleTension = 0;
   private localSurfacePlanetId: string | null = null;
@@ -279,9 +290,12 @@ export class PlanetfallGame {
   private lastLocalBurst = 0;
   private lastFrame = performance.now();
   private demo = new THREE.Group();
+  private lobbyStage = new THREE.Group();
+  private lobbyPlayers = new Map<string, LobbyPlayerVisual>();
   private demoTime = 0;
   private rope: THREE.Line;
   private ropeAnchor: THREE.Mesh;
+  private remoteTethers = new Map<string, THREE.Line>();
   private trajectory: THREE.Line;
   private trajectoryMarker: THREE.Group;
   private starLayers: THREE.Points[] = [];
@@ -348,13 +362,15 @@ export class PlanetfallGame {
     await RAPIER.init();
     this.physics = new RAPIER.World({ x: 0, y: 0, z: 0 });
     this.createDemo();
+    this.createLobbyStage();
     this.lastFrame = performance.now();
     this.renderer.setAnimationLoop((now) => this.frame(now));
   }
 
   setMode(mode: "home" | "lobby" | "match" | "results"): void {
     this.mode = mode;
-    this.demo.visible = mode === "home" || mode === "lobby";
+    this.demo.visible = mode === "home";
+    this.lobbyStage.visible = mode === "lobby";
     for (const planet of this.planets.values()) planet.group.visible = mode === "match" || mode === "results";
     for (const player of this.players.values()) player.group.visible = mode === "match" || mode === "results";
     if (mode !== "match") {
@@ -363,6 +379,7 @@ export class PlanetfallGame {
       this.trajectoryMarker.visible = false;
       this.rope.visible = false;
       this.ropeAnchor.visible = false;
+      this.grappleTargetPlayerId = null;
       this.launchAiming = false;
       this.launchSourcePlanetId = null;
       this.launchTargetPlanetId = null;
@@ -383,6 +400,7 @@ export class PlanetfallGame {
     this.lastLocalGroundedAt = 0;
     this.jumpQueuedUntil = 0;
     this.grappleRestLength = 0;
+    this.grappleTargetPlayerId = null;
     this.lastSnapshotServerTime = Number.NEGATIVE_INFINITY;
     this.reconciliationTracker.reset();
   }
@@ -401,6 +419,7 @@ export class PlanetfallGame {
       this.burstLatch = false;
       this.grappleHeld = false;
       this.grapplePoint = null;
+      this.grappleTargetPlayerId = null;
       this.grappleRestLength = 0;
       this.grappleTension = 0;
       if (this.activeSabotage) {
@@ -419,6 +438,7 @@ export class PlanetfallGame {
     this.syncPlanets(room.planets);
     this.syncPlayers(room.players);
     this.syncScraps(room.scraps);
+    this.syncLobbyPlayers(room.players);
   }
 
   debugState(): {
@@ -436,6 +456,7 @@ export class PlanetfallGame {
     cannons: { planetId: string; position: Vec3 }[];
     repairs: { planetId: string; position: Vec3 }[];
     trajectoryMarkerVisible: boolean;
+    lobbyAvatarCount: number;
     performance: { fps: number; drawCalls: number; triangles: number; particles: number; projectiles: number };
     mechanics: { speed: number; grounded: boolean; gravityPlanetId: string | null; altitude: number | null; correction: number; grappleTension: number; launchAssist: boolean; reconciliation: ReconciliationMetrics };
   } {
@@ -455,6 +476,7 @@ export class PlanetfallGame {
       cannons: this.room?.planets.map((planet) => ({ planetId: planet.id, position: cannonPosition(planet) })) ?? [],
       repairs: this.room?.planets.map((planet) => ({ planetId: planet.id, position: repairPosition(planet) })) ?? [],
       trajectoryMarkerVisible: this.trajectoryMarker.visible,
+      lobbyAvatarCount: this.lobbyPlayers.size,
       performance: {
         fps: this.measuredFps, drawCalls: this.renderer.info.render.calls, triangles: this.renderer.info.render.triangles,
         particles: this.particles.length, projectiles: this.projectiles.size
@@ -689,10 +711,37 @@ export class PlanetfallGame {
   }
 
   playEmote(payload: { playerId: string; emote: EmoteType; direction: Vec3; startedAt: number }): void {
-    const visual = this.players.get(payload.playerId);
+    const visual = this.players.get(payload.playerId) ?? this.lobbyPlayers.get(payload.playerId)?.player;
     if (!visual) return;
     visual.emote = payload.emote;
     visual.emoteUntil = performance.now() + (payload.emote === "celebrate" || payload.emote === "panic" ? 1700 : 1350);
+  }
+
+  playerTethered(payload: { playerId: string; targetPlayerId: string; startedAt: number }): void {
+    const target = this.players.get(payload.targetPlayerId);
+    if (target) {
+      target.hitPulse = Math.max(target.hitPulse, .35);
+      this.spawnBurst(target.group.position.clone().addScaledVector(target.presentationUp, .8), [0x70f5ff, 0xffffff], 7, 2.5);
+    }
+    if (payload.playerId === this.localId || payload.targetPlayerId === this.localId) this.audio.tether();
+  }
+
+  playHighFive(payload: { playerIds: [string, string]; position: Vec3; startedAt: number }): void {
+    const visuals = payload.playerIds.map((id) => this.players.get(id) ?? this.lobbyPlayers.get(id)?.player).filter(Boolean) as PlayerVisual[];
+    for (const visual of visuals) {
+      visual.emote = "celebrate";
+      visual.emoteUntil = performance.now() + 900;
+      visual.hitPulse = Math.max(visual.hitPulse, .25);
+    }
+    let position = vec(payload.position);
+    if (this.mode === "lobby" && visuals.length === 2) {
+      const first = visuals[0].group.getWorldPosition(new THREE.Vector3());
+      const second = visuals[1].group.getWorldPosition(new THREE.Vector3());
+      position = first.add(second).multiplyScalar(.5).add(new THREE.Vector3(0, 1.3, 0));
+    }
+    this.spawnBurst(position, [0xffdc4f, 0x70f5ff, 0xffffff], 14, 4.4);
+    this.spawnPulse(position, 0xffdc4f, .82);
+    if (payload.playerIds.includes(this.localId)) this.audio.highFive();
   }
 
   utilityPurchased(payload: { playerId: string; planetId: string; utility: "shield" | "overcharge" | "launch-boost"; activeUntil: number }): void {
@@ -807,6 +856,8 @@ export class PlanetfallGame {
     for (const shot of this.projectiles.values()) this.disposeProjectile(shot);
     this.projectiles.clear();
     this.recentDamage.clear();
+    for (const tether of this.remoteTethers.values()) { this.scene.remove(tether); tether.geometry.dispose(); this.disposeMaterial(tether.material); }
+    this.remoteTethers.clear();
     this.trajectory.visible = false;
     this.trajectoryMarker.visible = false;
     this.onIndicators?.([]);
@@ -889,13 +940,141 @@ export class PlanetfallGame {
     }
   }
 
+  private createLobbyStage(): void {
+    const stage = this.lobbyStage;
+    stage.visible = false;
+    stage.position.set(6.5, -1.25, -2);
+    const deckMaterial = new THREE.MeshStandardMaterial({ color: 0x151b48, metalness: .58, roughness: .42, flatShading: true });
+    const trimMaterial = new THREE.MeshStandardMaterial({ color: 0x5adcea, emissive: 0x164f6b, emissiveIntensity: .8, metalness: .7, roughness: .28 });
+    const deck = new THREE.Mesh(new THREE.CylinderGeometry(10.8, 11.35, .72, 24), deckMaterial);
+    deck.position.y = -.42;
+    const deckRing = new THREE.Mesh(new THREE.TorusGeometry(9.75, .12, 6, 48), trimMaterial);
+    deckRing.rotation.x = Math.PI / 2; deckRing.position.y = -.02;
+    const innerRing = new THREE.Mesh(new THREE.TorusGeometry(6.1, .055, 5, 36), new THREE.MeshBasicMaterial({ color: 0x8d6fff, transparent: true, opacity: .52 }));
+    innerRing.rotation.x = Math.PI / 2; innerRing.position.y = .02;
+    const window = new THREE.Mesh(
+      new THREE.TorusGeometry(10.4, .42, 8, 36, Math.PI * 1.08),
+      new THREE.MeshStandardMaterial({ color: 0x313867, metalness: .75, roughness: .3 })
+    );
+    window.position.set(0, 5.4, -4.9); window.rotation.z = -Math.PI * .04;
+    const holo = new THREE.Mesh(new THREE.OctahedronGeometry(1.2, 1), new THREE.MeshBasicMaterial({ color: 0x70f5ff, wireframe: true, transparent: true, opacity: .23 }));
+    holo.position.set(0, 2.1, -3.8); holo.userData.lobbyHolo = true;
+    stage.add(deck, deckRing, innerRing, window, holo);
+    for (let index = 0; index < 8; index++) {
+      const panel = new THREE.Mesh(new THREE.BoxGeometry(1.25, .04, .5), new THREE.MeshBasicMaterial({ color: index % 2 ? 0x8d6fff : 0x70f5ff, transparent: true, opacity: .24 }));
+      const angle = index / 8 * Math.PI * 2;
+      panel.position.set(Math.cos(angle) * 8.7, .01, Math.sin(angle) * 8.7);
+      panel.rotation.y = -angle;
+      stage.add(panel);
+    }
+    this.scene.add(stage);
+  }
+
+  private syncLobbyPlayers(states: PlayerState[]): void {
+    for (const state of states) {
+      let visual = this.lobbyPlayers.get(state.id);
+      if (!visual) {
+        const player = this.makePlayer(state);
+        player.intruderMarker.visible = true;
+        player.intruderDiamond.visible = false;
+        player.localMarker.visible = false;
+        const platform = new THREE.Group();
+        const base = new THREE.Mesh(new THREE.CylinderGeometry(1.25, 1.45, .34, 16), new THREE.MeshStandardMaterial({ color: 0x222957, metalness: .72, roughness: .34, flatShading: true }));
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(1.13, .085, 6, 28), new THREE.MeshStandardMaterial({ color: 0x5a688e, emissive: 0x15192f, emissiveIntensity: .35, metalness: .45, roughness: .25 }));
+        ring.rotation.x = Math.PI / 2; ring.position.y = .19;
+        const readyLabel = makeWorldLabel("STANDBY", "#7180a8", 190); readyLabel.position.y = 3.85; readyLabel.scale.set(2.15, .72, 1);
+        const metaLabel = makeWorldLabel("LV 1", state.color, 210); metaLabel.position.y = 3.25; metaLabel.scale.set(2.45, .72, 1);
+        const beam = new THREE.Mesh(new THREE.CylinderGeometry(.65, 1.1, 6, 12, 1, true), new THREE.MeshBasicMaterial({ color: 0x70f5ff, transparent: true, opacity: .26, blending: THREE.AdditiveBlending, depthWrite: false }));
+        beam.position.y = 2.8;
+        platform.add(base, ring, player.group, readyLabel, metaLabel, beam);
+        this.lobbyStage.add(platform);
+        visual = { player, platform, ring, readyLabel, metaLabel, beam, joinedAt: performance.now() };
+        this.lobbyPlayers.set(state.id, visual);
+      }
+      visual.player.state = state;
+      visual.player.suitMaterial.color.set(cosmeticColor(state.equippedCosmetics.suit, state.color));
+      updateWorldLabel(visual.player.nameLabel, `${state.name.toUpperCase()}${state.isBot ? "  BOT" : ""}`, state.color);
+      const readyCopy = state.ready ? "READY" : "STANDBY";
+      updateWorldLabel(visual.readyLabel, readyCopy, state.ready ? "#70f5ff" : "#7180a8");
+      const host = this.room?.hostId === state.id ? "HOST · " : "";
+      const badge = state.lobbyBadge ? ` · ${state.lobbyBadge}` : "";
+      const meta = state.isBot ? `${host}BOT · ♛ ${state.crowns}` : `${host}LV ${state.sessionLevel} · ♛ ${state.crowns}${badge}`;
+      updateWorldLabel(visual.metaLabel, meta, state.color);
+      visual.ring.material.color.set(state.ready ? 0x70f5ff : 0x5a688e);
+      visual.ring.material.emissive.set(state.ready ? 0x1b6f86 : 0x15192f);
+      visual.ring.material.emissiveIntensity = state.ready ? 1.45 : .35;
+    }
+    for (const [id, visual] of this.lobbyPlayers) {
+      if (states.some((state) => state.id === id)) continue;
+      this.lobbyStage.remove(visual.platform);
+      this.disposeObject(visual.platform);
+      visual.player.flightTrail.geometry.dispose(); this.disposeMaterial(visual.player.flightTrail.material);
+      this.lobbyPlayers.delete(id);
+    }
+    const ordered = states.map((state) => this.lobbyPlayers.get(state.id)).filter(Boolean) as LobbyPlayerVisual[];
+    ordered.forEach((visual, index) => {
+      const column = index - (ordered.length - 1) / 2;
+      const spacing = ordered.length <= 3 ? 3.2 : 2.55;
+      visual.platform.userData.targetPosition = new THREE.Vector3(column * spacing, 0, Math.abs(column) * .22);
+      const compact = ordered.length > 3;
+      const state = visual.player.state;
+      updateWorldLabel(
+        visual.player.nameLabel,
+        compact ? `${state.name.toUpperCase()}${state.isBot ? " BOT" : ""} · ${state.isBot ? "CPU" : `LV ${state.sessionLevel}`}` : `${state.name.toUpperCase()}${state.isBot ? "  BOT" : ""}`,
+        state.color
+      );
+      visual.readyLabel.visible = !compact;
+      visual.metaLabel.visible = !compact;
+    });
+  }
+
+  private updateLobby(dt: number): void {
+    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const target = new THREE.Vector3(2, 1.65, -2);
+    const drift = reduced ? 0 : Math.sin(this.demoTime * .18) * .45;
+    const desired = new THREE.Vector3(drift, 6.2, 19.5);
+    this.camera.position.lerp(desired, 1 - Math.exp(-dt * 3));
+    this.camera.up.lerp(new THREE.Vector3(0, 1, 0), 1 - Math.exp(-dt * 5)).normalize();
+    this.camera.lookAt(target);
+    this.camera.fov += (52 - this.camera.fov) * (1 - Math.exp(-dt * 4)); this.camera.updateProjectionMatrix();
+    const hologram = this.lobbyStage.children.find((child) => child.userData.lobbyHolo);
+    if (hologram) { hologram.rotation.y += dt * .5; hologram.position.y = 2.1 + Math.sin(this.demoTime * 1.4) * .15; }
+    for (const visual of this.lobbyPlayers.values()) {
+      const targetPosition = visual.platform.userData.targetPosition as THREE.Vector3 | undefined;
+      if (targetPosition) visual.platform.position.lerp(targetPosition, 1 - Math.exp(-dt * 7));
+      const state = visual.player.state;
+      const elapsed = performance.now() - visual.joinedAt;
+      visual.beam.material.opacity = Math.max(0, .34 * (1 - elapsed / 850));
+      visual.beam.visible = elapsed < 850;
+      const warpScale = Math.min(1, elapsed / 430);
+      const bob = Math.sin(this.demoTime * 2 + visual.platform.position.x) * .025;
+      visual.player.group.scale.setScalar(warpScale * (1 + bob));
+      visual.player.group.position.set(0, .93, 0);
+      visual.player.group.rotation.y = Math.sin(this.demoTime * .28 + visual.platform.position.x) * .08;
+      visual.player.leftArm.rotation.x = state.ready ? -1.9 : Math.sin(this.demoTime * 1.7 + visual.platform.position.x) * .08;
+      visual.player.rightArm.rotation.x = state.ready ? -1.9 : -Math.sin(this.demoTime * 1.7 + visual.platform.position.x) * .08;
+      visual.player.leftArm.rotation.z = state.ready ? .5 : .17;
+      visual.player.rightArm.rotation.z = state.ready ? -.5 : -.17;
+      if (performance.now() < visual.player.emoteUntil && visual.player.emote) this.applyEmotePose(visual.player, visual.player.emote, performance.now());
+      visual.player.intruderMarker.visible = true;
+      visual.player.nameLabel.visible = true;
+      const compact = this.lobbyPlayers.size > 3;
+      visual.player.nameLabel.scale.set(compact ? 2.35 : 2.75, compact ? .6 : .7, 1);
+      visual.readyLabel.visible = !compact;
+      visual.metaLabel.visible = !compact;
+      visual.ring.rotation.z += dt * (state.ready ? 1.3 : .35);
+      visual.readyLabel.position.y = 4.85 + bob;
+      visual.metaLabel.position.y = 3.58 + bob;
+    }
+  }
+
   private createDemo(): void {
     const a = this.makePlanet({ id: "demo-a", ownerId: "", position: { x: 13, y: -2, z: -4 }, integrity: 100, alive: true, palette: 0, damageStage: 0, cannonDisabledUntil: 0, repairDisabledUntil: 0, cannonSabotageImmuneUntil: 0, repairSabotageImmuneUntil: 0, shieldUntil: 0, shieldCooldownUntil: 0 });
     a.group.scale.setScalar(1.25);
     const b = this.makePlanet({ id: "demo-b", ownerId: "", position: { x: -12, y: 3, z: -18 }, integrity: 58, alive: true, palette: 3, damageStage: 2, cannonDisabledUntil: 0, repairDisabledUntil: 0, cannonSabotageImmuneUntil: 0, repairSabotageImmuneUntil: 0, shieldUntil: 0, shieldCooldownUntil: 0 });
     b.group.scale.setScalar(0.7);
     this.demo.add(a.group, b.group);
-    const astronaut = this.makePlayer({ id: "demo", name: "", isBot: false, color: "#ffdc4f", planetId: "", connected: true, ready: true, alive: true, scrap: 0, position: { x: 13, y: 9.5, z: -4 }, velocity: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, lastInputSequence: 0, surfacePlanetId: "demo-a", gravityPlanetId: "demo-a", launchCooldownUntil: 0, shoveCooldownUntil: 0, crowns: 0, fallbucks: 0, ownedCosmetics: [], equippedCosmetics: { suit: "default", trail: "default", victory: "default" }, overchargeUntil: 0, launchBoostUntil: 0 });
+    const astronaut = this.makePlayer({ id: "demo", name: "", isBot: false, color: "#ffdc4f", planetId: "", connected: true, ready: true, alive: true, scrap: 0, position: { x: 13, y: 9.5, z: -4 }, velocity: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, lastInputSequence: 0, surfacePlanetId: "demo-a", gravityPlanetId: "demo-a", launchCooldownUntil: 0, shoveCooldownUntil: 0, crowns: 0, fallbucks: 0, ownedCosmetics: [], equippedCosmetics: { suit: "default", trail: "default", victory: "default" }, overchargeUntil: 0, launchBoostUntil: 0, grappleTargetPlayerId: null, sessionLevel: 1, sessionXp: 0, sessionTotalXp: 0, unlockedPassRewards: ["default"] });
     astronaut.group.position.set(13, 9.4, -4);
     astronaut.group.scale.setScalar(1.2);
     this.demo.add(astronaut.group);
@@ -1431,7 +1610,8 @@ export class PlanetfallGame {
       layer.rotation.y += dt * layer.userData.speed;
       layer.rotation.x = Math.sin(this.demoTime * .04 + index) * .018;
     });
-    if (this.mode === "home" || this.mode === "lobby") this.updateDemo(dt);
+    if (this.mode === "home") this.updateDemo(dt);
+    else if (this.mode === "lobby") this.updateLobby(dt);
     else if (this.mode === "results") this.updateResults(dt);
     else this.updateMatch(dt, now);
     this.updateEffects(dt);
@@ -1446,15 +1626,20 @@ export class PlanetfallGame {
 
   private processControls(frame: InputFrame, dt: number): void {
     if (frame.method === "gamepad" && [frame.confirm, frame.jump, frame.burst, frame.interact, frame.fire, frame.grapple, frame.emote, frame.pause].some((state) => state.pressed)) this.audio.unlock();
-    const navigatingUi = this.mode !== "match" || this.uiCaptured;
+    const navigatingUi = (this.mode !== "match" || this.uiCaptured) && !frame.emote.held;
     if (navigatingUi && frame.menuY) this.onMenuNavigate?.(frame.menuY < 0 ? "up" : "down");
     if (navigatingUi && frame.menuX) this.onMenuNavigate?.(frame.menuX < 0 ? "left" : "right");
     if (navigatingUi && frame.confirm.pressed) this.onMenuNavigate?.("confirm");
 
     if (this.mode !== "match") {
+      if (this.mode === "lobby" && !this.uiCaptured) {
+        const local = this.lobbyPlayers.get(this.localId)?.player;
+        if (local) this.processEmoteSelection(frame, local.state);
+      }
       if (frame.cancel.pressed || frame.burst.pressed) this.onMenuNavigate?.("back");
       return;
     }
+    this.onLeaderboard?.(frame.leaderboard.held);
     if (frame.pause.pressed || (frame.method === "keyboard" && frame.cancel.pressed && !this.launchAiming)) {
       this.onPauseRequest?.();
       return;
@@ -1471,26 +1656,7 @@ export class PlanetfallGame {
       this.applyLook(frame, dt);
       return;
     }
-    if (frame.emote.pressed) {
-      this.emoteSelecting = true;
-      this.emoteSelection = this.availableEmotes(local.state)[0] ?? "wave";
-      this.onEmoteMenu?.(true, this.emoteSelection);
-    }
-    if (this.emoteSelecting && frame.emote.held) {
-      const available = this.availableEmotes(local.state);
-      if (available.length && Math.hypot(frame.moveX, frame.moveY) > .35) {
-        const angle = Math.atan2(frame.moveY, frame.moveX);
-        const index = ((Math.round((angle + Math.PI) / (Math.PI * 2) * available.length) % available.length) + available.length) % available.length;
-        if (available[index] !== this.emoteSelection) {
-          this.emoteSelection = available[index]; this.onEmoteMenu?.(true, this.emoteSelection);
-        }
-      }
-    }
-    if (this.emoteSelecting && frame.emote.released) {
-      this.emoteSelecting = false;
-      this.onEmoteMenu?.(false, this.emoteSelection);
-      this.onEmote?.(this.emoteSelection, plain(this.cameraForward));
-    }
+    this.processEmoteSelection(frame, local.state);
     if (this.launchAiming && (frame.cancel.pressed || frame.burst.pressed)) this.cancelLaunchAim();
     else if (frame.switchWeapon.pressed) this.toggleWeapon();
     if (frame.repair.pressed && !this.launchAiming) {
@@ -1537,16 +1703,19 @@ export class PlanetfallGame {
       } else this.audio.denied();
     }
     if (frame.grapple.pressed) {
-      this.grapplePoint = this.findGrapplePoint();
+      const playerTarget = this.findPlayerGrappleTarget();
+      this.grappleTargetPlayerId = playerTarget?.state.id ?? null;
+      this.grapplePoint = playerTarget?.group.position.clone() ?? this.findGrapplePoint();
       if (this.grapplePoint) {
         this.grappleRestLength = grappleRestLength(this.localPosition.distanceTo(this.grapplePoint));
-        this.audio.grapple();
+        this.grappleTargetPlayerId ? this.audio.tether() : this.audio.grapple();
       }
     }
     this.grappleHeld = frame.grapple.held && Boolean(this.grapplePoint);
     if (frame.grapple.released) {
       if (this.grapplePoint) this.audio.grappleRelease();
       this.grapplePoint = null;
+      this.grappleTargetPlayerId = null;
       this.grappleRestLength = 0;
       this.grappleTension = 0;
     }
@@ -1586,6 +1755,29 @@ export class PlanetfallGame {
     const cameraPosition = compact ? new THREE.Vector3(0, 8, 36) : new THREE.Vector3(20, 10, 32);
     this.camera.position.lerp(cameraPosition, 0.025);
     this.camera.lookAt(target);
+  }
+
+  private processEmoteSelection(frame: InputFrame, state: PlayerState): void {
+    if (frame.emote.pressed) {
+      this.emoteSelecting = true;
+      this.emoteSelection = this.availableEmotes(state)[0] ?? "wave";
+      this.onEmoteMenu?.(true, this.emoteSelection);
+    }
+    if (this.emoteSelecting && frame.emote.held) {
+      const available = this.availableEmotes(state);
+      if (available.length && Math.hypot(frame.moveX, frame.moveY) > .35) {
+        const angle = Math.atan2(frame.moveY, frame.moveX);
+        const index = ((Math.round((angle + Math.PI) / (Math.PI * 2) * available.length) % available.length) + available.length) % available.length;
+        if (available[index] !== this.emoteSelection) {
+          this.emoteSelection = available[index]; this.onEmoteMenu?.(true, this.emoteSelection);
+        }
+      }
+    }
+    if (this.emoteSelecting && frame.emote.released) {
+      this.emoteSelecting = false;
+      this.onEmoteMenu?.(false, this.emoteSelection);
+      this.onEmote?.(this.emoteSelection, plain(this.cameraForward));
+    }
   }
 
   private updateResults(dt: number): void {
@@ -1674,6 +1866,7 @@ export class PlanetfallGame {
         this.orientPlayer(player.group, player.presentationUp, player.presentationForward, dt);
       }
     }
+    this.updatePlayerTethers();
     this.updateContext();
   }
 
@@ -1755,6 +1948,14 @@ export class PlanetfallGame {
       this.spawnThruster(this.localPosition, burstDirection.clone().negate(), 14);
     }
     if (this.grappleHeld && this.grapplePoint) {
+      if (this.grappleTargetPlayerId) {
+        const target = this.players.get(this.grappleTargetPlayerId);
+        if (!target?.state.alive || !target.state.connected || target.group.position.distanceTo(this.localPosition) > BALANCE.playerGrapple.range * 1.15) {
+          this.grappleHeld = false; this.grapplePoint = null; this.grappleTargetPlayerId = null;
+        } else this.grapplePoint.copy(target.group.position);
+      }
+    }
+    if (this.grappleHeld && this.grapplePoint) {
       const ropeLength = this.grapplePoint.distanceTo(this.localPosition);
       this.grappleTension = Math.max(0, ropeLength - this.grappleRestLength);
       this.localVelocity.copy(vec(applyGrappleVelocity(
@@ -1826,7 +2027,8 @@ export class PlanetfallGame {
         sequence: ++this.inputSequence, dt: 1 / BALANCE.inputRate, moveX, moveY,
         cameraForward: plain(this.cameraForward), jump: this.jumpLatch, burst: this.burstLatch,
         grapple: this.grappleHeld && Boolean(this.grapplePoint),
-        grapplePoint: this.grapplePoint ? plain(this.grapplePoint) : undefined
+        grapplePoint: this.grapplePoint ? plain(this.grapplePoint) : undefined,
+        grappleTargetPlayerId: this.grappleTargetPlayerId ?? undefined
       });
       this.jumpLatch = false; this.burstLatch = false;
     }
@@ -1838,6 +2040,10 @@ export class PlanetfallGame {
       this.ropeAnchor.rotation.y += dt * 8;
       this.ropeAnchor.scale.setScalar(1 + Math.sin(this.demoTime * 20) * .18 + Math.min(.18, this.grappleTension * .025));
       (this.rope.material as THREE.LineBasicMaterial).opacity = .68 + Math.min(.3, this.grappleTension * .045);
+      const ropeColor = this.grappleTargetPlayerId
+        ? new THREE.Color(this.players.get(this.localId)?.state.color ?? "#70f5ff").lerp(new THREE.Color(this.players.get(this.grappleTargetPlayerId)?.state.color ?? "#ffffff"), .5)
+        : new THREE.Color(0x70f5ff);
+      (this.rope.material as THREE.LineBasicMaterial).color.copy(ropeColor);
     }
   }
 
@@ -1985,7 +2191,7 @@ export class PlanetfallGame {
     if (shoveTarget) {
       const localPlayer = this.players.get(this.localId);
       if (localPlayer && localPlayer.state.shoveCooldownUntil <= Date.now()) localPlayer.shoveUntil = performance.now() + 280;
-      this.onInteract?.({ action: "shove", targetPlayerId: shoveTarget.state.id });
+      this.onInteract?.({ action: "shove", targetPlayerId: shoveTarget.state.id, facing: plain(this.cameraForward) });
       return;
     }
     const local = this.players.get(this.localId);
@@ -2439,6 +2645,52 @@ export class PlanetfallGame {
       if (t > 0 && t < best) { best = t; closest = origin.clone().addScaledVector(direction, t); }
     }
     return closest;
+  }
+
+  private findPlayerGrappleTarget(): PlayerVisual | null {
+    let best: PlayerVisual | null = null;
+    let bestScore = Number.NEGATIVE_INFINITY;
+    for (const visual of this.players.values()) {
+      if (visual.state.id === this.localId || !visual.state.alive) continue;
+      const delta = visual.group.position.clone().sub(this.localPosition);
+      const range = delta.length();
+      if (range > BALANCE.playerGrapple.range || range < .2) continue;
+      const facing = delta.normalize().dot(this.cameraForward);
+      if (facing < BALANCE.playerGrapple.facingDot) continue;
+      const score = facing * 2 - range / BALANCE.playerGrapple.range;
+      if (score > bestScore) { best = visual; bestScore = score; }
+    }
+    return best;
+  }
+
+  private updatePlayerTethers(): void {
+    const active = new Set<string>();
+    for (const source of this.players.values()) {
+      const targetId = source.state.grappleTargetPlayerId;
+      if (!targetId || source.state.id === this.localId || !source.state.alive) continue;
+      const target = this.players.get(targetId);
+      if (!target?.state.alive) continue;
+      active.add(source.state.id);
+      let tether = this.remoteTethers.get(source.state.id);
+      if (!tether) {
+        const color = new THREE.Color(source.state.color).lerp(new THREE.Color(target.state.color), .5);
+        tether = new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
+          new THREE.LineBasicMaterial({ color, transparent: true, opacity: .78 })
+        );
+        this.scene.add(tether); this.remoteTethers.set(source.state.id, tether);
+      }
+      const start = source.group.position.clone().addScaledVector(source.presentationUp, .9);
+      const end = target.group.position.clone().addScaledVector(target.presentationUp, .9);
+      tether.geometry.setFromPoints([start, end]);
+      const material = tether.material as THREE.LineBasicMaterial;
+      material.color.copy(new THREE.Color(source.state.color).lerp(new THREE.Color(target.state.color), .5));
+      material.opacity = .65 + Math.sin(this.demoTime * 12) * .13;
+    }
+    for (const [id, tether] of this.remoteTethers) {
+      if (active.has(id)) continue;
+      this.scene.remove(tether); tether.geometry.dispose(); this.disposeMaterial(tether.material); this.remoteTethers.delete(id);
+    }
   }
 
   private nearestPlanet(position: THREE.Vector3, aliveOnly: boolean): PlanetVisual | undefined {

@@ -3,6 +3,8 @@ import {
   BALANCE,
   CHAOS_MODIFIERS,
   FREE_EMOTES,
+  PLANET_PASS_REWARDS,
+  SESSION_PROGRESSION,
   SHOP_CATALOG,
   WEAPON_ORDER,
   applyBurstVelocity,
@@ -32,6 +34,10 @@ import {
   selectChaosModifier,
   selectGravityPlanetId,
   selectMatchAwards,
+  sessionLevelForXp,
+  sessionMatchXp,
+  sessionXpInLevel,
+  planetPassRewardsBetween,
   stepTangentVelocity,
   sub,
   updateGroundedState
@@ -173,7 +179,7 @@ describe("shared gameplay math", () => {
     const rules = Object.fromEntries(CHAOS_MODIFIERS.map((modifier) => [modifier, createMatchRules(modifier)]));
     expect(rules["low-gravity"].gravity).toBeCloseTo(BALANCE.gravity * .65);
     expect(rules["low-gravity"].jumpSpeed).toBeGreaterThan(BALANCE.jumpSpeed);
-    expect(rules["scrap-rush"]).toMatchObject({ scrapSpawnMs: 4500, scrapMaxPerPlanet: 8 });
+    expect(rules["scrap-rush"]).toMatchObject({ scrapSpawnMs: 4000, scrapMaxPerPlanet: 8 });
     expect(rules["fragile-worlds"].maxIntegrity).toBe(70);
     expect(rules["launch-party"].launchCooldownMs).toBe(2250);
     expect(rules["super-shove"]).toMatchObject({ shoveForce: 14, shoveCooldownMs: 900 });
@@ -190,13 +196,30 @@ describe("shared gameplay math", () => {
     expect(BALANCE.weapons.cluster.fragmentCount).toBe(5);
     expect(BALANCE.weapons.cluster.damage * BALANCE.weapons.cluster.fragmentCount).toBeLessThanOrEqual(BALANCE.weapons.asteroid.damage);
     expect(BALANCE.weapons["gravity-bomb"].damage).toBeLessThan(BALANCE.weapons.rocket.damage);
-    expect(SHOP_CATALOG).toHaveLength(14);
+    expect(SHOP_CATALOG.filter((item) => !item.passLevel)).toHaveLength(14);
+    expect(SHOP_CATALOG.filter((item) => item.passLevel)).toHaveLength(4);
     expect(new Set(SHOP_CATALOG.map((item) => item.id)).size).toBe(SHOP_CATALOG.length);
-    expect(SHOP_CATALOG.every((item) => item.price >= 100 && item.price <= 300)).toBe(true);
+    expect(SHOP_CATALOG.filter((item) => !item.passLevel).every((item) => item.price >= 100 && item.price <= 300)).toBe(true);
+    expect(SHOP_CATALOG.filter((item) => item.passLevel).every((item) => item.price === 0)).toBe(true);
     expect(FREE_EMOTES).toEqual(["wave", "point", "celebrate"]);
   });
 
   it("awards Fallbucks by placement without introducing another match resource", () => {
     expect([1, 2, 3, 4, 6].map(fallbucksReward)).toEqual([100, 50, 25, 10, 10]);
+  });
+
+  it("awards bounded session XP and deterministic Planet Pass levels", () => {
+    expect(SESSION_PROGRESSION).toEqual({ xpPerLevel: 100, maxLevel: 10 });
+    expect(sessionMatchXp(1, 8, 8)).toBe(135);
+    expect(sessionMatchXp(2, 0, 0)).toBe(80);
+    expect(sessionMatchXp(6, 0, 0)).toBe(40);
+    expect(sessionLevelForXp(0)).toBe(1);
+    expect(sessionLevelForXp(99)).toBe(1);
+    expect(sessionLevelForXp(100)).toBe(2);
+    expect(sessionLevelForXp(99999)).toBe(10);
+    expect(sessionXpInLevel(245)).toBe(45);
+    expect(sessionXpInLevel(900)).toBe(100);
+    expect(planetPassRewardsBetween(1, 4).map((reward) => reward.level)).toEqual([2, 3, 4]);
+    expect(PLANET_PASS_REWARDS).toHaveLength(10);
   });
 });

@@ -1,5 +1,5 @@
 export type InputMethod = "keyboard" | "gamepad";
-export type InputAction = "jump" | "burst" | "interact" | "switchWeapon" | "repair" | "fire" | "grapple" | "emote" | "cancel" | "nextTarget" | "previousTarget" | "pause" | "confirm";
+export type InputAction = "jump" | "burst" | "interact" | "switchWeapon" | "repair" | "fire" | "grapple" | "emote" | "leaderboard" | "cancel" | "nextTarget" | "previousTarget" | "pause" | "confirm";
 
 export type ButtonState = { held: boolean; pressed: boolean; released: boolean };
 
@@ -17,6 +17,7 @@ export interface InputFrame {
   fire: ButtonState;
   grapple: ButtonState;
   emote: ButtonState;
+  leaderboard: ButtonState;
   cancel: ButtonState;
   nextTarget: ButtonState;
   previousTarget: ButtonState;
@@ -64,6 +65,7 @@ const keyboardMap: Record<string, InputAction> = {
   KeyQ: "switchWeapon",
   KeyR: "repair",
   KeyV: "emote",
+  Tab: "leaderboard",
   Escape: "cancel",
   ArrowRight: "nextTarget",
   ArrowLeft: "previousTarget",
@@ -79,6 +81,7 @@ const gamepadButtonMap: Partial<Record<number, InputAction>> = {
   5: "repair",
   6: "grapple",
   7: "fire",
+  8: "leaderboard",
   9: "pause"
 };
 
@@ -190,7 +193,7 @@ export class GameInput {
       lookX: this.mouseLookX + gamepad.look.x,
       lookY: this.mouseLookY + gamepad.look.y,
       jump: button("jump"), burst: button("burst"), interact: button("interact"), switchWeapon: button("switchWeapon"),
-      repair: button("repair"), fire: button("fire"), grapple: button("grapple"), emote: button("emote"), cancel: button("cancel"),
+      repair: button("repair"), fire: button("fire"), grapple: button("grapple"), emote: button("emote"), leaderboard: button("leaderboard"), cancel: button("cancel"),
       nextTarget: button("nextTarget"), previousTarget: button("previousTarget"), pause: button("pause"), confirm: button("confirm"),
       menuX, menuY
     };

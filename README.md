@@ -23,7 +23,7 @@ The development server prints the client address when it starts.
 
 Choose **Play Solo** for a match with three bots, or **Create Room** and share the room code. In multiplayer, everyone selects **Ready** before the host starts.
 
-Hosts can choose **Classic** or **Chaos**, set bot difficulty, and add bots. Winners earn session Crowns and Fallbucks that last through rematches while the room stays open. Fallbucks buy session-only cosmetics and never affect gameplay.
+Hosts can choose **Classic** or **Chaos**, set bot difficulty, and add bots. The orbital ready room is the hub for Ready, Shop, Planet Pass, and Settings. Matches award session XP, Crowns, and Fallbucks that last through rematches while the room stays open. Fallbucks buy session-only cosmetics and never affect gameplay.
 
 ## Controls
 
@@ -40,9 +40,10 @@ Hosts can choose **Classic** or **Chaos**, set bot difficulty, and add bots. Win
 | Switch cannon weapon | `Q` | `Y` |
 | Cycle targets | Mouse wheel | `LB` / `RB` |
 | Emote selector | Hold `V` + move | Hold D-pad up + left stick |
+| Expand player board | Hold `Tab` | Hold View |
 | Match menu | `Esc` | Menu |
 
-Near a structure, the prompt shows its available Scrap utility. Use `E` / `X` for shields or cannon overcharge, and `R` / `RB` at a launch pad for a launch boost.
+Near a structure, the prompt shows its available Scrap utility. Use `E` / `X` for shields or cannon overcharge, and `R` / `RB` at a launch pad for a launch boost. Aim directly at a nearby astronaut before grappling to create a short player tether.
 
 ## Stack
 
