@@ -24,6 +24,7 @@
               <input id="room-code" maxlength="6" autocomplete="off" placeholder="ROOM CODE" aria-label="Room code" />
               <button id="join-room" class="button button-secondary">Join Game</button>
             </div>
+            <button id="shop-home" class="button button-quiet home-shop-button" type="button" disabled>SHOP · COSMETICS</button>
           </div>
           <div id="home-controls" class="control-strip" aria-label="Game controls">
             <span><kbd>WASD</kbd> Move</span><span><kbd>E</kbd> Interact</span><span><kbd>RMB</kbd> Grapple</span>
@@ -75,7 +76,7 @@
         <div id="event-feed" class="event-feed" aria-live="polite"></div>
         <div id="match-hint" class="match-hint" aria-live="polite"></div>
         <div class="weapon-panel">
-          <span>WEAPON <kbd id="weapon-key">Q</kbd></span>
+          <span>CANNON WEAPON <kbd id="weapon-key">Q</kbd></span>
           <button id="weapon-button"><i></i><b id="weapon-name">BASIC ROCKET</b><small id="weapon-cost">8 scrap</small></button>
         </div>
         <div id="emote-wheel" class="emote-wheel" hidden><small>HOLD <kbd>V</kbd> + MOVE</small><b id="emote-name">WAVE</b></div>
@@ -145,6 +146,7 @@
       <section id="shop-overlay" class="overlay" aria-labelledby="shop-title" hidden>
         <div class="overlay-card shop-card glass">
           <div class="shop-heading"><div><div class="panel-kicker">SESSION COSMETICS</div><h2 id="shop-title">Shop</h2></div><strong><span id="shop-balance">0</span> FALLBUCKS</strong></div>
+          <p id="shop-note" class="shop-note" hidden>JOIN A ROOM TO EARN AND SPEND FALLBUCKS</p>
           <div id="shop-categories" class="shop-categories"></div>
           <div id="shop-grid" class="shop-grid"></div>
           <button id="shop-close" class="button button-primary">Done</button>

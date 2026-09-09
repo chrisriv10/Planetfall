@@ -33,6 +33,7 @@ import {
   repairPosition,
   reconciliationStrength,
   scale,
+  segmentSphereHit,
   selectGravityPlanetId,
   stepTangentVelocity,
   sub,
@@ -130,6 +131,9 @@ export type EdgeIndicator = { id: string; label: string; color: string; x: numbe
 const vec = (v: Vec3) => new THREE.Vector3(v.x, v.y, v.z);
 const plain = (v: THREE.Vector3): Vec3 => ({ x: v.x, y: v.y, z: v.z });
 const particleGeometry = new THREE.IcosahedronGeometry(0.12, 0);
+const CAMERA_MIN_PITCH = -0.28;
+const CAMERA_MAX_PITCH = 0.78;
+const CAMERA_BODY_HIDE_DISTANCE = 3.2;
 const damagedPlanetColor = new THREE.Color(0x33243c);
 const atmosphereVertexShader = `
   varying vec3 vNormal;
@@ -279,6 +283,7 @@ export class PlanetfallGame {
   private rope: THREE.Line;
   private ropeAnchor: THREE.Mesh;
   private trajectory: THREE.Line;
+  private trajectoryMarker: THREE.Group;
   private starLayers: THREE.Points[] = [];
   private particleMaterials = new Map<number, THREE.MeshBasicMaterial>();
   private shake = 0;
@@ -320,7 +325,19 @@ export class PlanetfallGame {
     this.scene.add(this.rope, this.ropeAnchor);
     this.trajectory = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineDashedMaterial({ color: 0xffdc4f, dashSize: 0.55, gapSize: 0.35, transparent: true, opacity: 0.8 }));
     this.trajectory.visible = false;
-    this.scene.add(this.trajectory);
+    this.trajectoryMarker = new THREE.Group();
+    const trajectoryDot = new THREE.Mesh(
+      new THREE.SphereGeometry(.24, 10, 7),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false, transparent: true, opacity: .95 })
+    );
+    const trajectoryRing = new THREE.Mesh(
+      new THREE.TorusGeometry(.48, .075, 6, 20),
+      new THREE.MeshBasicMaterial({ color: 0xffdc4f, depthTest: false, transparent: true, opacity: .88 })
+    );
+    trajectoryDot.renderOrder = 12; trajectoryRing.renderOrder = 12;
+    this.trajectoryMarker.add(trajectoryDot, trajectoryRing);
+    this.trajectoryMarker.visible = false;
+    this.scene.add(this.trajectory, this.trajectoryMarker);
 
     this.setupScene();
     this.bindControls();
@@ -343,6 +360,7 @@ export class PlanetfallGame {
     if (mode !== "match") {
       this.onIndicators?.([]);
       this.trajectory.visible = false;
+      this.trajectoryMarker.visible = false;
       this.rope.visible = false;
       this.ropeAnchor.visible = false;
       this.launchAiming = false;
@@ -417,6 +435,7 @@ export class PlanetfallGame {
     launchPads: { planetId: string; position: Vec3 }[];
     cannons: { planetId: string; position: Vec3 }[];
     repairs: { planetId: string; position: Vec3 }[];
+    trajectoryMarkerVisible: boolean;
     performance: { fps: number; drawCalls: number; triangles: number; particles: number; projectiles: number };
     mechanics: { speed: number; grounded: boolean; gravityPlanetId: string | null; altitude: number | null; correction: number; grappleTension: number; launchAssist: boolean; reconciliation: ReconciliationMetrics };
   } {
@@ -435,6 +454,7 @@ export class PlanetfallGame {
       launchPads: this.room?.planets.map((planet) => ({ planetId: planet.id, position: launchPadPosition(planet) })) ?? [],
       cannons: this.room?.planets.map((planet) => ({ planetId: planet.id, position: cannonPosition(planet) })) ?? [],
       repairs: this.room?.planets.map((planet) => ({ planetId: planet.id, position: repairPosition(planet) })) ?? [],
+      trajectoryMarkerVisible: this.trajectoryMarker.visible,
       performance: {
         fps: this.measuredFps, drawCalls: this.renderer.info.render.calls, triangles: this.renderer.info.render.triangles,
         particles: this.particles.length, projectiles: this.projectiles.size
@@ -787,6 +807,8 @@ export class PlanetfallGame {
     for (const shot of this.projectiles.values()) this.disposeProjectile(shot);
     this.projectiles.clear();
     this.recentDamage.clear();
+    this.trajectory.visible = false;
+    this.trajectoryMarker.visible = false;
     this.onIndicators?.([]);
     for (const planet of this.planets.values()) {
       for (const child of [...planet.cracks.children]) if (!child.userData.stageMark) { planet.cracks.remove(child); this.disposeObject(child); }
@@ -1536,7 +1558,7 @@ export class PlanetfallGame {
       if (document.pointerLockElement !== this.canvas) return;
       this.lookYawDelta -= frame.lookX * .0022 * this.settings.mouseSensitivity;
       const invert = this.settings.invertY ? -1 : 1;
-      this.pitch = clamp(this.pitch - frame.lookY * .0018 * this.settings.mouseSensitivity * invert, -.28, 1.02);
+      this.pitch = clamp(this.pitch - frame.lookY * .0018 * this.settings.mouseSensitivity * invert, CAMERA_MIN_PITCH, CAMERA_MAX_PITCH);
       return;
     }
     let assist = 1;
@@ -1548,14 +1570,19 @@ export class PlanetfallGame {
     const invert = this.settings.invertY ? -1 : 1;
     const speed = this.settings.controllerSensitivity * assist;
     this.lookYawDelta -= frame.lookX * dt * 2.85 * speed;
-    this.pitch = clamp(this.pitch - frame.lookY * dt * 2.25 * speed * invert, -.28, 1.02);
+    this.pitch = clamp(this.pitch - frame.lookY * dt * 2.25 * speed * invert, CAMERA_MIN_PITCH, CAMERA_MAX_PITCH);
   }
 
   private updateDemo(dt: number): void {
     this.demo.rotation.y += dt * 0.055;
     for (const child of this.demo.children) child.rotation.y += dt * 0.08;
     const compact = innerWidth < 820;
-    const target = compact ? new THREE.Vector3(0, 2, 0) : new THREE.Vector3(10, 1, -4);
+    const homeComposition = this.mode === "home" && !compact;
+    const target = compact
+      ? new THREE.Vector3(0, 2, 0)
+      : homeComposition
+        ? new THREE.Vector3(0, 0, -4)
+        : new THREE.Vector3(10, 1, -4);
     const cameraPosition = compact ? new THREE.Vector3(0, 8, 36) : new THREE.Vector3(20, 10, 32);
     this.camera.position.lerp(cameraPosition, 0.025);
     this.camera.lookAt(target);
@@ -1623,6 +1650,7 @@ export class PlanetfallGame {
     const shakeOffset = new THREE.Vector3().randomDirection().multiplyScalar(this.shake * 0.25 * shakeMultiplier(this.settings.cameraShake));
     this.camera.position.add(shakeOffset);
     this.camera.lookAt(this.localPosition.clone().addScaledVector(outward, 1.1).addScaledVector(planarForward, 1.6).addScaledVector(destinationDirection, flightAmount * 2.7));
+    local.group.visible = this.camera.position.distanceTo(this.localPosition) >= CAMERA_BODY_HIDE_DISTANCE;
     const targetFov = 58 + flightAmount * 8;
     if (Math.abs(this.camera.fov - targetFov) > 0.02) { this.camera.fov += (targetFov - this.camera.fov) * (1 - Math.exp(-dt * 5)); this.camera.updateProjectionMatrix(); }
 
@@ -1814,6 +1842,7 @@ export class PlanetfallGame {
   }
 
   private updateContext(): void {
+    this.trajectoryMarker.visible = false;
     const local = this.players.get(this.localId);
     const ownPlanet = local ? this.planets.get(local.state.planetId) : undefined;
     if (!local || !ownPlanet) return;
@@ -1897,9 +1926,18 @@ export class PlanetfallGame {
       this.onPrompt?.(`REPAIR JAMMED  ${Math.ceil((ownPlanet.state.repairDisabledUntil - Date.now()) / 1000)}s`, false, undefined, "cooldown");
     } else if (nearCannon) {
       const origin = vec(cannonPosition(ownPlanet.state)).addScaledVector(this.cameraForward, 1.8);
-      const points = Array.from({ length: 56 }, (_, i) => origin.clone().addScaledVector(this.cameraForward, i * 1.65));
+      const preview = this.cannonTrajectory(origin, this.cameraForward, this.weapon);
+      const previewDistance = origin.distanceTo(preview.end);
+      const pointCount = 56;
+      const points = Array.from({ length: pointCount }, (_, index) => origin.clone().addScaledVector(this.cameraForward, previewDistance * index / (pointCount - 1)));
       this.trajectory.geometry.setFromPoints(points);
       (this.trajectory as THREE.Line<THREE.BufferGeometry, THREE.LineDashedMaterial>).computeLineDistances();
+      if (preview.hit) {
+        this.trajectoryMarker.position.copy(preview.end).addScaledVector(this.cameraForward, -.08);
+        this.trajectoryMarker.quaternion.copy(this.camera.quaternion);
+        this.trajectoryMarker.scale.setScalar(1 + Math.sin(this.demoTime * 7) * .08);
+        this.trajectoryMarker.visible = true;
+      }
       const flatAim = this.cameraForward.clone().projectOnPlane(new THREE.Vector3(0, 1, 0)).normalize();
       if (flatAim.lengthSq() > 0.1) ownPlanet.cannon.rotation.y = Math.atan2(-flatAim.x, -flatAim.z);
       this.trajectory.visible = true;
@@ -1987,6 +2025,7 @@ export class PlanetfallGame {
     this.launchTargetOffset = 0;
     this.launchTargetCycled = false;
     this.trajectory.visible = false;
+    this.trajectoryMarker.visible = false;
     for (const planet of this.planets.values()) planet.launchHighlight.visible = false;
   }
 
@@ -2014,9 +2053,10 @@ export class PlanetfallGame {
     let nearestDistance: number = BALANCE.shove.range;
     for (const player of this.players.values()) {
       if (!player.state.alive || player.state.id === this.localId || player.state.surfacePlanetId !== surfacePlanetId) continue;
-      const d = player.group.position.distanceTo(this.localPosition);
+      const targetPosition = vec(player.state.position);
+      const d = targetPosition.distanceTo(this.localPosition);
       if (d <= nearestDistance && isShoveTarget(
-        plain(this.localPosition), plain(player.group.position), planet.state.position, plain(this.cameraForward)
+        plain(this.localPosition), plain(targetPosition), planet.state.position, plain(this.cameraForward)
       )) { nearest = player; nearestDistance = d; }
     }
     return nearest;
@@ -2055,6 +2095,7 @@ export class PlanetfallGame {
   }
 
   private updateLaunchTrajectory(source: PlanetVisual, target: PlanetVisual): void {
+    this.trajectoryMarker.visible = false;
     const points: THREE.Vector3[] = [this.localPosition.clone()];
     const position = this.localPosition.clone();
     let velocity = launchVelocity(plain(position), source.state, target.state);
@@ -2507,6 +2548,22 @@ export class PlanetfallGame {
       if (hit > .3 && hit < nearestHit) nearestHit = hit;
     }
     return nearestHit < distanceToCamera ? target.clone().addScaledVector(direction, Math.max(.8, nearestHit - .3)) : result;
+  }
+
+  private cannonTrajectory(origin: THREE.Vector3, direction: THREE.Vector3, weapon: WeaponType): { end: THREE.Vector3; hit: boolean } {
+    const aim = direction.clone().normalize();
+    const end = origin.clone().addScaledVector(aim, 92);
+    const config = BALANCE.weapons[weapon];
+    const collisionStart = origin.clone().addScaledVector(aim, config.speed * .18);
+    const projectileRadius = weapon === "asteroid" ? .9 : weapon === "cluster" ? .52 : .35;
+    let nearestT = Number.POSITIVE_INFINITY;
+    for (const planet of this.planets.values()) {
+      if (!planet.state.alive) continue;
+      const intersection = segmentSphereHit(plain(collisionStart), plain(end), planet.state.position, BALANCE.planetRadius + projectileRadius);
+      if (intersection !== null && intersection < nearestT) nearestT = intersection;
+    }
+    if (!Number.isFinite(nearestT)) return { end, hit: false };
+    return { end: collisionStart.lerp(end, nearestT), hit: true };
   }
 
   private orientPlayer(group: THREE.Group, up: THREE.Vector3, forward: THREE.Vector3, dt: number): void {

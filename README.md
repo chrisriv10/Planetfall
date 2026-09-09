@@ -37,7 +37,7 @@ Hosts can choose **Classic** or **Chaos**, set bot difficulty, and add bots. Win
 | Fire cannon | Left click | `RT` |
 | Grapple | Right click | `LT` |
 | Repair | `R` | `RB` |
-| Switch weapon | `Q` | `Y` |
+| Switch cannon weapon | `Q` | `Y` |
 | Cycle targets | Mouse wheel | `LB` / `RB` |
 | Emote selector | Hold `V` + move | Hold D-pad up + left stick |
 | Match menu | `Esc` | Menu |
@@ -75,6 +75,6 @@ The proposed first release is documented in [v0.1.0 release notes](docs/releases
 
 ## Attribution
 
-Music: “Bot City” from [My Little Bots](https://davidkbd.itch.io/my-little-bots-crazy-music-for-robots-asset-pack) by David KBD, used under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+Music: “Low Battery” (menu) and “Bot City” (matches) from [My Little Bots](https://davidkbd.itch.io/my-little-bots-crazy-music-for-robots-asset-pack) by David KBD, used under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
 See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for third-party notices.

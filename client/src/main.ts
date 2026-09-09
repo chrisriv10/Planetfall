@@ -56,9 +56,11 @@ const botDifficultyButtons: Record<BotDifficulty, HTMLButtonElement> = {
 const shopOverlay = byId<HTMLElement>("shop-overlay");
 const shopGrid = byId("shop-grid");
 const shopCategories = byId("shop-categories");
+const shopNote = byId<HTMLElement>("shop-note");
+const shopHomeButton = byId<HTMLButtonElement>("shop-home");
 const emoteWheel = byId<HTMLElement>("emote-wheel");
 let shopCategory: CosmeticCategory = "suit";
-createButton.disabled = true; soloButton.disabled = true; joinButton.disabled = true; settingsOpenButton.disabled = true;
+createButton.disabled = true; soloButton.disabled = true; joinButton.disabled = true; settingsOpenButton.disabled = true; shopHomeButton.disabled = true;
 nameInput.value = nameInput.value || localStorage.getItem("planetfall:name") || "";
 
 const prefersReducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -84,9 +86,10 @@ let settingsReturn: "pause" | "screen" = "screen";
 const indicatorNodes = new Map<string, HTMLElement>();
 
 await game.init();
+addEventListener("pointerdown", () => game.audio.unlock(), { once: true, capture: true });
+addEventListener("keydown", () => game.audio.unlock(), { once: true, capture: true });
 if (import.meta.env.DEV) Object.defineProperty(window, "__PLANETFALL_DEBUG__", { value: () => game.debugState(), configurable: true });
 showScreen("home");
-createButton.disabled = false; soloButton.disabled = false; joinButton.disabled = false; settingsOpenButton.disabled = false;
 if (socket.connected) setConnection("online", "Online");
 
 socket.on("connect", () => {
@@ -232,6 +235,7 @@ for (const [difficulty, button] of Object.entries(botDifficultyButtons) as [BotD
 }
 byId("shop-lobby").addEventListener("click", openShop);
 byId("shop-results").addEventListener("click", openShop);
+shopHomeButton.addEventListener("click", openShop);
 byId("shop-close").addEventListener("click", closeShop);
 copyButton.addEventListener("click", async () => {
   if (!room) return;
@@ -244,6 +248,7 @@ byId("weapon-button").addEventListener("click", () => {
 });
 byId("rematch-button").addEventListener("click", () => { socket.emit("match:rematch"); game.audio.click(); });
 byId("leave-button").addEventListener("click", () => location.reload());
+createButton.disabled = false; soloButton.disabled = false; joinButton.disabled = false; settingsOpenButton.disabled = false; shopHomeButton.disabled = false;
 
 function joinOrCreate(kind: "create" | "join" | "solo"): void {
   if (joining) return;
@@ -436,7 +441,9 @@ function showResults(winnerId: string | null, result: MatchResult | null = room?
 }
 
 function openShop(): void {
-  if (!room || (room.phase !== "lobby" && room.phase !== "results")) return;
+  const previewing = currentScreen === "home" && !room;
+  if (!previewing && (!room || (room.phase !== "lobby" && room.phase !== "results"))) return;
+  game.audio.unlock(); game.audio.click();
   shopOverlay.hidden = false;
   game.setUiCaptured(true);
   renderShop();
@@ -451,8 +458,9 @@ function closeShop(): void {
 
 function renderShop(): void {
   const me = room?.players.find((player) => player.id === playerId);
-  if (!me) return;
-  byId("shop-balance").textContent = String(me.fallbucks);
+  const previewing = !me;
+  byId("shop-balance").textContent = String(me?.fallbucks ?? 0);
+  shopNote.hidden = !previewing;
   const categories: { id: CosmeticCategory; label: string }[] = [
     { id: "suit", label: "SUITS" }, { id: "trail", label: "TRAILS" }, { id: "emote", label: "EMOTES" }, { id: "victory", label: "VICTORY" }
   ];
@@ -463,11 +471,11 @@ function renderShop(): void {
   shopGrid.replaceChildren(...SHOP_CATALOG.filter((item) => item.category === shopCategory).map((item) => {
     const card = document.createElement("article"); card.className = "shop-item";
     card.style.setProperty("--item-color", item.color ?? (item.category === "emote" ? "#ff8bd9" : "#70f5ff"));
-    const owned = me.ownedCosmetics.includes(item.id);
-    const equipped = item.category !== "emote" && me.equippedCosmetics[item.category] === item.id;
-    card.innerHTML = `<i></i><b>${escapeHtml(item.name)}</b><small>${owned ? "OWNED" : `${item.price} FALLBUCKS`}</small><button>${equipped ? "EQUIPPED" : owned ? item.category === "emote" ? "OWNED" : "EQUIP" : "BUY"}</button>`;
+    const owned = me?.ownedCosmetics.includes(item.id) ?? false;
+    const equipped = Boolean(me && item.category !== "emote" && me.equippedCosmetics[item.category] === item.id);
+    card.innerHTML = `<i></i><b>${escapeHtml(item.name)}</b><small>${owned ? "OWNED" : `${item.price} FALLBUCKS`}</small><button>${previewing ? "PLAY TO UNLOCK" : equipped ? "EQUIPPED" : owned ? item.category === "emote" ? "OWNED" : "EQUIP" : "BUY"}</button>`;
     const button = card.querySelector("button")!;
-    button.disabled = equipped || (owned && item.category === "emote") || (!owned && me.fallbucks < item.price);
+    button.disabled = previewing || equipped || (owned && item.category === "emote") || (!owned && me!.fallbucks < item.price);
     button.addEventListener("click", () => {
       const event = owned ? "shop:equip" : "shop:buy";
       socket.emit(event, { itemId: item.id }, (result) => {
@@ -550,8 +558,8 @@ function closePause(): void {
 function renderInputUi(method: InputMethod): void {
   document.body.dataset.input = method;
   const controls = method === "gamepad"
-    ? [["LS", "Move"], ["RS", "Camera"], ["A", "Jump"], ["B", "Burst"], ["X", "Interact"], ["LT", "Grapple"], ["RT", "Fire"], ["RB", "Repair"], ["Y", "Weapon"], ["D↑", "Emote"]]
-    : [["WASD", "Move"], ["MOUSE", "Camera"], ["SPACE", "Jump"], ["SHIFT", "Burst"], ["E", "Interact"], ["RMB", "Grapple"], ["LMB", "Fire"], ["R", "Repair"], ["Q", "Weapon"], ["V", "Emote"]];
+    ? [["LS", "Move"], ["RS", "Camera"], ["A", "Jump"], ["B", "Burst"], ["X", "Interact"], ["LT", "Grapple"], ["RT", "Fire"], ["RB", "Repair"], ["Y", "Cannon Weapon"], ["D↑", "Emote"]]
+    : [["WASD", "Move"], ["MOUSE", "Camera"], ["SPACE", "Jump"], ["SHIFT", "Burst"], ["E", "Interact"], ["RMB", "Grapple"], ["LMB", "Fire"], ["R", "Repair"], ["Q", "Cannon Weapon"], ["V", "Emote"]];
   const html = controls.map(([key, label]) => `<span><kbd>${key}</kbd>${label}</span>`).join("");
   controlHelp.innerHTML = html;
   pauseControls.innerHTML = html;
@@ -617,6 +625,7 @@ function setGameMode(mode: GameMode): void {
 
 function showScreen(name: keyof typeof screens): void {
   currentScreen = name;
+  game.audio.setMusicScene(name === "home" ? "menu" : "game");
   for (const [key, screen] of Object.entries(screens)) screen.classList.toggle("active", key === name);
   settingsOpenButton.hidden = name === "hud";
   if (name === "hud") showFirstMatchControls();

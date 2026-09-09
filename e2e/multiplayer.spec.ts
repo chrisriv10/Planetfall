@@ -12,6 +12,7 @@ type DebugState = {
   launchPads: { planetId: string; position: Point }[];
   cannons: { planetId: string; position: Point }[];
   repairs: { planetId: string; position: Point }[];
+  trajectoryMarkerVisible: boolean;
   matchStats: { playerId: string; stolenScrap: number; successfulShoves: number; sabotagesCompleted: number }[];
   gameMode: "classic" | "chaos" | null;
   activeModifier: string | null;
@@ -151,6 +152,34 @@ test("settings persist across reloads", async ({ page }) => {
   expect(browserErrors).toEqual([]);
 });
 
+test("the home menu previews the Fallbucks shop", async ({ page }) => {
+  const browserErrors = collectBrowserErrors(page);
+  await page.goto("/");
+  await page.getByRole("button", { name: "SHOP · COSMETICS" }).click();
+  await expect(page.getByRole("heading", { name: "Shop" })).toBeVisible();
+  await expect(page.locator("#shop-note")).toContainText("JOIN A ROOM TO EARN AND SPEND FALLBUCKS");
+  await expect(page.locator("#shop-grid").getByRole("button", { name: "PLAY TO UNLOCK" }).first()).toBeDisabled();
+  await page.getByRole("button", { name: "Done" }).click();
+  await expect(page.locator("#home-screen")).toBeVisible();
+  expect(browserErrors).toEqual([]);
+});
+
+test("the cannon guide marks its predicted planet impact", async ({ page }) => {
+  const browserErrors = collectBrowserErrors(page);
+  await page.goto("/");
+  await page.getByLabel("Name").fill("Nova");
+  await page.getByRole("button", { name: "Play Solo" }).click();
+  await expect(page.locator("#hud")).toBeVisible();
+  await expect(page.locator(".weapon-panel")).toContainText("CANNON WEAPON");
+  const initial = await debugState(page);
+  const local = initial.players.find((player) => player.id === initial.localId)!;
+  const target = initial.planets.find((planet) => planet.id !== local.planetId)!;
+  await moveTo(page, (state) => state.cannons.find((cannon) => cannon.planetId === local.planetId)!.position, 3.7);
+  await aimAt(page, () => target.position);
+  await expect.poll(async () => (await debugState(page)).trajectoryMarkerVisible).toBe(true);
+  expect(browserErrors).toEqual([]);
+});
+
 test("two players can create, join, ready, and start", async ({ browser }) => {
   const hostContext = await browser.newContext();
   const guestContext = await browser.newContext();
@@ -239,7 +268,14 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
     return { x: planet.position.x, y: planet.position.y, z: planet.position.z + 8.95 };
   };
   await moveTo(host, neutralPoint, 1.8);
-  await moveTo(guest, (state) => state.players.find((player) => player.id === hostPlayer.id)!.position, 1.75);
+  await moveTo(guest, (state) => state.players.find((player) => player.id === hostPlayer.id)!.position, 1.25);
+  await expect.poll(async () => {
+    const state = await debugState(host);
+    const attacker = state.players.find((player) => player.id === hostPlayer.id)!;
+    const target = state.players.find((player) => player.id === guestPlayer.id)!;
+    return pointDistance(attacker.position, target.position);
+  }).toBeLessThan(1.6);
+  await aimAt(host, (state) => state.players.find((player) => player.id === guestPlayer.id)!.position);
   await expect(host.locator("#context-prompt")).toContainText(/SHOVE NOVA/i);
   const guestBeforeShove = (await debugState(guest)).localPosition;
   await host.keyboard.press("e");
@@ -299,7 +335,7 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
   await guest.locator("#rematch-button").click();
   await host.locator("#rematch-button").click();
   await expect(host.locator("#lobby-screen")).toBeVisible();
-  await expect(host.locator("#player-list .crown-count")).toHaveCount(1);
+  await expect(host.locator('#player-list .crown-count[title="Session Crowns"]')).toHaveCount(1);
   await expect(host.getByRole("button", { name: "Start" })).toBeEnabled();
   await expect.poll(async () => (await debugState(host)).matchStats.every((stats) => stats.stolenScrap === 0 && stats.successfulShoves === 0 && stats.sabotagesCompleted === 0)).toBe(true);
   expect(browserErrors.flat()).toEqual([]);
@@ -321,6 +357,8 @@ test("the host can start one clearly revealed Chaos modifier", async ({ browser 
   await guest.getByLabel("Name").fill("Luna");
   await guest.getByLabel("Room code").fill(code);
   await guest.getByRole("button", { name: "Join Game" }).click();
+  await expect(guest.getByRole("heading", { name: "Players" })).toBeVisible();
+  await expect(guest.getByText("Vega")).toBeVisible();
   await host.locator("#mode-chaos").click();
   await expect(host.locator("#mode-chaos")).toHaveClass(/selected/);
   await expect(guest.locator("#mode-chaos")).toBeDisabled();

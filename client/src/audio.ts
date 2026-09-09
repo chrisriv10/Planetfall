@@ -1,31 +1,46 @@
 export class GameAudio {
   private context: AudioContext | null = null;
-  private music: HTMLAudioElement;
+  private readonly music: Record<"menu" | "game", HTMLAudioElement>;
+  private musicScene: "menu" | "game" = "menu";
+  private musicUnlocked = false;
   private musicFade: ReturnType<typeof setInterval> | null = null;
   private musicVolume = .8;
   private sfxVolume = .9;
 
-  private get musicTarget(): number { return .18 * this.musicVolume; }
+  private get activeMusic(): HTMLAudioElement { return this.music[this.musicScene]; }
+  private get musicTarget(): number { return (this.musicScene === "menu" ? .14 : .18) * this.musicVolume; }
 
   constructor() {
-    this.music = new Audio("/audio/bot-city.ogg");
-    this.music.loop = true;
-    this.music.preload = "auto";
-    this.music.volume = 0;
+    this.music = {
+      menu: this.makeMusic("/audio/low-battery.ogg"),
+      game: this.makeMusic("/audio/bot-city.ogg")
+    };
   }
 
   unlock(): void {
     if (!this.context) this.context = new AudioContext();
     if (this.context.state === "suspended") void this.context.resume();
-    if (this.music.paused) {
-      void this.music.play().then(() => this.fadeMusicIn()).catch(() => undefined);
+    this.musicUnlocked = true;
+    const active = this.activeMusic;
+    if (active.paused) {
+      void active.play().then(() => this.fadeMusicIn()).catch(() => undefined);
     }
+  }
+
+  setMusicScene(scene: "menu" | "game"): void {
+    if (scene === this.musicScene) return;
+    const outgoing = this.activeMusic;
+    this.musicScene = scene;
+    const incoming = this.activeMusic;
+    if (!this.musicUnlocked) { outgoing.pause(); outgoing.volume = 0; return; }
+    incoming.volume = 0;
+    void incoming.play().then(() => this.crossfadeMusic(outgoing, incoming)).catch(() => undefined);
   }
 
   setVolumes(music: number, sfx: number): void {
     this.musicVolume = Math.min(1, Math.max(0, music));
     this.sfxVolume = Math.min(1, Math.max(0, sfx));
-    if (!this.music.paused) this.music.volume = this.musicTarget;
+    if (!this.activeMusic.paused) this.activeMusic.volume = this.musicTarget;
   }
 
   click(): void { this.tone(360, 0.04, "square", 0.025, 520); }
@@ -73,19 +88,42 @@ export class GameAudio {
 
   private fadeMusicIn(): void {
     if (this.musicFade) clearInterval(this.musicFade);
+    const active = this.activeMusic;
     this.musicFade = setInterval(() => {
-      this.music.volume = Math.min(this.musicTarget, this.music.volume + .01);
-      if (this.music.volume >= this.musicTarget && this.musicFade) {
+      active.volume = Math.min(this.musicTarget, active.volume + .01);
+      if (active.volume >= this.musicTarget && this.musicFade) {
         clearInterval(this.musicFade);
         this.musicFade = null;
       }
     }, 90);
   }
 
+  private crossfadeMusic(outgoing: HTMLAudioElement, incoming: HTMLAudioElement): void {
+    if (this.musicFade) clearInterval(this.musicFade);
+    this.musicFade = setInterval(() => {
+      outgoing.volume = Math.max(0, outgoing.volume - .012);
+      incoming.volume = Math.min(this.musicTarget, incoming.volume + .012);
+      if (outgoing.volume <= 0) outgoing.pause();
+      if (outgoing.paused && incoming.volume >= this.musicTarget && this.musicFade) {
+        clearInterval(this.musicFade);
+        this.musicFade = null;
+      }
+    }, 70);
+  }
+
   private duckMusic(duration: number, amount: number): void {
-    if (this.music.paused) return;
-    this.music.volume = Math.min(this.music.volume, this.musicTarget * (1 - amount));
-    setTimeout(() => this.fadeMusicIn(), duration);
+    const active = this.activeMusic;
+    if (active.paused) return;
+    active.volume = Math.min(active.volume, this.musicTarget * (1 - amount));
+    setTimeout(() => { if (this.activeMusic === active) this.fadeMusicIn(); }, duration);
+  }
+
+  private makeMusic(source: string): HTMLAudioElement {
+    const music = new Audio(source);
+    music.loop = true;
+    music.preload = "auto";
+    music.volume = 0;
+    return music;
   }
 
   private tone(start: number, duration: number, type: OscillatorType, gain: number, end = start): void {

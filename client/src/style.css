@@ -153,6 +153,7 @@ body[data-game-mode="chaos"] .mode-option.selected { color: #ff8aad; border-colo
 .difficulty-selector button:disabled { cursor:default; opacity:.72; }
 .shop-button { margin-left:auto; }
 .shop-button b { color:var(--yellow); }
+.home-shop-button { min-height:40px; margin-top:2px; letter-spacing:.08em; }
 .emote-wheel { position:absolute; left:50%; top:61%; transform:translate(-50%,-50%); min-width:190px; padding:15px 24px; text-align:center; border:2px solid var(--cyan); border-radius:50%; background:radial-gradient(circle,rgba(27,31,83,.96),rgba(5,8,31,.9)); box-shadow:0 0 30px rgba(112,245,255,.25); animation:prompt-in .15s ease-out; }
 .emote-wheel small { display:block; color:#9ba9d1; font-size:.65rem; letter-spacing:.08em; }
 .emote-wheel b { display:block; margin-top:6px; color:#fff; font-size:1.05rem; }
@@ -160,6 +161,7 @@ body[data-game-mode="chaos"] .mode-option.selected { color: #ff8aad; border-colo
 .shop-card { width:min(860px,calc(100vw - 34px)); max-height:min(760px,calc(100vh - 30px)); overflow:auto; }
 .shop-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; }
 .shop-heading strong { color:var(--yellow); font-size:.8rem; }
+.shop-note { margin:8px 0 2px; padding:8px 11px; border:1px solid rgba(112,245,255,.2); border-radius:7px 12px 7px 12px; color:#9eadd4; background:rgba(5,9,35,.48); font-size:.66rem; font-weight:900; letter-spacing:.07em; text-align:center; }
 .shop-categories { display:flex; gap:6px; margin:14px 0; }
 .shop-categories button { border:1px solid rgba(255,255,255,.12); border-radius:10px; background:rgba(10,14,46,.65); color:#96a5ce; padding:8px 12px; font-weight:900; cursor:pointer; }
 .shop-categories button.selected { color:#08102a; background:var(--yellow); }
@@ -180,6 +182,7 @@ body[data-game-mode="chaos"] .mode-option.selected { color: #ff8aad; border-colo
 .overlay { position: absolute; z-index: 20; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(2,4,18,.66); backdrop-filter: blur(8px); pointer-events: auto; }
 .overlay[hidden] { display: none; }
 .overlay-card { width: min(540px,94vw); max-height: 92vh; overflow: auto; padding: 31px; clip-path: polygon(0 17px,17px 0,calc(100% - 28px) 0,100% 28px,100% calc(100% - 17px),calc(100% - 17px) 100%,28px 100%,0 calc(100% - 28px)); }
+.overlay-card.shop-card { width:min(860px,calc(100vw - 34px)); }
 .overlay-card h2 { margin: 7px 0 20px; font-size: clamp(1.8rem,5vw,2.8rem); }
 .pause-card { display: grid; gap: 11px; width: min(430px,92vw); text-align: center; }
 .pause-card .panel-kicker { color: var(--pink); }
