@@ -1,9 +1,9 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import type { Server, Socket } from "socket.io";
 import {
-  BR_BALANCE, BR_BOT_DIFFICULTY, BR_HEALS, BR_MAP, BR_MAP_BLOCKS, BR_POIS, BR_RARITY_MULTIPLIER, BR_STARTING_AMMO, BR_STORM_PHASES, BR_WEAPONS,
+  BR_BALANCE, BR_BOT_DIFFICULTY, BR_CRATE_SOCKETS, BR_HEALS, BR_LOOT_SOCKETS, BR_MAP, BR_POIS, BR_RARITY_MULTIPLIER, BR_STARTING_AMMO, BR_STORM_PHASES, BR_WEAPONS,
   DEFAULT_COSMETICS, PLAYER_COLORS, PLANET_PASS_REWARDS, SESSION_PROGRESSION, SHOP_CATALOG, applyBrDamage, brClamp, brDistance2d, brItemMagazine, brNormalize,
-  brRarityDamage, brShipPath, createEmptyBrInventory, isBrHeal, isBrWeapon, isInsideBrIsland, raySphereDistance,
+  brBlocksNear, brNextWaypoint, brRarityDamage, brShipPath, createEmptyBrInventory, isBrHeal, isBrWeapon, isInsideBrIsland, raySphereDistance,
   reloadBrItem, seededRandom, sessionLevelForXp, sessionXpInLevel, stepBrMovement, stormContains,
   type BotDifficulty, type BrCrateState, type BrInput, type BrInventoryItem, type BrItemId, type BrJoinResult, type BrLootState,
   type BrMatchResult, type BrPhase, type BrPlayerSnapshotState, type BrPlayerState, type BrProjectileState, type BrRarity, type BrRoomView,
@@ -11,6 +11,7 @@ import {
   type EmoteType, type ServerToClientEvents, type Vec3
 } from "@planetfall/shared";
 import { SpatialGrid } from "./spatial-grid.js";
+import { BrPhysicsWorld } from "./br-physics.js";
 
 type GameSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 type GameServer = Server<ClientToServerEvents, ServerToClientEvents>;
@@ -41,6 +42,8 @@ interface BrPlayerRecord extends BrPlayerState {
   saberComboAt: number;
   stormDamageRemainder: number;
   traversalCooldownUntil: number;
+  lastGroundedAt: number;
+  jumpBufferedUntil: number;
   spectatorTargetId: string | null;
   lastPingAt: number;
   history: Array<{ at: number; position: Vec3 }>;
@@ -66,6 +69,7 @@ function clonePlayer(player: BrPlayerRecord): BrPlayerState {
     slideEndsAt: _slideEndsAt, matchStartedAt: _matchStartedAt, eliminatedAt: _eliminatedAt, nextBotDecisionAt: _nextBotDecisionAt,
     botGoal: _botGoal, shipJumpAt: _shipJumpAt, lastEmoteAt: _lastEmoteAt, saberCombo: _saberCombo,
     saberComboAt: _saberComboAt, stormDamageRemainder: _stormDamageRemainder, traversalCooldownUntil: _traversalCooldownUntil,
+    lastGroundedAt: _lastGroundedAt, jumpBufferedUntil: _jumpBufferedUntil,
     spectatorTargetId: _spectatorTargetId, lastPingAt: _lastPingAt, history: _history, ...state } = player;
   return { ...state, position: { ...state.position }, velocity: { ...state.velocity }, rotation: { ...state.rotation }, inventory: state.inventory.map((item) => item ? { ...item } : null), ammo: { ...state.ammo }, unlockedPassRewards: [...state.unlockedPassRewards], ownedCosmetics: [...state.ownedCosmetics], equippedCosmetics: { ...state.equippedCosmetics } };
 }
@@ -108,6 +112,7 @@ export class BattleRoyaleRoom {
   private playerGrid = new SpatialGrid<BrPlayerRecord>(BR_BALANCE.interest.cellSize);
   private lootGrid = new SpatialGrid<BrLootState>(BR_BALANCE.interest.cellSize);
   private projectileGrid = new SpatialGrid<BrProjectileState>(BR_BALANCE.interest.cellSize);
+  private physics = new BrPhysicsWorld();
 
   constructor(code: string, private io: GameServer, seed = Math.floor(Math.random() * 0x7fffffff)) {
     this.code = code;
@@ -124,7 +129,6 @@ export class BattleRoyaleRoom {
       returning.connected = true; returning.socketId = socket.id; returning.disconnectedAt = null; returning.name = name; returning.input = null;
       socket.join(this.code); socket.data.roomCode = this.code; socket.data.playerId = returning.id; socket.data.gameFamily = this.family;
       this.emitRoom();
-      if (this.loot.size) this.io.to(socket.id).emit("br:loot:spawned", [...this.loot.values()].map((entry) => ({ ...entry, position: { ...entry.position } })));
       if (this.crates.size) this.io.to(socket.id).emit("br:crate:spawned", [...this.crates.values()].filter((entry) => !entry.opened).map((entry) => ({ ...entry, position: { ...entry.position } })));
       return { ok: true, room: this.view(), playerId: returning.id, sessionToken: returning.sessionToken };
     }
@@ -284,16 +288,19 @@ export class BattleRoyaleRoom {
     const rawDirectionLength = Math.hypot(rawDirection.x, rawDirection.y, rawDirection.z);
     if (rawDirectionLength < 1e-5) return false;
     const direction = brNormalize(rawDirection);
+    const expectedAim = brNormalize({ x: Math.sin(player.yaw) * Math.cos(player.pitch), y: Math.sin(player.pitch), z: -Math.cos(player.yaw) * Math.cos(player.pitch) });
+    if (direction.x * expectedAim.x + direction.y * expectedAim.y + direction.z * expectedAim.z < .72) return false;
+    const muzzle = { x: player.position.x + expectedAim.x * .48, y: player.position.y + .72 + expectedAim.y * .18, z: player.position.z + expectedAim.z * .48 };
     player.lastFireAt = now; player.reloadEndsAt = 0; player.useEndsAt = 0;
     if (weapon.ammo) item.magazine--;
     const shotTime = Number.isFinite(clientTime) ? brClamp(clientTime, now - BR_BALANCE.maxRewindMs, now) : now;
-    if (weapon.model === "hitscan") this.fireHitscan(player, item, origin, direction, shotTime, now);
+    if (weapon.model === "hitscan") this.fireHitscan(player, item, muzzle, direction, shotTime, now);
     else if (weapon.model === "projectile") {
-      const projectile: BrProjectileState = { id: id("br-projectile"), ownerId: player.id, weaponId: item.itemId as BrProjectileState["weaponId"], rarity: item.rarity, position: { ...origin }, velocity: { x: direction.x * weapon.projectileSpeed!, y: direction.y * weapon.projectileSpeed!, z: direction.z * weapon.projectileSpeed! }, spawnedAt: now, expiresAt: now + weapon.range / weapon.projectileSpeed! * 1000 };
+      const projectile: BrProjectileState = { id: id("br-projectile"), ownerId: player.id, weaponId: item.itemId as BrProjectileState["weaponId"], rarity: item.rarity, position: { ...muzzle }, velocity: { x: direction.x * weapon.projectileSpeed!, y: direction.y * weapon.projectileSpeed!, z: direction.z * weapon.projectileSpeed! }, spawnedAt: now, expiresAt: now + weapon.range / weapon.projectileSpeed! * 1000 };
       this.projectiles.set(projectile.id, projectile);
-      this.io.to(this.code).emit("br:weapon:fired", { playerId, weaponId: item.itemId, origin, direction, projectile });
+      this.io.to(this.code).emit("br:weapon:fired", { playerId, weaponId: item.itemId, origin: muzzle, direction, projectile });
     } else this.fireMelee(player, item.itemId, direction, now);
-    if (weapon.model !== "projectile") this.io.to(this.code).emit("br:weapon:fired", { playerId, weaponId: item.itemId, origin, direction });
+    if (weapon.model !== "projectile") this.io.to(this.code).emit("br:weapon:fired", { playerId, weaponId: item.itemId, origin: muzzle, direction });
     return true;
   }
 
@@ -326,7 +333,7 @@ export class BattleRoyaleRoom {
     if (!humans.every((player) => this.returnVotes.has(player.id))) { this.emitRoom(); return; }
     this.phase = "lobby"; this.matchResult = null; this.ship = null; this.countdownEndsAt = null; this.loot.clear(); this.crates.clear(); this.projectiles.clear();
     this.returnVotes.clear();
-    for (const [id, player] of this.players) if (player.isBot) this.players.delete(id);
+    for (const [id, player] of this.players) if (player.isBot) { this.physics.remove(id); this.players.delete(id); }
     for (const player of this.players.values()) { player.ready = player.isBot; player.input = null; }
     this.assignTeams(); this.emitRoom();
   }
@@ -374,7 +381,7 @@ export class BattleRoyaleRoom {
   }
 
   isEmpty(): boolean { return ![...this.players.values()].some((player) => !player.isBot && (player.connected || player.disconnectedAt && Date.now() - player.disconnectedAt < BR_BALANCE.reconnectGraceMs)); }
-  dispose(): void { this.players.clear(); this.loot.clear(); this.crates.clear(); this.projectiles.clear(); this.teams.clear(); }
+  dispose(): void { this.physics.dispose(); this.players.clear(); this.loot.clear(); this.crates.clear(); this.projectiles.clear(); this.teams.clear(); }
 
   view(): BrRoomView {
     const players = [...this.players.values()].map(clonePlayer);
@@ -392,7 +399,8 @@ export class BattleRoyaleRoom {
       crowns: 0, fallbucks: 0, sessionLevel: 1, sessionXp: 0, sessionTotalXp: 0, unlockedPassRewards: ["default"], ownedCosmetics: [], equippedCosmetics: { ...DEFAULT_COSMETICS },
       socketId: null, sessionToken: isBot ? "" : token(), disconnectedAt: null, input: null, lastInputAt: 0, lastJumpSignal: false, lastCrouchSignal: false, lastFireAt: 0, reloadEndsAt: 0, reloadSlot: -1,
       useEndsAt: 0, useSlot: -1, reviveTargetId: null, reviveStartedAt: 0, slideEndsAt: 0, matchStartedAt: 0, eliminatedAt: null, nextBotDecisionAt: 0, botGoal: null,
-      shipJumpAt: 0, lastEmoteAt: 0, saberCombo: 0, saberComboAt: 0, stormDamageRemainder: 0, traversalCooldownUntil: 0, spectatorTargetId: null, lastPingAt: 0, history: []
+      shipJumpAt: 0, lastEmoteAt: 0, saberCombo: 0, saberComboAt: 0, stormDamageRemainder: 0, traversalCooldownUntil: 0,
+      lastGroundedAt: Number.NEGATIVE_INFINITY, jumpBufferedUntil: 0, spectatorTargetId: null, lastPingAt: 0, history: []
     };
   }
 
@@ -415,12 +423,12 @@ export class BattleRoyaleRoom {
   }
 
   private resetMatch(now: number): void {
-    this.seed = (this.seed * 1664525 + 1013904223) >>> 0; this.matchStartedAt = now; this.matchResult = null; this.returnVotes.clear(); this.ship = null; this.loot.clear(); this.crates.clear(); this.projectiles.clear(); this.storm = this.initialStorm(); this.stormStageStartedAt = 0;
+    this.seed = (this.seed * 1664525 + 1013904223) >>> 0; this.matchStartedAt = now; this.matchResult = null; this.returnVotes.clear(); this.ship = null; this.loot.clear(); this.crates.clear(); this.projectiles.clear(); this.storm = this.initialStorm(); this.stormStageStartedAt = 0; this.physics.reset();
     for (const player of this.players.values()) {
       player.alive = true; player.downed = false; player.deployment = "attached"; player.hp = BR_BALANCE.hp; player.shield = 0; player.downedHp = BR_BALANCE.downedHp; player.bleedoutEndsAt = null;
       player.position = { x: 0, y: BR_BALANCE.shipHeight, z: 0 }; player.velocity = { x: 0, y: 0, z: 0 }; player.grounded = false; player.inventory = createEmptyBrInventory(); player.ammo = { ...BR_STARTING_AMMO };
       player.selectedSlot = 0; player.lastInputSequence = 0; player.input = null; player.kills = 0; player.damageDealt = 0; player.revives = 0; player.placement = null; player.eliminatedAt = null; player.matchStartedAt = now;
-      player.shipJumpAt = now + 7000 + seededRandom(this.seed ^ this.hash(player.id))() * 27_000; player.history = []; player.traversalCooldownUntil = 0; player.slideEndsAt = 0; player.spectatorTargetId = null; player.lastPingAt = 0; this.cancelTimedActions(player);
+      player.shipJumpAt = now + 7000 + seededRandom(this.seed ^ this.hash(player.id))() * 27_000; player.history = []; player.traversalCooldownUntil = 0; player.slideEndsAt = 0; player.lastGroundedAt = Number.NEGATIVE_INFINITY; player.jumpBufferedUntil = 0; player.spectatorTargetId = null; player.lastPingAt = 0; this.cancelTimedActions(player);
     }
   }
 
@@ -451,9 +459,10 @@ export class BattleRoyaleRoom {
     const motion = stepBrMovement(player, {
       moveX: input?.moveX ?? 0, moveY: input?.moveY ?? 0, yaw: input?.yaw ?? player.yaw,
       jump: Boolean(input?.jump), sprint: Boolean(input?.sprint), crouch: Boolean(input?.crouch)
-    }, dt, now);
+    }, dt, now, (position, desired, options) => this.physics.move(player.id, position, desired, options.jumping, options.crouched));
     player.position = motion.position; player.velocity = motion.velocity; player.yaw = motion.yaw; player.grounded = motion.grounded; player.deployment = motion.deployment;
     player.lastJumpSignal = motion.lastJumpSignal; player.lastCrouchSignal = motion.lastCrouchSignal; player.slideEndsAt = motion.slideEndsAt; player.traversalCooldownUntil = motion.traversalCooldownUntil;
+    player.lastGroundedAt = motion.lastGroundedAt ?? player.lastGroundedAt; player.jumpBufferedUntil = motion.jumpBufferedUntil ?? player.jumpBufferedUntil;
     player.history.push({ at: now, position: { ...player.position } });
     while (player.history.length > 2 && player.history[0].at < now - BR_BALANCE.maxRewindMs) player.history.shift();
     if (player.position.y < BR_BALANCE.fallBoundaryY) this.eliminate(player, undefined, undefined, now);
@@ -461,19 +470,7 @@ export class BattleRoyaleRoom {
   }
 
   private mapRayDistance(origin: Vec3, direction: Vec3, maximum: number): number {
-    let nearest = maximum;
-    for (const block of BR_MAP_BLOCKS) {
-      const minimum = { x: block.position.x - block.size.x / 2, y: block.position.y - block.size.y / 2, z: block.position.z - block.size.z / 2 };
-      const maximumPoint = { x: block.position.x + block.size.x / 2, y: block.position.y + block.size.y / 2, z: block.position.z + block.size.z / 2 };
-      let near = 0; let far = nearest;
-      for (const axis of ["x", "y", "z"] as const) {
-        if (Math.abs(direction[axis]) < 1e-8) { if (origin[axis] < minimum[axis] || origin[axis] > maximumPoint[axis]) { near = Number.POSITIVE_INFINITY; break; } continue; }
-        const inverse = 1 / direction[axis]; let first = (minimum[axis] - origin[axis]) * inverse; let second = (maximumPoint[axis] - origin[axis]) * inverse;
-        if (first > second) [first, second] = [second, first]; near = Math.max(near, first); far = Math.min(far, second); if (near > far) break;
-      }
-      if (near >= 0 && near <= far) nearest = Math.min(nearest, near);
-    }
-    return nearest;
+    return this.physics.rayDistance(origin,direction,maximum);
   }
 
   private fireHitscan(player: BrPlayerRecord, item: BrInventoryItem, origin: Vec3, direction: Vec3, clientTime: number, now: number): void {
@@ -498,7 +495,7 @@ export class BattleRoyaleRoom {
     for (const target of this.playerGrid.nearby(player.position, BR_WEAPONS[weaponId].range)) {
       if (!this.canDamage(player, target)) continue;
       const to = brNormalize({ x: target.position.x - player.position.x, y: 0, z: target.position.z - player.position.z });
-      if (to.x * direction.x + to.z * direction.z >= .35) this.damage(target, damages[player.saberCombo] * BR_RARITY_MULTIPLIER[player.inventory[player.selectedSlot]!.rarity], player, weaponId, now);
+      if (to.x * direction.x + to.z * direction.z >= .35 && this.hasLineOfSight(player,target)) this.damage(target, damages[player.saberCombo] * BR_RARITY_MULTIPLIER[player.inventory[player.selectedSlot]!.rarity], player, weaponId, now);
     }
   }
 
@@ -622,15 +619,15 @@ export class BattleRoyaleRoom {
   private initialStorm(): BrStormState { return { phaseIndex: 0, center: { x: 0, z: 0 }, radius: BR_MAP.radius, nextCenter: { x: 0, z: 0 }, nextRadius: BR_STORM_PHASES[0].radius, stage: "waiting", stageEndsAt: null, damagePerSecond: BR_STORM_PHASES[0].damage }; }
 
   private spawnLoot(): void {
-    const random = seededRandom(this.seed); const spawned: BrLootState[] = [];
-    for (const poi of BR_POIS) for (const point of poi.lootPoints) for (let index = 0; index < 2; index++) {
+    const random = seededRandom(this.seed);
+    for (const [index,socket] of BR_LOOT_SOCKETS.entries()) {
       const rarityRoll = random(); const rarity: BrRarity = rarityRoll > .965 ? "legendary" : rarityRoll > .82 ? "epic" : rarityRoll > .48 ? "rare" : "common";
-      const itemId = ITEM_IDS[Math.floor(random() * ITEM_IDS.length)]; const loot: BrLootState = { id: id("loot"), itemId, rarity, count: isBrHeal(itemId) ? 1 + Math.floor(random() * 2) : 1, magazine: brItemMagazine(itemId), position: { x: point.x + (random() - .5) * 11, y: .55, z: point.z + (random() - .5) * 11 } };
-      this.loot.set(loot.id, loot); spawned.push(loot);
-      if (index === 1 && random() > .45) { const ammoType = random() > .68 ? "plasma" : random() > .45 ? "heavy" : "light"; const ammo: BrLootState = { id: id("ammo"), ammoType, rarity: "common", count: ammoType === "light" ? 30 : ammoType === "heavy" ? 10 : 6, position: { x: loot.position.x + 1.4, y: .45, z: loot.position.z - 1.2 } }; this.loot.set(ammo.id, ammo); spawned.push(ammo); }
+      const itemId = ITEM_IDS[Math.floor(random() * ITEM_IDS.length)]; const loot: BrLootState = { id: id("loot"), itemId, rarity, count: isBrHeal(itemId) ? 1 + Math.floor(random() * 2) : 1, magazine: brItemMagazine(itemId), position: { x: socket.position.x + (random() - .5) * 1.4, y: socket.position.y, z: socket.position.z + (random() - .5) * 1.4 } };
+      this.loot.set(loot.id, loot);
+      if (index%2===0 && random() > .28) { const ammoType = random() > .68 ? "plasma" : random() > .45 ? "heavy" : "light"; const ammo: BrLootState = { id: id("ammo"), ammoType, rarity: "common", count: ammoType === "light" ? 30 : ammoType === "heavy" ? 10 : 6, position: { x: loot.position.x + 1.15, y:socket.position.y, z: loot.position.z - .95 } }; this.loot.set(ammo.id, ammo); }
     }
-    this.lootGrid.rebuild(this.loot.values()); this.io.to(this.code).emit("br:loot:spawned", spawned);
-    const crates = BR_POIS.map((poi, index) => ({ id: `crate-${this.seed}-${index}`, position: { x: poi.position.x - 17, y: .45, z: poi.position.z + (index % 2 ? -16 : 16) }, opened: false }));
+    this.lootGrid.rebuild(this.loot.values());
+    const crates = BR_CRATE_SOCKETS.map((position, index) => ({ id: `crate-${this.seed}-${index}`, position: { ...position }, opened: false }));
     for (const crate of crates) this.crates.set(crate.id, crate);
     this.io.to(this.code).emit("br:crate:spawned", crates);
   }
@@ -645,11 +642,13 @@ export class BattleRoyaleRoom {
       if (now < bot.nextBotDecisionAt) continue;
       bot.nextBotDecisionAt = now + profile.reactionMs;
       const random = seededRandom(this.seed ^ this.hash(`${bot.id}:${Math.floor(now / profile.reactionMs)}`));
-      const nearbyLoot = this.lootGrid.nearby(bot.position, profile.lootRadius).sort((a, b) => this.distance(bot.position, a.position) - this.distance(bot.position, b.position))[0];
-      const nearbyCrate = [...this.crates.values()].filter((crate) => !crate.opened && this.distance(bot.position, crate.position) <= profile.lootRadius).sort((a, b) => this.distance(bot.position, a.position) - this.distance(bot.position, b.position))[0];
+      const nearbyLoot = this.nearestTo(bot.position,this.lootGrid.nearby(bot.position, profile.lootRadius));
+      const nearbyCrate = this.nearestTo(bot.position,[...this.crates.values()].filter((crate) => !crate.opened && this.distance(bot.position, crate.position) <= profile.lootRadius));
       const safeTarget = !stormContains(this.storm, bot.position) ? { x: this.storm.center.x, y: BR_BALANCE.playerHeight, z: this.storm.center.z } : null;
-      const enemy = this.playerGrid.nearby(bot.position, 70).filter((target) => this.canDamage(bot, target)).sort((a, b) => this.distance(bot.position, a.position) - this.distance(bot.position, b.position))[0];
-      const downedTeammate = [...this.players.values()].filter((target) => target.downed && target.teamId === bot.teamId).sort((a, b) => this.distance(bot.position, a.position) - this.distance(bot.position, b.position))[0];
+      const nearestEnemy = this.nearestTo(bot.position,this.playerGrid.nearby(bot.position, 70).filter((target) => this.canDamage(bot, target)));
+      const enemy=nearestEnemy&&this.hasLineOfSight(bot,nearestEnemy)?nearestEnemy:undefined;
+      const teammate=this.teamMode!=="solo"?this.nearestTo(bot.position,[...this.players.values()].filter((target)=>target.id!==bot.id&&target.teamId===bot.teamId&&target.alive&&!target.downed)):undefined;
+      const downedTeammate = this.nearestTo(bot.position,[...this.players.values()].filter((target) => target.downed && target.teamId === bot.teamId));
       if (downedTeammate && random() < profile.reviveBias) {
         if (this.distance(bot.position, downedTeammate.position) <= BR_BALANCE.reviveRange) { bot.input = { sequence: ++bot.lastInputSequence, dt: .05, moveX: 0, moveY: 0, yaw: bot.yaw, pitch: 0, jump: false, sprint: false, crouch: false, fire: false, aim: false, reload: false }; this.setRevive(bot.id, downedTeammate.id, true, now); continue; }
         bot.botGoal = downedTeammate.position;
@@ -659,8 +658,11 @@ export class BattleRoyaleRoom {
         if (healSlot >= 0) { bot.selectedSlot = healSlot; if (this.useItem(bot.id, now)) { bot.input = { sequence: ++bot.lastInputSequence, dt: .05, moveX: 0, moveY: 0, yaw: bot.yaw, pitch: 0, jump: false, sprint: false, crouch: false, fire: false, aim: false, reload: false }; continue; } }
       }
       if (nearbyCrate && this.distance(bot.position, nearbyCrate.position) <= 2.7) this.openCrate(bot.id, nearbyCrate.id);
-      bot.botGoal = bot.botGoal && downedTeammate ? bot.botGoal : safeTarget ?? (enemy && random() < profile.aggression ? enemy.position : nearbyLoot?.position ?? nearbyCrate?.position ?? BR_POIS[this.hash(`${bot.id}:${Math.floor(now / 6000)}`) % BR_POIS.length].position);
-      const delta = { x: bot.botGoal.x - bot.position.x, z: bot.botGoal.z - bot.position.z }; bot.yaw = Math.atan2(delta.x, -delta.z);
+      const regroup=teammate&&this.distance(bot.position,teammate.position)>85?teammate.position:null;
+      bot.botGoal = bot.botGoal && downedTeammate ? bot.botGoal : safeTarget ?? regroup ?? (enemy && random() < profile.aggression ? enemy.position : nearbyLoot?.position ?? nearbyCrate?.position ?? BR_POIS[this.hash(`${bot.id}:${Math.floor(now / 6000)}`) % BR_POIS.length].position);
+      const directEnemy = enemy && this.distance(bot.position,enemy.position)<28;
+      const steeringTarget = directEnemy ? bot.botGoal : brNextWaypoint(bot.position,bot.botGoal);
+      const delta = { x: steeringTarget.x - bot.position.x, z: steeringTarget.z - bot.position.z }; bot.yaw = Math.atan2(delta.x, -delta.z);
       const goalDistance = Math.hypot(delta.x, delta.z); const throttle = Math.min(1, Math.max(0, (goalDistance - .7) / 4));
       bot.input = { sequence: ++bot.lastInputSequence, dt: .05, moveX: 0, moveY: throttle, yaw: bot.yaw, pitch: 0, jump: goalDistance > 2 && this.nearBlockingGeometry(bot.position, bot.yaw), sprint: goalDistance > 8, crouch: false, fire: false, aim: false, reload: false };
       if (nearbyLoot && this.distance(bot.position, nearbyLoot.position) <= BR_BALANCE.pickupRange) this.pickup(bot.id, nearbyLoot.id);
@@ -677,8 +679,11 @@ export class BattleRoyaleRoom {
 
   private nearBlockingGeometry(position: Vec3, yaw: number): boolean {
     const probe = { x: position.x + Math.sin(yaw) * 1.1, y: position.y, z: position.z - Math.cos(yaw) * 1.1 };
-    return BR_MAP_BLOCKS.some((block) => block.kind !== "platform" && block.kind !== "ramp" && Math.abs(probe.x - block.position.x) < block.size.x / 2 + BR_BALANCE.playerRadius && Math.abs(probe.z - block.position.z) < block.size.z / 2 + BR_BALANCE.playerRadius && position.y < block.position.y + block.size.y / 2);
+    return brBlocksNear(probe,BR_BALANCE.playerRadius).some((block) => block.kind !== "platform" && block.kind !== "ramp" && Math.abs(probe.x - block.position.x) < block.size.x / 2 + BR_BALANCE.playerRadius && Math.abs(probe.z - block.position.z) < block.size.z / 2 + BR_BALANCE.playerRadius && position.y < block.position.y + block.size.y / 2);
   }
+
+  private hasLineOfSight(observer:BrPlayerRecord,target:BrPlayerRecord):boolean {const origin={x:observer.position.x,y:observer.position.y+.72,z:observer.position.z};const aim={x:target.position.x-origin.x,y:target.position.y+.65-origin.y,z:target.position.z-origin.z};const distance=Math.hypot(aim.x,aim.y,aim.z);if(distance<.001)return true;const direction={x:aim.x/distance,y:aim.y/distance,z:aim.z/distance};return this.mapRayDistance(origin,direction,distance)>=distance-.3;}
+  private nearestTo<T extends {position:Vec3}>(origin:Vec3,values:Iterable<T>):T|undefined {let nearest:T|undefined,best=Number.POSITIVE_INFINITY;for(const value of values){const distance=this.distance(origin,value.position);if(distance<best){best=distance;nearest=value;}}return nearest;}
 
   private checkWinner(now: number): void {
     if (this.phase !== "combat" || this.matchResult) return;
@@ -731,7 +736,7 @@ export class BattleRoyaleRoom {
       const relevantIds = new Set(this.playerGrid.nearby(anchor, BR_BALANCE.interest.players).map((entry) => entry.id));
       relevantIds.add(player.id); if (spectator) relevantIds.add(spectator.id);
       for (const teammate of all) if (teammate.teamId === player.teamId) relevantIds.add(teammate.id);
-      const snapshot: BrSnapshot = { serverTime: now, phase: this.phase, localPlayer: clonePlayer(player), players: all.filter((entry) => relevantIds.has(entry.id)).map((entry) => networkStates.get(entry.id)!), projectiles: this.projectileGrid.nearby(anchor, BR_BALANCE.interest.projectiles).map((entry) => ({ ...entry, position: { ...entry.position }, velocity: { ...entry.velocity } })), storm: { ...this.storm, center: { ...this.storm.center }, nextCenter: { ...this.storm.nextCenter } }, ship: this.ship ? { ...this.ship, position: { ...this.ship.position }, start: { ...this.ship.start }, end: { ...this.ship.end } } : null, playersRemaining: all.filter((entry) => entry.alive).length, teamsRemaining: new Set(all.filter((entry) => entry.alive).map((entry) => entry.teamId)).size, spectatorTargetId: spectator?.id ?? null };
+      const snapshot: BrSnapshot = { serverTime: now, phase: this.phase, localPlayer: clonePlayer(player), players: all.filter((entry) => relevantIds.has(entry.id)).map((entry) => networkStates.get(entry.id)!), projectiles: this.projectileGrid.nearby(anchor, BR_BALANCE.interest.projectiles).map((entry) => ({ ...entry, position: { ...entry.position }, velocity: { ...entry.velocity } })), loot: this.lootGrid.nearby(anchor,BR_BALANCE.interest.loot).map((entry)=>({...entry,position:{...entry.position}})), storm: { ...this.storm, center: { ...this.storm.center }, nextCenter: { ...this.storm.nextCenter } }, ship: this.ship ? { ...this.ship, position: { ...this.ship.position }, start: { ...this.ship.start }, end: { ...this.ship.end } } : null, playersRemaining: all.filter((entry) => entry.alive).length, teamsRemaining: new Set(all.filter((entry) => entry.alive).map((entry) => entry.teamId)).size, spectatorTargetId: spectator?.id ?? null };
       this.io.to(player.socketId).emit("br:match:snapshot", snapshot);
     }
   }
@@ -747,7 +752,7 @@ export class BattleRoyaleRoom {
   private cleanupDisconnected(now: number): void {
     for (const player of [...this.players.values()]) {
       if (player.connected || player.isBot || player.disconnectedAt === null || now - player.disconnectedAt < BR_BALANCE.reconnectGraceMs) continue;
-      if (this.phase === "lobby") this.players.delete(player.id); else this.eliminate(player, undefined, undefined, now);
+      if (this.phase === "lobby") { this.physics.remove(player.id); this.players.delete(player.id); } else this.eliminate(player, undefined, undefined, now);
     }
     if (!this.players.has(this.hostId)) this.migrateHost();
   }

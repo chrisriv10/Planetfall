@@ -68,7 +68,8 @@ describe("Battle Royale room", () => {
     const room = server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom; room.configure(joined.playerId, { targetPlayers: 10, fillBots: true }); room.setReady(joined.playerId, true);
     const start = Date.now(); room.start(joined.playerId, start); room.update(1 / 30, start + BR_BALANCE.countdownMs + 1);
     const player = room.players.get(joined.playerId)!; const crate = [...room.crates.values()][0]; player.deployment = "grounded"; player.position = { ...crate.position };
-    expect(room.openCrate(player.id, crate.id)).toBe(true); expect(crate.opened).toBe(true); expect(room.loot.size).toBeGreaterThan(90);
+    const lootBeforeOpen = room.loot.size;
+    expect(room.openCrate(player.id, crate.id)).toBe(true); expect(crate.opened).toBe(true); expect(room.loot.size).toBe(lootBeforeOpen + 3);
     expect(room.openCrate(player.id, crate.id)).toBe(false); const other = [...room.crates.values()].find((entry) => !entry.opened)!; player.position = { x: 400, y: 0, z: 0 }; expect(room.openCrate(player.id, other.id)).toBe(false);
   });
 

@@ -194,6 +194,7 @@ export interface BrSnapshot {
   localPlayer: BrPlayerState;
   players: BrPlayerSnapshotState[];
   projectiles: BrProjectileState[];
+  loot: BrLootState[];
   storm: BrStormState;
   ship: BrShipState | null;
   playersRemaining: number;

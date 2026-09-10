@@ -99,6 +99,7 @@ const emptyButton = (): ButtonState => ({ held: false, pressed: false, released:
 export class GameInput {
   method: InputMethod = "keyboard";
   onMethodChange?: (method: InputMethod) => void;
+  private methodListeners = new Set<(method: InputMethod) => void>();
   private keys = new Set<string>();
   private mouseButtons = new Set<number>();
   private wheelDirection: -1 | 0 | 1 = 0;
@@ -235,6 +236,11 @@ export class GameInput {
     }).catch(() => undefined);
   }
 
+  subscribeMethodChange(listener: (method: InputMethod) => void): () => void {
+    this.methodListeners.add(listener);
+    return () => this.methodListeners.delete(listener);
+  }
+
   private pollGamepad(): { actions: Set<InputAction>; move: ReturnType<typeof radialDeadzone>; look: { x: number; y: number }; menuX: -1 | 0 | 1; menuY: -1 | 0 | 1 } {
     const pad = navigator.getGamepads?.().find((entry) => entry?.connected && entry.mapping === "standard");
     if (!pad) {
@@ -274,6 +280,7 @@ export class GameInput {
     this.method = method;
     this.lastMethodChange = now;
     this.onMethodChange?.(method);
+    for (const listener of this.methodListeners) listener(method);
   }
 }
 

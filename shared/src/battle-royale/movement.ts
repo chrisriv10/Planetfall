@@ -1,5 +1,5 @@
 import { BR_BALANCE } from "./balance.js";
-import { BR_MAP_BLOCKS, BR_TRAVERSAL, isInsideBrIsland } from "./map.js";
+import { BR_MAP_BLOCKS, BR_TRAVERSAL, brBlocksNear, isInsideBrIsland } from "./map.js";
 import { brClamp } from "./math.js";
 import type { BrDeploymentState } from "./types.js";
 import type { Vec3 } from "../index.js";
@@ -15,6 +15,8 @@ export interface BrMotionState {
   lastCrouchSignal: boolean;
   slideEndsAt: number;
   traversalCooldownUntil: number;
+  lastGroundedAt?: number;
+  jumpBufferedUntil?: number;
 }
 
 export interface BrMotionInput {
@@ -31,6 +33,9 @@ export interface BrMotionResult extends BrMotionState {
   traversed: boolean;
 }
 
+export interface BrCollisionResult { movement: Vec3; grounded: boolean; ceiling: boolean; }
+export type BrCollisionResolver = (position: Vec3, desiredMovement: Vec3, options: { jumping: boolean; downed: boolean; crouched: boolean }) => BrCollisionResult;
+
 export function brFloorHeightAt(position: Vec3, previousY: number): number {
   let floor = 0;
   for (const block of BR_MAP_BLOCKS) {
@@ -40,7 +45,7 @@ export function brFloorHeightAt(position: Vec3, previousY: number): number {
   return floor;
 }
 
-export function stepBrMovement(current: BrMotionState, input: BrMotionInput, rawDt: number, now: number): BrMotionResult {
+export function stepBrMovement(current: BrMotionState, input: BrMotionInput, rawDt: number, now: number, resolveCollision?: BrCollisionResolver): BrMotionResult {
   const dt = brClamp(Number.isFinite(rawDt) ? rawDt : 0, 0, .1);
   const state: BrMotionResult = {
     ...current,
@@ -50,6 +55,8 @@ export function stepBrMovement(current: BrMotionState, input: BrMotionInput, raw
     landed: false,
     traversed: false
   };
+  state.lastGroundedAt ??= state.grounded ? now : Number.NEGATIVE_INFINITY;
+  state.jumpBufferedUntil ??= 0;
   if (state.deployment === "attached" || state.deployment === "eliminated") return state;
   const forward = { x: Math.sin(state.yaw), z: -Math.cos(state.yaw) }; const right = { x: Math.cos(state.yaw), z: Math.sin(state.yaw) };
   let mx = brClamp(Number(input.moveX) || 0, -1, 1); let my = brClamp(Number(input.moveY) || 0, -1, 1); const magnitude = Math.hypot(mx, my); if (magnitude > 1) { mx /= magnitude; my /= magnitude; }
@@ -79,18 +86,36 @@ export function stepBrMovement(current: BrMotionState, input: BrMotionInput, raw
       state.velocity.z += brClamp(desiredZ - state.velocity.z, -acceleration * dt, acceleration * dt);
     }
     const jumpSignal = Boolean(input.jump);
-    if (jumpSignal && !state.lastJumpSignal && state.grounded && !state.downed) { state.velocity.y = BR_BALANCE.jumpSpeed; state.grounded = false; }
+    if (jumpSignal && !state.lastJumpSignal) state.jumpBufferedUntil = now + BR_BALANCE.jumpBufferMs;
+    if (state.grounded) state.lastGroundedAt = now;
+    const canJump = !state.downed && state.jumpBufferedUntil >= now && (state.grounded || now - state.lastGroundedAt <= BR_BALANCE.coyoteMs);
+    if (canJump) { state.velocity.y = BR_BALANCE.jumpSpeed; state.grounded = false; state.jumpBufferedUntil = 0; state.lastGroundedAt = Number.NEGATIVE_INFINITY; }
     state.lastJumpSignal = jumpSignal;
     if (!state.grounded) state.velocity.y -= BR_BALANCE.gravity * dt; else state.velocity.y = Math.min(0, state.velocity.y);
   }
-  const next = { x: state.position.x + state.velocity.x * dt, y: state.position.y + state.velocity.y * dt, z: state.position.z + state.velocity.z * dt };
-  resolveBrBlockCollisions(state, next, Boolean(input.jump));
-  const floor = brFloorHeightAt(next, state.position.y);
-  if (isInsideBrIsland(next) && next.y <= floor && state.position.y >= floor - .45) {
-    next.y = floor; if (state.velocity.y < 0) state.velocity.y = 0;
-    const wasAirborne = !state.grounded || state.deployment === "freefall" || state.deployment === "chute";
-    state.grounded = true; if (state.deployment === "freefall" || state.deployment === "chute") state.deployment = "grounded"; state.landed = wasAirborne;
-  } else if (!isInsideBrIsland(next)) state.grounded = false;
+  const desiredMovement = { x: state.velocity.x * dt, y: state.velocity.y * dt, z: state.velocity.z * dt };
+  const next = { x: state.position.x + desiredMovement.x, y: state.position.y + desiredMovement.y, z: state.position.z + desiredMovement.z };
+  const wasAirborne = !state.grounded || state.deployment === "freefall" || state.deployment === "chute";
+  if (resolveCollision) {
+    const collision = resolveCollision(state.position, desiredMovement, { jumping: state.velocity.y > .05, downed: state.downed, crouched: Boolean(input.crouch) || state.downed });
+    next.x = state.position.x + collision.movement.x; next.y = state.position.y + collision.movement.y; next.z = state.position.z + collision.movement.z;
+    if (collision.grounded && state.velocity.y <= .05) {
+      state.grounded = true; state.lastGroundedAt = now; if (state.velocity.y < 0) state.velocity.y = 0;
+      if (state.deployment === "freefall" || state.deployment === "chute") state.deployment = "grounded";
+      state.landed = wasAirborne;
+    } else state.grounded = false;
+    if (collision.ceiling && state.velocity.y > 0) state.velocity.y = 0;
+  } else {
+    resolveBrBlockCollisions(state, next, Boolean(input.jump));
+    const floor = brFloorHeightAt(next, state.position.y);
+    if (isInsideBrIsland(next) && next.y <= floor && state.position.y >= floor - .45) {
+      next.y = floor; if (state.velocity.y < 0) state.velocity.y = 0;
+      state.grounded = true; state.lastGroundedAt = now; if (state.deployment === "freefall" || state.deployment === "chute") state.deployment = "grounded"; state.landed = wasAirborne;
+    } else if (!isInsideBrIsland(next)) state.grounded = false;
+  }
+  if (state.landed && !state.downed && state.jumpBufferedUntil >= now) {
+    state.velocity.y = BR_BALANCE.jumpSpeed; state.grounded = false; state.jumpBufferedUntil = 0; state.lastGroundedAt = Number.NEGATIVE_INFINITY;
+  }
   state.traversed = applyBrTraversal(state, next, now);
   state.position = next;
   return state;
@@ -98,7 +123,7 @@ export function stepBrMovement(current: BrMotionState, input: BrMotionInput, raw
 
 function resolveBrBlockCollisions(state: BrMotionState, next: Vec3, jumpHeld: boolean): void {
   const feet = state.position.y;
-  for (const block of BR_MAP_BLOCKS) {
+  for (const block of brBlocksNear(next, 2.5)) {
     if (block.kind === "platform" || block.kind === "ramp") continue;
     const halfX = block.size.x / 2 + BR_BALANCE.playerRadius; const halfZ = block.size.z / 2 + BR_BALANCE.playerRadius;
     const top = block.position.y + block.size.y / 2; const bottom = block.position.y - block.size.y / 2;

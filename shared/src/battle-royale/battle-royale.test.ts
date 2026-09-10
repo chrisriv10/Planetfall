@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  BR_BALANCE, BR_BOT_DIFFICULTY, BR_MAP, BR_MAP_BLOCKS, BR_POIS, BR_STORM_PHASES, BR_WEAPONS, applyBrDamage, brRarityDamage, brShipPath,
+  BR_BALANCE, BR_BOT_DIFFICULTY, BR_CRATE_SOCKETS, BR_ISLAND_OUTLINE, BR_LOOT_SOCKETS, BR_MAP, BR_MAP_BLOCKS, BR_NAV_NODES, BR_POIS, BR_ROADS, BR_STORM_PHASES, BR_STRUCTURES, BR_TERRAIN_PATCHES, BR_WEAPONS, applyBrDamage, brNextWaypoint, brRarityDamage, brShipPath, isInsideBrIsland,
   createEmptyBrInventory, raySphereDistance, reloadBrItem, stepBrMovement, stormContains, type BrInventoryItem, type BrMotionState
 } from "./index.js";
 
@@ -53,15 +53,41 @@ describe("Battle Royale shared rules", () => {
     expect(BR_BOT_DIFFICULTY.hard.aggression).toBeLessThan(1);
   });
 
-  it("builds nine deterministic POIs with open landmark shells and rooftop access", () => {
+  it("builds one authored island with nine distinct connected districts and enterable structures", () => {
     expect(BR_POIS).toHaveLength(9);
+    expect(BR_ISLAND_OUTLINE.length).toBeGreaterThanOrEqual(16);
+    expect(BR_STRUCTURES.length).toBeGreaterThanOrEqual(60);
+    expect(BR_ROADS.length).toBeGreaterThanOrEqual(16);
+    expect(BR_TERRAIN_PATCHES.length).toBeGreaterThanOrEqual(BR_POIS.length);
     for (const poi of BR_POIS) {
-      const blocks = BR_MAP_BLOCKS.filter((block) => block.id.startsWith(`${poi.id}-`));
+      const structures = BR_STRUCTURES.filter((structure) => structure.districtId === poi.id);
+      const blocks = BR_MAP_BLOCKS.filter((block) => block.districtId === poi.id);
+      expect(structures.length).toBeGreaterThanOrEqual(3);
       expect(blocks.some((block) => block.id.endsWith("floor"))).toBe(true);
       expect(blocks.some((block) => block.id.endsWith("roof"))).toBe(true);
-      expect(blocks.filter((block) => block.kind === "ramp")).toHaveLength(11);
-      expect(blocks.filter((block) => block.id.includes("wall-front"))).toHaveLength(2);
+      expect(blocks.filter((block) => block.kind === "wall").length).toBeGreaterThanOrEqual(10);
+      expect(structures.some((structure) => structure.roofAccess)).toBe(true);
+      expect(isInsideBrIsland(poi.position)).toBe(true);
     }
+    expect(BR_MAP_BLOCKS.filter((block)=>block.kind==="ramp").length).toBeGreaterThanOrEqual(15);
+    for(const patch of BR_TERRAIN_PATCHES) expect(isInsideBrIsland(patch.position)).toBe(true);
+  });
+
+  it("keeps every district connected and places loot in authored playable structures",()=>{
+    const visited=new Set<string>([BR_NAV_NODES[0].id]),queue=[BR_NAV_NODES[0].id];while(queue.length){const current=queue.shift()!;const node=BR_NAV_NODES.find((entry)=>entry.id===current)!;for(const next of node.neighbors)if(!visited.has(next)){visited.add(next);queue.push(next);}}
+    expect(visited.size).toBe(BR_POIS.length);expect(BR_LOOT_SOCKETS.length).toBeGreaterThan(BR_STRUCTURES.length);expect(BR_CRATE_SOCKETS).toHaveLength(BR_POIS.length);
+    for(const socket of BR_LOOT_SOCKETS){expect(isInsideBrIsland(socket.position)).toBe(true);const structure=BR_STRUCTURES.find((entry)=>entry.id===socket.structureId)!;expect(structure).toBeTruthy();expect(Math.abs(socket.position.x-structure.position.x)).toBeLessThan(structure.size.x/2);expect(Math.abs(socket.position.z-structure.position.z)).toBeLessThan(structure.size.z/2);expect(socket.position.y).toBeGreaterThan(0);}
+    for(const crate of BR_CRATE_SOCKETS)expect(isInsideBrIsland(crate)).toBe(true);
+    for(const target of BR_POIS.slice(1))expect(isInsideBrIsland(brNextWaypoint(BR_POIS[0].position,target.position))).toBe(true);
+  });
+
+  it("buffers and coyote-accepts exactly one jump inside bounded windows",()=>{
+    const base:BrMotionState={position:{x:70,y:.4,z:70},velocity:{x:0,y:-1,z:0},yaw:0,grounded:false,deployment:"grounded",downed:false,lastJumpSignal:false,lastCrouchSignal:false,slideEndsAt:0,traversalCooldownUntil:0,lastGroundedAt:1000,jumpBufferedUntil:0};
+    const coyote=stepBrMovement(base,{moveX:0,moveY:0,yaw:0,jump:true,sprint:false,crouch:false},.02,1100);expect(coyote.velocity.y).toBeGreaterThan(0);expect(coyote.jumpBufferedUntil).toBe(0);
+    const held=stepBrMovement(coyote,{moveX:0,moveY:0,yaw:0,jump:true,sprint:false,crouch:false},.02,1120);expect(held.velocity.y).toBeLessThan(coyote.velocity.y);
+    const expired=stepBrMovement({...base,lastGroundedAt:1000},{moveX:0,moveY:0,yaw:0,jump:true,sprint:false,crouch:false},.02,1000+BR_BALANCE.coyoteMs+1);expect(expired.velocity.y).toBeLessThan(0);
+    const buffered=stepBrMovement({...base,position:{x:70,y:.04,z:70},velocity:{x:0,y:-2,z:0},lastGroundedAt:Number.NEGATIVE_INFINITY},{moveX:0,moveY:0,yaw:0,jump:true,sprint:false,crouch:false},.001,2000);
+    const landed=stepBrMovement(buffered,{moveX:0,moveY:0,yaw:0,jump:false,sprint:false,crouch:false},.04,2040);expect(landed.velocity.y).toBe(BR_BALANCE.jumpSpeed);expect(landed.grounded).toBe(false);expect(landed.jumpBufferedUntil).toBe(0);
   });
 
   it("uses one deterministic movement step for sprint, jump, slide, and descent", () => {

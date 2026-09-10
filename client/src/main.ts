@@ -1,5 +1,5 @@
 import "./style.css";
-import { BALANCE, BR_MAP, BR_POIS, BR_WEAPONS, CHAOS_COPY, PLANET_PASS_REWARDS, SESSION_PROGRESSION, SHOP_CATALOG, WEAPON_COPY, WEAPON_ORDER, isBrWeapon, type BotDifficulty, type BrCrateState, type BrJoinResult, type BrLootState, type BrMatchResult, type BrRoomView, type BrTeamMode, type ChaosModifier, type CosmeticCategory, type GameFamily, type GameMode, type JoinResult, type MatchCalloutType, type MatchEvent, type MatchResult, type RoomView, type WeaponType } from "@planetfall/shared";
+import { BALANCE, BR_MAP, BR_POIS, BR_ROADS, BR_WEAPONS, CHAOS_COPY, PLANET_PASS_REWARDS, SESSION_PROGRESSION, SHOP_CATALOG, WEAPON_COPY, WEAPON_ORDER, isBrWeapon, type BotDifficulty, type BrCrateState, type BrJoinResult, type BrLootState, type BrMatchResult, type BrRoomView, type BrTeamMode, type ChaosModifier, type CosmeticCategory, type GameFamily, type GameMode, type JoinResult, type MatchCalloutType, type MatchEvent, type MatchResult, type RoomView, type WeaponType } from "@planetfall/shared";
 import { createGameSocket } from "./network";
 import { inputLabel, type InputMethod } from "./input";
 import { SETTINGS_STORAGE_KEY, parseStoredSettings, type UserSettings } from "./settings";
@@ -139,6 +139,7 @@ socket.on("match:snapshot", (snapshot) => {
   }
 });
 socket.on("match:countdown", ({ startsAt, modifier }) => {
+  if (currentFamily !== "planetfall") return;
   runCountdown(startsAt);
   if (modifier) revealModifier(modifier);
 });
@@ -216,8 +217,8 @@ socket.on("match:ended", ({ winnerId, result }) => {
 
 socket.on("br:error", ({ message }) => toast(message));
 socket.on("br:room:state", (nextRoom) => { void applyBrRoom(nextRoom); });
-socket.on("br:match:snapshot", (snapshot) => brGame?.applySnapshot(snapshot));
-socket.on("br:match:countdown", () => { toast("BATTLE ROYALE · ORBITAL ISLE"); });
+socket.on("br:match:snapshot", (snapshot) => { if(currentFamily==="battle-royale")brGame?.applySnapshot(snapshot); });
+socket.on("br:match:countdown", () => { if(currentFamily==="battle-royale")toast("BATTLE ROYALE · ORBITAL ISLE"); });
 socket.on("br:loot:spawned", (loot) => { if (brGame) brGame.spawnLoot(loot); else pendingBrLoot.push(...loot); });
 socket.on("br:loot:removed", ({ ids }) => brGame?.removeLoot(ids));
 socket.on("br:crate:spawned", (crates) => { if (brGame) brGame.spawnCrates(crates); else pendingBrCrates.push(...crates); });
@@ -420,7 +421,13 @@ function resumeRoom(): void {
   if (currentFamily === "battle-royale") {
     const sessionToken = sessionStorage.getItem(`planetfall:br:${currentCode}`) ?? undefined;
     socket.emit("br:room:join", { code: currentCode, name: currentName, sessionToken }, (result) => {
-      if (!result.ok) { toast("Room closed."); currentCode = ""; playerId = ""; brRoom = null; showScreen("home"); game.setActive(true); game.setMode("home"); return; }
+      if (!result.ok) {
+        toast("Room closed.");
+        currentCode = ""; playerId = ""; brRoom = null; currentFamily = "planetfall";
+        brGame?.deactivate(); brGame?.reset(); showBrMap(false);
+        showScreen("home"); game.setActive(true); game.setMode("home");
+        return;
+      }
       playerId = result.playerId; void applyBrRoom(result.room);
     });
     return;
@@ -438,6 +445,10 @@ function resumeRoom(): void {
 
 function applyRoom(nextRoom: RoomView): void {
   const previousPhase = room?.phase;
+  currentFamily = "planetfall";
+  brGame?.deactivate();
+  showBrMap(false);
+  game.setActive(true);
   room = nextRoom;
   game.setRoom(nextRoom);
   if (nextRoom.phase === "lobby") {
@@ -488,21 +499,23 @@ async function ensureBrGame(nextRoom: BrRoomView): Promise<BrGame> {
   });
   const instance = await brGamePromise;
   game.setActive(false);
-  instance.start(nextRoom, playerId);
+  instance.activate(nextRoom, playerId);
   if (pendingBrLoot.length) { instance.spawnLoot(pendingBrLoot); pendingBrLoot = []; }
   if (pendingBrCrates.length) { instance.spawnCrates(pendingBrCrates); pendingBrCrates = []; }
   return instance;
 }
 
 async function applyBrRoom(nextRoom: BrRoomView): Promise<void> {
+  const previousBrPhase = brRoom?.phase;
   brRoom = nextRoom; currentFamily = "battle-royale";
+  modifierReveal.classList.remove("visible"); countdown.textContent = ""; leaderboard.classList.remove("visible");
   renderInputUi(brGame?.getInputMethod() ?? game.getInputMethod());
   if (nextRoom.phase === "lobby") {
-    brGame?.stop(); brGame?.resetMatchVisuals(); pendingBrLoot = []; pendingBrCrates = []; byId("br-kill-feed").replaceChildren(); brInventoryMarkup = ""; brTeammateMarkup = ""; for (const node of brMiniTeammates.values()) node.remove(); brMiniTeammates.clear(); game.setActive(true); game.setMode("lobby"); showScreen("brLobby"); renderBrLobby();
+    if (brGame && previousBrPhase && previousBrPhase !== "lobby") brGame.reset(); pendingBrLoot = []; pendingBrCrates = []; byId("br-kill-feed").replaceChildren(); brInventoryMarkup = ""; brTeammateMarkup = ""; for (const node of brMiniTeammates.values()) node.remove(); brMiniTeammates.clear(); game.setActive(false); showScreen("brLobby"); const instance = await ensureBrGame(nextRoom); instance.setRoom(nextRoom); renderBrLobby();
     if (!shopOverlay.hidden) renderShop(); if (!passOverlay.hidden) renderPass();
     return;
   }
-  if (nextRoom.phase === "results") { if (nextRoom.matchResult) showBrResults(nextRoom.matchResult); return; }
+  if (nextRoom.phase === "results") { const instance = await ensureBrGame(nextRoom); instance.setRoom(nextRoom); if (nextRoom.matchResult) showBrResults(nextRoom.matchResult); return; }
   showScreen("brHud");
   const instance = await ensureBrGame(nextRoom); instance.setRoom(nextRoom);
 }
@@ -580,7 +593,8 @@ function showBrMap(visible: boolean): void { brMapOverlay.hidden = !visible; if 
 function toggleBrMap(visible: boolean): void { brGame?.setMapVisible(visible); showBrMap(visible); }
 function renderBrMap(player: BrRoomView["players"][number]): void {
   const map = byId("br-map-canvas"); const toPercent = (value: number) => 50 + value / BR_MAP.radius * 48;
-  map.replaceChildren(...BR_POIS.map((poi) => { const label = document.createElement("span"); label.className = "br-map-poi"; label.textContent = poi.name; label.style.left = `${toPercent(poi.position.x)}%`; label.style.top = `${toPercent(poi.position.z)}%`; label.style.setProperty("--poi-color", poi.color); return label; }));
+  const roads=BR_ROADS.map((road)=>{const line=document.createElement("i");line.className="br-map-road";const startX=toPercent(road.from.x),startY=toPercent(road.from.z),endX=toPercent(road.to.x),endY=toPercent(road.to.z);line.style.left=`${startX}%`;line.style.top=`${startY}%`;line.style.width=`${Math.hypot(endX-startX,endY-startY)}%`;line.style.transform=`rotate(${Math.atan2(endY-startY,endX-startX)}rad)`;return line;});
+  map.replaceChildren(...roads,...BR_POIS.map((poi) => { const label = document.createElement("span"); label.className = "br-map-poi"; label.textContent = poi.name; label.style.left = `${toPercent(poi.position.x)}%`; label.style.top = `${toPercent(poi.position.z)}%`; label.style.setProperty("--poi-color", poi.color); return label; }));
   if (brRoom) { const circle = document.createElement("i"); circle.className = "br-map-circle"; circle.style.left = `${toPercent(brRoom.storm.center.x)}%`; circle.style.top = `${toPercent(brRoom.storm.center.z)}%`; circle.style.width = `${brRoom.storm.radius / BR_MAP.radius * 96}%`; circle.style.height = circle.style.width; map.append(circle); }
   if (brRoom) { const next = document.createElement("i"); next.className = "br-map-circle next"; next.style.left = `${toPercent(brRoom.storm.nextCenter.x)}%`; next.style.top = `${toPercent(brRoom.storm.nextCenter.z)}%`; next.style.width = `${brRoom.storm.nextRadius / BR_MAP.radius * 96}%`; next.style.height = next.style.width; map.append(next); }
   if (brRoom?.ship) { const route = document.createElement("i"); route.className = "br-map-route"; const startX = toPercent(brRoom.ship.start.x); const startY = toPercent(brRoom.ship.start.z); const endX = toPercent(brRoom.ship.end.x); const endY = toPercent(brRoom.ship.end.z); route.style.left = `${startX}%`; route.style.top = `${startY}%`; route.style.width = `${Math.hypot(endX - startX, endY - startY)}%`; route.style.transform = `rotate(${Math.atan2(endY - startY, endX - startX)}rad)`; map.append(route); }
@@ -1011,8 +1025,11 @@ function setGameMode(mode: GameMode): void {
 
 function showScreen(name: keyof typeof screens): void {
   currentScreen = name;
-  game.audio.setMusicScene(name === "home" ? "menu" : "game");
+  game.audio.setMusicScene(name === "hud" || name === "brHud" ? "game" : "menu");
   for (const [key, screen] of Object.entries(screens)) screen.classList.toggle("active", key === name);
+  const brScreen = name === "brLobby" || name === "brHud" || name === "brResults";
+  document.body.dataset.gameFamily = brScreen ? "battle-royale" : "planetfall";
+  if (brScreen) { modifierReveal.classList.remove("visible"); countdown.textContent = ""; leaderboard.classList.remove("visible"); }
   settingsOpenButton.hidden = name === "hud" || name === "brHud";
   if (name === "hud" || name === "brHud") showFirstMatchControls();
 }

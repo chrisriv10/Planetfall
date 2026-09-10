@@ -23,6 +23,8 @@ export const BR_BALANCE = {
   acceleration: 34,
   airControl: .32,
   jumpSpeed: 8.5,
+  coyoteMs: 130,
+  jumpBufferMs: 140,
   slideInitialSpeed: 12.5,
   slideDurationMs: 850,
   mantleHeight: 1.8,

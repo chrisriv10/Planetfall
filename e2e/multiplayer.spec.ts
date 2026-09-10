@@ -180,10 +180,14 @@ test("Battle Royale creates an isolated room and enters the Starliner drop", asy
   await page.locator("#br-ready-button").click();
   await page.locator("#br-start-button").click();
   await expect(page.locator("#br-hud")).toBeVisible();
+  await expect(page.locator("#hud")).toBeHidden();
+  await expect(page.locator("#modifier-chip")).not.toHaveClass(/visible/);
   await expect.poll(() => page.evaluate(() => (window as unknown as { __PLANETFALL_BR_DEBUG__?: () => { phase: string; players: unknown[]; crateCount: number } }).__PLANETFALL_BR_DEBUG__?.().phase), { timeout: 9000 }).toBe("ship");
-  const state = await page.evaluate(() => (window as unknown as { __PLANETFALL_BR_DEBUG__: () => { players: unknown[]; crateCount: number } }).__PLANETFALL_BR_DEBUG__());
+  const state = await page.evaluate(() => (window as unknown as { __PLANETFALL_BR_DEBUG__: () => { players: unknown[]; crateCount: number; world:{shipVisible:boolean;islandObjects:number} } }).__PLANETFALL_BR_DEBUG__());
   expect(state.players).toHaveLength(10);
   expect(state.crateCount).toBe(9);
+  expect(state.world.shipVisible).toBe(true);
+  expect(state.world.islandObjects).toBeGreaterThan(50);
   await expect.poll(() => page.evaluate(() => {
     const player = (window as unknown as { __PLANETFALL_BR_DEBUG__: () => { localPlayer: { position: Point } } }).__PLANETFALL_BR_DEBUG__().localPlayer;
     return Math.hypot(player.position.x, player.position.z);
@@ -291,13 +295,13 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
   await expect.poll(async () => (await debugState(host)).players.find((player) => player.id === hostPlayer.id)?.surfacePlanetId, { timeout: 12_000 }).toBe(guestPlanetId);
 
   hostState = await debugState(host);
-  if ((hostState.players.find((player) => player.id === hostPlayer.id)?.scrap ?? 0) === 20) {
+  if ((hostState.matchStats.find((stats) => stats.playerId === hostPlayer.id)?.stolenScrap ?? 0) === 0) {
     await moveTo(host, (state) => {
       const scraps = state.scraps.filter((scrap) => scrap.planetId === guestPlanetId);
       return scraps.sort((a, b) => pointDistance(state.localPosition, a.position) - pointDistance(state.localPosition, b.position))[0].position;
-    }, 1.45, 75, (state) => (state.players.find((player) => player.id === hostPlayer.id)?.scrap ?? 0) > 20);
+    }, 1.45, 75, (state) => (state.matchStats.find((stats) => stats.playerId === hostPlayer.id)?.stolenScrap ?? 0) >= BALANCE.scrapValue);
   }
-  await expect.poll(async () => (await debugState(host)).players.find((player) => player.id === hostPlayer.id)?.scrap ?? 0).toBeGreaterThan(20);
+  await expect.poll(async () => (await debugState(host)).matchStats.find((stats) => stats.playerId === hostPlayer.id)?.stolenScrap ?? 0).toBeGreaterThanOrEqual(BALANCE.scrapValue);
   await expect(host.locator("#event-feed")).toContainText("Chris stole Nova's scrap");
 
   const neutralPoint = (state: DebugState): Point => {
@@ -330,6 +334,14 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
   await expect(host.locator("#context-prompt")).toContainText(/SHOVE NOVA/i);
   const guestBeforeShove = (await debugState(guest)).localPosition;
   await host.keyboard.press("e");
+  await expect.poll(async () => {
+    const successful = (await debugState(host)).matchStats.find((stats) => stats.playerId === hostPlayer.id)?.successfulShoves ?? 0;
+    if (successful < 1) {
+      await moveTo(host, (state) => state.players.find((player) => player.id === guestPlayer.id)!.position, .7, 10);
+      await host.keyboard.press("e");
+    }
+    return successful;
+  }, { timeout: 6000, intervals: [350, 500, 700] }).toBeGreaterThanOrEqual(1);
   await expect(host.locator("#event-feed")).toContainText("Chris shoved Nova");
   await expect.poll(async () => pointDistance((await debugState(guest)).localPosition, guestBeforeShove), { timeout: 3000 }).toBeGreaterThan(0.6);
 
@@ -361,11 +373,18 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
   await expect.poll(async () => (await debugState(guest)).players.find((player) => player.id === guestPlayer.id)!.scrap, { timeout: 3000 }).toBeLessThan(scrapBeforeFire);
   await expect.poll(async () => (await debugState(host)).planets.find((planet) => planet.id === hostPlanetId)!.integrity, { timeout: 5000 }).toBeLessThan(100);
   await guest.waitForTimeout(BALANCE.weapons.rocket.cooldownMs + 100);
-  await aimAt(guest, (state) => state.planets.find((planet) => planet.id === hostPlanetId)!.position);
   const scrapAfterFirst = (await debugState(guest)).players.find((player) => player.id === guestPlayer.id)!.scrap;
-  await fireCannon(guest);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await moveTo(guest, (state) => state.cannons.find((cannon) => cannon.planetId === guestPlanetId)!.position, 3.35, 30);
+    await aimAt(guest, (state) => state.planets.find((planet) => planet.id === hostPlanetId)!.position);
+    await fireCannon(guest);
+    await guest.waitForTimeout(350);
+    const currentScrap = (await debugState(guest)).players.find((player) => player.id === guestPlayer.id)!.scrap;
+    if (currentScrap < scrapAfterFirst) break;
+    await guest.waitForTimeout(BALANCE.weapons.rocket.cooldownMs);
+  }
   await expect.poll(async () => (await debugState(guest)).players.find((player) => player.id === guestPlayer.id)!.scrap, { timeout: 3000 }).toBeLessThan(scrapAfterFirst);
-  await expect.poll(async () => (await debugState(host)).matchStats.find((stats) => stats.playerId === guestPlayer.id)?.damageDealt ?? 0, { timeout: 5000 }).toBeGreaterThanOrEqual(BALANCE.weapons.rocket.damage);
+  await expect.poll(async () => (await debugState(host)).matchStats.find((stats) => stats.playerId === guestPlayer.id)?.damageDealt ?? 0, { timeout: 5000 }).toBeGreaterThanOrEqual(BALANCE.weapons.rocket.damage * 2);
   await expect(host.locator("#event-feed")).toContainText("Nova hit Chris");
 
   await expect(host.locator("#results-screen")).toBeVisible({ timeout: 55_000 });
