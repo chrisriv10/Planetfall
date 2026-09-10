@@ -1,3 +1,6 @@
+import type { BrClientToServerEvents, BrServerToClientEvents } from "./battle-royale/types.js";
+export * from "./battle-royale/index.js";
+
 export type Vec3 = { x: number; y: number; z: number };
 export type Quat = { x: number; y: number; z: number; w: number };
 export type WeaponType = "rocket" | "asteroid" | "cluster" | "gravity-bomb";
@@ -109,7 +112,7 @@ export const BALANCE = {
   playerGrapple: { range: 11, facingDot: 0.965, reciprocal: 0.16, maxDurationMs: 4200 },
   grapple: { reelRatio: 0.74, minRestLength: 3, spring: 3.2, damping: 2.4, basePull: 3, maxForce: 32, speedCap: 38 },
   launch: { range: 3.25, cooldownMs: 5000, speed: 32, assist: 13, assistMs: 4200, arrivalRadius: 8, arrivalSpeed: 19 },
-  shove: { range: 2.2, cooldownMs: 1200, force: 9.5, lift: 4.2, facingDot: 0.2, speedCap: 23 },
+  shove: { range: 2.2, networkRangeTolerance: 0.45, cooldownMs: 1200, force: 9.5, lift: 4.2, facingDot: 0.2, speedCap: 23 },
   sabotage: { range: 3.2, cancelRange: 3.55, channelMs: 1250, durationMs: 7000, immunityMs: 10000 },
   emoteCooldownMs: 1800,
   burstBump: { range: 1.35, activeMs: 260, perTargetCooldownMs: 850, force: 3.6, lift: 1.25 },
@@ -373,7 +376,7 @@ export interface ServerSnapshot {
   matchEndsAt: number | null;
 }
 
-export interface ClientToServerEvents {
+export interface ClientToServerEvents extends BrClientToServerEvents {
   "room:create": (payload: { name: string; sessionToken?: string }, ack: (result: JoinResult) => void) => void;
   "room:solo": (payload: { name: string }, ack: (result: JoinResult) => void) => void;
   "room:join": (payload: { code: string; name: string; sessionToken?: string }, ack: (result: JoinResult) => void) => void;
@@ -393,7 +396,7 @@ export interface ClientToServerEvents {
   "match:rematch": () => void;
 }
 
-export interface ServerToClientEvents {
+export interface ServerToClientEvents extends BrServerToClientEvents {
   "room:state": (room: RoomView) => void;
   "match:snapshot": (snapshot: ServerSnapshot) => void;
   "match:countdown": (payload: { startsAt: number; mode: GameMode; modifier: ChaosModifier | null; rules: MatchRules }) => void;
@@ -568,11 +571,16 @@ export function isShoveTarget(
   facing: Vec3,
   range: number = BALANCE.shove.range
 ): boolean {
-  if (distance(attacker, target) > range) return false;
+  const separation = distance(attacker, target);
+  if (separation > range) return false;
   const outward = normalize(sub(attacker, planetCenter));
   const targetDirection = projectOnPlane(sub(target, attacker), outward);
   const facingDirection = projectOnPlane(facing, outward);
-  if (length(targetDirection) < 1e-5 || length(facingDirection) < 1e-5) return false;
+  if (length(facingDirection) < 1e-5) return false;
+  // Players use lightweight networked capsules and can briefly occupy nearly the
+  // same surface point. Treat that overlap as a valid close shove so they can
+  // separate using the already-authoritative facing fallback.
+  if (separation <= .85 || length(targetDirection) < .08) return true;
   const towardTarget = normalize(targetDirection);
   const forward = normalize(facingDirection);
   return dot(forward, towardTarget) >= BALANCE.shove.facingDot;

@@ -423,7 +423,7 @@ export class GameRoom {
     if (payload.action === "launch" && typeof payload.targetPlanetId === "string") {
       this.launch(playerId, payload.targetPlanetId);
     } else if (payload.action === "shove" && typeof payload.targetPlayerId === "string") {
-      this.shove(playerId, payload.targetPlayerId, Date.now(), isFiniteVec3(payload.facing) ? payload.facing : undefined);
+      this.shove(playerId, payload.targetPlayerId, Date.now(), isFiniteVec3(payload.facing) ? payload.facing : undefined, BALANCE.shove.networkRangeTolerance);
     } else if (
       payload.action === "sabotage"
       && typeof payload.planetId === "string"
@@ -480,17 +480,18 @@ export class GameRoom {
     return true;
   }
 
-  shove(playerId: string, targetPlayerId: string, now = Date.now(), facing?: Vec3): boolean {
+  shove(playerId: string, targetPlayerId: string, now = Date.now(), facing?: Vec3, rangeTolerance = 0): boolean {
     const player = this.players.get(playerId);
     const target = this.players.get(targetPlayerId);
     if (!player?.alive || !target?.alive || player.id === target.id || (this.phase !== "playing" && this.phase !== "overtime")) return false;
-    if (now < player.shoveCooldownUntil || distance(player.position, target.position) > BALANCE.shove.range) return false;
+    const validationRange = BALANCE.shove.range + clamp(rangeTolerance, 0, BALANCE.shove.networkRangeTolerance);
+    if (now < player.shoveCooldownUntil || distance(player.position, target.position) > validationRange) return false;
     const planet = this.nearestAlivePlanet(player.position);
     const targetPlanet = this.nearestAlivePlanet(target.position);
     if (!planet || targetPlanet?.id !== planet.id) return false;
     if (distance(player.position, planet.position) - BALANCE.planetRadius > 2 || distance(target.position, planet.position) - BALANCE.planetRadius > 2) return false;
     const shoveFacing = facing ?? player.input?.cameraForward ?? sub(target.position, player.position);
-    if (!isShoveTarget(player.position, target.position, planet.position, shoveFacing)) return false;
+    if (!isShoveTarget(player.position, target.position, planet.position, shoveFacing, validationRange)) return false;
     const outward = normalize(sub(target.position, planet.position));
     const tangentAway = projectOnPlane(sub(target.position, player.position), outward);
     let away = length(tangentAway) >= 0.1 ? normalize(tangentAway) : normalize(projectOnPlane(shoveFacing, outward));

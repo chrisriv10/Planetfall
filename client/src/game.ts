@@ -315,6 +315,7 @@ export class PlanetfallGame {
   private wasGrounded = false;
   private mode: "home" | "lobby" | "match" | "results" = "home";
   private rules: MatchRules = createMatchRules();
+  private active = true;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -366,6 +367,17 @@ export class PlanetfallGame {
     this.lastFrame = performance.now();
     this.renderer.setAnimationLoop((now) => this.frame(now));
   }
+
+  setActive(active: boolean): void {
+    if (this.active === active) return;
+    this.active = active;
+    if (active) {
+      this.lastFrame = performance.now();
+      this.renderer.setAnimationLoop((now) => this.frame(now));
+    } else this.renderer.setAnimationLoop(null);
+  }
+
+  getInputController(): GameInput { return this.input; }
 
   setMode(mode: "home" | "lobby" | "match" | "results"): void {
     this.mode = mode;

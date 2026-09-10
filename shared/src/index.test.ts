@@ -208,6 +208,15 @@ describe("shared gameplay math", () => {
     expect([1, 2, 3, 4, 6].map(fallbucksReward)).toEqual([100, 50, 25, 10, 10]);
   });
 
+  it("allows an in-range shove to separate overlapping players", () => {
+    expect(isShoveTarget(
+      { x: 0, y: 10, z: 0 },
+      { x: .001, y: 10, z: .001 },
+      { x: 0, y: 0, z: 0 },
+      { x: 0, y: 0, z: -1 }
+    )).toBe(true);
+  });
+
   it("awards bounded session XP and deterministic Planet Pass levels", () => {
     expect(SESSION_PROGRESSION).toEqual({ xpPerLevel: 100, maxLevel: 10 });
     expect(sessionMatchXp(1, 8, 8)).toBe(135);

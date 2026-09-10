@@ -1,5 +1,5 @@
 export type InputMethod = "keyboard" | "gamepad";
-export type InputAction = "jump" | "burst" | "interact" | "switchWeapon" | "repair" | "fire" | "grapple" | "emote" | "leaderboard" | "cancel" | "nextTarget" | "previousTarget" | "pause" | "confirm";
+export type InputAction = "jump" | "burst" | "crouch" | "interact" | "switchWeapon" | "repair" | "fire" | "grapple" | "emote" | "leaderboard" | "map" | "ping" | "cancel" | "nextTarget" | "previousTarget" | "pause" | "confirm";
 
 export type ButtonState = { held: boolean; pressed: boolean; released: boolean };
 
@@ -11,6 +11,7 @@ export interface InputFrame {
   lookY: number;
   jump: ButtonState;
   burst: ButtonState;
+  crouch: ButtonState;
   interact: ButtonState;
   switchWeapon: ButtonState;
   repair: ButtonState;
@@ -18,6 +19,8 @@ export interface InputFrame {
   grapple: ButtonState;
   emote: ButtonState;
   leaderboard: ButtonState;
+  map: ButtonState;
+  ping: ButtonState;
   cancel: ButtonState;
   nextTarget: ButtonState;
   previousTarget: ButtonState;
@@ -25,6 +28,7 @@ export interface InputFrame {
   confirm: ButtonState;
   menuX: -1 | 0 | 1;
   menuY: -1 | 0 | 1;
+  directSlot: number | null;
 }
 
 export function radialDeadzone(x: number, y: number, deadzone: number): { x: number; y: number; magnitude: number } {
@@ -61,10 +65,13 @@ const keyboardMap: Record<string, InputAction> = {
   Space: "jump",
   ShiftLeft: "burst",
   ShiftRight: "burst",
+  ControlLeft: "crouch",
+  ControlRight: "crouch",
   KeyE: "interact",
   KeyQ: "switchWeapon",
   KeyR: "repair",
   KeyV: "emote",
+  KeyM: "map",
   Tab: "leaderboard",
   Escape: "cancel",
   ArrowRight: "nextTarget",
@@ -82,7 +89,9 @@ const gamepadButtonMap: Partial<Record<number, InputAction>> = {
   6: "grapple",
   7: "fire",
   8: "leaderboard",
-  9: "pause"
+  9: "pause",
+  10: "burst",
+  11: "crouch"
 };
 
 const emptyButton = (): ButtonState => ({ held: false, pressed: false, released: false });
@@ -104,12 +113,14 @@ export class GameInput {
   private previousMenuY = 0;
   private triggerFireHeld = false;
   private triggerGrappleHeld = false;
+  private pendingDirectSlot: number | null = null;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     addEventListener("keydown", (event) => {
       this.keys.add(event.code);
       const action = keyboardMap[event.code];
       if (!event.repeat && action) this.pendingPressed.add(action);
+      if (!event.repeat && /^Digit[1-5]$/.test(event.code)) this.pendingDirectSlot = Number(event.code.slice(-1)) - 1;
       if (!event.repeat) this.markMethod("keyboard");
       if (event.code === "Space") event.preventDefault();
     });
@@ -132,6 +143,7 @@ export class GameInput {
         this.mouseButtons.add(event.button);
         if (event.button === 0) this.pendingPressed.add("fire");
         if (event.button === 2) this.pendingPressed.add("grapple");
+        if (event.button === 1) this.pendingPressed.add("ping");
       }
       this.markMethod("keyboard");
     });
@@ -139,6 +151,7 @@ export class GameInput {
       this.mouseButtons.delete(event.button);
       if (event.button === 0) this.pendingReleased.add("fire");
       if (event.button === 2) this.pendingReleased.add("grapple");
+      if (event.button === 1) this.pendingReleased.add("ping");
     });
     this.canvas.addEventListener("wheel", (event) => {
       this.wheelDirection = event.deltaY >= 0 ? 1 : -1;
@@ -160,6 +173,7 @@ export class GameInput {
     }
     if (this.mouseButtons.has(0)) keyboardActive.add("fire");
     if (this.mouseButtons.has(2)) keyboardActive.add("grapple");
+    if (this.mouseButtons.has(1)) keyboardActive.add("ping");
     if (this.wheelDirection > 0) keyboardActive.add("nextTarget");
     if (this.wheelDirection < 0) keyboardActive.add("previousTarget");
     const keyboard = this.keyboardEdges.update(keyboardActive);
@@ -192,16 +206,19 @@ export class GameInput {
       moveY: usePadMove ? -gamepad.move.y : keyboardMoveY,
       lookX: this.mouseLookX + gamepad.look.x,
       lookY: this.mouseLookY + gamepad.look.y,
-      jump: button("jump"), burst: button("burst"), interact: button("interact"), switchWeapon: button("switchWeapon"),
+      jump: button("jump"), burst: button("burst"), crouch: button("crouch"), interact: button("interact"), switchWeapon: button("switchWeapon"),
       repair: button("repair"), fire: button("fire"), grapple: button("grapple"), emote: button("emote"), leaderboard: button("leaderboard"), cancel: button("cancel"),
+      map: button("map"), ping: button("ping"),
       nextTarget: button("nextTarget"), previousTarget: button("previousTarget"), pause: button("pause"), confirm: button("confirm"),
-      menuX, menuY
+      menuX, menuY,
+      directSlot: this.pendingDirectSlot
     };
     this.mouseLookX = 0;
     this.mouseLookY = 0;
     this.wheelDirection = 0;
     this.pendingPressed.clear();
     this.pendingReleased.clear();
+    this.pendingDirectSlot = null;
     return frame;
   }
 
@@ -234,6 +251,8 @@ export class GameInput {
     if (pad.buttons[1]?.pressed) actions.add("cancel");
     if (pad.buttons[5]?.pressed) actions.add("nextTarget");
     if (pad.buttons[12]?.pressed) actions.add("emote");
+    if (pad.buttons[13]?.pressed) actions.add("map");
+    if (pad.buttons[14]?.pressed) actions.add("ping");
     const grappleValue = pad.buttons[6]?.value ?? 0;
     const fireValue = pad.buttons[7]?.value ?? 0;
     this.triggerGrappleHeld = this.triggerGrappleHeld ? grappleValue > 0.35 : grappleValue > 0.55;

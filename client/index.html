@@ -14,7 +14,11 @@
       <section id="home-screen" class="screen active" aria-labelledby="logo-title">
         <div class="home-card glass">
           <div class="brand-lockup"><i class="brand-orbit"></i><h1 id="logo-title">PLANETFALL</h1><b></b></div>
-          <p class="intro">Last planet standing wins.</p>
+          <p id="home-intro" class="intro">Last planet standing wins.</p>
+          <div class="family-selector" aria-label="Game family">
+            <button id="family-planetfall" class="family-card selected" type="button"><b>PLANETFALL</b><small>Tiny planets. Big chaos.</small></button>
+            <button id="family-br" class="family-card br" type="button"><b>BATTLE ROYALE</b><small>Drop. Loot. Survive.</small></button>
+          </div>
           <label class="field-label" for="player-name">Name</label>
           <input id="player-name" maxlength="18" autocomplete="nickname" placeholder="Space bean" />
           <div class="primary-actions">
@@ -64,6 +68,51 @@
           <p id="lobby-hint" class="lobby-hint">Waiting for players</p>
           <p id="lobby-emote-hint" class="lobby-emote-hint"><kbd>V</kbd> EMOTE</p>
         </div>
+      </section>
+
+      <section id="br-lobby-screen" class="screen" aria-labelledby="br-lobby-title">
+        <div class="lobby-card br-lobby-card glass">
+          <div class="lobby-heading">
+            <div><div class="panel-kicker">ORBITAL ISLE READY ROOM</div><h2 id="br-lobby-title">Battle Royale</h2></div>
+            <button id="br-copy-code" class="room-code" title="Copy room code"><span id="br-lobby-code">------</span><small>copy</small></button>
+          </div>
+          <nav class="lobby-hub-nav" aria-label="Session hub">
+            <button id="br-shop-lobby" class="hub-tab" type="button">SHOP <small><b id="br-lobby-fallbucks">0</b> FALLBUCKS</small></button>
+            <button id="br-pass-lobby" class="hub-tab" type="button">PLANET PASS <small id="br-lobby-level">LEVEL 1</small></button>
+            <button id="br-settings-lobby" class="hub-tab" type="button">SETTINGS <small>PILOT CONSOLE</small></button>
+          </nav>
+          <div class="br-options-grid">
+            <div><span>TEAMS</span><div id="br-team-mode" class="difficulty-selector"><button data-team="solo" class="selected">SOLOS</button><button data-team="duo">DUOS</button><button data-team="squad">SQUADS</button></div></div>
+            <div><label for="br-player-target">PLAYERS</label><select id="br-player-target"><option value="10">10</option><option value="20">20</option><option value="40">40</option></select></div>
+            <label class="br-fill toggle-row" for="br-fill-bots"><span>FILL BOTS</span><input id="br-fill-bots" type="checkbox" checked /></label>
+          </div>
+          <div class="lobby-options"><span>BOT DIFFICULTY</span><div id="br-bot-difficulty" class="difficulty-selector"><button data-difficulty="easy">EASY</button><button data-difficulty="normal" class="selected">NORMAL</button><button data-difficulty="hard">HARD</button></div></div>
+          <div id="br-team-list" class="br-team-list"></div>
+          <div class="lobby-actions"><span class="lobby-spacer"></span><button id="br-ready-button" class="button button-secondary">Ready</button><button id="br-start-button" class="button button-primary" hidden>Start</button></div>
+          <p id="br-lobby-hint" class="lobby-hint">Ready for deployment</p>
+        </div>
+      </section>
+
+      <section id="br-hud" class="screen br-hud" aria-label="Battle Royale HUD">
+        <div class="br-status"><b id="br-players-remaining">10 PLAYERS</b><span id="br-teams-remaining">10 TEAMS</span><span id="br-elims">0 ELIMS</span></div>
+        <div class="br-storm"><span id="br-storm-copy">VOID STORM</span><b id="br-storm-timer">02:00</b></div>
+        <div id="br-minimap" class="br-minimap" aria-label="Mini map"><i class="br-mini-storm"></i><b class="br-mini-player"></b></div>
+        <div class="br-vitals"><div><span>SHIELD</span><i><b id="br-shield-meter"></b></i><strong id="br-shield">0</strong></div><div><span>HP</span><i><b id="br-hp-meter"></b></i><strong id="br-hp">100</strong></div></div>
+        <div id="br-inventory" class="br-inventory"></div>
+        <div id="br-context" class="context-prompt"><span id="br-context-copy">Click the arena to take control</span><i id="br-context-progress"></i></div>
+        <div class="br-crosshair"><i></i><i></i></div>
+        <div id="br-kill-feed" class="br-kill-feed"></div>
+        <div id="br-team-hud" class="br-team-hud"></div>
+        <div id="br-pings" class="br-pings"></div>
+        <button id="br-map-button" class="icon-button br-map-button" type="button">M</button>
+      </section>
+
+      <section id="br-map-overlay" class="overlay br-map-overlay" hidden>
+        <div class="br-map-card glass"><div class="panel-kicker">ORBITAL ISLE</div><h2>TACTICAL MAP</h2><div id="br-map-canvas" class="br-map-canvas"></div><p>YOU · TEAM · SAFE ZONE</p><button id="br-map-close" class="button button-primary">Close Map</button></div>
+      </section>
+
+      <section id="br-results-screen" class="screen" aria-labelledby="br-results-title">
+        <div class="results-card br-results-card glass"><div class="result-burst">★</div><div class="panel-kicker">BATTLE ROYALE</div><h2 id="br-results-title">LAST CREW STANDING</h2><p id="br-placement">1ST PLACE</p><div id="br-results-stats" class="br-results-stats"></div><div class="result-actions"><button id="br-return-lobby" class="button button-primary">Return to Lobby</button><button id="br-shop-results" class="button button-secondary">Shop</button><button id="br-leave" class="button button-secondary">Quit</button></div></div>
       </section>
 
       <section id="hud" class="screen hud" aria-label="Match HUD">

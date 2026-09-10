@@ -151,6 +151,16 @@ describe("planet raids", () => {
     room.interact(host.id, { action: "shove", targetPlayerId: guest.id, facing: { x: 1, y: 0, z: 0 } });
     expect(room.view().matchStats.find((entry) => entry.playerId === host.id)?.successfulShoves).toBe(2);
     host.shoveCooldownUntil = 0;
+    place(host, surface, hostPlanet.id);
+    place(guest, add(surface, { x: BALANCE.shove.range + BALANCE.shove.networkRangeTolerance - 0.05, y: 0, z: 0 }), hostPlanet.id);
+    room.interact(host.id, { action: "shove", targetPlayerId: guest.id, facing: { x: 1, y: 0, z: 0 } });
+    expect(room.view().matchStats.find((entry) => entry.playerId === host.id)?.successfulShoves).toBe(3);
+    host.shoveCooldownUntil = 0;
+    place(host, surface, hostPlanet.id);
+    place(guest, add(surface, { x: BALANCE.shove.range + BALANCE.shove.networkRangeTolerance + 0.05, y: 0, z: 0 }), hostPlanet.id);
+    room.interact(host.id, { action: "shove", targetPlayerId: guest.id, facing: { x: 1, y: 0, z: 0 } });
+    expect(room.view().matchStats.find((entry) => entry.playerId === host.id)?.successfulShoves).toBe(3);
+    host.shoveCooldownUntil = 0;
     guest.alive = false;
     expect(room.shove(host.id, guest.id, now + BALANCE.shove.cooldownMs + 1)).toBe(false);
   });

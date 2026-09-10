@@ -169,6 +169,32 @@ test("the home menu previews the Fallbucks shop", async ({ page }) => {
   expect(browserErrors).toEqual([]);
 });
 
+test("Battle Royale creates an isolated room and enters the Starliner drop", async ({ page }) => {
+  const browserErrors = collectBrowserErrors(page);
+  await page.goto("/");
+  await page.getByLabel("Name").fill("Star Pilot");
+  await page.locator("#family-br").click();
+  await page.getByRole("button", { name: "Create BR Room" }).click();
+  await expect(page.locator("#br-lobby-screen")).toBeVisible();
+  await expect(page.locator("#br-team-list")).toContainText("Star Pilot");
+  await page.locator("#br-ready-button").click();
+  await page.locator("#br-start-button").click();
+  await expect(page.locator("#br-hud")).toBeVisible();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __PLANETFALL_BR_DEBUG__?: () => { phase: string; players: unknown[]; crateCount: number } }).__PLANETFALL_BR_DEBUG__?.().phase), { timeout: 9000 }).toBe("ship");
+  const state = await page.evaluate(() => (window as unknown as { __PLANETFALL_BR_DEBUG__: () => { players: unknown[]; crateCount: number } }).__PLANETFALL_BR_DEBUG__());
+  expect(state.players).toHaveLength(10);
+  expect(state.crateCount).toBe(9);
+  await expect.poll(() => page.evaluate(() => {
+    const player = (window as unknown as { __PLANETFALL_BR_DEBUG__: () => { localPlayer: { position: Point } } }).__PLANETFALL_BR_DEBUG__().localPlayer;
+    return Math.hypot(player.position.x, player.position.z);
+  }), { timeout: 20_000 }).toBeLessThan(250);
+  await takeControl(page);
+  await page.keyboard.press("Space");
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __PLANETFALL_BR_DEBUG__: () => { localPlayer: { deployment: string } } }).__PLANETFALL_BR_DEBUG__().localPlayer.deployment)).toBe("freefall");
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __PLANETFALL_BR_DEBUG__: () => { localPlayer: { deployment: string } } }).__PLANETFALL_BR_DEBUG__().localPlayer.deployment), { timeout: 20_000 }).toBe("grounded");
+  expect(browserErrors).toEqual([]);
+});
+
 test("the cannon guide marks its predicted planet impact", async ({ page }) => {
   const browserErrors = collectBrowserErrors(page);
   await page.goto("/");

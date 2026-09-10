@@ -6,9 +6,11 @@
 [![Three.js](https://img.shields.io/badge/Three.js-3D-000000?logo=threedotjs&logoColor=white)](https://threejs.org/)
 [![Socket.IO](https://img.shields.io/badge/Socket.IO-multiplayer-010101?logo=socketdotio&logoColor=white)](https://socket.io/)
 
-Planetfall is a browser-based 3D party game about tiny planets, scrap, cannons, and chaotic last-pilot-standing matches.
+Planetfall is a browser-based 3D space party game with two distinct ways to play.
 
-Play solo with bots or bring 2–6 players into the same room. Run across spherical worlds, repair your planet, grapple through the arena, and blast rivals before your world breaks apart.
+**Planetfall** supports 2–6 pilots on destructible tiny planets with Scrap, cannons, raids, grapples, repairs, Classic, and Chaos rounds.
+
+**Battle Royale** supports private Solo, Duo, and Squad rooms with bot fill for 10, 20, or 40 participants. Drop from the Starliner onto Orbital Isle, loot seven weapons, survive the Void, revive crewmates, and become the last crew standing.
 
 ## Run it
 
@@ -24,6 +26,8 @@ The development server prints the client address when it starts.
 Choose **Play Solo** for a match with three bots, or **Create Room** and share the room code. In multiplayer, everyone selects **Ready** before the host starts.
 
 Hosts can choose **Classic** or **Chaos**, set bot difficulty, and add bots. The orbital ready room is the hub for Ready, Shop, Planet Pass, and Settings. Matches award session XP, Crowns, and Fallbucks that last through rematches while the room stays open. Fallbucks buy session-only cosmetics and never affect gameplay.
+
+Select **Battle Royale** on the home screen to create a BR room or start a Solo match with bots. BR hosts choose team size, participant target, bot fill, and difficulty.
 
 ## Controls
 
@@ -44,6 +48,8 @@ Hosts can choose **Classic** or **Chaos**, set bot difficulty, and add bots. The
 | Match menu | `Esc` | Menu |
 
 Near a structure, the prompt shows its available Scrap utility. Use `E` / `X` for shields or cannon overcharge, and `R` / `RB` at a launch pad for a launch boost. Aim directly at a nearby astronaut before grappling to create a short player tether.
+
+Battle Royale uses `Shift` / `B` to sprint, `Ctrl` / right-stick click to slide, `1–5` / `Y` to select inventory slots, `R` / `RB` to reload, and `M` / D-pad down for the tactical map. Jump from the Starliner with `Space` / `A`; Ion Wings deploy automatically near the island.
 
 ## Stack
 
