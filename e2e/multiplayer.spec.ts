@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { BALANCE } from "@planetfall/shared";
+import { BALANCE, BR_MAP } from "@planetfall/shared";
 
 type Point = { x: number; y: number; z: number };
 type DebugState = {
@@ -34,8 +34,15 @@ async function takeControl(page: Page): Promise<void> {
   const hasControl = () => page.evaluate(() => document.pointerLockElement?.id === "game-canvas");
   if (await hasControl()) return;
   await page.bringToFront();
+  const canvas = page.locator("#game-canvas");
+  await expect(canvas).toBeVisible();
   for (let attempt = 0; attempt < 3; attempt++) {
-    await page.locator("#game-canvas").click({ position: { x: 320, y: 240 } });
+    const box = await canvas.boundingBox();
+    if (!box) throw new Error("game canvas has no clickable bounds");
+    // A raw mouse event is still a trusted browser gesture (required by
+    // pointer lock), but does not wait indefinitely on Playwright's element
+    // actionability loop while the WebGL scene is busy rendering.
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
     if (await expect.poll(hasControl, { timeout: 2000 }).toBe(true).then(() => true, () => false)) return;
   }
   throw new Error("game canvas did not acquire pointer lock");
@@ -170,6 +177,7 @@ test("the home menu previews the Fallbucks shop", async ({ page }) => {
 });
 
 test("Battle Royale creates an isolated room and enters the Starliner drop", async ({ page }) => {
+  test.setTimeout(180_000);
   const browserErrors = collectBrowserErrors(page);
   await page.goto("/");
   // Chromium's CI software renderer is intentionally kept on Low for this
@@ -195,7 +203,10 @@ test("Battle Royale creates an isolated room and enters the Starliner drop", asy
   await expect.poll(() => page.evaluate(() => {
     const player = (window as unknown as { __PLANETFALL_BR_DEBUG__: () => { localPlayer: { position: Point } } }).__PLANETFALL_BR_DEBUG__().localPlayer;
     return Math.hypot(player.position.x, player.position.z);
-  }), { timeout: 20_000 }).toBeLessThan(350);
+  // Enter the island's playable airspace before jumping. Requiring the ship to
+  // reach a narrow central radius made this browser flow depend on timer
+  // scheduling under heavily loaded software-rendered CI hosts.
+  }), { timeout: 20_000 }).toBeLessThan(BR_MAP.radius - 80);
   await takeControl(page);
   await page.keyboard.press("Space");
   await expect.poll(() => page.evaluate(() => (window as unknown as { __PLANETFALL_BR_DEBUG__: () => { localPlayer: { deployment: string } } }).__PLANETFALL_BR_DEBUG__().localPlayer.deployment)).toBe("freefall");

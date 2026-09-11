@@ -187,14 +187,30 @@ export class BrWorldRenderer {
     }
 
     const maintenance: MatrixSpec[] = [];
+    const edgeArmor: MatrixSpec[] = [];
+    const edgeRibs: MatrixSpec[] = [];
+    const edgeBeacons: MatrixSpec[] = [];
     for (let index = 0; index < BR_ISLAND_OUTLINE.length; index++) {
       const [x, z] = BR_ISLAND_OUTLINE[index];
       const [nextX, nextZ] = BR_ISLAND_OUTLINE[(index + 1) % BR_ISLAND_OUTLINE.length];
       const length = Math.hypot(nextX - x, nextZ - z);
       const angle = -Math.atan2(nextZ - z, nextX - x);
       maintenance.push({ position: position((x + nextX) / 2, -10, (z + nextZ) / 2), scale: position(length - 4, 12, 2.4), rotationY: angle });
+      const segmentCount = Math.max(2, Math.floor(length / 22));
+      for (let segment = 0; segment < segmentCount; segment++) {
+        const t = (segment + .5) / segmentCount;
+        const px = THREE.MathUtils.lerp(x, nextX, t), pz = THREE.MathUtils.lerp(z, nextZ, t);
+        edgeArmor.push({ position: position(px, -4.4, pz), scale: position(Math.max(6, length / segmentCount - .8), 6.6, 3.25), rotationY: angle });
+        if (segment % 2 === 0) {
+          edgeRibs.push({ position: position(px, -13, pz), scale: position(.72, 18, 4.8), rotationY: angle });
+          edgeBeacons.push({ position: position(px, -3.1, pz), scale: position(1.05, .34, .34), rotationY: angle });
+        }
+      }
     }
     this.addInstances(this.root, this.materials.unitBox, this.materials.get("structuralDark"), maintenance, false);
+    this.addInstances(this.root, this.materials.unitChamferedBox, this.materials.get("brushedMetal"), edgeArmor, false);
+    this.addInstances(this.root, this.materials.unitChamferedBox, this.materials.get("structuralDark"), edgeRibs, false);
+    this.addInstances(this.root, this.materials.unitBox, this.materials.get("industrialOrange"), edgeBeacons, false);
   }
 
   private buildRoads(): void {
@@ -202,6 +218,8 @@ export class BrWorldRenderer {
     const curbs: MatrixSpec[] = [];
     const edgeLights: MatrixSpec[] = [];
     const dashMatrices: MatrixSpec[] = [];
+    const crossings: MatrixSpec[] = [];
+    const medians: MatrixSpec[] = [];
     const lampPosts: MatrixSpec[] = [];
     const lampBulbs: MatrixSpec[] = [];
     for (const road of BR_ROADS) {
@@ -227,6 +245,23 @@ export class BrWorldRenderer {
           scale: position(5.2, .035, .42), rotationY: angle
         });
       }
+      if (length > 52) {
+        for (const endT of [.11, .89]) {
+          for (let stripe = -2; stripe <= 2; stripe++) {
+            const t = THREE.MathUtils.clamp(endT + stripe * (2.25 / length), .04, .96);
+            crossings.push({
+              position: position(road.from.x + dx * t, .69, road.from.z + dz * t),
+              scale: position(pavedWidth * .58, .025, .72), rotationY: angle + Math.PI / 2
+            });
+          }
+        }
+      }
+      if (length > 96) {
+        for (const t of [.32, .68]) medians.push({
+          position: position(road.from.x + dx * t, .73, road.from.z + dz * t),
+          scale: position(13, .18, 1.2), rotationY: angle
+        });
+      }
       const lampCount = Math.max(1, Math.floor(length / 58));
       const nx = -dz / length, nz = dx / length;
       for (let index = 1; index < lampCount; index++) {
@@ -243,6 +278,8 @@ export class BrWorldRenderer {
     this.addInstances(this.root, this.materials.unitBox, this.materials.get("sidewalk"), curbs, false);
     this.addInstances(this.root, this.materials.unitBox, this.materials.get("energyCyan"), edgeLights, false);
     this.addInstances(this.root, this.materials.unitBox, this.materials.get("sidewalk"), dashMatrices, false);
+    this.addInstances(this.root, this.materials.unitBox, this.materials.get("structuralWhite"), crossings, false);
+    this.addInstances(this.root, this.materials.unitChamferedBox, this.materials.get("industrialOrange"), medians, false);
     this.addInstances(this.root, this.materials.unitBox, this.materials.get("structuralDark"), lampPosts, false);
     this.addInstances(this.root, this.materials.unitBox, this.materials.get("energyCyan"), lampBulbs, false);
   }
@@ -284,10 +321,19 @@ export class BrWorldRenderer {
       const roofUnits: MatrixSpec[] = [];
       const doorFrames: MatrixSpec[] = [];
       const interiorProps: MatrixSpec[] = [];
+      const interiorDark: MatrixSpec[] = [];
+      const interiorLights: MatrixSpec[] = [];
       const railings: MatrixSpec[] = [];
       const shells: MatrixSpec[] = [];
+      const massing: MatrixSpec[] = [];
+      const glassVolumes: MatrixSpec[] = [];
+      const accentVolumes: MatrixSpec[] = [];
+      const machinery: MatrixSpec[] = [];
       for (const structure of structures) {
-        this.architectureMatrices(structure, shells, columns, trims, windowsDark, windowsLit, roofUnits, doorFrames, interiorProps, railings);
+        this.architectureMatrices(
+          structure, shells, columns, trims, windowsDark, windowsLit, roofUnits, doorFrames,
+          interiorProps, interiorDark, interiorLights, railings, massing, glassVolumes, accentVolumes, machinery
+        );
         const signText = this.facadeSignText(structure);
         if (signText) {
           const sign = this.materials.createSign(signText, { border: poi.color });
@@ -302,14 +348,20 @@ export class BrWorldRenderer {
         }
       }
       allShells.push(...shells);
-      this.addInstances(group, this.materials.unitBox, this.materials.get("structuralDark"), columns, false);
+      this.addInstances(group, this.materials.unitChamferedBox, this.materials.get("structuralDark"), columns, false);
       this.addInstances(group, this.materials.unitBox, this.materials.accent(poi.color, .12), trims, false);
       this.addInstances(group, this.materials.unitBox, this.materials.get("windowDark"), windowsDark, false);
       this.addInstances(group, this.materials.unitBox, this.materials.get("windowLit"), windowsLit, false);
       this.addInstances(group, this.materials.unitBox, this.materials.get("brushedMetal"), roofUnits, false);
       this.addInstances(group, this.materials.unitBox, this.materials.accent(poi.color, .26), doorFrames, false);
       this.addInstances(group, this.materials.unitBox, this.materials.get("interiorWall"), interiorProps, false);
+      this.addInstances(group, this.materials.unitChamferedBox, this.materials.get("structuralDark"), interiorDark, false);
+      this.addInstances(group, this.materials.unitBox, this.materials.get("windowLit"), interiorLights, false);
       this.addInstances(group, this.materials.unitBox, this.materials.get("structuralDark"), railings, false);
+      this.addInstances(group, this.materials.unitChamferedBox, this.materials.get("structuralWhite"), massing, false);
+      this.addInstances(group, this.materials.unitChamferedBox, this.materials.get("glass"), glassVolumes, false);
+      this.addInstances(group, this.materials.unitChamferedBox, this.materials.accent(poi.color, .2), accentVolumes, false);
+      this.addInstances(group, this.materials.unitCylinder, this.materials.get("brushedMetal"), machinery, false);
       this.root.add(group);
       this.districtDetails.push({ group, center: position(poi.position.x, 0, poi.position.z), visible: true });
     }
@@ -320,12 +372,20 @@ export class BrWorldRenderer {
     structure: BrStructure,
     shells: MatrixSpec[],
     columns: MatrixSpec[], trims: MatrixSpec[], darkWindows: MatrixSpec[], litWindows: MatrixSpec[],
-    roofUnits: MatrixSpec[], doorFrames: MatrixSpec[], interiorProps: MatrixSpec[], railings: MatrixSpec[]
+    roofUnits: MatrixSpec[], doorFrames: MatrixSpec[], interiorProps: MatrixSpec[], interiorDark: MatrixSpec[],
+    interiorLights: MatrixSpec[], railings: MatrixSpec[], massing: MatrixSpec[], glassVolumes: MatrixSpec[],
+    accentVolumes: MatrixSpec[], machinery: MatrixSpec[]
   ): void {
     const { x, z } = structure.position;
     const { x: width, y: height, z: depth } = structure.size;
     const wall=.65,door=4.8;
-    const wallSpec=(px:number,pz:number,sx:number,sz:number)=>shells.push({position:position(px,height/2,pz),scale:position(sx,height,sz)});
+    const shellTrim = structure.style === "city" || structure.style === "mall"
+      ? Math.min(5.4, Math.min(width, depth) * .16)
+      : 2.2;
+    const wallSpec=(px:number,pz:number,sx:number,sz:number)=>shells.push({
+      position:position(px,height/2,pz),
+      scale:position(sx>=width-.1?Math.max(1,sx-shellTrim):sx,height,sz>=depth-.1?Math.max(1,sz-shellTrim):sz)
+    });
     if(!structure.enterable){wallSpec(x,z-depth/2,width,wall);wallSpec(x,z+depth/2,width,wall);wallSpec(x-width/2,z,wall,depth);wallSpec(x+width/2,z,wall,depth);}
     else if(structure.entrance==="north"||structure.entrance==="south"){
       wallSpec(x-width/2,z,wall,depth);wallSpec(x+width/2,z,wall,depth);
@@ -344,7 +404,10 @@ export class BrWorldRenderer {
     columns.push({ position: position(x - width / 2 - .38, .48, z), scale: position(.34, .88, depth - 1.2) });
     columns.push({ position: position(x + width / 2 + .38, .48, z), scale: position(.34, .88, depth - 1.2) });
     for (const [sx, sz] of [[-1, -1], [-1, 1], [1, -1], [1, 1]] as const) {
-      columns.push({ position: position(x + sx * (width / 2 - .55), height / 2, z + sz * (depth / 2 - .55)), scale: position(1.05, height + 1.1, 1.05) });
+      const corner = structure.style === "city" || structure.style === "mall" || structure.archetype === "tower" || structure.archetype === "hotel"
+        ? THREE.MathUtils.clamp(Math.min(width, depth) * .11, 2.1, 4.2)
+        : 1.55;
+      columns.push({ position: position(x + sx * (width / 2 - corner * .42), height / 2, z + sz * (depth / 2 - corner * .42)), scale: position(corner, height + 1.1, corner) });
     }
     const panelHeight = Math.max(2.8, height * .72);
     columns.push({ position: position(x, height * .52, z - depth / 2 - .22), scale: position(width * .76, panelHeight, .16) });
@@ -452,6 +515,125 @@ export class BrWorldRenderer {
     }else if(structure.archetype==="tower"||structure.archetype==="hotel"){
       roofUnits.push({position:position(x,height+3.1,z),scale:position(width*.42,3.8,depth*.4)});
     }
+    this.addArchetypeMassing(structure, massing, glassVolumes, accentVolumes, machinery, roofUnits, railings);
+    this.addInteriorKit(structure, interiorProps, interiorDark, interiorLights);
+  }
+
+  private addArchetypeMassing(
+    structure: BrStructure,
+    massing: MatrixSpec[], glass: MatrixSpec[], accents: MatrixSpec[], machinery: MatrixSpec[],
+    roofUnits: MatrixSpec[], railings: MatrixSpec[]
+  ): void {
+    const { x, z } = structure.position;
+    const { x: width, y: height, z: depth } = structure.size;
+    const northSouth = structure.entrance === "north" || structure.entrance === "south";
+    const frontSign = structure.entrance === "north" || structure.entrance === "east" ? 1 : -1;
+    const frontX = northSouth ? x : x + frontSign * (width / 2 + .34);
+    const frontZ = northSouth ? z + frontSign * (depth / 2 + .34) : z;
+    const facadeScale = (wide: number, tall: number, thick: number): THREE.Vector3 => northSouth ? position(wide, tall, thick) : position(thick, tall, wide);
+
+    // Shallow masses create readable silhouettes while staying visually tied to
+    // the authoritative box collider beneath them.
+    if (structure.archetype === "shop" || structure.archetype === "transit") {
+      glass.push({ position: position(frontX, 2.35, frontZ), scale: facadeScale(Math.max(5.8, (northSouth ? width : depth) * .62), 3.25, .22) });
+      accents.push({ position: position(frontX, 4.55, frontZ), scale: facadeScale(Math.max(7, (northSouth ? width : depth) * .72), .42, 1.45) });
+      for (const side of [-1, 1]) {
+        const offset = side * (northSouth ? width : depth) * .29;
+        massing.push({ position: position(frontX + (northSouth ? offset : 0), 2.1, frontZ + (northSouth ? 0 : offset)), scale: facadeScale(.72, 4.2, .7) });
+      }
+    } else if (structure.archetype === "office" || structure.archetype === "lab" || structure.archetype === "academy") {
+      glass.push({ position: position(frontX, Math.min(height * .52, 5.4), frontZ), scale: facadeScale(Math.max(5.5, (northSouth ? width : depth) * .48), Math.min(height * .58, 8), .3) });
+      accents.push({ position: position(frontX, 4.75, frontZ), scale: facadeScale(Math.max(7, (northSouth ? width : depth) * .58), .28, 2) });
+      const annexOffset = (northSouth ? width : depth) * .32;
+      massing.push({ position: position(x + (northSouth ? annexOffset : 0), height * .34, z + (northSouth ? 0 : annexOffset)), scale: northSouth ? position(width * .22, height * .5, depth * .84) : position(width * .84, height * .5, depth * .22) });
+    } else if (structure.archetype === "apartment" || structure.archetype === "hotel" || structure.archetype === "tower") {
+      const tiers = structure.roofAccess ? 1 : 2;
+      for (let tier = 0; tier < tiers; tier++) {
+        const tierHeight = Math.min(4.6, height * .15);
+        massing.push({ position: position(x + (tier ? width * .08 : -width * .05), height + tierHeight * (tier + .5), z + (tier ? -depth * .06 : depth * .05)), scale: position(width * (.66 - tier * .12), tierHeight, depth * (.68 - tier * .1)) });
+      }
+      for (const side of [-1, 1]) {
+        const lateral = side * (northSouth ? width : depth) * .34;
+        accents.push({ position: position(frontX + (northSouth ? lateral : 0), height * .62, frontZ + (northSouth ? 0 : lateral)), scale: facadeScale(Math.max(1.8, (northSouth ? width : depth) * .12), Math.min(7.5, height * .24), .55) });
+      }
+      machinery.push({ position: position(x, height + (structure.archetype === "tower" ? 5.1 : 3.8), z), scale: position(width * .28, structure.archetype === "tower" ? 5.8 : 3.2, depth * .28) });
+      accents.push({ position: position(x, height + (structure.archetype === "tower" ? 8.15 : 5.55), z), scale: position(width * .35, .32, depth * .35) });
+    } else if (structure.archetype === "warehouse" || structure.archetype === "hangar") {
+      massing.push({ position: position(x, height + 1.15, z), scale: position(width * .86, 2.3, depth * .72) });
+      accents.push({ position: position(frontX, height * .54, frontZ), scale: facadeScale(Math.max(8, (northSouth ? width : depth) * .72), Math.min(7.5, height * .72), .48) });
+      for (const side of [-1, 1]) {
+        const offset = side * (northSouth ? width : depth) * .39;
+        massing.push({ position: position(frontX + (northSouth ? offset : 0), height * .52, frontZ + (northSouth ? 0 : offset)), scale: facadeScale(1.15, height * .92, 1.25) });
+      }
+    } else if (structure.archetype === "mall") {
+      const facadeSpan = (northSouth ? width : depth) * .62;
+      const facadeHeight = Math.min(9, height * .68);
+      glass.push({ position: position(frontX, Math.min(6, height * .52), frontZ), scale: facadeScale(facadeSpan, facadeHeight, .46) });
+      const backX = northSouth ? x : x - frontSign * (width / 2 + .34);
+      const backZ = northSouth ? z - frontSign * (depth / 2 + .34) : z;
+      glass.push({ position: position(backX, Math.min(5.2, height * .48), backZ), scale: facadeScale(facadeSpan * .72, facadeHeight * .7, .28) });
+      for (const side of [-1, 1]) {
+        const offset = side * (northSouth ? width : depth) * .38;
+        massing.push({
+          position: position(x + (northSouth ? offset : 0), height * .58, z + (northSouth ? 0 : offset)),
+          scale: facadeScale(Math.max(3.6, facadeSpan * .16), height * .76, 1.4)
+        });
+        accents.push({
+          position: position(frontX + (northSouth ? offset : 0), 4.8, frontZ + (northSouth ? 0 : offset)),
+          scale: facadeScale(Math.max(3.2, facadeSpan * .14), .34, 2.25)
+        });
+      }
+      massing.push({ position: position(x, height + 1.4, z), scale: position(width * .55, 2.8, depth * .5) });
+      glass.push({ position: position(x, height + 2.65, z), scale: position(width * .34, 1.7, depth * .3) });
+      accents.push({ position: position(x, height + 3.65, z), scale: position(width * .42, .35, depth * .38) });
+    } else if (structure.archetype === "industrial" || structure.archetype === "utility") {
+      for (const side of [-1, 1]) {
+        machinery.push({ position: position(x + side * width * .28, height + 2.1, z), scale: position(1.35, 4.2, 1.35) });
+        accents.push({ position: position(x + side * width * .28, height + 4.25, z), scale: position(1.7, .34, 1.7) });
+      }
+      massing.push({ position: position(x, height * .46, z + depth * .39), scale: position(width * .72, height * .44, depth * .18) });
+    } else if (structure.archetype === "greenhouse") {
+      glass.push({ position: position(x, height * .62, z), scale: position(width * .8, height * .72, depth * .82) });
+      for (const side of [-1, 1]) accents.push({ position: position(x + side * width * .36, height * .62, z), scale: position(.28, height * .82, depth * .88) });
+    }
+
+    if (structure.roofAccess) {
+      // Roof access remains open; details hug the perimeter instead of creating
+      // misleading collision-free masses in the combat lane.
+      for (const side of [-1, 1]) {
+        roofUnits.push({ position: position(x + side * width * .34, height + .52, z + depth * .31), scale: position(width * .14, 1.04, depth * .18) });
+        railings.push({ position: position(x + side * width * .42, height + .72, z), scale: position(.12, .14, depth * .72) });
+      }
+    }
+  }
+
+  private addInteriorKit(structure: BrStructure, light: MatrixSpec[], dark: MatrixSpec[], emissive: MatrixSpec[]): void {
+    if (!structure.enterable) return;
+    const { x, z } = structure.position;
+    const width = structure.size.x, depth = structure.size.z;
+    const archetype = structure.archetype;
+    const addCeiling = () => emissive.push({ position: position(x, Math.min(structure.size.y - .45, 3.75), z), scale: position(Math.max(2.8, width * .42), .08, .24) });
+    addCeiling();
+    if (archetype === "shop" || archetype === "mall") {
+      dark.push({ position: position(x, .72, z + depth * .27), scale: position(width * .55, 1.35, .7) });
+      for (const side of [-1, 0, 1]) light.push({ position: position(x + side * width * .22, 1.05, z - depth * .22), scale: position(width * .13, 2.1, .52) });
+      emissive.push({ position: position(x, 2.35, z + depth * .29), scale: position(width * .38, .13, .08) });
+    } else if (archetype === "warehouse" || archetype === "hangar") {
+      for (const side of [-1, 1]) for (const row of [-1, 0, 1]) dark.push({ position: position(x + side * width * .3, 1.25, z + row * depth * .22), scale: position(1.35, 2.5, depth * .13) });
+      light.push({ position: position(x, .7, z + depth * .27), scale: position(width * .25, 1.4, 2.2) });
+    } else if (archetype === "lab" || archetype === "academy" || archetype === "office") {
+      for (const side of [-1, 1]) {
+        light.push({ position: position(x + side * width * .23, .78, z + depth * .12), scale: position(width * .18, 1.45, 1.45) });
+        dark.push({ position: position(x + side * width * .23, 1.18, z - depth * .2), scale: position(width * .2, 2.2, .24) });
+      }
+      emissive.push({ position: position(x, 1.75, z - depth * .31), scale: position(width * .42, .18, .08) });
+    } else if (archetype === "industrial" || archetype === "utility") {
+      for (const side of [-1, 1]) dark.push({ position: position(x + side * width * .25, 1.55, z), scale: position(1.25, 3.1, 1.25) });
+      emissive.push({ position: position(x, .18, z), scale: position(width * .58, .08, .36) });
+    } else {
+      light.push({ position: position(x - width * .2, .62, z + depth * .2), scale: position(2.3, 1.2, 1.1) });
+      dark.push({ position: position(x + width * .2, .45, z - depth * .2), scale: position(2.1, .8, 1.3) });
+    }
   }
 
   private buildDistricts(): void {
@@ -486,19 +668,29 @@ export class BrWorldRenderer {
       const pad=new THREE.Mesh(this.geometry(new THREE.CylinderGeometry(38,40,.22,18)),this.materials.get(location.style==="farm"||location.style==="academy"?"grass":"sidewalk"));
       pad.position.set(location.position.x,.16,location.position.z);pad.receiveShadow=true;group.add(pad);
       const title=this.materials.createSign(location.name,{border:location.color,subtitle:this.poiSubtitle(location)});title.name="secondary-title";title.position.set(location.position.x,8.5,location.position.z);title.scale.set(13,3.8,1);group.add(title);this.secondaryLabels.push(title);
-      const lamps:MatrixSpec[]=[],props:MatrixSpec[]=[],foliage:MatrixSpec[]=[];
+      const lamps:MatrixSpec[]=[],lampBulbs:MatrixSpec[]=[],props:MatrixSpec[]=[],trunks:MatrixSpec[]=[],foliage:MatrixSpec[]=[],groundAccents:MatrixSpec[]=[];
       for(let index=0;index<8;index++){
         const angle=index/8*Math.PI*2,radius=index%2?34:29,x=location.position.x+Math.cos(angle)*radius,z=location.position.z+Math.sin(angle)*radius;
-        if(index%2===0)lamps.push({position:position(x,2.2,z),scale:position(.18,4.4,.18)});
-        if(location.style==="farm"||location.style==="academy"||location.style==="city")foliage.push({position:position(x,2.1,z),scale:position(1.4,3.2,1.4)});
+        if(index%2===0){lamps.push({position:position(x,2.2,z),scale:position(.18,4.4,.18)});lampBulbs.push({position:position(x,4.55,z),scale:position(.5,.18,.5)});}
+        if(location.style==="farm"||location.style==="academy"||location.style==="city"){
+          trunks.push({position:position(x,1.1,z),scale:position(.38,2.2,.38)});
+          foliage.push({position:position(x,3.05,z),scale:position(1.5,1.7,1.5),rotationY:angle});
+        }
         else props.push({position:position(x,.85,z),scale:position(index%3===0?4.4:2.4,1.7,index%3===0?2.2:3.3),rotationY:angle});
+        if(index%2===1)groundAccents.push({position:position(location.position.x+Math.cos(angle)*36,.36,location.position.z+Math.sin(angle)*36),scale:position(6,.08,.5),rotationY:angle+Math.PI/2});
       }
       this.addInstances(group,this.materials.unitBox,this.materials.get("structuralDark"),lamps,false);
+      this.addInstances(group,this.materials.unitOctahedron,this.materials.get("energyCyan"),lampBulbs,false);
       this.addInstances(group,this.materials.unitBox,this.materials.get("cargoMetal"),props,false);
-      this.addInstances(group,this.geometry(new THREE.IcosahedronGeometry(1,1)),this.materials.get("grass"),foliage,false);
+      this.addInstances(group,this.materials.unitCylinder,this.materials.get("soil"),trunks,false);
+      this.addInstances(group,this.materials.unitOctahedron,this.materials.get("grass"),foliage,false);
+      this.addInstances(group,this.materials.unitBox,this.materials.accent(location.color,.12),groundAccents,false);
       if(location.style==="industrial"||location.style==="dock")group.add(this.makeTurbine(location.position.x+10,location.position.z+8,location.color));
       else if(location.style==="farm")group.add(this.makeGreenhouse(location.position.x+10,location.position.z+7,location.color));
-      else if(location.style==="city")group.add(this.makeHoverVehicle(location.position.x+8,location.position.z+24,.12,location.color));
+      else if(location.style==="city"){
+        group.add(this.makeHoverVehicle(location.position.x+8,location.position.z+24,.12,location.color));
+        group.add(this.makeTransitShelter(location.position.x-16,location.position.z+22,location.color));
+      }else if(location.style==="academy")group.add(this.makeTransitShelter(location.position.x+18,location.position.z-20,location.color));
       this.root.add(group);this.districtDetails.push({group,center:position(location.position.x,0,location.position.z),visible:true});
     }
   }
@@ -510,6 +702,9 @@ export class BrWorldRenderer {
     const boxes: MatrixSpec[] = [];
     const cylinders: MatrixSpec[] = [];
     const foliage: MatrixSpec[] = [];
+    const treeTrunks: MatrixSpec[] = [];
+    const shrubs: MatrixSpec[] = [];
+    const lampBulbs: MatrixSpec[] = [];
     const lamps: MatrixSpec[] = [];
     const benches: MatrixSpec[] = [];
     const solar: MatrixSpec[] = [];
@@ -521,22 +716,29 @@ export class BrWorldRenderer {
       const z = poi.position.z + Math.sin(angle) * radius;
       if (this.isReservedForGameplay(x, z, poi.id)) continue;
       if (poi.style === "farm" || poi.style === "academy") {
-        foliage.push({ position: position(x, 2 + random(), z), scale: position(1.1 + random() * 1.4, 2.4 + random() * 2.1, 1.1 + random() * 1.4) });
+        const tree = index % 3 !== 0;
+        if (tree) {
+          treeTrunks.push({ position: position(x, 1.15, z), scale: position(.34 + random() * .22, 2.3, .34 + random() * .22) });
+          foliage.push({ position: position(x, 3 + random() * .55, z), scale: position(1.25 + random(), 1.5 + random() * .8, 1.25 + random()) });
+        } else shrubs.push({ position: position(x, .72, z), scale: position(.8 + random() * .65, .75 + random() * .5, .8 + random() * .65) });
       } else if (poi.style === "dock" || poi.style === "industrial") {
         boxes.push({ position: position(x, .8 + random(), z), scale: position(2.5 + random() * 4, 1.4 + random() * 2.2, 1.7 + random() * 3.2), rotationY: Math.round(random() * 3) * Math.PI / 2 });
       } else if (poi.style === "wreck") {
         boxes.push({ position: position(x, .45 + random() * .8, z), scale: position(1 + random() * 4, .6 + random() * 1.8, .8 + random() * 3), rotationY: angle });
       } else {
         if (index % 3 === 0) benches.push({ position: position(x, .6, z), scale: position(2.8, .25, .75), rotationY: angle });
-        else lamps.push({ position: position(x, 2.2, z), scale: position(.16, 4.4, .16) });
+        else { lamps.push({ position: position(x, 2.2, z), scale: position(.16, 4.4, .16) }); lampBulbs.push({ position: position(x, 4.55, z), scale: position(.48, .17, .48) }); }
       }
       if (poi.style === "farm" && index < 18) solar.push({ position: position(x, 1.7, z), scale: position(4.8, .18, 2.8), rotationY: angle, rotationX: -.22 });
       if (poi.style === "reactor" && index % 5 === 0) cylinders.push({ position: position(x, 1.6, z), scale: position(1.2, 3.2, 1.2) });
     }
     this.addInstances(group, this.materials.unitBox, poi.style === "wreck" ? this.materials.get("warningRed") : this.materials.get("cargoMetal"), boxes, false);
     this.addInstances(group, this.materials.unitCylinder, this.materials.get("paintedMetal"), cylinders, false);
-    this.addInstances(group, this.geometry(new THREE.IcosahedronGeometry(1, 1)), this.materials.get("grass"), foliage, false);
+    this.addInstances(group, this.materials.unitCylinder, this.materials.get("soil"), treeTrunks, false);
+    this.addInstances(group, this.materials.unitOctahedron, this.materials.get("grass"), foliage, false);
+    this.addInstances(group, this.materials.unitOctahedron, this.materials.get("energyPurple"), shrubs, false);
     this.addInstances(group, this.materials.unitBox, this.materials.get("structuralDark"), lamps, false);
+    this.addInstances(group, this.materials.unitOctahedron, this.materials.get("energyCyan"), lampBulbs, false);
     this.addInstances(group, this.materials.unitBox, this.materials.get("brushedMetal"), benches, false);
     this.addInstances(group, this.materials.unitBox, this.materials.get("solarPanel"), solar, false);
     this.addContextProps(group, poi);
@@ -554,6 +756,8 @@ export class BrWorldRenderer {
       group.add(this.makeEnergyFountain(x, z, poi.color));
     } else if (poi.style === "dock") {
       for (const offset of [-24, 24]) group.add(this.makeCrane(x + offset, z + 13, offset < 0 ? 1 : -1, poi.color));
+      group.add(this.makeCargoMover(x - 31, z - 18, .18, poi.color));
+      group.add(this.makeCargoMover(x + 33, z - 24, -.12, poi.color));
       const hangarSign = this.materials.createSign("DOCK 07", { border: poi.color, subtitle: "CARGO TRANSFER" }); hangarSign.position.set(x, 15, z - 32); hangarSign.scale.set(20, 6, 1); group.add(hangarSign);
     } else if (poi.style === "reactor") {
       for (const offset of [-22, 22]) {
@@ -575,6 +779,8 @@ export class BrWorldRenderer {
       group.add(this.makeWreck(x, z));
     } else if (poi.style === "industrial") {
       for (const offset of [-22, 22]) group.add(this.makeTurbine(x + offset, z + 10, poi.color));
+      group.add(this.makeCargoMover(x - 28, z - 22, .42, poi.color));
+      group.add(this.makeMaintenanceRover(x + 30, z - 16, -.34, poi.color));
     }
   }
 
@@ -590,13 +796,19 @@ export class BrWorldRenderer {
       }
       const core = new THREE.Mesh(this.geometry(new THREE.OctahedronGeometry(7, 2)), this.materials.get("energyCyan")); core.name = "zero-energy-core"; core.position.y = 48; core.userData.rotationSpeed = .00048; core.userData.pulse = true; core.userData.baseScale = 1; group.add(core); this.animated.push(core);
       const light = new THREE.PointLight(0x70f5ff, 6.5, 105, 1.6); light.position.y = 48; group.add(light);
-      for (let index = 0; index < 4; index++) { const bridge = this.makeBridge(index * Math.PI / 2, 24, accent); bridge.position.y = 29; group.add(bridge); }
+      for (let index = 0; index < 4; index++) {
+        const angle=index*Math.PI/2;const bridge = this.makeBridge(angle, 24, accent); bridge.position.y = 29; group.add(bridge);
+        const pylon=new THREE.Mesh(this.materials.unitChamferedBox,dark);pylon.position.set(Math.cos(angle)*28,18,Math.sin(angle)*28);pylon.scale.set(5.4,36,5.4);group.add(pylon);
+        const cap=new THREE.Mesh(this.geometry(new THREE.OctahedronGeometry(3.6,1)),accent);cap.position.set(Math.cos(angle)*28,38,Math.sin(angle)*28);cap.userData.rotationSpeed=.0002*(index%2?1:-1);group.add(cap);this.animated.push(cap);
+        const stream=new THREE.Mesh(this.geometry(new THREE.CylinderGeometry(.34,.34,38,8)),this.materials.translucent(0x70f5ff,.5,true));stream.position.set(Math.cos(angle)*21,30,Math.sin(angle)*21);stream.rotation.z=Math.PI/2;stream.rotation.y=-angle;stream.userData.pulse=true;stream.userData.baseScale=1;group.add(stream);this.animated.push(stream);
+      }
     } else if (poi.style === "reactor") {
       const core = new THREE.Mesh(this.geometry(new THREE.CylinderGeometry(5.5, 8, 52, 16)), this.materials.get("energyCyan")); core.position.y = 45; group.add(core);
       const light = new THREE.PointLight(0xffd84d, 7, 115, 1.7); light.position.y = 48; group.add(light);
       for (const [radius, y] of [[13, 31], [16, 45], [12, 58]] as const) {
         const ring = new THREE.Mesh(this.geometry(new THREE.TorusGeometry(radius, 1, 9, 36)), dark); ring.position.y = y; ring.rotation.x = Math.PI / 2; ring.userData.rotationSpeed = y === 45 ? -.00022 : .00017; group.add(ring); this.animated.push(ring);
       }
+      for(let index=0;index<4;index++){const angle=index/4*Math.PI*2;const conduit=new THREE.Mesh(this.geometry(new THREE.TorusGeometry(22,.72,7,30,Math.PI*.7)),this.materials.get(index%2?"industrialOrange":"energyCyan"));conduit.position.set(Math.cos(angle)*6,18,Math.sin(angle)*6);conduit.rotation.set(Math.PI/2,angle,0);group.add(conduit);}
       for (let index = 0; index < 6; index++) { const angle = index / 6 * Math.PI * 2; const turbine = this.makeTurbine(Math.cos(angle) * 21, Math.sin(angle) * 21, poi.color); turbine.position.y = 37; group.add(turbine); }
     } else if (poi.style === "dock") {
       for (const offset of [-25, 25]) group.add(this.makeCrane(offset, 8, offset < 0 ? 1 : -1, poi.color));
@@ -688,6 +900,8 @@ export class BrWorldRenderer {
       const inner = position(Math.cos(angle) * 48, -74, Math.sin(angle) * 48);
       this.root.add(this.makeBeam(outer, inner, 4.2, metal));
     }
+    const engineFins: MatrixSpec[] = [];
+    const maintenanceDecks: MatrixSpec[] = [];
     for (let index = 0; index < 8; index++) {
       const angle = index / 8 * Math.PI * 2;
       const radius = 78;
@@ -696,9 +910,13 @@ export class BrWorldRenderer {
       const engine = new THREE.Mesh(this.geometry(new THREE.CylinderGeometry(14, 21, 42, 14)), dark); engine.position.set(x, -162, z); this.root.add(engine);
       const nozzle = new THREE.Mesh(this.geometry(new THREE.ConeGeometry(18, 32, 14, 1, true)), metal); nozzle.position.set(x, -197, z); nozzle.rotation.x = Math.PI; this.root.add(nozzle);
       const flame = new THREE.Mesh(this.geometry(new THREE.ConeGeometry(11, 76, 14, 1, true)), cyan); flame.position.set(x, -249, z); flame.rotation.x = Math.PI; flame.userData.pulse = true; flame.userData.baseScale = 1; this.root.add(flame); this.animated.push(flame);
+      for (const offset of [-1, 1]) engineFins.push({ position: position(x + Math.cos(angle + Math.PI / 2) * offset * 13, -146, z + Math.sin(angle + Math.PI / 2) * offset * 13), scale: position(5.2, 32, 1.4), rotationY: -angle });
+      maintenanceDecks.push({ position: position(x, -77, z), scale: position(27, .9, 13), rotationY: -angle });
     }
     const pipes: MatrixSpec[] = [];
     const lights: MatrixSpec[] = [];
+    const radialConduits: MatrixSpec[] = [];
+    const hangingMachinery: MatrixSpec[] = [];
     for (let ring = 0; ring < 4; ring++) {
       const radius = 135 + ring * 57;
       const count = 12 + ring * 4;
@@ -708,8 +926,17 @@ export class BrWorldRenderer {
         if (index % 2 === 0) lights.push({ position: position(Math.cos(angle) * radius, -29.2 - ring * 3, Math.sin(angle) * radius), scale: position(2.6, .35, .35), rotationY: -angle });
       }
     }
+    for (let index = 0; index < 16; index++) {
+      const angle = index / 16 * Math.PI * 2;
+      radialConduits.push({ position: position(Math.cos(angle) * 210, -35, Math.sin(angle) * 210), scale: position(245, .72, .72), rotationY: -angle });
+      if (index % 2 === 0) hangingMachinery.push({ position: position(Math.cos(angle) * 245, -54, Math.sin(angle) * 245), scale: position(11, 31, 8), rotationY: -angle });
+    }
     this.addInstances(this.root, this.materials.unitBox, dark, pipes, false);
     this.addInstances(this.root, this.materials.unitBox, this.materials.get("energyCyan"), lights, false);
+    this.addInstances(this.root, this.materials.unitChamferedBox, metal, engineFins, false);
+    this.addInstances(this.root, this.materials.unitChamferedBox, metal, maintenanceDecks, false);
+    this.addInstances(this.root, this.materials.unitBox, this.materials.get("energyPurple"), radialConduits, false);
+    this.addInstances(this.root, this.materials.unitChamferedBox, dark, hangingMachinery, false);
   }
 
   private makeEnergyFountain(x: number, z: number, color: string): THREE.Group {
@@ -746,11 +973,16 @@ export class BrWorldRenderer {
 
   private makeWreck(x: number, z: number): THREE.Group {
     const group = new THREE.Group(); group.position.set(x, 1, z); group.rotation.y = -.48;
+    const scorch = new THREE.Mesh(this.geometry(new THREE.RingGeometry(9, 30, 32)), this.materials.translucent(0x27131d, .52)); scorch.rotation.x = -Math.PI / 2; scorch.position.y = -.92; scorch.scale.z = .48; group.add(scorch);
     const hull = new THREE.Mesh(this.geometry(new THREE.CapsuleGeometry(6, 34, 8, 15)), this.materials.get("paintedMetal")); hull.rotation.z = Math.PI / 2; hull.position.y = 6; group.add(hull);
     const torn = new THREE.Mesh(this.geometry(new THREE.ConeGeometry(7.2, 15, 9, 1, true)), this.materials.get("structuralDark")); torn.rotation.z = -Math.PI / 2; torn.position.set(24, 6, 0); group.add(torn);
     const wing = new THREE.Mesh(this.geometry(new THREE.BoxGeometry(22, 1.2, 10)), this.materials.get("warningRed")); wing.position.set(-4, 4, -8); wing.rotation.y = -.3; group.add(wing);
+    const brokenWing = new THREE.Mesh(this.geometry(new THREE.BoxGeometry(15, .85, 7)), this.materials.get("warningRed")); brokenWing.position.set(10, 2.6, 12); brokenWing.rotation.set(.14,.62,-.18); group.add(brokenWing);
+    const exposedFrame = new THREE.Mesh(this.geometry(new THREE.ConeGeometry(5.4, 13, 8, 1, true)), this.materials.get("brushedMetal")); exposedFrame.rotation.z = Math.PI / 2; exposedFrame.position.set(-23, 5, 1); group.add(exposedFrame);
     for (const offset of [-7, 7]) { const rib = new THREE.Mesh(this.geometry(new THREE.TorusGeometry(6.1, .65, 7, 14, Math.PI)), this.materials.get("brushedMetal")); rib.position.set(offset, 6, 0); rib.rotation.y = Math.PI / 2; group.add(rib); }
     const ember = new THREE.Mesh(this.geometry(new THREE.IcosahedronGeometry(2.2, 1)), this.materials.get("warningRed")); ember.position.set(25, 5.5, 0); ember.userData.pulse = true; ember.userData.baseScale = 1; group.add(ember); this.animated.push(ember);
+    const debris:MatrixSpec[]=[];for(let index=0;index<12;index++){const angle=index/12*Math.PI*2;debris.push({position:position(Math.cos(angle)*(22+index%4*4),.2+index%3*.18,Math.sin(angle)*(10+index%5*2)),scale:position(1.2+index%3*1.1,.35+index%2*.25,2+index%4),rotationY:angle+.35});}
+    this.addInstances(group,this.materials.unitChamferedBox,this.materials.get("structuralDark"),debris,false);
     return group;
   }
 
@@ -775,6 +1007,39 @@ export class BrWorldRenderer {
     const body = new THREE.Mesh(this.geometry(new THREE.CapsuleGeometry(1.25, 3.8, 5, 9)), this.materials.get("structuralWhite")); body.rotation.z = Math.PI / 2; group.add(body);
     const canopy = new THREE.Mesh(this.geometry(new THREE.SphereGeometry(1.15, 10, 6)), this.materials.get("glass")); canopy.scale.set(1.3, .65, .9); canopy.position.set(.25, .75, 0); group.add(canopy);
     for (const side of [-1, 1]) { const hover = new THREE.Mesh(this.geometry(new THREE.BoxGeometry(2.4, .25, .45)), this.materials.accent(color, .5)); hover.position.set(0, -.55, side * 1.25); group.add(hover); }
+    return group;
+  }
+
+  private makeCargoMover(x: number, z: number, rotationY: number, color: string): THREE.Group {
+    const group = new THREE.Group(); group.position.set(x, .75, z); group.rotation.y = rotationY;
+    const chassis = new THREE.Mesh(this.materials.unitChamferedBox, this.materials.get("structuralDark")); chassis.scale.set(5.8, .72, 2.8); group.add(chassis);
+    const cabin = new THREE.Mesh(this.materials.unitChamferedBox, this.materials.get("structuralWhite")); cabin.position.set(-1.65, 1.05, 0); cabin.scale.set(2.1, 1.7, 2.45); group.add(cabin);
+    const glass = new THREE.Mesh(this.materials.unitChamferedBox, this.materials.get("windowDark")); glass.position.set(-2.72, 1.15, 0); glass.scale.set(.12, .82, 1.75); group.add(glass);
+    const cargo = new THREE.Mesh(this.materials.unitChamferedBox, this.materials.get("cargoMetal")); cargo.position.set(1.2, 1.15, 0); cargo.scale.set(2.6, 2.05, 2.35); group.add(cargo);
+    for (const side of [-1, 1]) { const lift = new THREE.Mesh(this.materials.unitBox, this.materials.accent(color, .42)); lift.position.set(0, -.47, side * 1.56); lift.scale.set(4.6, .16, .3); group.add(lift); }
+    return group;
+  }
+
+  private makeMaintenanceRover(x: number, z: number, rotationY: number, color: string): THREE.Group {
+    const group = new THREE.Group(); group.position.set(x, .72, z); group.rotation.y = rotationY;
+    const body = new THREE.Mesh(this.materials.unitChamferedBox, this.materials.get("paintedMetal")); body.scale.set(4.4, 1.2, 2.5); group.add(body);
+    const canopy = new THREE.Mesh(this.materials.unitChamferedBox, this.materials.get("glass")); canopy.position.set(-.65, 1.05, 0); canopy.scale.set(1.85, 1.15, 2); group.add(canopy);
+    const tool = new THREE.Mesh(this.materials.unitCylinder, this.materials.get("brushedMetal")); tool.position.set(1.45, 1.15, 0); tool.scale.set(.34, 1.6, .34); group.add(tool);
+    const beacon = new THREE.Mesh(this.materials.unitOctahedron, this.materials.accent(color, .8)); beacon.position.set(1.45, 2.08, 0); beacon.scale.setScalar(.26); group.add(beacon);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const skid = new THREE.Mesh(this.materials.unitChamferedBox, this.materials.get("structuralDark")); skid.position.set(sx * 1.45, -.55, sz * 1.42); skid.scale.set(1.25, .22, .36); group.add(skid); }
+    return group;
+  }
+
+  private makeTransitShelter(x: number, z: number, color: string): THREE.Group {
+    const group = new THREE.Group(); group.position.set(x, 0, z);
+    const dark = this.materials.get("structuralDark");
+    for (const side of [-1, 1]) {
+      const post = new THREE.Mesh(this.materials.unitChamferedBox, dark); post.position.set(side * 3.8, 2.1, 0); post.scale.set(.34, 4.2, .34); group.add(post);
+    }
+    const canopy = new THREE.Mesh(this.materials.unitChamferedBox, this.materials.accent(color, .24)); canopy.position.set(0, 4.35, 0); canopy.scale.set(8.6, .42, 3.2); group.add(canopy);
+    const back = new THREE.Mesh(this.materials.unitBox, this.materials.get("glass")); back.position.set(0, 2.05, 1.25); back.scale.set(7.4, 3.6, .12); group.add(back);
+    const bench = new THREE.Mesh(this.materials.unitChamferedBox, this.materials.get("brushedMetal")); bench.position.set(0, .68, .45); bench.scale.set(4.8, .32, 1); group.add(bench);
+    const route = new THREE.Mesh(this.materials.unitBox, this.materials.get("energyCyan")); route.position.set(0, 3.88, -1.58); route.scale.set(5.6, .11, .08); group.add(route);
     return group;
   }
 

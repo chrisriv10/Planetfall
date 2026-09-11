@@ -87,6 +87,19 @@ export function createStarliner(): THREE.Group {
   }
   const topBridge = new THREE.Mesh(new THREE.BoxGeometry(10, 5, 14), white); topBridge.position.set(0, 1, -7); ship.add(topBridge);
   const bridgeGlass = new THREE.Mesh(new THREE.BoxGeometry(10.2, 1.5, 5), glass); bridgeGlass.position.set(0, 2.1, -12); ship.add(bridgeGlass);
+  const centerEngine = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 5.2, 7, 14), dark); centerEngine.rotation.x = Math.PI / 2; centerEngine.position.set(0, -10.5, 21); ship.add(centerEngine);
+  const centerTrail = new THREE.Mesh(new THREE.ConeGeometry(4, 28, 14, 1, true), glow.clone()); centerTrail.rotation.x = -Math.PI / 2; centerTrail.position.set(0, -10.5, 38); centerTrail.userData.engineTrail = true; ship.add(centerTrail);
+  for (const side of [-1, 1]) {
+    const cargoPod = new THREE.Mesh(new THREE.CapsuleGeometry(2.15, 15, 6, 10), dark); cargoPod.rotation.x = Math.PI / 2; cargoPod.position.set(side * 7.2, -12.4, 1); ship.add(cargoPod);
+    const fin = new THREE.Mesh(new THREE.BoxGeometry(1.1, 9, 13), blue); fin.position.set(side * 12.4, -2.6, 13.5); fin.rotation.z = side * -.38; ship.add(fin);
+    for (let panel = 0; panel < 5; panel++) {
+      const hullPanel = new THREE.Mesh(new THREE.BoxGeometry(.34, 4.2, 5), panel % 2 ? blue : dark);
+      hullPanel.position.set(side * 9.15, -6.4, -12 + panel * 6.2); ship.add(hullPanel);
+    }
+  }
+  for (let deck = 0; deck < 4; deck++) {
+    const bayLight = new THREE.Mesh(new THREE.BoxGeometry(3.2, .16, .34), glow); bayLight.position.set(0, -14.28, -6 + deck * 5); ship.add(bayLight);
+  }
   for (const x of [-3.5, 3.5]) { const antenna = new THREE.Mesh(new THREE.CylinderGeometry(.16, .22, 6, 7), dark); antenna.position.set(x, 6, -4); ship.add(antenna); }
   ship.scale.setScalar(1.08);
   ship.visible = false;
@@ -125,6 +138,17 @@ export function createVoidStorm(): THREE.Group {
   for (let index = 0; index < 360; index++) { const angle = random() * Math.PI * 2; sparkPositions[index * 3] = Math.cos(angle); sparkPositions[index * 3 + 1] = random() * 170; sparkPositions[index * 3 + 2] = Math.sin(angle); }
   sparkGeometry.setAttribute("position", new THREE.BufferAttribute(sparkPositions, 3));
   const sparks = new THREE.Points(sparkGeometry, new THREE.PointsMaterial({ color: 0xd5c3ff, size: .022, transparent: true, opacity: .72, blending: THREE.AdditiveBlending, depthWrite: false })); sparks.userData.stormSparks = true; root.add(sparks);
+  for (let arcIndex = 0; arcIndex < 18; arcIndex++) {
+    const start = random() * Math.PI * 2, span = .1 + random() * .34, height = 6 + random() * 158;
+    const points: THREE.Vector3[] = [];
+    for (let pointIndex = 0; pointIndex < 7; pointIndex++) {
+      const t = pointIndex / 6, angle = start + span * t;
+      const jitter = pointIndex === 0 || pointIndex === 6 ? 0 : (random() - .5) * .026;
+      points.push(new THREE.Vector3(Math.cos(angle) * (1.012 + jitter), height + Math.sin(t * Math.PI) * (4 + random() * 7), Math.sin(angle) * (1.012 + jitter)));
+    }
+    const arc = new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), new THREE.LineBasicMaterial({ color: arcIndex % 3 ? 0xa993ff : 0xe4f8ff, transparent: true, opacity: .22, blending: THREE.AdditiveBlending, depthWrite: false }));
+    arc.userData.stormArc = true; arc.userData.index = arcIndex; root.add(arc);
+  }
   return root;
 }
 
@@ -146,6 +170,11 @@ export function updateVoidStorm(storm: THREE.Group, room: BrRoomView | null, now
       material.opacity = .65 + Math.sin(now * .006) * .2;
     } else if (child.userData.stormSparks) {
       child.rotation.y = -now * .00013;
+    } else if (child.userData.stormArc) {
+      const index = Number(child.userData.index);
+      child.rotation.y = now * (index % 2 ? .000055 : -.000043) + index;
+      const material = (child as THREE.Line).material as THREE.LineBasicMaterial;
+      material.opacity = .12 + Math.max(0, Math.sin(now * .004 + index * 1.7)) * .42;
     }
   }
 }

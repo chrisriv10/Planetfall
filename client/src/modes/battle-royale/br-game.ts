@@ -176,9 +176,17 @@ export class BattleRoyaleGame {
     if (!import.meta.env.DEV || !poiId) { this.debugCameraView = null; return; }
     const poi = BR_POIS.find((entry) => entry.id === poiId); if (!poi) return;
     const landmark = poi.style === "reactor" || poi.style === "nexus";
-    const focus = new THREE.Vector3(poi.position.x, landmark ? 40 : poi.style === "city" || poi.style === "mall" ? 9 : 7, poi.position.z);
-    const distance = landmark ? 112 : poi.style === "city" || poi.style === "mall" ? 78 : 72;
-    this.debugCameraView = { focus, position: focus.clone().add(new THREE.Vector3(distance, landmark ? 38 : 31, distance)) };
+    const urban = poi.style === "city" || poi.style === "mall";
+    const focus = new THREE.Vector3(poi.position.x, landmark ? 40 : urban ? 3.5 : 5, poi.position.z);
+    if (poi.style === "wreck") {
+      this.debugCameraView = {
+        focus: focus.clone().add(new THREE.Vector3(0, 3, 0)),
+        position: focus.clone().add(new THREE.Vector3(-58, 22, 40))
+      };
+      return;
+    }
+    const distance = landmark ? 112 : urban ? 48 : 58;
+    this.debugCameraView = { focus, position: focus.clone().add(new THREE.Vector3(distance, landmark ? 38 : urban ? 5.5 : 12, distance)) };
   }
   debugState(): object {
     return {
@@ -234,7 +242,12 @@ export class BattleRoyaleGame {
 
   openCrate(crateId: string, drops: BrLootState[]): void {
     const visual = this.crates.get(crateId);
-    if (visual) { this.playEnergyBurst(visual.group.position, 0xffd84d, 1.6); this.scene.remove(visual.group); this.disposeObject(visual.group); this.crates.delete(crateId); }
+    if (visual) {
+      const lid=visual.group.getObjectByName("crate-lid");if(lid){lid.rotation.x=-.82;lid.position.y+=.42;lid.position.z+=.28;}
+      const seam=visual.group.getObjectByName("crate-seam") as THREE.Mesh|undefined;if(seam&&(seam.material as THREE.MeshBasicMaterial).opacity!==undefined)(seam.material as THREE.MeshBasicMaterial).opacity=1;
+      this.playEnergyBurst(visual.group.position, 0xffd84d, 1.6);this.crates.delete(crateId);
+      setTimeout(()=>{this.scene.remove(visual.group);this.disposeObject(visual.group);},190);
+    }
     this.spawnLoot(drops); this.audio.pickup();
   }
 
@@ -393,12 +406,14 @@ export class BattleRoyaleGame {
       if (visual.state.deployment === "freefall") { visual.limbs[0].rotation.z = .72; visual.limbs[1].rotation.z = -.72; visual.limbs[2].rotation.x = .34; visual.limbs[3].rotation.x = .34; }
       else if (visual.state.deployment === "chute") { visual.limbs[0].rotation.z = .42; visual.limbs[1].rotation.z = -.42; visual.limbs[2].rotation.x = -.16; visual.limbs[3].rotation.x = -.16; }
       else if (visual.state.downed) { visual.limbs[0].rotation.x = -.9 + run * .25; visual.limbs[1].rotation.x = -.9 - run * .25; visual.limbs[2].rotation.x = .65; visual.limbs[3].rotation.x = .65; }
+      else if (visual.state.crouched) { visual.limbs[2].rotation.x = .62 + run * .16; visual.limbs[3].rotation.x = .62 - run * .16; }
+      visual.body.rotation.x = THREE.MathUtils.lerp(visual.body.rotation.x, 0, Math.min(1, dt * 16));
       visual.body.rotation.z = THREE.MathUtils.lerp(visual.body.rotation.z, 0, Math.min(1, dt * 12));
       visual.body.rotation.y = THREE.MathUtils.lerp(visual.body.rotation.y, 0, Math.min(1, dt * 12));
       if (visual.emote && now < visual.emoteEndsAt) this.animateEmote(visual, now);
       else visual.emote = null;
       const airborne = visual.state.deployment === "freefall" || visual.state.deployment === "chute";
-      const targetLean = visual.state.downed ? -1.12 : visual.state.deployment === "freefall" ? .72 : visual.state.deployment === "chute" ? -.14 : Math.min(.18, speed * .014);
+      const targetLean = visual.state.downed ? -1.12 : visual.state.deployment === "freefall" ? .72 : visual.state.deployment === "chute" ? -.14 : visual.state.crouched && speed > 5 ? .3 : Math.min(.2, speed * .016);
       visual.rig.rotation.x = THREE.MathUtils.lerp(visual.rig.rotation.x, targetLean, Math.min(1, dt * 9));
       visual.rig.position.y = THREE.MathUtils.lerp(visual.rig.position.y, visual.state.downed ? .28 : airborne ? .05 : visual.state.crouched ? -.3 : 0, Math.min(1, dt * 10));
       const squash = visual.state.grounded && Math.abs(visual.state.velocity.y) < .2 ? 1 + Math.sin(now * .01) * .008 : 1;
@@ -425,7 +440,14 @@ export class BattleRoyaleGame {
     }
   }
   private updatePings(now: number): void { for (let index = this.pings.length - 1; index >= 0; index--) { const ping = this.pings[index]; if (now < ping.expiresAt) { ping.group.position.y += Math.sin(now * .01) * .0015; continue; } this.scene.remove(ping.group); this.pings.splice(index, 1); } }
-  private updateShip(): void { updateStarliner(this.starliner, this.room, performance.now()); }
+  private updateShip(): void {
+    updateStarliner(this.starliner, this.room, performance.now());
+    if (!this.starliner.visible || this.localState?.deployment === "attached") return;
+    // Once a player has jumped, the very large transport can cross the camera
+    // boom and completely hide the island. Keep it in the wider aerial view,
+    // but cull it while it is inside the player's immediate camera envelope.
+    if (this.starliner.position.distanceToSquared(this.camera.position) < 62 * 62) this.starliner.visible = false;
+  }
 
   private updateCamera(dt: number): void {
     if (this.debugCameraView) { this.cameraInitialized=false;this.camera.position.lerp(this.debugCameraView.position, Math.min(1, dt * 4)); this.camera.up.set(0, 1, 0); this.camera.lookAt(this.debugCameraView.focus); this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, 60, Math.min(1, dt * 4)); this.camera.updateProjectionMatrix(); return; }
@@ -519,9 +541,17 @@ export class BattleRoyaleGame {
     const body = astronaut.torso;
     const limbs = [astronaut.leftArm, astronaut.rightArm, astronaut.leftLeg, astronaut.rightLeg];
     const label = this.makeLabel(`${state.name}${state.isBot ? "  BOT" : ""}`, state.color); label.position.y = 2.25; group.add(label); group.position.copy(vec(state.position));
-    const wings = new THREE.Group(); wings.position.set(0, .16, -.12);const wingMaterial=new THREE.MeshBasicMaterial({color:cosmeticColor(state.equippedCosmetics.trail,"#70f5ff"),transparent:true,opacity:.72,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,depthWrite:false});
-    const pack=new THREE.Mesh(new THREE.BoxGeometry(.58,.68,.24),new THREE.MeshStandardMaterial({color:0x263b5b,emissive:0x145a78,emissiveIntensity:.45,metalness:.7,roughness:.25}));pack.position.z=.04;wings.add(pack);
-    for (const side of [-1, 1]) for(const upper of [0,1]){const shape=new THREE.Shape();shape.moveTo(0,0);shape.lineTo(side*(upper?1.35:1.05),upper?.72:-.62);shape.lineTo(side*(upper?1.7:1.48),upper?.2:-.28);shape.closePath();const wing=new THREE.Mesh(new THREE.ShapeGeometry(shape),wingMaterial);wing.position.set(side*.26,upper?.15:-.12,-.08);wings.add(wing);const emitter=new THREE.Mesh(new THREE.SphereGeometry(.13,6,5),new THREE.MeshBasicMaterial({color:0xffffff}));emitter.position.set(side*.29,upper?.18:-.16,-.02);wings.add(emitter);}
+    const wings = new THREE.Group(); wings.position.set(0, .16, -.12);const wingColor=cosmeticColor(state.equippedCosmetics.trail,"#70f5ff");const wingMaterial=new THREE.MeshBasicMaterial({color:wingColor,transparent:true,opacity:.72,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,depthWrite:false});
+    const packMaterial=new THREE.MeshStandardMaterial({color:0x263b5b,emissive:0x145a78,emissiveIntensity:.45,metalness:.7,roughness:.25});
+    const pack=new THREE.Mesh(new THREE.BoxGeometry(.58,.68,.24),packMaterial);pack.position.z=.04;wings.add(pack);
+    const packCore=new THREE.Mesh(new THREE.OctahedronGeometry(.19,1),new THREE.MeshBasicMaterial({color:wingColor}));packCore.position.set(0,.08,-.16);wings.add(packCore);
+    for (const side of [-1, 1]) for(const upper of [0,1]){
+      const shape=new THREE.Shape();shape.moveTo(0,0);shape.lineTo(side*(upper?1.35:1.05),upper?.72:-.62);shape.lineTo(side*(upper?1.7:1.48),upper?.2:-.28);shape.closePath();
+      const wingGeometry=new THREE.ShapeGeometry(shape);const wing=new THREE.Mesh(wingGeometry,wingMaterial);wing.position.set(side*.26,upper?.15:-.12,-.08);wings.add(wing);
+      const outline=new THREE.LineSegments(new THREE.EdgesGeometry(wingGeometry),new THREE.LineBasicMaterial({color:0xe9fdff,transparent:true,opacity:.82}));outline.position.copy(wing.position);wings.add(outline);
+      const arm=new THREE.Mesh(new THREE.CylinderGeometry(.045,.065,upper?1.25:1.05,6),packMaterial);arm.position.set(side*(upper?.66:.55),upper?.38:-.31,-.035);arm.rotation.z=side*(upper?-.93:-1.02);wings.add(arm);
+      const emitter=new THREE.Mesh(new THREE.SphereGeometry(.13,6,5),new THREE.MeshBasicMaterial({color:0xffffff}));emitter.position.set(side*.29,upper?.18:-.16,-.02);wings.add(emitter);
+    }
     wings.visible = false; astronaut.backpack.add(wings);
     const weapon = new THREE.Group(); weapon.position.set(.46, 1.02, .34); weapon.rotation.y = Math.PI; weapon.visible = false; rig.add(weapon);
     const shadow = new THREE.Mesh(new THREE.CircleGeometry(.48, 18), new THREE.MeshBasicMaterial({ color: 0x02050b, transparent: true, opacity: .38, depthWrite: false })); shadow.rotation.x = -Math.PI / 2; shadow.position.y = .025; group.add(shadow);
@@ -548,8 +578,8 @@ export class BattleRoyaleGame {
     const trimMaterial = new THREE.MeshStandardMaterial({ color: 0xb9c7d1, metalness: .82, roughness: .2 });
     const shell = new THREE.Mesh(new THREE.BoxGeometry(1.65, .92, 1.12), shellMaterial); shell.position.y = .5; shell.castShadow = true; group.add(shell);
     for (const x of [-.74, .74]) for (const z of [-.48, .48]) { const corner = new THREE.Mesh(new THREE.BoxGeometry(.15, 1.02, .15), trimMaterial); corner.position.set(x, .5, z); group.add(corner); }
-    const lid = new THREE.Mesh(new THREE.BoxGeometry(1.72, .2, 1.18), trimMaterial); lid.position.y = 1.01; group.add(lid);
-    const seam = new THREE.Mesh(new THREE.BoxGeometry(1.76, .1, 1.2), new THREE.MeshBasicMaterial({ color: 0xffd84d })); seam.position.y = .72; group.add(seam);
+    const lid = new THREE.Mesh(new THREE.BoxGeometry(1.72, .2, 1.18), trimMaterial); lid.name="crate-lid";lid.position.y = 1.01; group.add(lid);
+    const seam = new THREE.Mesh(new THREE.BoxGeometry(1.76, .1, 1.2), new THREE.MeshBasicMaterial({ color: 0xffd84d,transparent:true,opacity:.76 })); seam.name="crate-seam";seam.position.y = .72; group.add(seam);
     const lockBase = new THREE.Mesh(new THREE.BoxGeometry(.42, .35, .12), trimMaterial); lockBase.position.set(0, .61, -.62); group.add(lockBase);
     const lock = new THREE.Mesh(new THREE.OctahedronGeometry(.18, 1), new THREE.MeshBasicMaterial({ color: 0x70f5ff })); lock.position.set(0, .63, -.7); group.add(lock);
     const shadow = new THREE.Mesh(new THREE.CircleGeometry(1.05, 18), new THREE.MeshBasicMaterial({ color: 0x02050b, transparent: true, opacity: .28, depthWrite: false })); shadow.rotation.x = -Math.PI / 2; shadow.position.y = .02; group.add(shadow);

@@ -730,16 +730,29 @@ export class BattleRoyaleRoom {
 
   private emitSnapshots(now: number): void {
     const all = [...this.players.values()];
-    const networkStates = new Map(all.map((player) => [player.id, snapshotPlayer(player)]));
-    for (const player of all) {
-      if (!player.socketId) continue;
+    const recipients = all.filter((player): player is BrPlayerRecord & { socketId: string } => Boolean(player.socketId));
+    if (!recipients.length) return;
+    // A bot-filled private room often has only one network recipient. Avoid
+    // cloning every bot before relevance has discarded most of them, while
+    // retaining the shared cache for populated human lobbies.
+    const cacheAllStates = recipients.length * 2 >= all.length;
+    const networkStates = cacheAllStates ? new Map(all.map((player) => [player.id, snapshotPlayer(player)])) : new Map<string, ReturnType<typeof snapshotPlayer>>();
+    const networkState = (player: BrPlayerRecord): ReturnType<typeof snapshotPlayer> => {
+      const cached = networkStates.get(player.id);
+      if (cached) return cached;
+      const state = snapshotPlayer(player); networkStates.set(player.id, state); return state;
+    };
+    const living = all.filter((entry) => entry.alive);
+    const playersRemaining = living.length;
+    const teamsRemaining = new Set(living.map((entry) => entry.teamId)).size;
+    for (const player of recipients) {
       const spectator = !player.alive ? this.players.get(player.spectatorTargetId ?? "") ?? all.find((entry) => entry.alive && entry.teamId === player.teamId) ?? all.find((entry) => entry.alive) : undefined;
       if (spectator) player.spectatorTargetId = spectator.id;
       const anchor = spectator?.position ?? player.position;
       const relevantIds = new Set(this.playerGrid.nearby(anchor, BR_BALANCE.interest.players).map((entry) => entry.id));
       relevantIds.add(player.id); if (spectator) relevantIds.add(spectator.id);
       for (const teammate of all) if (teammate.teamId === player.teamId) relevantIds.add(teammate.id);
-      const snapshot: BrSnapshot = { serverTime: now, phase: this.phase, localPlayer: clonePlayer(player), players: all.filter((entry) => relevantIds.has(entry.id)).map((entry) => networkStates.get(entry.id)!), projectiles: this.projectileGrid.nearby(anchor, BR_BALANCE.interest.projectiles).map((entry) => ({ ...entry, position: { ...entry.position }, velocity: { ...entry.velocity } })), loot: this.lootGrid.nearby(anchor,BR_BALANCE.interest.loot).map((entry)=>({...entry,position:{...entry.position}})), storm: { ...this.storm, center: { ...this.storm.center }, nextCenter: { ...this.storm.nextCenter } }, ship: this.ship ? { ...this.ship, position: { ...this.ship.position }, start: { ...this.ship.start }, end: { ...this.ship.end } } : null, playersRemaining: all.filter((entry) => entry.alive).length, teamsRemaining: new Set(all.filter((entry) => entry.alive).map((entry) => entry.teamId)).size, spectatorTargetId: spectator?.id ?? null };
+      const snapshot: BrSnapshot = { serverTime: now, phase: this.phase, localPlayer: clonePlayer(player), players: all.filter((entry) => relevantIds.has(entry.id)).map(networkState), projectiles: this.projectileGrid.nearby(anchor, BR_BALANCE.interest.projectiles).map((entry) => ({ ...entry, position: { ...entry.position }, velocity: { ...entry.velocity } })), loot: this.lootGrid.nearby(anchor,BR_BALANCE.interest.loot).map((entry)=>({...entry,position:{...entry.position}})), storm: { ...this.storm, center: { ...this.storm.center }, nextCenter: { ...this.storm.nextCenter } }, ship: this.ship ? { ...this.ship, position: { ...this.ship.position }, start: { ...this.ship.start }, end: { ...this.ship.end } } : null, playersRemaining, teamsRemaining, spectatorTargetId: spectator?.id ?? null };
       this.io.to(player.socketId).emit("br:match:snapshot", snapshot);
     }
   }

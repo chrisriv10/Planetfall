@@ -36,7 +36,9 @@ export class BrMaterialLibrary {
   private disposed = false;
 
   readonly unitBox = new THREE.BoxGeometry(1, 1, 1);
+  readonly unitChamferedBox = createChamferedBoxGeometry();
   readonly unitCylinder = new THREE.CylinderGeometry(1, 1, 1, 10);
+  readonly unitOctahedron = new THREE.OctahedronGeometry(1, 1);
   readonly unitPlane = new THREE.PlaneGeometry(1, 1);
 
   constructor() {
@@ -64,6 +66,9 @@ export class BrMaterialLibrary {
     this.materials.set("cargoMetal", this.standard(0x7d4d35, .66, .58));
     this.materials.set("interiorFloor", this.standard(0x263548, .78, .18));
     this.materials.set("interiorWall", this.standard(0xb7c6cb, .8, .08));
+    this.applySurfaceDetail(["structuralWhite", "paintedMetal", "brushedMetal", "cargoMetal"], this.createSurfaceTexture("panel"), .025);
+    this.applySurfaceDetail(["concrete", "sidewalk", "interiorFloor", "interiorWall"], this.createSurfaceTexture("grid"), .018);
+    this.applySurfaceDetail(["road"], this.createSurfaceTexture("road"), .012);
   }
 
   get(key: BrMaterialKey): THREE.Material {
@@ -162,7 +167,9 @@ export class BrMaterialLibrary {
     for (const material of new Set(this.materials.values())) material.dispose();
     for (const texture of this.textures) texture.dispose();
     this.unitBox.dispose();
+    this.unitChamferedBox.dispose();
     this.unitCylinder.dispose();
+    this.unitOctahedron.dispose();
     this.unitPlane.dispose();
     this.materials.clear();
     this.textures.clear();
@@ -187,8 +194,79 @@ export class BrMaterialLibrary {
     });
   }
 
+  private applySurfaceDetail(keys: BrMaterialKey[], texture: THREE.CanvasTexture, scale: number): void {
+    for (const key of keys) {
+      const material = this.get(key) as THREE.MeshStandardMaterial;
+      material.bumpMap = texture;
+      material.bumpScale = scale;
+      material.roughnessMap = texture;
+      material.needsUpdate = true;
+    }
+  }
+
+  private createSurfaceTexture(kind: "panel" | "grid" | "road"): THREE.CanvasTexture {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 256;
+    const context = canvas.getContext("2d")!;
+    context.fillStyle = "#d8d8d8";
+    context.fillRect(0, 0, 256, 256);
+    const random = seededNoise(kind === "panel" ? 341 : kind === "grid" ? 947 : 1771);
+    for (let index = 0; index < 520; index++) {
+      const shade = 170 + Math.floor(random() * 70);
+      context.fillStyle = `rgba(${shade},${shade},${shade},.16)`;
+      const size = random() > .88 ? 2 : 1;
+      context.fillRect(Math.floor(random() * 256), Math.floor(random() * 256), size, size);
+    }
+    context.strokeStyle = kind === "road" ? "rgba(52,52,52,.24)" : "rgba(65,73,82,.22)";
+    context.lineWidth = kind === "road" ? 3 : 2;
+    const spacing = kind === "panel" ? 64 : kind === "grid" ? 48 : 128;
+    for (let value = spacing; value < 256; value += spacing) {
+      context.beginPath(); context.moveTo(value, 0); context.lineTo(value, 256); context.stroke();
+      context.beginPath(); context.moveTo(0, value); context.lineTo(256, value); context.stroke();
+    }
+    if (kind === "panel") {
+      context.fillStyle = "rgba(48,58,70,.32)";
+      for (let y = 8; y < 256; y += 64) for (let x = 8; x < 256; x += 64) context.fillRect(x, y, 4, 4);
+    }
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.NoColorSpace;
+    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    this.textures.add(texture);
+    return texture;
+  }
+
   private roundRect(context: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number): void {
     context.beginPath();
     context.roundRect(x, y, width, height, radius);
   }
+}
+
+function createChamferedBoxGeometry(): THREE.ExtrudeGeometry {
+  const inset = .12;
+  const shape = new THREE.Shape();
+  shape.moveTo(-.5 + inset, -.5);
+  shape.lineTo(.5 - inset, -.5);
+  shape.lineTo(.5, -.5 + inset);
+  shape.lineTo(.5, .5 - inset);
+  shape.lineTo(.5 - inset, .5);
+  shape.lineTo(-.5 + inset, .5);
+  shape.lineTo(-.5, .5 - inset);
+  shape.lineTo(-.5, -.5 + inset);
+  shape.closePath();
+  const geometry = new THREE.ExtrudeGeometry(shape, { depth: 1, bevelEnabled: false, curveSegments: 1 });
+  geometry.translate(0, 0, -.5);
+  // ExtrudeGeometry is authored in XY. Rotate it so the chamfered polygon is
+  // the horizontal footprint and Y remains the vertical building axis.
+  geometry.rotateX(Math.PI / 2);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+function seededNoise(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = Math.imul(state ^ state >>> 15, 1 | state);
+    state ^= state + Math.imul(state ^ state >>> 7, 61 | state);
+    return ((state ^ state >>> 14) >>> 0) / 4294967296;
+  };
 }
