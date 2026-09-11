@@ -494,7 +494,10 @@ async function ensureBrGame(nextRoom: BrRoomView): Promise<BrGame> {
     instance.onMap = (visible) => showBrMap(visible);
     instance.onMenuNavigate = navigateUi;
     brGame = instance;
-    if (import.meta.env.DEV) Object.defineProperty(window, "__PLANETFALL_BR_DEBUG__", { value: () => instance.debugState(), configurable: true });
+    if (import.meta.env.DEV) {
+      Object.defineProperty(window, "__PLANETFALL_BR_DEBUG__", { value: () => instance.debugState(), configurable: true });
+      Object.defineProperty(window, "__PLANETFALL_BR_VIEW__", { value: (poiId: string | null) => instance.setDebugView(poiId), configurable: true });
+    }
     return instance;
   });
   const instance = await brGamePromise;
@@ -564,7 +567,8 @@ function renderBrHud(state: import("./modes/battle-royale/br-game").BrHudState):
   const inventory = byId("br-inventory"); const nextInventoryMarkup = player.inventory.map((item, index) => {
     const color = item ? ({ common: "#b8c4dc", rare: "#54b8ff", epic: "#c565ff", legendary: "#ffc84f" }[item.rarity]) : "#56617f";
     const name = item ? isBrWeapon(item.itemId) ? BR_WEAPONS[item.itemId].name : item.itemId.replaceAll("-", " ").toUpperCase() : "EMPTY"; const ammo = item && isBrWeapon(item.itemId) ? item.itemId === "energy-saber" ? "∞" : `${item.magazine} / ${BR_WEAPONS[item.itemId].ammo ? player.ammo[BR_WEAPONS[item.itemId].ammo!] : 0}` : item ? `×${item.count}` : "";
-    return `<div class="br-slot${index === player.selectedSlot ? " selected" : ""}" style="--slot-color:${color}"><b>${index + 1} · ${name}</b><small>${ammo}</small></div>`;
+    const icon = item ? isBrWeapon(item.itemId) ? item.itemId : item.itemId.startsWith("shield") ? "shield" : "heal" : "empty";
+    return `<div class="br-slot${index === player.selectedSlot ? " selected" : ""}" data-item="${icon}" style="--slot-color:${color}"><i aria-hidden="true"></i><b>${index + 1} · ${name}</b><small>${ammo}</small></div>`;
   }).join("");
   if (nextInventoryMarkup !== brInventoryMarkup) { brInventoryMarkup = nextInventoryMarkup; inventory.innerHTML = nextInventoryMarkup; }
   const nextTeammateMarkup = teamMembers.map((mate) => `<div class="br-teammate" style="--mate-color:${mate.color}"><b>${escapeHtml(mate.name)}</b><span>${mate.downed ? "DOWN" : mate.alive ? `${Math.ceil(mate.hp)} HP` : "OUT"}</span><small>${Math.ceil(mate.shield)} SHIELD</small></div>`).join("");

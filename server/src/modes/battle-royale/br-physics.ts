@@ -1,5 +1,5 @@
 import RAPIER from "@dimforge/rapier3d-compat";
-import { BR_BALANCE, BR_ISLAND_OUTLINE, BR_MAP_BLOCKS, brBlocksNear, isInsideBrIsland, type BrCollisionResult, type Vec3 } from "@planetfall/shared";
+import { BR_BALANCE, BR_ISLAND_OUTLINE, BR_MAP_BLOCKS, brBlocksNear, brHasStandingClearance, brMantleTopAt, isInsideBrIsland, type BrCollisionResult, type Vec3 } from "@planetfall/shared";
 
 await RAPIER.init();
 
@@ -26,11 +26,11 @@ export class BrPhysicsWorld {
 
   move(id:string,feet:Vec3,desiredMovement:Vec3,jumping:boolean,crouched=false):BrCollisionResult {
     const candidate={x:feet.x+desiredMovement.x,y:feet.y+desiredMovement.y,z:feet.z+desiredMovement.z};
-    if(!jumping&&feet.y>=-.08&&desiredMovement.y<=0&&candidate.y<=.02&&isInsideBrIsland(candidate)&&brBlocksNear(candidate,1.25).length===0)return{movement:{x:desiredMovement.x,y:-feet.y,z:desiredMovement.z},grounded:true,ceiling:false};
-    this.ensureCharacter(id,feet);const character=this.characters.get(id)!;if(character.crouched!==crouched){character.crouched=crouched;character.collider.setHalfHeight(crouched?CROUCHED_HALF_HEIGHT:STANDING_HALF_HEIGHT);}const surfaceRecovery=!jumping&&desiredMovement.y<=0&&feet.y>=-.35&&feet.y<=.16&&isInsideBrIsland(feet);const start=surfaceRecovery?{...feet,y:0}:feet;this.teleport(id,start);
+    if(!jumping&&feet.y>=-.08&&desiredMovement.y<=0&&candidate.y<=.02&&isInsideBrIsland(candidate)&&brBlocksNear(candidate,1.25).length===0)return{movement:{x:desiredMovement.x,y:-feet.y,z:desiredMovement.z},grounded:true,ceiling:false,crouched};
+    this.ensureCharacter(id,feet);const character=this.characters.get(id)!;const actualCrouch=crouched||!brHasStandingClearance(feet);if(character.crouched!==actualCrouch){character.crouched=actualCrouch;character.collider.setHalfHeight(actualCrouch?CROUCHED_HALF_HEIGHT:STANDING_HALF_HEIGHT);}const surfaceRecovery=!jumping&&desiredMovement.y<=0&&feet.y>=-.35&&feet.y<=.16&&isInsideBrIsland(feet);const start=surfaceRecovery?{...feet,y:0}:feet;this.teleport(id,start);
     if(jumping)character.controller.disableSnapToGround();else character.controller.enableSnapToGround(.18);character.controller.computeColliderMovement(character.collider,desiredMovement,undefined,undefined,(collider)=>collider.parent()===null);const movement=character.controller.computedMovement();
-    if(jumping&&Math.hypot(movement.x,movement.z)<Math.hypot(desiredMovement.x,desiredMovement.z)*.45){const mantle=brBlocksNear(candidate,BR_BALANCE.playerRadius).filter((block)=>block.kind==="cover"||block.kind==="wall").map((block)=>block.position.y+block.size.y/2).filter((top)=>top-feet.y>.35&&top-feet.y<=BR_BALANCE.mantleHeight+.4).sort((a,b)=>a-b)[0];if(mantle!==undefined)return{movement:{x:desiredMovement.x,y:mantle-feet.y+.03,z:desiredMovement.z},grounded:false,ceiling:false};}
-    const correctionY=start.y-feet.y;const next={x:feet.x+movement.x,y:feet.y+movement.y+correctionY,z:feet.z+movement.z};character.body.setTranslation({x:next.x,y:next.y+centerY(character.crouched),z:next.z},true);return{movement:{x:movement.x,y:movement.y+correctionY,z:movement.z},grounded:surfaceRecovery||character.controller.computedGrounded(),ceiling:false};
+    if(jumping&&Math.hypot(movement.x,movement.z)<Math.hypot(desiredMovement.x,desiredMovement.z)*.45){const mantle=brMantleTopAt(feet,desiredMovement);if(mantle!==null)return{movement:{x:desiredMovement.x,y:mantle-feet.y+.03,z:desiredMovement.z},grounded:false,ceiling:false,crouched:false};}
+    const correctionY=start.y-feet.y;const next={x:feet.x+movement.x,y:feet.y+movement.y+correctionY,z:feet.z+movement.z};character.body.setTranslation({x:next.x,y:next.y+centerY(character.crouched),z:next.z},true);return{movement:{x:movement.x,y:movement.y+correctionY,z:movement.z},grounded:surfaceRecovery||character.controller.computedGrounded(),ceiling:false,crouched:actualCrouch};
   }
 
   remove(id:string):void {const character=this.characters.get(id);if(!character)return;this.world.removeCharacterController(character.controller);this.world.removeRigidBody(character.body);this.characters.delete(id);}

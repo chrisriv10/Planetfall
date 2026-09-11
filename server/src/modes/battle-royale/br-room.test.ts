@@ -101,6 +101,22 @@ describe("Battle Royale room", () => {
     room.update(1 / 30, start + 3201); expect(player.hp).toBe(100); expect(player.inventory[1]?.count).toBe(1);
   });
 
+  it("cancels a revive when the reviver takes a meaningful hit", async () => {
+    const { server, url } = await setup(); const host = await client(url); const joined = await createRoom(host, "Rescue"); if (!joined.ok) throw new Error(joined.error);
+    const room = server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom; room.configure(joined.playerId, { teamMode: "duo", targetPlayers: 10, fillBots: true }); room.setReady(joined.playerId, true);
+    const start = Date.now(); room.start(joined.playerId, start); room.phase = "combat";
+    const reviver = room.players.get(joined.playerId)!; const target = [...room.players.values()].find((player) => player.id !== reviver.id && player.teamId === reviver.teamId)!; const attacker = [...room.players.values()].find((player) => player.teamId !== reviver.teamId)!;
+    reviver.deployment = "grounded"; reviver.position = { x: 100, y: 0, z: 0 };
+    target.alive = true; target.downed = true; target.deployment = "downed"; target.hp = 0; target.position = { x: 101, y: 0, z: 0 };
+    attacker.deployment = "grounded"; attacker.position = { x: 100, y: 0, z: 12 }; attacker.yaw = 0; attacker.pitch = 0; attacker.inventory[0] = { instanceId: "pulse", itemId: "pulse-rifle", rarity: "common", count: 1, magazine: 30 };
+    room.setRevive(reviver.id, target.id, true, start + 100);
+    expect(reviver.reviveTargetId).toBe(target.id);
+    expect(room.fire(attacker.id, { x: 100, y: .72, z: 11.52 }, { x: 0, y: 0, z: -1 }, start + 120, start + 120)).toBe(true);
+    expect(reviver.reviveTargetId).toBeNull();
+    room.update(1 / 30, start + BR_BALANCE.reviveMs + 200);
+    expect(target.downed).toBe(true);
+  });
+
   it("rejects malformed or out-of-phase gameplay commands", async () => {
     const { server, url } = await setup(); const host = await client(url); const joined = await createRoom(host, "Validator"); if (!joined.ok) throw new Error(joined.error);
     const room = server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom; const player = room.players.get(joined.playerId)!;

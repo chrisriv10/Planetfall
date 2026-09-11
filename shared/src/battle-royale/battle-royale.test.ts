@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  BR_BALANCE, BR_BOT_DIFFICULTY, BR_CRATE_SOCKETS, BR_ISLAND_OUTLINE, BR_LOOT_SOCKETS, BR_MAP, BR_MAP_BLOCKS, BR_NAV_NODES, BR_POIS, BR_ROADS, BR_STORM_PHASES, BR_STRUCTURES, BR_TERRAIN_PATCHES, BR_WEAPONS, applyBrDamage, brNextWaypoint, brRarityDamage, brShipPath, isInsideBrIsland,
+  BR_BALANCE, BR_BOT_DIFFICULTY, BR_CRATE_SOCKETS, BR_ISLAND_OUTLINE, BR_LOOT_SOCKETS, BR_MAP, BR_MAP_BLOCKS, BR_NAV_NODES, BR_POIS, BR_ROADS, BR_STORM_PHASES, BR_STRUCTURES, BR_TERRAIN_PATCHES, BR_WEAPONS, applyBrDamage, brHasStandingClearance, brMantleTopAt, brMuzzlePosition, brNextWaypoint, brPlayerHitDistance, brRarityDamage, brShipPath, isInsideBrIsland,
   createEmptyBrInventory, raySphereDistance, reloadBrItem, stepBrMovement, stormContains, type BrInventoryItem, type BrMotionState
 } from "./index.js";
 
@@ -82,7 +82,7 @@ describe("Battle Royale shared rules", () => {
   });
 
   it("buffers and coyote-accepts exactly one jump inside bounded windows",()=>{
-    const base:BrMotionState={position:{x:70,y:.4,z:70},velocity:{x:0,y:-1,z:0},yaw:0,grounded:false,deployment:"grounded",downed:false,lastJumpSignal:false,lastCrouchSignal:false,slideEndsAt:0,traversalCooldownUntil:0,lastGroundedAt:1000,jumpBufferedUntil:0};
+    const base:BrMotionState={position:{x:70,y:.4,z:70},velocity:{x:0,y:-1,z:0},yaw:0,grounded:false,crouched:false,deployment:"grounded",downed:false,lastJumpSignal:false,lastCrouchSignal:false,slideEndsAt:0,traversalCooldownUntil:0,lastGroundedAt:1000,jumpBufferedUntil:0};
     const coyote=stepBrMovement(base,{moveX:0,moveY:0,yaw:0,jump:true,sprint:false,crouch:false},.02,1100);expect(coyote.velocity.y).toBeGreaterThan(0);expect(coyote.jumpBufferedUntil).toBe(0);
     const held=stepBrMovement(coyote,{moveX:0,moveY:0,yaw:0,jump:true,sprint:false,crouch:false},.02,1120);expect(held.velocity.y).toBeLessThan(coyote.velocity.y);
     const expired=stepBrMovement({...base,lastGroundedAt:1000},{moveX:0,moveY:0,yaw:0,jump:true,sprint:false,crouch:false},.02,1000+BR_BALANCE.coyoteMs+1);expect(expired.velocity.y).toBeLessThan(0);
@@ -91,7 +91,7 @@ describe("Battle Royale shared rules", () => {
   });
 
   it("uses one deterministic movement step for sprint, jump, slide, and descent", () => {
-    const base: BrMotionState = { position: { x: 100, y: 0, z: 100 }, velocity: { x: 0, y: 0, z: 0 }, yaw: 0, grounded: true, deployment: "grounded", downed: false, lastJumpSignal: false, lastCrouchSignal: false, slideEndsAt: 0, traversalCooldownUntil: 0 };
+    const base: BrMotionState = { position: { x: 100, y: 0, z: 100 }, velocity: { x: 0, y: 0, z: 0 }, yaw: 0, grounded: true, crouched: false, deployment: "grounded", downed: false, lastJumpSignal: false, lastCrouchSignal: false, slideEndsAt: 0, traversalCooldownUntil: 0 };
     const sprint = stepBrMovement(base, { moveX: 0, moveY: 1, yaw: 0, jump: false, sprint: true, crouch: false }, .1, 1000);
     expect(sprint.velocity.z).toBeLessThan(0); expect(Math.hypot(sprint.velocity.x, sprint.velocity.z)).toBeLessThanOrEqual(BR_BALANCE.sprintSpeed);
     const jump = stepBrMovement({ ...sprint, lastJumpSignal: false }, { moveX: 0, moveY: 1, yaw: 0, jump: true, sprint: false, crouch: false }, .05, 1050);
@@ -99,5 +99,26 @@ describe("Battle Royale shared rules", () => {
     const falling: BrMotionState = { ...base, position: { x: 80, y: 20, z: 80 }, velocity: { x: 0, y: -10, z: 0 }, grounded: false, deployment: "freefall" };
     const chute = stepBrMovement(falling, { moveX: 0, moveY: 0, yaw: 0, jump: false, sprint: false, crouch: false }, .1, 2000);
     expect(chute.deployment).toBe("chute"); expect(chute.velocity.y).toBeGreaterThanOrEqual(-BR_BALANCE.chuteSpeed);
+  });
+
+  it("requires directional, reachable mantle geometry and standing head clearance", () => {
+    const cover = BR_MAP_BLOCKS.find((block) => block.kind === "cover")!;
+    const feet = { x: cover.position.x, y: 0, z: cover.position.z + cover.size.z / 2 + BR_BALANCE.playerRadius + .04 };
+    expect(brMantleTopAt(feet, { x: 0, y: .12, z: -.2 })).toBeCloseTo(cover.position.y + cover.size.y / 2);
+    expect(brMantleTopAt(feet, { x: 0, y: .12, z: .2 })).toBeNull();
+    expect(brMantleTopAt(feet, { x: 0, y: .12, z: 0 })).toBeNull();
+    const ceiling = BR_MAP_BLOCKS.find((block) => block.id.includes("-deck-1-left"))!;
+    const ceilingBottom = ceiling.position.y - ceiling.size.y / 2;
+    const crouchedHeight = BR_BALANCE.playerRadius * 2 + .12;
+    expect(brHasStandingClearance({ x: ceiling.position.x, y: ceilingBottom - crouchedHeight, z: ceiling.position.z })).toBe(false);
+    expect(brHasStandingClearance({ x: ceiling.position.x, y: ceilingBottom - BR_BALANCE.playerHeight - .2, z: ceiling.position.z })).toBe(true);
+  });
+
+  it("shares finite camera aim, muzzle, body, and head hit math", () => {
+    const muzzle=brMuzzlePosition({ x: 2, y: 3, z: 4 }, 0, 0);expect(muzzle.x).toBeCloseTo(2);expect(muzzle.y).toBeCloseTo(3.72);expect(muzzle.z).toBeCloseTo(3.52);
+    const origin = { x: 0, y: 1.13, z: 5 }; const direction = { x: 0, y: 0, z: -1 }; const feet = { x: 0, y: 0, z: 0 };
+    expect(brPlayerHitDistance(origin, direction, feet)?.headshot).toBe(true);
+    expect(brPlayerHitDistance({ x: 0, y: .5, z: 5 }, direction, feet)?.headshot).toBe(false);
+    expect(brPlayerHitDistance({ x: 3, y: .5, z: 5 }, direction, feet)).toBeNull();
   });
 });

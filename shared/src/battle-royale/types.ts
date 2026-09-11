@@ -42,6 +42,7 @@ export interface BrPlayerState {
   yaw: number;
   pitch: number;
   grounded: boolean;
+  crouched: boolean;
   selectedSlot: number;
   inventory: Array<BrInventoryItem | null>;
   ammo: BrAmmoState;
@@ -81,6 +82,7 @@ export interface BrPlayerSnapshotState {
   yaw: number;
   pitch: number;
   grounded: boolean;
+  crouched: boolean;
   selectedSlot: number;
   heldItem: BrInventoryItem | null;
   kills: number;

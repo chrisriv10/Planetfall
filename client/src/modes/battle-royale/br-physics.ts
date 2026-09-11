@@ -1,5 +1,5 @@
 import RAPIER from "@dimforge/rapier3d-compat";
-import { BR_BALANCE, BR_ISLAND_OUTLINE, BR_MAP_BLOCKS, brBlocksNear, isInsideBrIsland, type BrCollisionResult, type Vec3 } from "@planetfall/shared";
+import { BR_BALANCE, BR_ISLAND_OUTLINE, BR_MAP_BLOCKS, brBlocksNear, brHasStandingClearance, brMantleTopAt, isInsideBrIsland, type BrCollisionResult, type Vec3 } from "@planetfall/shared";
 
 await RAPIER.init();
 
@@ -29,16 +29,17 @@ export class BrPredictionPhysics {
   }
 
   move(feet:Vec3,desiredMovement:Vec3,jumping:boolean,crouched=false):BrCollisionResult {
-    const next={x:feet.x+desiredMovement.x,y:feet.y+desiredMovement.y,z:feet.z+desiredMovement.z};if(!jumping&&feet.y>=-.08&&desiredMovement.y<=0&&next.y<=.02&&isInsideBrIsland(next)&&brBlocksNear(next,1.25).length===0)return{movement:{x:desiredMovement.x,y:-feet.y,z:desiredMovement.z},grounded:true,ceiling:false};
+    const next={x:feet.x+desiredMovement.x,y:feet.y+desiredMovement.y,z:feet.z+desiredMovement.z};if(!jumping&&feet.y>=-.08&&desiredMovement.y<=0&&next.y<=.02&&isInsideBrIsland(next)&&brBlocksNear(next,1.25).length===0)return{movement:{x:desiredMovement.x,y:-feet.y,z:desiredMovement.z},grounded:true,ceiling:false,crouched};
     const surfaceRecovery=!jumping&&desiredMovement.y<=0&&feet.y>=-.35&&feet.y<=.16&&isInsideBrIsland(feet);const start=surfaceRecovery?{...feet,y:0}:feet;
-    if(this.crouched!==crouched){this.crouched=crouched;this.collider.setHalfHeight(crouched?CROUCHED_HALF_HEIGHT:STANDING_HALF_HEIGHT);}
+    const actualCrouch=crouched||!brHasStandingClearance(feet);
+    if(this.crouched!==actualCrouch){this.crouched=actualCrouch;this.collider.setHalfHeight(actualCrouch?CROUCHED_HALF_HEIGHT:STANDING_HALF_HEIGHT);}
     this.body.setTranslation({x:start.x,y:start.y+centerY(this.crouched),z:start.z},true);
     if(jumping)this.controller.disableSnapToGround();else this.controller.enableSnapToGround(.18);
     this.controller.computeColliderMovement(this.collider,desiredMovement,undefined,undefined,(collider)=>collider.parent()===null);
     const movement=this.controller.computedMovement();
-    if(jumping&&Math.hypot(movement.x,movement.z)<Math.hypot(desiredMovement.x,desiredMovement.z)*.45){const mantle=brBlocksNear(next,BR_BALANCE.playerRadius).filter((block)=>block.kind==="cover"||block.kind==="wall").map((block)=>block.position.y+block.size.y/2).filter((top)=>top-feet.y>.35&&top-feet.y<=BR_BALANCE.mantleHeight+.4).sort((a,b)=>a-b)[0];if(mantle!==undefined)return{movement:{x:desiredMovement.x,y:mantle-feet.y+.03,z:desiredMovement.z},grounded:false,ceiling:false};}
+    if(jumping&&Math.hypot(movement.x,movement.z)<Math.hypot(desiredMovement.x,desiredMovement.z)*.45){const mantle=brMantleTopAt(feet,desiredMovement);if(mantle!==null)return{movement:{x:desiredMovement.x,y:mantle-feet.y+.03,z:desiredMovement.z},grounded:false,ceiling:false,crouched:false};}
     const correctionY=start.y-feet.y;this.body.setTranslation({x:feet.x+movement.x,y:feet.y+movement.y+correctionY+centerY(this.crouched),z:feet.z+movement.z},true);
-    return {movement:{x:movement.x,y:movement.y+correctionY,z:movement.z},grounded:surfaceRecovery||this.controller.computedGrounded(),ceiling:false};
+    return {movement:{x:movement.x,y:movement.y+correctionY,z:movement.z},grounded:surfaceRecovery||this.controller.computedGrounded(),ceiling:false,crouched:actualCrouch};
   }
 
   reset(feet:Vec3={x:0,y:0,z:0}):void { this.crouched=false;this.collider.setHalfHeight(STANDING_HALF_HEIGHT);this.body.setTranslation({x:feet.x,y:feet.y+centerY(false),z:feet.z},true); }

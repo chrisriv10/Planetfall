@@ -9,6 +9,7 @@ export interface BrMotionState {
   velocity: Vec3;
   yaw: number;
   grounded: boolean;
+  crouched: boolean;
   deployment: BrDeploymentState;
   downed: boolean;
   lastJumpSignal: boolean;
@@ -33,7 +34,7 @@ export interface BrMotionResult extends BrMotionState {
   traversed: boolean;
 }
 
-export interface BrCollisionResult { movement: Vec3; grounded: boolean; ceiling: boolean; }
+export interface BrCollisionResult { movement: Vec3; grounded: boolean; ceiling: boolean; crouched?: boolean; }
 export type BrCollisionResolver = (position: Vec3, desiredMovement: Vec3, options: { jumping: boolean; downed: boolean; crouched: boolean }) => BrCollisionResult;
 
 export function brFloorHeightAt(position: Vec3, previousY: number): number {
@@ -75,7 +76,7 @@ export function stepBrMovement(current: BrMotionState, input: BrMotionInput, raw
       state.velocity.x = state.velocity.x / speed * BR_BALANCE.slideInitialSpeed; state.velocity.z = state.velocity.z / speed * BR_BALANCE.slideInitialSpeed; state.slideEndsAt = now + BR_BALANCE.slideDurationMs;
     }
     state.lastCrouchSignal = crouchSignal;
-    const speed = state.downed ? 1.8 : input.crouch ? BR_BALANCE.crouchSpeed : input.sprint ? BR_BALANCE.sprintSpeed : BR_BALANCE.walkSpeed;
+    const speed = state.downed ? 1.8 : state.crouched || input.crouch ? BR_BALANCE.crouchSpeed : input.sprint ? BR_BALANCE.sprintSpeed : BR_BALANCE.walkSpeed;
     const acceleration = state.grounded ? BR_BALANCE.acceleration : BR_BALANCE.acceleration * BR_BALANCE.airControl;
     const desiredX = desired.x * speed * Math.min(1, magnitude); const desiredZ = desired.z * speed * Math.min(1, magnitude);
     if (state.slideEndsAt > now) {
@@ -99,6 +100,7 @@ export function stepBrMovement(current: BrMotionState, input: BrMotionInput, raw
   if (resolveCollision) {
     const collision = resolveCollision(state.position, desiredMovement, { jumping: state.velocity.y > .05, downed: state.downed, crouched: Boolean(input.crouch) || state.downed });
     next.x = state.position.x + collision.movement.x; next.y = state.position.y + collision.movement.y; next.z = state.position.z + collision.movement.z;
+    state.crouched = collision.crouched ?? (Boolean(input.crouch) || state.downed);
     if (collision.grounded && state.velocity.y <= .05) {
       state.grounded = true; state.lastGroundedAt = now; if (state.velocity.y < 0) state.velocity.y = 0;
       if (state.deployment === "freefall" || state.deployment === "chute") state.deployment = "grounded";
@@ -106,6 +108,7 @@ export function stepBrMovement(current: BrMotionState, input: BrMotionInput, raw
     } else state.grounded = false;
     if (collision.ceiling && state.velocity.y > 0) state.velocity.y = 0;
   } else {
+    state.crouched = Boolean(input.crouch) || state.downed;
     resolveBrBlockCollisions(state, next, Boolean(input.jump));
     const floor = brFloorHeightAt(next, state.position.y);
     if (isInsideBrIsland(next) && next.y <= floor && state.position.y >= floor - .45) {
@@ -119,6 +122,45 @@ export function stepBrMovement(current: BrMotionState, input: BrMotionInput, raw
   state.traversed = applyBrTraversal(state, next, now);
   state.position = next;
   return state;
+}
+
+/** True when a crouched astronaut can safely expand to the standing capsule. */
+export function brHasStandingClearance(feet: Vec3): boolean {
+  const crouchedTop = feet.y + BR_BALANCE.playerRadius * 2 + .12;
+  const standingTop = feet.y + BR_BALANCE.playerHeight;
+  for (const block of brBlocksNear(feet, BR_BALANCE.playerRadius)) {
+    if (block.kind !== "platform" && block.kind !== "bridge") continue;
+    const bottom = block.position.y - block.size.y / 2;
+    const top = block.position.y + block.size.y / 2;
+    const withinX = Math.abs(feet.x - block.position.x) < block.size.x / 2 + BR_BALANCE.playerRadius * .82;
+    const withinZ = Math.abs(feet.z - block.position.z) < block.size.z / 2 + BR_BALANCE.playerRadius * .82;
+    if (withinX && withinZ && bottom >= crouchedTop - .04 && bottom < standingTop + .04 && top > crouchedTop) return false;
+  }
+  return true;
+}
+
+/** Returns a valid low ledge top only when the player is moving into that ledge. */
+export function brMantleTopAt(feet: Vec3, desiredMovement: Vec3): number | null {
+  const horizontal = Math.hypot(desiredMovement.x, desiredMovement.z);
+  if (horizontal < .025) return null;
+  const directionX = desiredMovement.x / horizontal;
+  const directionZ = desiredMovement.z / horizontal;
+  const candidate = { x: feet.x + desiredMovement.x, y: feet.y, z: feet.z + desiredMovement.z };
+  let best = Number.POSITIVE_INFINITY;
+  for (const block of brBlocksNear(candidate, BR_BALANCE.playerRadius + .18)) {
+    if (block.kind !== "cover" && block.kind !== "wall") continue;
+    const top = block.position.y + block.size.y / 2;
+    const height = top - feet.y;
+    if (height <= .35 || height > BR_BALANCE.mantleHeight + .4) continue;
+    const toX = block.position.x - feet.x;
+    const toZ = block.position.z - feet.z;
+    if (toX * directionX + toZ * directionZ <= .08) continue;
+    const withinX = Math.abs(candidate.x - block.position.x) <= block.size.x / 2 + BR_BALANCE.playerRadius;
+    const withinZ = Math.abs(candidate.z - block.position.z) <= block.size.z / 2 + BR_BALANCE.playerRadius;
+    if (!withinX || !withinZ || !brHasStandingClearance({ x: candidate.x, y: top + .03, z: candidate.z })) continue;
+    best = Math.min(best, top);
+  }
+  return Number.isFinite(best) ? best : null;
 }
 
 function resolveBrBlockCollisions(state: BrMotionState, next: Vec3, jumpHeld: boolean): void {

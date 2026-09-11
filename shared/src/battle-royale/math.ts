@@ -7,6 +7,13 @@ export function brNormalize(value: Vec3): Vec3 {
   const length = Math.hypot(value.x, value.y, value.z);
   return length > 1e-7 && Number.isFinite(length) ? { x: value.x / length, y: value.y / length, z: value.z / length } : { x: 0, y: 0, z: -1 };
 }
+export function brAimDirection(yaw: number, pitch: number): Vec3 {
+  return brNormalize({ x: Math.sin(yaw) * Math.cos(pitch), y: Math.sin(pitch), z: -Math.cos(yaw) * Math.cos(pitch) });
+}
+export function brMuzzlePosition(position: Vec3, yaw: number, pitch: number): Vec3 {
+  const aim = brAimDirection(yaw, pitch);
+  return { x: position.x + aim.x * .48, y: position.y + .72 + aim.y * .18, z: position.z + aim.z * .48 };
+}
 export function brMoveTowards(current: number, target: number, maxDelta: number): number {
   return Math.abs(target - current) <= maxDelta ? target : current + Math.sign(target - current) * maxDelta;
 }
@@ -33,6 +40,15 @@ export function raySphereDistance(origin: Vec3, direction: Vec3, center: Vec3, r
   const near = -b - Math.sqrt(discriminant);
   const far = -b + Math.sqrt(discriminant);
   return near >= 0 ? near : far >= 0 ? far : null;
+}
+
+export function brPlayerHitDistance(origin: Vec3, direction: Vec3, feet: Vec3, crouched = false, downed = false): { distance: number; headshot: boolean } | null {
+  const bodyY = downed ? .32 : crouched ? .42 : .5;
+  const headY = downed ? .55 : crouched ? .79 : 1.13;
+  const body = raySphereDistance(origin, direction, { x: feet.x, y: feet.y + bodyY, z: feet.z }, downed ? .52 : .43);
+  const head = raySphereDistance(origin, direction, { x: feet.x, y: feet.y + headY, z: feet.z }, downed ? .25 : .3);
+  if (head !== null && (body === null || head <= body)) return { distance: head, headshot: !downed };
+  return body === null ? null : { distance: body, headshot: false };
 }
 
 export function seededRandom(seed: number): () => number {
