@@ -32,7 +32,12 @@ export interface BrStructure {
   floors: 1 | 2 | 3;
   entrance: "north" | "south" | "east" | "west";
   roofAccess: boolean;
+  enterable: boolean;
+  archetype: BrStructureArchetype;
 }
+
+export type BrStructureArchetype = "shop" | "apartment" | "tower" | "office" | "hotel" | "warehouse" | "hangar" | "lab" | "academy" | "mall" | "industrial" | "greenhouse" | "transit" | "utility";
+export interface BrSecondaryLocation { id:string; name:string; position:Vec3; color:string; style:BrDistrictStyle; connectTo:string; }
 
 export interface BrRoadSegment { id: string; from: Vec3; to: Vec3; width: number; color: string; }
 export interface BrNavNode { id: string; position: Vec3; neighbors: string[]; }
@@ -65,12 +70,49 @@ export const BR_POIS: readonly BrPoi[] = [
   poi("thruster-works", "THRUSTER WORKS", 342, -70, "#65b8ff", "industrial", [[0,0],[36,12],[-36,10],[23,-38],[-25,-37],[0,43]])
 ];
 
-const S = (id: string, districtId: string, x: number, z: number, w: number, d: number, h: number, color: string, style: BrDistrictStyle, floors: 1 | 2 | 3 = 1, entrance: BrStructure["entrance"] = "south", roofAccess = false): BrStructure => ({
-  id, districtId, position: { x, y: 0, z }, size: { x: w, y: h, z: d }, color, style, floors, entrance, roofAccess
+const secondary=(id:string,name:string,x:number,z:number,color:string,style:BrDistrictStyle,connectTo:string):BrSecondaryLocation=>({id,name,position:{x,y:0,z},color,style,connectTo});
+
+/** Connective neighborhoods and utility compounds keep rotations active between the nine major POIs. */
+export const BR_SECONDARY_LOCATIONS:readonly BrSecondaryLocation[]=[
+  secondary("central-heights","CENTRAL HEIGHTS",-75,-82,"#65c9ff","city","zero-point"),
+  secondary("relay-market","RELAY MARKET",82,-78,"#72def4","city","zero-point"),
+  secondary("comet-hotel","COMET HOTEL",-76,-214,"#ee7ac4","city","nova-plaza"),
+  secondary("horizon-homes","HORIZON HOMES",-255,-30,"#d98edc","city","nova-plaza"),
+  secondary("academy-dorms","ACADEMY DORMS",-370,125,"#a88cff","academy","astra-academy"),
+  secondary("west-overlook","WEST OVERLOOK",-405,15,"#75b8e8","nexus","astra-academy"),
+  secondary("signal-station","SIGNAL STATION",-405,-125,"#5b95c9","industrial","nova-plaza"),
+  secondary("salvage-row","SALVAGE ROW",-315,-335,"#db705d","wreck","crash-site"),
+  secondary("emergency-depot","EMERGENCY DEPOT",-160,-420,"#f47b64","wreck","crash-site"),
+  secondary("south-terminal","SOUTH TERMINAL",15,-415,"#5ca9da","nexus","zero-point"),
+  secondary("cargo-spur","CARGO SPUR",95,-285,"#d88b47","dock","dockyard-7"),
+  secondary("dock-service","DOCK SERVICE",285,-275,"#f0a052","dock","dockyard-7"),
+  secondary("engine-gate","ENGINE GATE",405,-180,"#579edf","industrial","thruster-works"),
+  secondary("east-checkpoint","EAST CHECKPOINT",420,-5,"#65b8ff","industrial","thruster-works"),
+  secondary("helios-relay","HELIOS RELAY",375,135,"#ffd84d","reactor","helios-reactor"),
+  secondary("orbital-overlook","ORBITAL OVERLOOK",305,220,"#73c8e8","nexus","helios-reactor"),
+  secondary("farm-service","FARM SERVICE",235,370,"#63ef8b","farm","orbital-farms"),
+  secondary("solar-field","SOLAR FIELD",75,415,"#63d99c","farm","orbital-farms"),
+  secondary("north-gardens","NORTH GARDENS",-45,405,"#69d89a","farm","void-mall"),
+  secondary("mall-annex","MALL ANNEX",-205,365,"#c565ff","mall","void-mall"),
+  secondary("academy-commons","ACADEMY COMMONS",-265,235,"#9f8ae8","academy","astra-academy"),
+  secondary("west-park","WEST PARK",-400,150,"#70c98f","academy","astra-academy"),
+  secondary("coolant-plant","COOLANT PLANT",80,180,"#44bdd8","industrial","zero-point"),
+  secondary("central-security","CENTRAL SECURITY",-145,85,"#778fd8","nexus","zero-point"),
+  secondary("south-shipworks","SOUTH SHIPWORKS",190,-400,"#da8b48","dock","dockyard-7"),
+  secondary("east-freight","EAST FREIGHT",330,-315,"#e19450","dock","dockyard-7"),
+  secondary("northwest-housing","NORTHWEST HOUSING",-250,365,"#b78bdc","city","void-mall"),
+  secondary("west-salvage","WEST SALVAGE",-385,-205,"#cf6b61","wreck","crash-site"),
+  secondary("east-rim","EAST RIM",435,100,"#68b8de","industrial","helios-reactor"),
+  secondary("west-rim","WEST RIM",-340,280,"#8f8bd6","academy","astra-academy")
+];
+
+const inferArchetype=(id:string,style:BrDistrictStyle,height:number):BrStructureArchetype=>id.includes("hangar")?"hangar":id.includes("hotel")?"hotel":id.includes("market")||id.includes("cafe")||id.includes("arcade")?"shop":id.includes("tower")||height>20?"tower":style==="farm"?"greenhouse":style==="academy"?"academy":style==="mall"?"mall":style==="dock"?"warehouse":style==="reactor"||style==="industrial"?"industrial":style==="wreck"?"utility":"office";
+const S = (id: string, districtId: string, x: number, z: number, w: number, d: number, h: number, color: string, style: BrDistrictStyle, floors: 1 | 2 | 3 = 1, entrance: BrStructure["entrance"] = "south", roofAccess = false, enterable=true, archetype?:BrStructureArchetype): BrStructure => ({
+  id, districtId, position: { x, y: 0, z }, size: { x: w, y: h, z: d }, color, style, floors, entrance, roofAccess, enterable, archetype:archetype??inferArchetype(id,style,h)
 });
 
 /** 62 authored structures with different footprints and district identities. */
-export const BR_STRUCTURES: readonly BrStructure[] = [
+const PRIMARY_BR_STRUCTURES: readonly BrStructure[] = [
   S("zero-spire","zero-point",0,0,28,28,36,"#70f5ff","nexus",3,"south",true),
   S("zero-control","zero-point",-38,-9,30,20,8,"#4ed3ff","nexus",2,"east",true),
   S("zero-relay","zero-point",38,12,24,18,7,"#72a7ff","nexus",2,"west",true),
@@ -129,11 +171,30 @@ export const BR_STRUCTURES: readonly BrStructure[] = [
   S("void-station","void-mall",-92,214,36,20,9,"#6f369a","mall",2,"north",true),
   S("farm-greenhouse-c","orbital-farms",193,328,36,27,8,"#58ca87","farm",1,"west"),
   S("farm-silo","orbital-farms",66,263,22,22,16,"#47b77a","farm",3,"east",true),
-  S("crash-medbay","crash-site",-392,-280,28,22,8,"#b94d55","wreck",2,"east",true),
+  S("crash-medbay","crash-site",-378,-270,28,22,8,"#b94d55","wreck",2,"east",true),
   S("crash-salvage","crash-site",-282,-301,29,23,7,"#99404b","wreck",1,"west"),
   S("thruster-assembly","thruster-works",400,-15,31,24,10,"#4f8bd0","industrial",2,"west",true),
   S("thruster-cooling","thruster-works",290,-28,31,24,9,"#477cb8","industrial",2,"east",true)
 ];
+
+const SECONDARY_ARCHETYPES:readonly BrStructureArchetype[]=["apartment","shop","utility","hotel","transit","warehouse","office","lab","industrial","greenhouse","hangar","academy","mall","tower"];
+const secondaryStructures=BR_SECONDARY_LOCATIONS.flatMap((location,index)=>{
+  const angle=(index%6)*Math.PI/3+.18;const cos=Math.cos(angle),sin=Math.sin(angle);
+  const offsets=[[-15,-9],[14,-7],[1,15]] as const;
+  return offsets.map(([localX,localZ],buildingIndex)=>{
+    const x=location.position.x+localX*cos-localZ*sin,z=location.position.z+localX*sin+localZ*cos;
+    const width=buildingIndex===0?20+(index%3)*2:14+((index+buildingIndex)%4)*2;
+    const depth=buildingIndex===2?16+(index%3)*2:18+((index+buildingIndex)%3)*2;
+    const height=buildingIndex===0?8+(index%4)*3:5+((index+buildingIndex)%3)*2;
+    const floors=Math.min(3,Math.max(1,Math.round(height/7))) as 1|2|3;
+    const entrance=(["south","east","north","west"] as const)[(index+buildingIndex)%4];
+    const enterable=buildingIndex===0&&index<8;
+    return S(`${location.id}-${buildingIndex+1}`,location.id,x,z,width,depth,height,location.color,location.style,floors,entrance,enterable&&height<18,enterable,SECONDARY_ARCHETYPES[(index*3+buildingIndex)%SECONDARY_ARCHETYPES.length]);
+  });
+});
+
+/** 152 structures total; 70 are enterable combat/loot spaces. */
+export const BR_STRUCTURES:readonly BrStructure[]=[...PRIMARY_BR_STRUCTURES,...secondaryStructures];
 
 /** Large flush deck treatments break up the island while preserving one flat gameplay surface. */
 export const BR_TERRAIN_PATCHES: readonly BrTerrainPatch[] = [
@@ -160,15 +221,17 @@ export const BR_ROADS: readonly BrRoadSegment[] = [
   { id:"ring-ne", from:{x:262,y:.08,z:78}, to:{x:125,y:.08,z:294}, width:15, color:"#293b58" },
   { id:"ring-n", from:{x:125,y:.08,z:294}, to:{x:-93,y:.08,z:263}, width:15, color:"#293b58" },
   { id:"ring-wn", from:{x:-93,y:.08,z:263}, to:{x:-278,y:.08,z:75}, width:15, color:"#293b58" },
-  ...([[-175,-135],[188,-156],[262,78],[-278,75],[-93,263],[125,294],[342,-70],[-326,-258]] as const).map(([x,z], index) => ({ id:`radial-${index}`, from:{x:0,y:.09,z:0}, to:{x,y:.09,z}, width:13, color:"#304766" }))
+  ...([[-175,-135],[188,-156],[262,78],[-278,75],[-93,263],[125,294],[342,-70],[-326,-258]] as const).map(([x,z], index) => ({ id:`radial-${index}`, from:{x:0,y:.09,z:0}, to:{x,y:.09,z}, width:13, color:"#304766" })),
+  ...BR_SECONDARY_LOCATIONS.map((location,index)=>{const target=BR_POIS.find((poi)=>poi.id===location.connectTo)??BR_POIS[0];return{id:`service-${index}`,from:{...location.position,y:.1},to:{...target.position,y:.1},width:index%4===0?10:8,color:"#263b57"};})
 ];
 
-const navPositions: Record<string, Vec3> = Object.fromEntries(BR_POIS.map((entry)=>[entry.id,{...entry.position}]));
+const navPositions: Record<string, Vec3> = Object.fromEntries([...BR_POIS,...BR_SECONDARY_LOCATIONS].map((entry)=>[entry.id,{...entry.position}]));
 const navLinks: Array<[string,string]> = [
   ["zero-point","nova-plaza"],["zero-point","dockyard-7"],["zero-point","helios-reactor"],["zero-point","astra-academy"],
   ["zero-point","void-mall"],["zero-point","orbital-farms"],["zero-point","crash-site"],["zero-point","thruster-works"],
   ["nova-plaza","crash-site"],["crash-site","dockyard-7"],["dockyard-7","thruster-works"],["thruster-works","helios-reactor"],
-  ["helios-reactor","orbital-farms"],["orbital-farms","void-mall"],["void-mall","astra-academy"],["astra-academy","nova-plaza"]
+  ["helios-reactor","orbital-farms"],["orbital-farms","void-mall"],["void-mall","astra-academy"],["astra-academy","nova-plaza"],
+  ...BR_SECONDARY_LOCATIONS.map((location)=>[location.id,location.connectTo] as [string,string])
 ];
 export const BR_NAV_NODES: readonly BrNavNode[] = Object.entries(navPositions).map(([id,position])=>({id,position,neighbors:navLinks.flatMap(([a,b])=>a===id?[b]:b===id?[a]:[])}));
 
@@ -184,6 +247,7 @@ export function brNextWaypoint(start:Vec3,target:Vec3):Vec3 {
 function structureBlocks(structure: BrStructure): BrMapBlock[] {
   const { x, z } = structure.position; const { x: width, z: depth, y: height } = structure.size;
   const wall = .65; const door = 4.8; const blocks: BrMapBlock[] = [];
+  if(!structure.enterable)return[{id:`${structure.id}-solid`,districtId:structure.districtId,position:{x,y:height/2,z},size:{x:width,y:height,z:depth},color:structure.color,kind:"building"}];
   blocks.push({ id:`${structure.id}-floor`, districtId:structure.districtId, position:{x,y:.18,z}, size:{x:width,y:.36,z:depth}, color:"#17243b", kind:"platform" });
   for (let floor = 1; floor < structure.floors; floor++) {
     const floorHeight=height/structure.floors;const levelY=floor*floorHeight;const stairX=x+width*.27;const opening=Math.min(5.2,width*.22);
@@ -237,20 +301,26 @@ const authoredCover: BrMapBlock[] = [
   [276,-70,10,3,"thruster-works"],[411,-72,10,3,"thruster-works"],[319,-5,4,9,"thruster-works"],[374,-10,4,9,"thruster-works"]
 ].map(([x,z,w,d,districtId], index) => ({ id:`cover-${index}`, districtId:String(districtId), position:{x:Number(x),y:1,z:Number(z)}, size:{x:Number(w),y:2,z:Number(d)}, color:"#344764", kind:"cover" }));
 
-export const BR_MAP_BLOCKS: readonly BrMapBlock[] = [...BR_STRUCTURES.flatMap(structureBlocks), ...authoredCover];
+const secondaryCover:BrMapBlock[]=BR_SECONDARY_LOCATIONS.flatMap((location,index)=>[0,1,2,3].map((slot)=>{
+  const angle=slot*Math.PI/2+(index%3)*.22,radius=27+(slot%2)*5;
+  const wide=slot%2===0;
+  return{id:`${location.id}-cover-${slot}`,districtId:location.id,position:{x:location.position.x+Math.cos(angle)*radius,y:1,z:location.position.z+Math.sin(angle)*radius},size:{x:wide?7:2.4,y:2,z:wide?2.4:7},color:location.color,kind:"cover" as const};
+}));
+
+export const BR_MAP_BLOCKS: readonly BrMapBlock[] = [...BR_STRUCTURES.flatMap(structureBlocks), ...authoredCover,...secondaryCover];
 
 /** Fixed, learnable loot locations tied to actual playable structure floors. */
-export const BR_LOOT_SOCKETS: readonly BrLootSocket[] = BR_STRUCTURES.flatMap((structure,index)=>{
+export const BR_LOOT_SOCKETS: readonly BrLootSocket[] = BR_STRUCTURES.filter((structure)=>structure.enterable).flatMap((structure,index)=>{
   const inward=structure.entrance==="north"?{x:0,z:-structure.size.z*.23}:structure.entrance==="south"?{x:0,z:structure.size.z*.23}:structure.entrance==="east"?{x:-structure.size.x*.23,z:0}:{x:structure.size.x*.23,z:0};
   const sockets:BrLootSocket[]=[{id:`${structure.id}-interior`,districtId:structure.districtId,structureId:structure.id,position:{x:structure.position.x+inward.x,y:.58,z:structure.position.z+inward.z},kind:"interior"}];
   if(structure.roofAccess||index%3===0)sockets.push({id:`${structure.id}-roof-loot`,districtId:structure.districtId,structureId:structure.id,position:{x:structure.position.x-structure.size.x*.18,y:structure.size.y+.65,z:structure.position.z+structure.size.z*.17},kind:"roof"});
   return sockets;
 });
 
-export const BR_CRATE_SOCKETS: readonly Vec3[] = BR_POIS.map((district,index)=>{
+export const BR_CRATE_SOCKETS: readonly Vec3[] = [...BR_POIS.map((district,index)=>{
   const structure=BR_STRUCTURES.find((entry)=>entry.districtId===district.id)!;const side=index%2?-1:1;
   return{x:structure.position.x+side*structure.size.x*.22,y:.62,z:structure.position.z};
-});
+}),...BR_SECONDARY_LOCATIONS.filter((_,index)=>index%3===0).map((location)=>({x:location.position.x,y:.62,z:location.position.z}))];
 
 export const BR_TRAVERSAL = [
   { id:"lift-zero", kind:"grav-lift" as const, position:{x:20,y:0,z:18}, target:{x:20,y:25,z:18} },
@@ -267,6 +337,21 @@ export function isInsideBrIsland(position: Vec3, margin = 0): boolean {
 
 export function brBlocksNear(position: Vec3, radius = 8): BrMapBlock[] {
   return BR_MAP_BLOCKS.filter((block) => Math.abs(block.position.x-position.x)<=block.size.x/2+radius && Math.abs(block.position.z-position.z)<=block.size.z/2+radius);
+}
+
+/** Stable spatial partition used by both prediction and authority for movement queries. */
+export const BR_PHYSICS_SECTOR_SIZE = 100;
+export function brPhysicsSector(position: Vec3): { key: string; center: Vec3 } {
+  const x = Math.floor(position.x / BR_PHYSICS_SECTOR_SIZE);
+  const z = Math.floor(position.z / BR_PHYSICS_SECTOR_SIZE);
+  return { key: `${x}:${z}`, center: { x: (x + .5) * BR_PHYSICS_SECTOR_SIZE, y: 0, z: (z + .5) * BR_PHYSICS_SECTOR_SIZE } };
+}
+
+export function brBlocksForPhysicsSector(position: Vec3): readonly BrMapBlock[] {
+  const { center } = brPhysicsSector(position);
+  // The overlap margin covers the largest authored shell plus multiple full-speed
+  // frames, so switching sectors cannot expose a collision seam.
+  return brBlocksNear(center, BR_PHYSICS_SECTOR_SIZE / 2 + 46);
 }
 
 function pointInPolygon(x:number,z:number): boolean {

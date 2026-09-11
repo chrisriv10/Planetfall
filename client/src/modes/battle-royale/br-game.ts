@@ -8,7 +8,9 @@ import type { GameAudio } from "../../audio";
 import { createAstronautVisual } from "../../astronaut";
 import { inputLabel, type GameInput, type InputFrame, type InputMethod } from "../../input";
 import type { UserSettings } from "../../settings";
+import { ReconciliationTracker } from "../../reconciliation";
 import { BrPredictionPhysics } from "./br-physics";
+import { brCameraGeometry, brCameraMode } from "./br-camera";
 import { createBrBackdrop, createStarliner, createVoidStorm, updateStarliner, updateVoidStorm } from "./br-presentation";
 import { BrWorldRenderer, type BrPoiLabel } from "./br-world";
 import { brWeaponAccent, buildBrWeaponModel } from "./br-weapons";
@@ -68,7 +70,7 @@ export class BattleRoyaleGame {
   private inputAccumulator = 0;
   private sequence = 0;
   private yaw = 0;
-  private pitch = .28;
+  private pitch = -.08;
   private settings: UserSettings;
   private active = false;
   private uiCaptured = false;
@@ -85,6 +87,16 @@ export class BattleRoyaleGame {
   private aiming = false;
   private predictedMotion: BrMotionState | null = null;
   private readonly temp = new THREE.Vector3();
+  private readonly cameraFocus = new THREE.Vector3();
+  private readonly cameraDesired = new THREE.Vector3();
+  private readonly cameraRay = new THREE.Vector3();
+  private readonly cameraRight = new THREE.Vector3();
+  private readonly cameraUp = new THREE.Vector3(0, 1, 0);
+  private readonly cameraProbeOrigin = new THREE.Vector3();
+  private readonly cameraProbeTarget = new THREE.Vector3();
+  private cameraBoom = 6.15;
+  private cameraInitialized = false;
+  private readonly reconciliationTracker = new ReconciliationTracker();
   private readonly raycaster = new THREE.Raycaster();
   private readonly world: BrWorldRenderer;
   private readonly island: THREE.Group;
@@ -140,9 +152,9 @@ export class BattleRoyaleGame {
     for (const visual of this.crates.values()) { this.scene.remove(visual.group); this.disposeObject(visual.group); }
     for (const visual of this.projectiles.values()) { this.scene.remove(visual.mesh, visual.trail); this.disposeObject(visual.mesh); this.disposeObject(visual.trail); }
     for (const ping of this.pings) { this.scene.remove(ping.group); this.disposeObject(ping.group); }
-    this.players.clear(); this.loot.clear(); this.crates.clear(); this.projectiles.clear(); this.pings = []; this.localState = null; this.predictedMotion = null; this.spectatorTargetId = null;
+    this.players.clear(); this.loot.clear(); this.crates.clear(); this.projectiles.clear(); this.pings = []; this.localState = null; this.predictedMotion = null; this.spectatorTargetId = null; this.cameraInitialized=false;this.cameraBoom=6.15;
     this.reloadEndsAt = 0; this.useEndsAt = 0; this.lastFireRequestAt = 0;this.lastAnticipatedFireAt=0;
-    this.physics.reset(); this.visitedPois.clear(); this.currentPoiId = ""; document.body.classList.remove("br-in-void");
+    this.physics.reset(); this.reconciliationTracker.reset(); this.visitedPois.clear(); this.currentPoiId = ""; document.body.classList.remove("br-in-void");
   }
   dispose(): void { if (this.disposed) return; this.deactivate(); this.reset(); this.canvas.removeEventListener("click",this.handleCanvasClick); removeEventListener("resize",this.handleResize); this.unsubscribeInputMethod(); this.scene.remove(this.island,this.stormWall,this.backdrop,this.starliner,this.sun,this.sunTarget); this.world.dispose(); this.disposeObject(this.stormWall); this.disposeObject(this.backdrop); this.disposeObject(this.starliner); this.physics.dispose(); this.disposed=true; }
   /** Compatibility aliases retained while callers migrate to the explicit lifecycle. */
@@ -180,6 +192,7 @@ export class BattleRoyaleGame {
       spectatorTargetId: this.spectatorTargetId,
       storm: this.room ? { ...this.room.storm, center: { ...this.room.storm.center }, nextCenter: { ...this.room.storm.nextCenter } } : null,
       camera:{position:{x:this.camera.position.x,y:this.camera.position.y,z:this.camera.position.z},fov:this.camera.fov},
+      reconciliation: this.reconciliationTracker.summary(performance.now()),
       world:{islandObjects:this.island.children.length,shipVisible:this.starliner.visible,...this.world.debugStats()},
       renderer: { calls: this.renderer.info.render.calls, triangles: this.renderer.info.render.triangles }
     };
@@ -319,7 +332,7 @@ export class BattleRoyaleGame {
     const selectedItem = local.inventory[local.selectedSlot];
     const reticle=document.getElementById("br-crosshair");
     if(reticle){const weapon=selectedItem&&isBrWeapon(selectedItem.itemId)?BR_WEAPONS[selectedItem.itemId]:null;const speed=Math.hypot(local.velocity.x,local.velocity.z);const spread=weapon?weapon.spread*150+(weapon.pellets>1?5:0):3;const gap=THREE.MathUtils.clamp(4+spread+speed*.28+(this.aiming?-2:0),3,18);reticle.style.setProperty("--reticle-gap",`${gap}px`);reticle.dataset.weapon=weapon?.id??"none";reticle.classList.toggle("aiming",this.aiming);reticle.classList.toggle("blocked",Boolean(this.reloadEndsAt>now||this.useEndsAt>now||shot.blocked));}
-    if (frame.fire.held && local.deployment === "grounded" && !local.downed && selectedItem && isBrWeapon(selectedItem.itemId) && this.reloadEndsAt <= now && this.useEndsAt <= now) {
+    if (frame.fire.held && !shot.blocked && local.deployment === "grounded" && !local.downed && selectedItem && isBrWeapon(selectedItem.itemId) && this.reloadEndsAt <= now && this.useEndsAt <= now) {
       const weapon = BR_WEAPONS[selectedItem.itemId]; const interval = weapon.fireIntervalMs;
       if ((!weapon.ammo || selectedItem.magazine > 0) && now - this.lastFireRequestAt >= interval * .88) { this.lastFireRequestAt = now;this.lastAnticipatedFireAt=now;const shooter=this.players.get(this.localId);if(shooter)shooter.weapon.userData.recoil=.65;if(selectedItem.itemId==="plasma-launcher")this.audio.asteroid();else if(selectedItem.itemId==="photon-shotgun"||selectedItem.itemId==="rail-laser")this.audio.rocket();else this.audio.cannonTrigger(false); this.onFire?.(shot.origin, shot.direction, Date.now()); }
     }
@@ -355,7 +368,8 @@ export class BattleRoyaleGame {
 
   private updatePlayers(dt: number, now: number): void {
     for (const visual of this.players.values()) {
-      visual.group.visible = visual.state.alive && visual.relevant && this.room?.phase!=="lobby" && this.room?.phase!=="countdown";
+      visual.group.visible = visual.state.alive && visual.relevant && visual.state.deployment !== "attached" && this.room?.phase!=="lobby" && this.room?.phase!=="countdown";
+      visual.rig.visible = true;
       const displayTarget = visual.state.id === this.localId && this.predictedMotion ? this.temp.set(this.predictedMotion.position.x, this.predictedMotion.position.y, this.predictedMotion.position.z) : visual.target;
       visual.group.position.lerp(displayTarget, visual.state.id === this.localId ? Math.min(1, dt * 22) : Math.min(1, dt * 10));
       visual.group.rotation.y = THREE.MathUtils.lerp(visual.group.rotation.y, visual.state.yaw, Math.min(1, dt * 10));
@@ -399,31 +413,57 @@ export class BattleRoyaleGame {
   private updateShip(): void { updateStarliner(this.starliner, this.room, performance.now()); }
 
   private updateCamera(dt: number): void {
-    if (this.debugCameraView) { this.camera.position.lerp(this.debugCameraView.position, Math.min(1, dt * 4)); this.camera.up.set(0, 1, 0); this.camera.lookAt(this.debugCameraView.focus); this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, 60, Math.min(1, dt * 4)); this.camera.updateProjectionMatrix(); return; }
+    if (this.debugCameraView) { this.cameraInitialized=false;this.camera.position.lerp(this.debugCameraView.position, Math.min(1, dt * 4)); this.camera.up.set(0, 1, 0); this.camera.lookAt(this.debugCameraView.focus); this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, 60, Math.min(1, dt * 4)); this.camera.updateProjectionMatrix(); return; }
     if(this.room?.phase==="lobby"||this.room?.phase==="countdown"){
-      const time=performance.now()*.000035;const focus=new THREE.Vector3(-25,0,15);const desired=new THREE.Vector3(Math.sin(time)*570,330,Math.cos(time)*570);this.camera.position.lerp(desired,Math.min(1,dt*2.2));this.camera.up.set(0,1,0);this.camera.lookAt(focus);this.camera.fov=THREE.MathUtils.lerp(this.camera.fov,58,Math.min(1,dt*3));this.camera.updateProjectionMatrix();return;
+      this.cameraInitialized=false;const time=performance.now()*.000035;const focus=new THREE.Vector3(-25,0,15);const desired=new THREE.Vector3(Math.sin(time)*570,330,Math.cos(time)*570);this.camera.position.lerp(desired,Math.min(1,dt*2.2));this.camera.up.set(0,1,0);this.camera.lookAt(focus);this.camera.fov=THREE.MathUtils.lerp(this.camera.fov,58,Math.min(1,dt*3));this.camera.updateProjectionMatrix();return;
     }
     const localPlayer = this.players.get(this.localId);
     if (this.room?.phase === "ship" && this.room.ship && (!localPlayer || localPlayer.state.deployment === "attached")) {
-      const shipPosition = vec(this.room.ship.position); const route = vec(this.room.ship.end).sub(vec(this.room.ship.start)); route.y = 0; route.normalize();
+      this.cameraInitialized=false;const shipPosition = vec(this.room.ship.position); const route = vec(this.room.ship.end).sub(vec(this.room.ship.start)); route.y = 0; route.normalize();
       const side = new THREE.Vector3(-route.z, 0, route.x); const establishing = performance.now() - this.shipCameraStartedAt < 1650;
-      const focus = shipPosition.clone().addScaledVector(route, establishing ? 8 : 18).add(new THREE.Vector3(0, establishing ? 1 : -3, 0));
-      const desired = shipPosition.clone().addScaledVector(route, establishing ? -32 : -72).addScaledVector(side,establishing ? 44 : 22).add(new THREE.Vector3(0,establishing ? 27 : 31,0));
-      this.camera.position.lerp(desired,Math.min(1,dt*5));this.camera.up.set(0,1,0);this.camera.lookAt(focus);this.camera.fov=THREE.MathUtils.lerp(this.camera.fov,67,Math.min(1,dt*4));this.camera.updateProjectionMatrix();return;
+      const focus = shipPosition.clone().addScaledVector(route, establishing ? 12 : 24).add(new THREE.Vector3(0, establishing ? 0 : -5, 0));
+      const desired = shipPosition.clone().addScaledVector(route, establishing ? -58 : -108).addScaledVector(side,establishing ? 55 : 34).add(new THREE.Vector3(0,establishing ? 38 : 46,0));
+      this.camera.position.lerp(desired,Math.min(1,dt*5));this.camera.up.set(0,1,0);this.camera.lookAt(focus);this.camera.fov=THREE.MathUtils.lerp(this.camera.fov,70,Math.min(1,dt*4));this.camera.updateProjectionMatrix();return;
     }
     if (!localPlayer) return;
     const local = localPlayer.state.alive ? localPlayer : this.getSpectatorTarget() ?? localPlayer;
-    const airborne = local.state.deployment === "freefall" || local.state.deployment === "chute" || local.state.deployment === "attached";
-    const distance = airborne ? 10.5 : local.state.downed ? 5.5 : this.aiming ? 5.4 : 6.8;
-    const look = this.lookDirection(); const focus = local.group.position.clone().add(new THREE.Vector3(0, .85, 0));
-    const right = new THREE.Vector3(-look.z,0,look.x).normalize();
-    const desired = focus.clone().addScaledVector(look, -distance).addScaledVector(right,this.aiming ? 1.05 : .32).add(new THREE.Vector3(0, airborne ? 2.2 : 1.1, 0));
-    if (desired.y < .45 && isInsideBrIsland(desired)) desired.y = .45;
-    const cameraRay=desired.clone().sub(focus);const cameraDistance=cameraRay.length();cameraRay.normalize();this.raycaster.set(focus,cameraRay);this.raycaster.far=cameraDistance;
-    const obstruction=this.raycaster.intersectObjects(this.islandMeshes,false).find((hit)=>hit.distance>.35);
-    const safeDesired=obstruction?focus.clone().addScaledVector(cameraRay,Math.max(.45,obstruction.distance-.28)):desired;
-    this.camera.position.lerp(safeDesired, Math.min(1, dt * (obstruction?15:9))); this.camera.up.set(0, 1, 0); this.camera.lookAt(focus.clone().addScaledVector(look, 5));
-    this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, airborne ? 74 : this.aiming ? 61 : local.state.velocity && Math.hypot(local.state.velocity.x, local.state.velocity.z) > 9 ? 70 : 66, Math.min(1, dt * 4)); this.camera.updateProjectionMatrix();
+    const spectator=!localPlayer.state.alive&&local.state.id!==localPlayer.state.id;
+    const speed=Math.hypot(local.state.velocity.x,local.state.velocity.z);
+    const mode=brCameraMode(local.state.deployment,local.state.downed,this.aiming,spectator);
+    const rig=brCameraGeometry({x:local.group.position.x,y:local.group.position.y,z:local.group.position.z},this.yaw,this.pitch,mode,speed);
+    this.cameraFocus.set(rig.focus.x,rig.focus.y,rig.focus.z);
+    this.cameraDesired.set(rig.desired.x,rig.desired.y,rig.desired.z);
+    this.cameraRight.set(rig.right.x,0,rig.right.z);
+    if(this.cameraDesired.y<.42&&isInsideBrIsland(this.cameraDesired))this.cameraDesired.y=.42;
+    const obstructionDistance=this.cameraObstructionDistance(this.cameraFocus,this.cameraDesired,this.cameraRight);
+    const targetBoom=Math.min(rig.boom,Math.max(.55,obstructionDistance-.32));
+    const obstructionClosing=targetBoom<this.cameraBoom;
+    this.cameraBoom=THREE.MathUtils.lerp(this.cameraBoom,targetBoom,1-Math.exp(-(obstructionClosing?26:7)*dt));
+    const boomRatio=rig.boom>0?this.cameraBoom/rig.boom:1;
+    this.cameraProbeTarget.copy(this.cameraFocus).lerp(this.cameraDesired,boomRatio);
+    if(!this.cameraInitialized){this.camera.position.copy(this.cameraProbeTarget);this.cameraInitialized=true;}
+    else this.camera.position.lerp(this.cameraProbeTarget,1-Math.exp(-(obstructionClosing?24:18)*dt));
+    this.camera.up.set(0,1,0);
+    this.cameraProbeOrigin.set(rig.aimDirection.x,rig.aimDirection.y,rig.aimDirection.z).multiplyScalar(80).add(this.camera.position);
+    this.camera.lookAt(this.cameraProbeOrigin);
+    this.camera.fov=THREE.MathUtils.lerp(this.camera.fov,rig.fov,1-Math.exp(-7*dt));this.camera.updateProjectionMatrix();
+    // When a wall must shorten the boom to first-person distance, hiding only
+    // the local rig avoids filling the screen with helmet/boots while retaining
+    // collision-correct visibility. It returns immediately as the boom clears.
+    if(local.state.id===this.localId)local.rig.visible=this.cameraBoom>1.2;
+  }
+
+  private cameraObstructionDistance(focus:THREE.Vector3,desired:THREE.Vector3,right:THREE.Vector3):number {
+    this.cameraRay.copy(desired).sub(focus);const maximum=this.cameraRay.length();if(maximum<.001)return maximum;this.cameraRay.divideScalar(maximum);
+    let nearest=maximum;
+    const lateral=[0,.22,-.22,0,0];const vertical=[0,0,0,.18,-.18];
+    for(let index=0;index<lateral.length;index++){
+      this.cameraProbeOrigin.copy(focus).addScaledVector(right,lateral[index]).addScaledVector(this.cameraUp,vertical[index]);
+      this.raycaster.set(this.cameraProbeOrigin,this.cameraRay);this.raycaster.far=maximum;
+      const hit=this.raycaster.intersectObjects(this.islandMeshes,false).find((candidate)=>candidate.distance>.25);
+      if(hit)nearest=Math.min(nearest,hit.distance);
+    }
+    return nearest;
   }
 
   private syncPlayers(states: Array<BrPlayerSnapshotState | BrPlayerState>, relevanceSnapshot = false): void {
@@ -517,7 +557,8 @@ export class BattleRoyaleGame {
   private lookDirection(): THREE.Vector3 { return new THREE.Vector3(Math.sin(this.yaw) * Math.cos(this.pitch), Math.sin(this.pitch), -Math.cos(this.yaw) * Math.cos(this.pitch)).normalize(); }
   private aimPoint(): THREE.Vector3 { this.raycaster.set(this.camera.position, this.lookDirection()); this.raycaster.far=500; const hit = this.raycaster.intersectObjects(this.islandMeshes, false)[0]; return hit?.point ?? this.camera.position.clone().addScaledVector(this.lookDirection(), 80); }
   private shotSolution(player: BrPlayerState): { origin: Vec3; direction: Vec3; blocked: boolean } {
-    const origin = brMuzzlePosition(player.position, this.yaw, this.pitch);
+    const shotPosition=player.id===this.localId&&this.predictedMotion?this.predictedMotion.position:player.position;
+    const origin = brMuzzlePosition(shotPosition, this.yaw, this.pitch);
     const aimPoint = this.aimPoint();
     const direction = aimPoint.sub(vec(origin));
     const distance = Math.max(.001, direction.length());
@@ -566,7 +607,9 @@ export class BattleRoyaleGame {
     if (!this.predictedMotion) { this.predictedMotion = this.motionFromPlayer(authoritative); return; }
     const prediction = this.predictedMotion; const dx = authoritative.position.x - prediction.position.x; const dy = authoritative.position.y - prediction.position.y; const dz = authoritative.position.z - prediction.position.z; const error = Math.hypot(dx, dy, dz);
     const hardStateChange = prediction.deployment !== authoritative.deployment && (authoritative.deployment === "attached" || authoritative.deployment === "grounded" || authoritative.deployment === "eliminated");
-    if (error > 4.5 || hardStateChange) { this.predictedMotion = this.motionFromPlayer(authoritative); return; }
+    const snapped = error > 4.5 || hardStateChange;
+    if (import.meta.env.DEV) this.reconciliationTracker.record(error, snapped, performance.now());
+    if (snapped) { this.predictedMotion = this.motionFromPlayer(authoritative); return; }
     const correction = error > 1.25 ? .48 : error > .2 ? .22 : .08;
     prediction.position.x += dx * correction; prediction.position.y += dy * correction; prediction.position.z += dz * correction;
     prediction.velocity.x += (authoritative.velocity.x - prediction.velocity.x) * .25; prediction.velocity.y += (authoritative.velocity.y - prediction.velocity.y) * .25; prediction.velocity.z += (authoritative.velocity.z - prediction.velocity.z) * .25;

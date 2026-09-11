@@ -1,5 +1,5 @@
 import "./style.css";
-import { BALANCE, BR_MAP, BR_POIS, BR_ROADS, BR_WEAPONS, CHAOS_COPY, PLANET_PASS_REWARDS, SESSION_PROGRESSION, SHOP_CATALOG, WEAPON_COPY, WEAPON_ORDER, isBrWeapon, type BotDifficulty, type BrCrateState, type BrJoinResult, type BrLootState, type BrMatchResult, type BrRoomView, type BrTeamMode, type ChaosModifier, type CosmeticCategory, type GameFamily, type GameMode, type JoinResult, type MatchCalloutType, type MatchEvent, type MatchResult, type RoomView, type WeaponType } from "@planetfall/shared";
+import { BALANCE, BR_MAP, BR_POIS, BR_ROADS, BR_SECONDARY_LOCATIONS, BR_WEAPONS, CHAOS_COPY, PLANET_PASS_REWARDS, SESSION_PROGRESSION, SHOP_CATALOG, WEAPON_COPY, WEAPON_ORDER, isBrWeapon, type BotDifficulty, type BrCrateState, type BrJoinResult, type BrLootState, type BrMatchResult, type BrRoomView, type BrTeamMode, type ChaosModifier, type CosmeticCategory, type GameFamily, type GameMode, type JoinResult, type MatchCalloutType, type MatchEvent, type MatchResult, type RoomView, type WeaponType } from "@planetfall/shared";
 import { createGameSocket } from "./network";
 import { inputLabel, type InputMethod } from "./input";
 import { SETTINGS_STORAGE_KEY, parseStoredSettings, type UserSettings } from "./settings";
@@ -360,6 +360,7 @@ byId("br-map-close").addEventListener("click", () => toggleBrMap(false));
 byId("br-return-lobby").addEventListener("click", () => socket.emit("br:match:return"));
 byId("br-shop-results").addEventListener("click", openShop);
 byId("br-leave").addEventListener("click", () => location.reload());
+familyPlanetfallButton.disabled = false; familyBrButton.disabled = false;
 createButton.disabled = false; soloButton.disabled = false; joinButton.disabled = false; settingsOpenButton.disabled = false; shopHomeButton.disabled = false;
 
 function selectFamily(family: GameFamily): void {
@@ -598,7 +599,8 @@ function toggleBrMap(visible: boolean): void { brGame?.setMapVisible(visible); s
 function renderBrMap(player: BrRoomView["players"][number]): void {
   const map = byId("br-map-canvas"); const toPercent = (value: number) => 50 + value / BR_MAP.radius * 48;
   const roads=BR_ROADS.map((road)=>{const line=document.createElement("i");line.className="br-map-road";const startX=toPercent(road.from.x),startY=toPercent(road.from.z),endX=toPercent(road.to.x),endY=toPercent(road.to.z);line.style.left=`${startX}%`;line.style.top=`${startY}%`;line.style.width=`${Math.hypot(endX-startX,endY-startY)}%`;line.style.transform=`rotate(${Math.atan2(endY-startY,endX-startX)}rad)`;return line;});
-  map.replaceChildren(...roads,...BR_POIS.map((poi) => { const label = document.createElement("span"); label.className = "br-map-poi"; label.textContent = poi.name; label.style.left = `${toPercent(poi.position.x)}%`; label.style.top = `${toPercent(poi.position.z)}%`; label.style.setProperty("--poi-color", poi.color); return label; }));
+  const secondary=BR_SECONDARY_LOCATIONS.map((location)=>{const dot=document.createElement("i");dot.className="br-map-secondary";dot.style.left=`${toPercent(location.position.x)}%`;dot.style.top=`${toPercent(location.position.z)}%`;dot.title=location.name;return dot;});
+  map.replaceChildren(...roads,...secondary,...BR_POIS.map((poi) => { const label = document.createElement("span"); label.className = "br-map-poi"; label.textContent = poi.name; label.style.left = `${toPercent(poi.position.x)}%`; label.style.top = `${toPercent(poi.position.z)}%`; label.style.setProperty("--poi-color", poi.color); return label; }));
   if (brRoom) { const circle = document.createElement("i"); circle.className = "br-map-circle"; circle.style.left = `${toPercent(brRoom.storm.center.x)}%`; circle.style.top = `${toPercent(brRoom.storm.center.z)}%`; circle.style.width = `${brRoom.storm.radius / BR_MAP.radius * 96}%`; circle.style.height = circle.style.width; map.append(circle); }
   if (brRoom) { const next = document.createElement("i"); next.className = "br-map-circle next"; next.style.left = `${toPercent(brRoom.storm.nextCenter.x)}%`; next.style.top = `${toPercent(brRoom.storm.nextCenter.z)}%`; next.style.width = `${brRoom.storm.nextRadius / BR_MAP.radius * 96}%`; next.style.height = next.style.width; map.append(next); }
   if (brRoom?.ship) { const route = document.createElement("i"); route.className = "br-map-route"; const startX = toPercent(brRoom.ship.start.x); const startY = toPercent(brRoom.ship.start.z); const endX = toPercent(brRoom.ship.end.x); const endY = toPercent(brRoom.ship.end.z); route.style.left = `${startX}%`; route.style.top = `${startY}%`; route.style.width = `${Math.hypot(endX - startX, endY - startY)}%`; route.style.transform = `rotate(${Math.atan2(endY - startY, endX - startX)}rad)`; map.append(route); }

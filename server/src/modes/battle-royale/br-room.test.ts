@@ -49,7 +49,10 @@ describe("Battle Royale room", () => {
     room.update(1 / 30, start + BR_BALANCE.countdownMs + 1); expect(room.phase).toBe("ship"); expect(room.ship).not.toBeNull();
     expect(room.jumpFromShip(joined.playerId, start + BR_BALANCE.countdownMs + 10)).toBe(true);
     const player = room.players.get(joined.playerId)!; expect(player.deployment).toBe("freefall");
-    player.position = { x: 0, y: .1, z: 0 }; player.velocity = { x: 0, y: -5, z: 0 }; room.update(1 / 30, start + BR_BALANCE.countdownMs + 100); expect(player.deployment).toBe("grounded");
+    player.position = { x: 0, y: BR_BALANCE.shipHeight, z: 0 }; player.velocity = { x: 0, y: -5, z: 0 };
+    let descentNow=start+BR_BALANCE.countdownMs+100;
+    for(let tick=0;tick<750&&player.deployment!=="grounded";tick++){descentNow+=1000/30;room.update(1/30,descentNow);}
+    expect(player.deployment).toBe("grounded");expect(player.position.y).toBeGreaterThanOrEqual(0);expect(player.position.y).toBeLessThan(50);
     const loot = [...room.loot.values()][0]; loot.position = { ...player.position }; expect(room.pickup(player.id, loot.id)).toBe(true); expect(room.pickup(player.id, loot.id)).toBe(false); expect(room.loot.has(loot.id)).toBe(false);
     if (loot.itemId) expect(player.inventory.some((item) => item?.itemId === loot.itemId)).toBe(true);
     const inventoryBeforeReconnect = JSON.stringify(player.inventory); const ammoBeforeReconnect = { ...player.ammo };

@@ -4,6 +4,7 @@ import {
   BR_MAP_BLOCKS,
   BR_POIS,
   BR_ROADS,
+  BR_SECONDARY_LOCATIONS,
   BR_STRUCTURES,
   BR_TERRAIN_PATCHES,
   BR_TRAVERSAL,
@@ -42,6 +43,7 @@ export class BrWorldRenderer {
   private readonly districtDetails: DistrictDetail[] = [];
   private readonly animated: THREE.Object3D[] = [];
   private readonly energyMaterials: THREE.Material[] = [];
+  private readonly secondaryLabels:THREE.Sprite[]=[];
   private quality: GraphicsQuality;
   private disposed = false;
 
@@ -53,6 +55,7 @@ export class BrWorldRenderer {
     this.buildGameplayGeometry();
     this.buildArchitecture();
     this.buildDistricts();
+    this.buildSecondaryLocations();
     this.buildConnectiveDressing();
     this.buildTraversal();
     this.buildUnderside();
@@ -84,7 +87,11 @@ export class BrWorldRenderer {
   }
 
   update(camera: THREE.Camera, now: number): void {
-    const maxDetailDistance = this.quality === "high" ? 760 : this.quality === "medium" ? 390 : 235;
+    // Building silhouettes remain visible island-wide; only facade, signage and
+    // interior dressing are sector-activated. Keeping aerial views out of the
+    // near-detail tier prevents the Starliner sequence from rendering the whole
+    // settlement's interiors at once.
+    const maxDetailDistance = this.quality === "high" ? 340 : this.quality === "medium" ? 250 : 170;
     for (const detail of this.districtDetails) {
       const distance = camera.position.distanceTo(detail.center);
       const nextVisible = distance < maxDetailDistance + (detail.visible ? 36 : 0);
@@ -106,6 +113,7 @@ export class BrWorldRenderer {
       const material = this.energyMaterials[index] as THREE.MeshBasicMaterial;
       material.opacity = THREE.MathUtils.clamp(.45 + Math.sin(now * .002 + index * 1.7) * .16, .22, .76);
     }
+    for(const label of this.secondaryLabels){label.visible=camera.position.y<110&&camera.position.distanceTo(label.position)<175;}
   }
 
   dispose(): void {
@@ -119,6 +127,7 @@ export class BrWorldRenderer {
     this.districtDetails.length = 0;
     this.animated.length = 0;
     this.energyMaterials.length = 0;
+    this.secondaryLabels.length=0;
     this.root.clear();
   }
 
@@ -189,6 +198,9 @@ export class BrWorldRenderer {
   }
 
   private buildRoads(): void {
+    const roads: MatrixSpec[] = [];
+    const curbs: MatrixSpec[] = [];
+    const edgeLights: MatrixSpec[] = [];
     const dashMatrices: MatrixSpec[] = [];
     const lampPosts: MatrixSpec[] = [];
     const lampBulbs: MatrixSpec[] = [];
@@ -200,19 +212,12 @@ export class BrWorldRenderer {
       const pavedWidth = road.width * 1.66;
       const centerX = (road.from.x + road.to.x) / 2;
       const centerZ = (road.from.z + road.to.z) / 2;
-      const roadMesh = new THREE.Mesh(this.geometry(new THREE.BoxGeometry(length, .24, pavedWidth)), this.materials.get("road"));
-      roadMesh.position.set(centerX, .48, centerZ);
-      roadMesh.rotation.y = angle;
-      roadMesh.receiveShadow = true;
-      this.root.add(roadMesh);
+      roads.push({ position: position(centerX, .48, centerZ), scale: position(length, .24, pavedWidth), rotationY: angle });
       for (const side of [-1, 1]) {
-        const curb = new THREE.Mesh(this.geometry(new THREE.BoxGeometry(length, .3, 1.2)), this.materials.get("sidewalk"));
-        curb.position.set(0, .19, side * pavedWidth * .49);
-        roadMesh.add(curb);
-        const edgeLight = new THREE.Mesh(this.geometry(new THREE.BoxGeometry(length, .07, .18)), this.materials.get("energyCyan"));
-        edgeLight.position.set(0, .38, side * pavedWidth * .43);
-        edgeLight.userData.cameraCollision = false;
-        roadMesh.add(edgeLight);
+        const curbOffset = side * pavedWidth * .49;
+        const lightOffset = side * pavedWidth * .43;
+        curbs.push({ position: position(centerX + Math.sin(angle) * curbOffset, .67, centerZ + Math.cos(angle) * curbOffset), scale: position(length, .3, 1.2), rotationY: angle });
+        edgeLights.push({ position: position(centerX + Math.sin(angle) * lightOffset, .86, centerZ + Math.cos(angle) * lightOffset), scale: position(length, .07, .18), rotationY: angle });
       }
       const dashCount = Math.max(2, Math.floor(length / 12));
       for (let index = 0; index < dashCount; index++) {
@@ -234,6 +239,9 @@ export class BrWorldRenderer {
         }
       }
     }
+    this.addInstances(this.root, this.materials.unitBox, this.materials.get("road"), roads, false);
+    this.addInstances(this.root, this.materials.unitBox, this.materials.get("sidewalk"), curbs, false);
+    this.addInstances(this.root, this.materials.unitBox, this.materials.get("energyCyan"), edgeLights, false);
     this.addInstances(this.root, this.materials.unitBox, this.materials.get("sidewalk"), dashMatrices, false);
     this.addInstances(this.root, this.materials.unitBox, this.materials.get("structuralDark"), lampPosts, false);
     this.addInstances(this.root, this.materials.unitBox, this.materials.get("energyCyan"), lampBulbs, false);
@@ -242,6 +250,8 @@ export class BrWorldRenderer {
   private buildGameplayGeometry(): void {
     const batches = new Map<string, typeof BR_MAP_BLOCKS[number][]>();
     for (const block of BR_MAP_BLOCKS) {
+      const authoredVisible=block.kind==="platform"||block.kind==="ramp"||block.kind==="cover"||(block.kind==="wall"&&block.id.includes("-room-"));
+      if(!authoredVisible)continue;
       const materialKey = block.kind === "platform" || block.kind === "ramp" ? "interiorFloor" : block.kind === "cover" ? "paintedMetal" : "structuralWhite";
       const key = `${block.kind}:${materialKey}`;
       const batch = batches.get(key) ?? [];
@@ -262,7 +272,8 @@ export class BrWorldRenderer {
   }
 
   private buildArchitecture(): void {
-    for (const poi of BR_POIS) {
+    const allShells: MatrixSpec[] = [];
+    for (const poi of [...BR_POIS,...BR_SECONDARY_LOCATIONS]) {
       const group = new THREE.Group();
       group.name = `detail-${poi.id}`;
       const structures = BR_STRUCTURES.filter((structure) => structure.districtId === poi.id);
@@ -274,8 +285,9 @@ export class BrWorldRenderer {
       const doorFrames: MatrixSpec[] = [];
       const interiorProps: MatrixSpec[] = [];
       const railings: MatrixSpec[] = [];
+      const shells: MatrixSpec[] = [];
       for (const structure of structures) {
-        this.architectureMatrices(structure, columns, trims, windowsDark, windowsLit, roofUnits, doorFrames, interiorProps, railings);
+        this.architectureMatrices(structure, shells, columns, trims, windowsDark, windowsLit, roofUnits, doorFrames, interiorProps, railings);
         const signText = this.facadeSignText(structure);
         if (signText) {
           const sign = this.materials.createSign(signText, { border: poi.color });
@@ -289,6 +301,7 @@ export class BrWorldRenderer {
           sign.scale.set(8.5, 2.15, 1); group.add(sign);
         }
       }
+      allShells.push(...shells);
       this.addInstances(group, this.materials.unitBox, this.materials.get("structuralDark"), columns, false);
       this.addInstances(group, this.materials.unitBox, this.materials.accent(poi.color, .12), trims, false);
       this.addInstances(group, this.materials.unitBox, this.materials.get("windowDark"), windowsDark, false);
@@ -300,15 +313,29 @@ export class BrWorldRenderer {
       this.root.add(group);
       this.districtDetails.push({ group, center: position(poi.position.x, 0, poi.position.z), visible: true });
     }
+    this.addInstances(this.root, this.materials.unitBox, this.materials.get("structuralWhite"), allShells, true);
   }
 
   private architectureMatrices(
     structure: BrStructure,
+    shells: MatrixSpec[],
     columns: MatrixSpec[], trims: MatrixSpec[], darkWindows: MatrixSpec[], litWindows: MatrixSpec[],
     roofUnits: MatrixSpec[], doorFrames: MatrixSpec[], interiorProps: MatrixSpec[], railings: MatrixSpec[]
   ): void {
     const { x, z } = structure.position;
     const { x: width, y: height, z: depth } = structure.size;
+    const wall=.65,door=4.8;
+    const wallSpec=(px:number,pz:number,sx:number,sz:number)=>shells.push({position:position(px,height/2,pz),scale:position(sx,height,sz)});
+    if(!structure.enterable){wallSpec(x,z-depth/2,width,wall);wallSpec(x,z+depth/2,width,wall);wallSpec(x-width/2,z,wall,depth);wallSpec(x+width/2,z,wall,depth);}
+    else if(structure.entrance==="north"||structure.entrance==="south"){
+      wallSpec(x-width/2,z,wall,depth);wallSpec(x+width/2,z,wall,depth);
+      const doorZ=structure.entrance==="north"?z+depth/2:z-depth/2,backZ=structure.entrance==="north"?z-depth/2:z+depth/2;
+      wallSpec(x,backZ,width,wall);wallSpec(x-(width+door)/4,doorZ,(width-door)/2,wall);wallSpec(x+(width+door)/4,doorZ,(width-door)/2,wall);
+    }else{
+      wallSpec(x,z-depth/2,width,wall);wallSpec(x,z+depth/2,width,wall);
+      const doorX=structure.entrance==="east"?x+width/2:x-width/2,backX=structure.entrance==="east"?x-width/2:x+width/2;
+      wallSpec(backX,z,wall,depth);wallSpec(doorX,z-(depth+door)/4,wall,(depth-door)/2);wallSpec(doorX,z+(depth+door)/4,wall,(depth-door)/2);
+    }
     const gameplayFloorHeight = height / structure.floors;
     const visualLevels = structure.style === "industrial" || structure.style === "dock" ? Math.max(structure.floors, Math.round(height / 6)) : Math.max(structure.floors, Math.round(height / 4.4));
     const floorHeight = height / visualLevels;
@@ -412,6 +439,19 @@ export class BrWorldRenderer {
       railings.push({ position: position(x, balconyY + .72, frontZ + (structure.entrance === "north" ? .68 : -.68)), scale: position(width * .45, .12, .12) });
       for (const side of [-1, 1]) railings.push({ position: position(x + side * width * .225, balconyY + .72, frontZ), scale: position(.12, .12, 1.35) });
     }
+    if(structure.archetype==="shop"||structure.archetype==="transit"){
+      const northSouth=structure.entrance==="north"||structure.entrance==="south";
+      roofUnits.push({position:position(x+(structure.entrance==="east"?width/2+.7:structure.entrance==="west"?-width/2-.7:0),4.7,z+(structure.entrance==="north"?depth/2+.7:structure.entrance==="south"?-depth/2-.7:0)),scale:position(northSouth?Math.min(10,width*.58):1.5,.28,northSouth?1.5:Math.min(10,depth*.58))});
+    }else if(structure.archetype==="warehouse"||structure.archetype==="hangar"){
+      for(const side of [-1,1])trims.push({position:position(x+side*width*.31,height+.95,z),scale:position(Math.max(2,width*.14),1.9,depth*.65)});
+    }else if(structure.archetype==="utility"||structure.archetype==="lab"){
+      roofUnits.push({position:position(x,height+3.2,z),scale:position(.35,5.2,.35)});
+      trims.push({position:position(x,height+5.9,z),scale:position(3.5,.18,.18)});
+    }else if(structure.archetype==="greenhouse"){
+      trims.push({position:position(x,height+1.2,z),scale:position(width*.72,.28,depth*.72)});
+    }else if(structure.archetype==="tower"||structure.archetype==="hotel"){
+      roofUnits.push({position:position(x,height+3.1,z),scale:position(width*.42,3.8,depth*.4)});
+    }
   }
 
   private buildDistricts(): void {
@@ -437,6 +477,29 @@ export class BrWorldRenderer {
       this.poiLabels.push({ sprite: label, position: label.position.clone() });
       this.root.add(this.buildLandmark(poi));
       this.buildDistrictProps(poi);
+    }
+  }
+
+  private buildSecondaryLocations():void {
+    for(const location of BR_SECONDARY_LOCATIONS){
+      const group=new THREE.Group();group.name=`secondary-${location.id}`;
+      const pad=new THREE.Mesh(this.geometry(new THREE.CylinderGeometry(38,40,.22,18)),this.materials.get(location.style==="farm"||location.style==="academy"?"grass":"sidewalk"));
+      pad.position.set(location.position.x,.16,location.position.z);pad.receiveShadow=true;group.add(pad);
+      const title=this.materials.createSign(location.name,{border:location.color,subtitle:this.poiSubtitle(location)});title.name="secondary-title";title.position.set(location.position.x,8.5,location.position.z);title.scale.set(13,3.8,1);group.add(title);this.secondaryLabels.push(title);
+      const lamps:MatrixSpec[]=[],props:MatrixSpec[]=[],foliage:MatrixSpec[]=[];
+      for(let index=0;index<8;index++){
+        const angle=index/8*Math.PI*2,radius=index%2?34:29,x=location.position.x+Math.cos(angle)*radius,z=location.position.z+Math.sin(angle)*radius;
+        if(index%2===0)lamps.push({position:position(x,2.2,z),scale:position(.18,4.4,.18)});
+        if(location.style==="farm"||location.style==="academy"||location.style==="city")foliage.push({position:position(x,2.1,z),scale:position(1.4,3.2,1.4)});
+        else props.push({position:position(x,.85,z),scale:position(index%3===0?4.4:2.4,1.7,index%3===0?2.2:3.3),rotationY:angle});
+      }
+      this.addInstances(group,this.materials.unitBox,this.materials.get("structuralDark"),lamps,false);
+      this.addInstances(group,this.materials.unitBox,this.materials.get("cargoMetal"),props,false);
+      this.addInstances(group,this.geometry(new THREE.IcosahedronGeometry(1,1)),this.materials.get("grass"),foliage,false);
+      if(location.style==="industrial"||location.style==="dock")group.add(this.makeTurbine(location.position.x+10,location.position.z+8,location.color));
+      else if(location.style==="farm")group.add(this.makeGreenhouse(location.position.x+10,location.position.z+7,location.color));
+      else if(location.style==="city")group.add(this.makeHoverVehicle(location.position.x+8,location.position.z+24,.12,location.color));
+      this.root.add(group);this.districtDetails.push({group,center:position(location.position.x,0,location.position.z),visible:true});
     }
   }
 
@@ -752,7 +815,7 @@ export class BrWorldRenderer {
     parent.add(instances);
   }
 
-  private poiSubtitle(poi: BrPoi): string {
+  private poiSubtitle(poi: Pick<BrPoi,"style">): string {
     const subtitles: Record<BrPoi["style"], string> = {
       nexus: "ORBITAL ENERGY NEXUS", city: "CITY CORE", dock: "CARGO & TRANSIT", reactor: "SOLAR CONTAINMENT",
       academy: "RESEARCH CAMPUS", mall: "RETAIL CONCOURSE", farm: "LIFE SUPPORT", wreck: "IMPACT ZONE", industrial: "PROPULSION SYSTEMS"
@@ -766,7 +829,8 @@ export class BrWorldRenderer {
       "dock-hangar": "DOCK 07", "helios-core": "HELIOS", "astra-hall": "ASTRA", "void-anchor": "VOID MALL",
       "void-food-court": "FOOD COURT", "farm-processing": "GROW LAB", "crash-medbay": "MED BAY", "thruster-foundry": "THRUSTER WORKS"
     };
-    return signs[structure.id] ?? null;
+    const secondary=BR_SECONDARY_LOCATIONS.find((location)=>location.id===structure.districtId&&structure.id===`${location.id}-1`);
+    return signs[structure.id] ?? secondary?.name ?? null;
   }
 
   private isReservedForGameplay(x: number, z: number, districtId: string): boolean {

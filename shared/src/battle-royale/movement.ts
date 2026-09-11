@@ -37,6 +37,13 @@ export interface BrMotionResult extends BrMotionState {
 export interface BrCollisionResult { movement: Vec3; grounded: boolean; ceiling: boolean; crouched?: boolean; }
 export type BrCollisionResolver = (position: Vec3, desiredMovement: Vec3, options: { jumping: boolean; downed: boolean; crouched: boolean }) => BrCollisionResult;
 
+/** Moves a planar velocity toward its target without diagonal acceleration gain or overshoot. */
+export function brApproachPlanarVelocity(current:Vec3,target:Vec3,maximumDelta:number):Vec3 {
+  const dx=target.x-current.x,dz=target.z-current.z,distance=Math.hypot(dx,dz);
+  if(distance<=maximumDelta||distance<1e-8)return{x:target.x,y:current.y,z:target.z};
+  const scale=maximumDelta/distance;return{x:current.x+dx*scale,y:current.y,z:current.z+dz*scale};
+}
+
 export function brFloorHeightAt(position: Vec3, previousY: number): number {
   let floor = 0;
   for (const block of BR_MAP_BLOCKS) {
@@ -76,15 +83,16 @@ export function stepBrMovement(current: BrMotionState, input: BrMotionInput, raw
       state.velocity.x = state.velocity.x / speed * BR_BALANCE.slideInitialSpeed; state.velocity.z = state.velocity.z / speed * BR_BALANCE.slideInitialSpeed; state.slideEndsAt = now + BR_BALANCE.slideDurationMs;
     }
     state.lastCrouchSignal = crouchSignal;
-    const speed = state.downed ? 1.8 : state.crouched || input.crouch ? BR_BALANCE.crouchSpeed : input.sprint ? BR_BALANCE.sprintSpeed : BR_BALANCE.walkSpeed;
+    const sliding=state.slideEndsAt>now;
+    const speed = state.downed ? 1.8 : state.crouched || input.crouch || sliding ? BR_BALANCE.crouchSpeed : input.sprint ? BR_BALANCE.sprintSpeed : BR_BALANCE.walkSpeed;
     const acceleration = state.grounded ? BR_BALANCE.acceleration : BR_BALANCE.acceleration * BR_BALANCE.airControl;
     const desiredX = desired.x * speed * Math.min(1, magnitude); const desiredZ = desired.z * speed * Math.min(1, magnitude);
-    if (state.slideEndsAt > now) {
+    if (sliding) {
       const damping = Math.max(0, 1 - dt * 1.45); state.velocity.x *= damping; state.velocity.z *= damping;
       state.velocity.x += desiredX * dt * .18; state.velocity.z += desiredZ * dt * .18;
     } else {
-      state.velocity.x += brClamp(desiredX - state.velocity.x, -acceleration * dt, acceleration * dt);
-      state.velocity.z += brClamp(desiredZ - state.velocity.z, -acceleration * dt, acceleration * dt);
+      const approached=brApproachPlanarVelocity(state.velocity,{x:desiredX,y:state.velocity.y,z:desiredZ},acceleration*dt);
+      state.velocity.x=approached.x;state.velocity.z=approached.z;
     }
     const jumpSignal = Boolean(input.jump);
     if (jumpSignal && !state.lastJumpSignal) state.jumpBufferedUntil = now + BR_BALANCE.jumpBufferMs;
@@ -98,7 +106,7 @@ export function stepBrMovement(current: BrMotionState, input: BrMotionInput, raw
   const next = { x: state.position.x + desiredMovement.x, y: state.position.y + desiredMovement.y, z: state.position.z + desiredMovement.z };
   const wasAirborne = !state.grounded || state.deployment === "freefall" || state.deployment === "chute";
   if (resolveCollision) {
-    const collision = resolveCollision(state.position, desiredMovement, { jumping: state.velocity.y > .05, downed: state.downed, crouched: Boolean(input.crouch) || state.downed });
+    const collision = resolveCollision(state.position, desiredMovement, { jumping: state.velocity.y > .05, downed: state.downed, crouched: Boolean(input.crouch) || state.slideEndsAt>now || state.downed });
     next.x = state.position.x + collision.movement.x; next.y = state.position.y + collision.movement.y; next.z = state.position.z + collision.movement.z;
     state.crouched = collision.crouched ?? (Boolean(input.crouch) || state.downed);
     if (collision.grounded && state.velocity.y <= .05) {

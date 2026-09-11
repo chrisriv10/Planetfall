@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  BR_BALANCE, BR_BOT_DIFFICULTY, BR_CRATE_SOCKETS, BR_ISLAND_OUTLINE, BR_LOOT_SOCKETS, BR_MAP, BR_MAP_BLOCKS, BR_NAV_NODES, BR_POIS, BR_ROADS, BR_STORM_PHASES, BR_STRUCTURES, BR_TERRAIN_PATCHES, BR_WEAPONS, applyBrDamage, brHasStandingClearance, brMantleTopAt, brMuzzlePosition, brNextWaypoint, brPlayerHitDistance, brRarityDamage, brShipPath, isInsideBrIsland,
+  BR_BALANCE, BR_BOT_DIFFICULTY, BR_CRATE_SOCKETS, BR_ISLAND_OUTLINE, BR_LOOT_SOCKETS, BR_MAP, BR_MAP_BLOCKS, BR_NAV_NODES, BR_POIS, BR_ROADS, BR_SECONDARY_LOCATIONS, BR_STORM_PHASES, BR_STRUCTURES, BR_TERRAIN_PATCHES, BR_WEAPONS, applyBrDamage, brApproachPlanarVelocity, brHasStandingClearance, brMantleTopAt, brMuzzlePosition, brNextWaypoint, brPlayerHitDistance, brRarityDamage, brShipPath, isInsideBrIsland,
   createEmptyBrInventory, raySphereDistance, reloadBrItem, stepBrMovement, stormContains, type BrInventoryItem, type BrMotionState
 } from "./index.js";
 
@@ -55,9 +55,11 @@ describe("Battle Royale shared rules", () => {
 
   it("builds one authored island with nine distinct connected districts and enterable structures", () => {
     expect(BR_POIS).toHaveLength(9);
+    expect(BR_SECONDARY_LOCATIONS).toHaveLength(30);
     expect(BR_ISLAND_OUTLINE.length).toBeGreaterThanOrEqual(16);
-    expect(BR_STRUCTURES.length).toBeGreaterThanOrEqual(60);
-    expect(BR_ROADS.length).toBeGreaterThanOrEqual(16);
+    expect(BR_STRUCTURES).toHaveLength(152);
+    expect(BR_STRUCTURES.filter((structure)=>structure.enterable)).toHaveLength(70);
+    expect(BR_ROADS.length).toBeGreaterThanOrEqual(46);
     expect(BR_TERRAIN_PATCHES.length).toBeGreaterThanOrEqual(BR_POIS.length);
     for (const poi of BR_POIS) {
       const structures = BR_STRUCTURES.filter((structure) => structure.districtId === poi.id);
@@ -69,13 +71,15 @@ describe("Battle Royale shared rules", () => {
       expect(structures.some((structure) => structure.roofAccess)).toBe(true);
       expect(isInsideBrIsland(poi.position)).toBe(true);
     }
+    for(const location of BR_SECONDARY_LOCATIONS){expect(isInsideBrIsland(location.position)).toBe(true);expect(BR_STRUCTURES.filter((structure)=>structure.districtId===location.id)).toHaveLength(3);}
+    for(const structure of BR_STRUCTURES){expect(isInsideBrIsland(structure.position)).toBe(true);for(const [sx,sz] of [[-1,-1],[-1,1],[1,-1],[1,1]] as const)expect(isInsideBrIsland({x:structure.position.x+sx*structure.size.x/2,y:0,z:structure.position.z+sz*structure.size.z/2})).toBe(true);}
     expect(BR_MAP_BLOCKS.filter((block)=>block.kind==="ramp").length).toBeGreaterThanOrEqual(15);
     for(const patch of BR_TERRAIN_PATCHES) expect(isInsideBrIsland(patch.position)).toBe(true);
   });
 
   it("keeps every district connected and places loot in authored playable structures",()=>{
     const visited=new Set<string>([BR_NAV_NODES[0].id]),queue=[BR_NAV_NODES[0].id];while(queue.length){const current=queue.shift()!;const node=BR_NAV_NODES.find((entry)=>entry.id===current)!;for(const next of node.neighbors)if(!visited.has(next)){visited.add(next);queue.push(next);}}
-    expect(visited.size).toBe(BR_POIS.length);expect(BR_LOOT_SOCKETS.length).toBeGreaterThan(BR_STRUCTURES.length);expect(BR_CRATE_SOCKETS).toHaveLength(BR_POIS.length);
+    expect(visited.size).toBe(BR_NAV_NODES.length);expect(BR_LOOT_SOCKETS.length).toBeGreaterThan(BR_STRUCTURES.filter((structure)=>structure.enterable).length);expect(BR_CRATE_SOCKETS).toHaveLength(BR_POIS.length+10);
     for(const socket of BR_LOOT_SOCKETS){expect(isInsideBrIsland(socket.position)).toBe(true);const structure=BR_STRUCTURES.find((entry)=>entry.id===socket.structureId)!;expect(structure).toBeTruthy();expect(Math.abs(socket.position.x-structure.position.x)).toBeLessThan(structure.size.x/2);expect(Math.abs(socket.position.z-structure.position.z)).toBeLessThan(structure.size.z/2);expect(socket.position.y).toBeGreaterThan(0);}
     for(const crate of BR_CRATE_SOCKETS)expect(isInsideBrIsland(crate)).toBe(true);
     for(const target of BR_POIS.slice(1))expect(isInsideBrIsland(brNextWaypoint(BR_POIS[0].position,target.position))).toBe(true);
@@ -99,6 +103,15 @@ describe("Battle Royale shared rules", () => {
     const falling: BrMotionState = { ...base, position: { x: 80, y: 20, z: 80 }, velocity: { x: 0, y: -10, z: 0 }, grounded: false, deployment: "freefall" };
     const chute = stepBrMovement(falling, { moveX: 0, moveY: 0, yaw: 0, jump: false, sprint: false, crouch: false }, .1, 2000);
     expect(chute.deployment).toBe("chute"); expect(chute.velocity.y).toBeGreaterThanOrEqual(-BR_BALANCE.chuteSpeed);
+  });
+
+  it("bounds planar acceleration and braking without diagonal gain or reversal",()=>{
+    const accelerated=brApproachPlanarVelocity({x:0,y:3,z:0},{x:10,y:3,z:10},3.4);
+    expect(Math.hypot(accelerated.x,accelerated.z)).toBeCloseTo(3.4,6);expect(accelerated.y).toBe(3);
+    const braked=brApproachPlanarVelocity({x:1,y:0,z:0},{x:0,y:0,z:0},3.4);
+    expect(braked.x).toBe(0);expect(braked.z).toBe(0);
+    const reversed=brApproachPlanarVelocity({x:2,y:0,z:0},{x:-7,y:0,z:0},1.2);
+    expect(reversed.x).toBeCloseTo(.8,6);expect(reversed.x).toBeGreaterThanOrEqual(0);
   });
 
   it("requires directional, reachable mantle geometry and standing head clearance", () => {

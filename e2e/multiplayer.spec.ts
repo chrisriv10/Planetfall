@@ -172,6 +172,10 @@ test("the home menu previews the Fallbucks shop", async ({ page }) => {
 test("Battle Royale creates an isolated room and enters the Starliner drop", async ({ page }) => {
   const browserErrors = collectBrowserErrors(page);
   await page.goto("/");
+  // Chromium's CI software renderer is intentionally kept on Low for this
+  // gameplay-state test; visual budgets are covered by the dedicated scene test.
+  await page.evaluate(() => localStorage.setItem("planetfall:settings:v1", JSON.stringify({ mouseSensitivity: 1, controllerSensitivity: 1, invertY: false, musicVolume: 0, sfxVolume: 0, cameraShake: "off", graphicsQuality: "low" })));
+  await page.reload();
   await page.getByLabel("Name").fill("Star Pilot");
   await page.locator("#family-br").click();
   await page.getByRole("button", { name: "Create BR Room" }).click();
@@ -185,13 +189,13 @@ test("Battle Royale creates an isolated room and enters the Starliner drop", asy
   await expect.poll(() => page.evaluate(() => (window as unknown as { __PLANETFALL_BR_DEBUG__?: () => { phase: string; players: unknown[]; crateCount: number } }).__PLANETFALL_BR_DEBUG__?.().phase), { timeout: 9000 }).toBe("ship");
   const state = await page.evaluate(() => (window as unknown as { __PLANETFALL_BR_DEBUG__: () => { players: unknown[]; crateCount: number; world:{shipVisible:boolean;islandObjects:number} } }).__PLANETFALL_BR_DEBUG__());
   expect(state.players).toHaveLength(10);
-  expect(state.crateCount).toBe(9);
+  expect(state.crateCount).toBeGreaterThanOrEqual(19);
   expect(state.world.shipVisible).toBe(true);
   expect(state.world.islandObjects).toBeGreaterThan(50);
   await expect.poll(() => page.evaluate(() => {
     const player = (window as unknown as { __PLANETFALL_BR_DEBUG__: () => { localPlayer: { position: Point } } }).__PLANETFALL_BR_DEBUG__().localPlayer;
     return Math.hypot(player.position.x, player.position.z);
-  }), { timeout: 20_000 }).toBeLessThan(250);
+  }), { timeout: 20_000 }).toBeLessThan(350);
   await takeControl(page);
   await page.keyboard.press("Space");
   await expect.poll(() => page.evaluate(() => (window as unknown as { __PLANETFALL_BR_DEBUG__: () => { localPlayer: { deployment: string } } }).__PLANETFALL_BR_DEBUG__().localPlayer.deployment)).toBe("freefall");
