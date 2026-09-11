@@ -30,6 +30,22 @@ function waitForRoom(socket: TestSocket, predicate: (room: BrRoomView) => boolea
 }
 
 describe("Battle Royale room", () => {
+  it("accepts owned lobby emotes after elimination but rejects locked and active-match emotes", async () => {
+    const { server, url } = await setup(); const host = await client(url); const joined = await createRoom(host, "Emoter"); if (!joined.ok) throw new Error(joined.error);
+    const room = server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom;
+    const player = room.players.get(joined.playerId)!; const now = Date.now(); player.alive = false;
+    room.playEmote(player.id, "wave", { x: 1, y: 0, z: 0 }, now);
+    expect(player.lastEmoteAt).toBe(now);
+    room.playEmote(player.id, "laugh", { x: 1, y: 0, z: 0 }, now + 1801);
+    expect(player.lastEmoteAt).toBe(now);
+    player.ownedCosmetics.push("laugh");
+    room.playEmote(player.id, "laugh", { x: 1, y: 0, z: 0 }, now + 1801);
+    expect(player.lastEmoteAt).toBe(now + 1801);
+    room.phase = "combat";
+    room.playEmote(player.id, "wave", { x: 1, y: 0, z: 0 }, now + 3602);
+    expect(player.lastEmoteAt).toBe(now + 1801);
+  });
+
   it("creates an isolated room, assigns authoritative teams, and fills to the target", async () => {
     const { server, url } = await setup(); const host = await client(url); const joined = await createRoom(host, "Chris");
     expect(joined.ok).toBe(true); if (!joined.ok) return;

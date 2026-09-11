@@ -1,5 +1,5 @@
 import "./style.css";
-import { BALANCE, BR_MAP, BR_POIS, BR_ROADS, BR_SECONDARY_LOCATIONS, BR_WEAPONS, CHAOS_COPY, PLANET_PASS_REWARDS, SESSION_PROGRESSION, SHOP_CATALOG, WEAPON_COPY, WEAPON_ORDER, isBrWeapon, type BotDifficulty, type BrCrateState, type BrJoinResult, type BrLootState, type BrMatchResult, type BrRoomView, type BrTeamMode, type ChaosModifier, type CosmeticCategory, type GameFamily, type GameMode, type JoinResult, type MatchCalloutType, type MatchEvent, type MatchResult, type RoomView, type WeaponType } from "@planetfall/shared";
+import { BALANCE, BR_MAP, BR_POIS, BR_ROADS, BR_SECONDARY_LOCATIONS, BR_WEAPONS, CHAOS_COPY, PLANET_PASS_REWARDS, SESSION_PROGRESSION, SHOP_CATALOG, WEAPON_COPY, WEAPON_ORDER, isBrWeapon, type BotDifficulty, type BrCrateState, type BrJoinResult, type BrLootState, type BrMatchResult, type BrRoomView, type BrTeamMode, type ChaosModifier, type CosmeticCategory, type EmoteType, type GameFamily, type GameMode, type JoinResult, type MatchCalloutType, type MatchEvent, type MatchResult, type RoomView, type WeaponType } from "@planetfall/shared";
 import { createGameSocket } from "./network";
 import { inputLabel, type InputMethod } from "./input";
 import { SETTINGS_STORAGE_KEY, parseStoredSettings, type UserSettings } from "./settings";
@@ -161,7 +161,7 @@ socket.on("player:landed", (payload) => {
 });
 socket.on("player:shoved", (payload) => game.shovePlayer(payload));
 socket.on("player:bumped", (payload) => game.bumpPlayer(payload));
-socket.on("player:emote", (payload) => game.playEmote(payload));
+socket.on("player:emote", (payload) => { game.playEmote(payload); showLobbyEmote(payload.playerId, payload.emote, "planetfall"); });
 socket.on("player:tethered", (payload) => game.playerTethered(payload));
 socket.on("social:high-five", (payload) => game.playHighFive(payload));
 socket.on("structure:sabotaged", (payload) => {
@@ -230,7 +230,7 @@ socket.on("br:player:revived", ({ playerId: targetId, reviverId }) => appendBrFe
 socket.on("br:player:eliminated", ({ playerId: targetId, attackerId, weaponId }) => { brGame?.eliminated(targetId); appendBrFeed(`${attackerId ? brName(attackerId) : "THE VOID"} eliminated ${brName(targetId)}${weaponId ? ` with ${BR_WEAPONS[weaponId].name}` : ""}`, "#ff6b8a"); });
 socket.on("br:kill-feed", () => undefined);
 socket.on("br:ping", ({ playerId: sourceId, position }) => { const source = brRoom?.players.find((player) => player.id === sourceId); brGame?.showPing(source?.name ?? "Pilot", position, source?.color ?? "#70f5ff"); showBrPing(brName(sourceId), position); });
-socket.on("br:emote", ({ playerId: sourceId, emote, startedAt }) => brGame?.playEmote(sourceId, emote, startedAt));
+socket.on("br:emote", ({ playerId: sourceId, emote, startedAt }) => { brGame?.playEmote(sourceId, emote, startedAt); showLobbyEmote(sourceId, emote, "battle-royale"); });
 socket.on("br:match:ended", (result) => showBrResults(result));
 
 game.onInput = (input) => socket.emit("player:input", input);
@@ -534,7 +534,7 @@ function renderBrLobby(): void {
   brTeamList.replaceChildren(...brRoom.teams.map((team, index) => {
     const card = document.createElement("article"); card.className = "br-team"; card.style.setProperty("--team-color", ["#70f5ff", "#ff6b8a", "#ffd84d", "#9d7bff"][index % 4]);
     const members = team.playerIds.map((id) => brRoom!.players.find((player) => player.id === id)).filter(Boolean);
-    card.innerHTML = `<header><span>CREW ${index + 1}</span><small>${members.length} PILOT${members.length === 1 ? "" : "S"}</small></header>${members.map((player) => `<div class="br-member" style="--member-color:${player!.color}"><i></i><span>${escapeHtml(player!.name)}${player!.isBot ? " · BOT" : ""}</span><small>${player!.ready ? "READY" : "WAIT"}</small></div>`).join("")}`;
+    card.innerHTML = `<header><span>CREW ${index + 1}</span><small>${members.length} PILOT${members.length === 1 ? "" : "S"}</small></header>${members.map((player) => `<div class="br-member" data-player-id="${player!.id}" style="--member-color:${player!.color}"><i></i><span>${escapeHtml(player!.name)}${player!.isBot ? " · BOT" : ""}</span><small>${player!.ready ? "READY" : "WAIT"}</small></div>`).join("")}`;
     return card;
   }));
   const me = brRoom.players.find((player) => player.id === playerId); brReadyButton.textContent = me?.ready ? "Ready ✓" : "Ready"; brStartButton.hidden = !isHost;
@@ -612,7 +612,7 @@ function renderLobby(): void {
   if (!room) return;
   byId("lobby-code").textContent = room.code;
   playerList.replaceChildren(...room.players.map((player) => {
-    const row = document.createElement("div"); row.className = "player-row";
+    const row = document.createElement("div"); row.className = "player-row"; row.dataset.playerId = player.id;
     row.style.setProperty("--player-color", player.color);
     const botBadge = player.isBot ? `<span class="bot-badge">BOT</span>` : "";
     const status = player.isBot ? "CPU PILOT" : player.id === room!.hostId ? "HOST" : player.connected ? "ONLINE" : "RECONNECTING";
@@ -964,6 +964,24 @@ function renderInputUi(method: InputMethod): void {
   byId("weapon-key").textContent = inputLabel("switchWeapon", method);
   byId("leaderboard-key").textContent = method === "gamepad" ? "VIEW" : "TAB";
   byId("lobby-emote-hint").querySelector("kbd")!.textContent = inputLabel("emote", method);
+  byId("br-lobby-emote-hint").querySelector("kbd")!.textContent = inputLabel("emote", method);
+}
+
+function showLobbyEmote(sourceId: string, emote: EmoteType, family: GameFamily): void {
+  const activeLobby = family === "battle-royale" ? currentScreen === "brLobby" : currentScreen === "lobby";
+  if (!activeLobby) return;
+  const root = family === "battle-royale" ? brTeamList : playerList;
+  const row = root.querySelector<HTMLElement>(`[data-player-id="${CSS.escape(sourceId)}"]`);
+  if (!row) return;
+  row.querySelector(".lobby-emote-burst")?.remove();
+  const badge = document.createElement("strong");
+  badge.className = "lobby-emote-burst";
+  badge.textContent = ({ wave: "WAVE", laugh: "LAUGH", point: "POINT", panic: "PANIC", taunt: "TAUNT", celebrate: "CELEBRATE" } satisfies Record<EmoteType, string>)[emote];
+  row.append(badge);
+  row.classList.remove("lobby-emoting");
+  void row.offsetWidth;
+  row.classList.add("lobby-emoting");
+  setTimeout(() => { badge.remove(); row.classList.remove("lobby-emoting"); }, 1450);
 }
 
 function captureUi(captured: boolean): void {

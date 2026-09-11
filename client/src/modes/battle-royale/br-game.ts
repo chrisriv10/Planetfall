@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import {
-  BR_BALANCE, BR_HEALS, BR_POIS, BR_WEAPONS, SHOP_CATALOG, brMuzzlePosition, isBrHeal, isBrWeapon, isInsideBrIsland, stepBrMovement,
+  BR_BALANCE, BR_HEALS, BR_POIS, BR_WEAPONS, FREE_EMOTES, SHOP_CATALOG, brMuzzlePosition, isBrHeal, isBrWeapon, isInsideBrIsland, stepBrMovement,
   type BrCrateState, type BrInput, type BrLootState, type BrPoi, type BrPlayerSnapshotState, type BrPlayerState, type BrProjectileState, type BrRoomView,
   type BrMotionState, type BrSnapshot, type BrWeaponId, type EmoteType, type Vec3
 } from "@planetfall/shared";
@@ -238,9 +238,9 @@ export class BattleRoyaleGame {
     this.spawnLoot(drops); this.audio.pickup();
   }
 
-  playEmote(playerId: string, emote: EmoteType, startedAt: number): void {
+  playEmote(playerId: string, emote: EmoteType, _startedAt: number): void {
     const visual = this.players.get(playerId); if (!visual) return;
-    visual.emote = emote; visual.emoteEndsAt = startedAt + 1600;
+    visual.emote = emote; visual.emoteEndsAt = performance.now() + 1600;
   }
 
   showPing(name: string, position: Vec3, color: string): void {
@@ -305,6 +305,14 @@ export class BattleRoyaleGame {
       if (frame.cancel.pressed) this.onMenuNavigate?.("back");
       this.onHud?.({ player: local, players: this.room?.players ?? [], playersRemaining: this.room?.playersRemaining ?? 0, teamsRemaining: this.room?.teamsRemaining ?? 0, storm: this.room!.storm, phase: this.room!.phase, prompt: "", reloadProgress: 0, useProgress: 0 }); return;
     }
+    if (this.room?.phase === "lobby" || this.room?.phase === "countdown" || this.room?.phase === "results") {
+      if (frame.menuY) this.onMenuNavigate?.(frame.menuY < 0 ? "up" : "down");
+      if (frame.menuX) this.onMenuNavigate?.(frame.menuX < 0 ? "left" : "right");
+      if (frame.confirm.pressed) this.onMenuNavigate?.("confirm");
+      if (frame.cancel.pressed) this.onMenuNavigate?.("back");
+      if (frame.emote.pressed) this.triggerEmote(local);
+      return;
+    }
     if (!local.alive) {
       if (frame.nextTarget.pressed || frame.switchWeapon.pressed) { this.cycleSpectator(1); this.onSpectateCycle?.(1); }
       if (frame.previousTarget.pressed) { this.cycleSpectator(-1); this.onSpectateCycle?.(-1); }
@@ -348,10 +356,7 @@ export class BattleRoyaleGame {
     if (downedTeammate) this.onRevive?.(downedTeammate.id, frame.interact.held); else if (frame.interact.released) this.onRevive?.("", false);
     if (frame.ping.pressed) { const point = this.aimPoint(); this.onPing?.({ x: point.x, y: point.y, z: point.z }); }
     if (frame.emote.pressed) {
-      const emotes: EmoteType[] = ["wave", "point", "celebrate", "laugh", "panic", "taunt"];
-      this.emoteIndex = (this.emoteIndex + 1) % emotes.length;
-      this.onEmote?.(emotes[this.emoteIndex], { x: lookDirection.x, y: lookDirection.y, z: lookDirection.z });
-      this.playEmote(this.localId, emotes[this.emoteIndex], Date.now());
+      this.triggerEmote(local, lookDirection);
     }
     const jumpKey = inputLabel("jump", frame.method); const interactKey = inputLabel("interact", frame.method);
     const selectedHeal=selectedItem&&isBrHeal(selectedItem.itemId)?BR_HEALS[selectedItem.itemId]:null;const healUsable=Boolean(selectedHeal&&(selectedHeal.hp>0?local.hp<BR_BALANCE.hp:local.shield<BR_BALANCE.shield));
@@ -362,6 +367,16 @@ export class BattleRoyaleGame {
       this.onInput?.({ sequence: ++this.sequence, dt: Math.min(.1, dt), moveX: frame.moveX, moveY: frame.moveY, yaw: this.yaw, pitch: this.pitch, jump: frame.jump.held, sprint: frame.burst.held, crouch: frame.crouch.held, fire: frame.fire.held, aim: frame.grapple.held, reload: frame.repair.held });
     }
     this.onHud?.({ player: local, players: this.room?.players ?? [], playersRemaining: this.room?.playersRemaining ?? 0, teamsRemaining: this.room?.teamsRemaining ?? 0, storm: this.room?.storm ?? ({ phaseIndex: 0, center: { x: 0, z: 0 }, radius: 0, nextCenter: { x: 0, z: 0 }, nextRadius: 0, stage: "waiting", stageEndsAt: null, damagePerSecond: 0 }), phase: this.room?.phase ?? "lobby", prompt: this.prompt, reloadProgress: this.reloadEndsAt > now ? 1 - (this.reloadEndsAt - now) / Math.max(1, this.reloadEndsAt - this.reloadStartedAt) : 0, useProgress: this.useEndsAt > now ? 1 - (this.useEndsAt - now) / Math.max(1, this.useEndsAt - this.useStartedAt) : 0 });
+  }
+
+  private triggerEmote(local: BrPlayerState, direction = this.lookDirection()): void {
+    const unlocked = SHOP_CATALOG.filter((item) => item.emote && local.ownedCosmetics.includes(item.id)).map((item) => item.emote!);
+    const emotes = [...new Set<EmoteType>([...FREE_EMOTES, ...unlocked])];
+    if (!emotes.length) return;
+    this.emoteIndex = (this.emoteIndex + 1) % emotes.length;
+    const emote = emotes[this.emoteIndex];
+    this.onEmote?.(emote, { x: direction.x, y: direction.y, z: direction.z });
+    this.playEmote(this.localId, emote, Date.now());
   }
 
   private selectSlot(slot: number): void { this.reloadEndsAt = 0; this.useEndsAt = 0; this.onSelectSlot?.(slot); if (this.localState) this.localState.selectedSlot = slot; }

@@ -767,6 +767,11 @@ describe("planet raids", () => {
     expect(room.playEmote(host.id, "laugh", { x: 1, y: 0, z: 0 }, now + BALANCE.emoteCooldownMs + 1)).toBe(false);
     host.ownedCosmetics.push("laugh");
     expect(room.playEmote(host.id, "laugh", { x: 1, y: 0, z: 0 }, now + BALANCE.emoteCooldownMs + 1)).toBe(true);
+    host.alive = false;
+    room.phase = "lobby";
+    expect(room.playEmote(host.id, "celebrate", { x: 0, y: 1, z: 0 }, now + BALANCE.emoteCooldownMs * 2 + 2)).toBe(true);
+    room.phase = "playing";
+    expect(room.playEmote(host.id, "wave", { x: 1, y: 0, z: 0 }, now + BALANCE.emoteCooldownMs * 3 + 3)).toBe(false);
   });
 
   it("authoritatively validates player grapple range, facing, reciprocal tug, and release", async () => {

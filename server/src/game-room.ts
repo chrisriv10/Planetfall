@@ -631,8 +631,10 @@ export class GameRoom {
 
   playEmote(playerId: string, emote: unknown, direction: unknown, now = Date.now()): boolean {
     const player = this.players.get(playerId);
-    if (!player?.alive || !isEmoteType(emote) || !isFiniteVec3(direction)) return false;
-    if (this.phase !== "lobby" && this.phase !== "countdown" && this.phase !== "playing" && this.phase !== "overtime" && this.phase !== "results") return false;
+    if (!player || !isEmoteType(emote) || !isFiniteVec3(direction)) return false;
+    const socialPhase = this.phase === "lobby" || this.phase === "countdown" || this.phase === "results";
+    const activePhase = this.phase === "playing" || this.phase === "overtime";
+    if ((!socialPhase && !activePhase) || (activePhase && !player.alive)) return false;
     const unlocked = FREE_EMOTES.includes(emote)
       || SHOP_CATALOG.some((item) => item.emote === emote && player.ownedCosmetics.includes(item.id));
     if (!unlocked || now - player.lastEmoteAt < BALANCE.emoteCooldownMs) return false;

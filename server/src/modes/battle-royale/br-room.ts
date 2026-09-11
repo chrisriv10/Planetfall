@@ -2,7 +2,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import type { Server, Socket } from "socket.io";
 import {
   BR_BALANCE, BR_BOT_DIFFICULTY, BR_CRATE_SOCKETS, BR_HEALS, BR_LOOT_SOCKETS, BR_MAP, BR_POIS, BR_RARITY_MULTIPLIER, BR_STARTING_AMMO, BR_STORM_PHASES, BR_WEAPONS,
-  DEFAULT_COSMETICS, PLAYER_COLORS, PLANET_PASS_REWARDS, SESSION_PROGRESSION, SHOP_CATALOG, applyBrDamage, brAimDirection, brClamp, brDistance2d, brItemMagazine, brMuzzlePosition, brNormalize,
+  DEFAULT_COSMETICS, FREE_EMOTES, PLAYER_COLORS, PLANET_PASS_REWARDS, SESSION_PROGRESSION, SHOP_CATALOG, applyBrDamage, brAimDirection, brClamp, brDistance2d, brItemMagazine, brMuzzlePosition, brNormalize,
   brBlocksNear, brNextWaypoint, brPlayerHitDistance, brRarityDamage, brShipPath, createEmptyBrInventory, isBrHeal, isBrWeapon, isInsideBrIsland,
   reloadBrItem, seededRandom, sessionLevelForXp, sessionXpInLevel, stepBrMovement, stormContains,
   type BotDifficulty, type BrCrateState, type BrInput, type BrInventoryItem, type BrItemId, type BrJoinResult, type BrLootState,
@@ -306,7 +306,10 @@ export class BattleRoyaleRoom {
 
   playEmote(playerId: string, emote: EmoteType, direction: Vec3, now = Date.now()): void {
     const player = this.players.get(playerId);
-    if (!player || !isFiniteVec3(direction) || now - player.lastEmoteAt < 1800 || !["wave", "laugh", "point", "panic", "taunt", "celebrate"].includes(emote)) return;
+    const socialPhase = this.phase === "lobby" || this.phase === "countdown" || this.phase === "results";
+    const activePhase = this.phase === "ship" || this.phase === "combat";
+    const unlocked = player && (FREE_EMOTES.includes(emote) || SHOP_CATALOG.some((item) => item.emote === emote && player.ownedCosmetics.includes(item.id)));
+    if (!player || !unlocked || !isFiniteVec3(direction) || now - player.lastEmoteAt < 1800 || (!socialPhase && !activePhase) || (activePhase && !player.alive)) return;
     player.lastEmoteAt = now; this.io.to(this.code).emit("br:emote", { playerId, emote, direction: brNormalize(direction), startedAt: now });
   }
 
