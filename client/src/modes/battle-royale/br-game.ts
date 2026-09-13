@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import {
-  BR_BALANCE, BR_HEALS, BR_POIS, BR_WEAPONS, FREE_EMOTES, SHOP_CATALOG, brMuzzlePosition, isBrHeal, isBrWeapon, isInsideBrIsland, stepBrMovement,
+  BR_BALANCE, BR_HEALS, BR_POIS, BR_SECONDARY_LOCATIONS, BR_WEAPONS, FREE_EMOTES, SHOP_CATALOG, brMuzzlePosition, brPickupDisposition, isBrHeal, isBrWeapon, isInsideBrIsland, stepBrMovement,
   type BrCrateState, type BrInput, type BrLootState, type BrPoi, type BrPlayerSnapshotState, type BrPlayerState, type BrProjectileState, type BrRoomView,
   type BrMotionState, type BrSnapshot, type BrWeaponId, type EmoteType, type Vec3
 } from "@planetfall/shared";
@@ -14,9 +14,12 @@ import { brCameraGeometry, brCameraMode } from "./br-camera";
 import { createBrBackdrop, createStarliner, createVoidStorm, updateStarliner, updateVoidStorm } from "./br-presentation";
 import { BrWorldRenderer, type BrPoiLabel } from "./br-world";
 import { brWeaponAccent, buildBrWeaponModel } from "./br-weapons";
+import { brActionTimer, brDamageBearing, brRecoilAfter, brSmoothFacing } from "./br-feedback";
+import { createBrReview } from "./br-review";
+import { BrLootLod } from "./br-loot-lod";
 
 type PlayerVisual = { group: THREE.Group; rig: THREE.Group; target: THREE.Vector3; label: THREE.Sprite; body: THREE.Mesh; helmet: THREE.Group; backpack: THREE.Group; suitMaterial: THREE.MeshStandardMaterial; lodDetails: THREE.Object3D[]; limbs: THREE.Group[]; wings: THREE.Group; weapon: THREE.Group; weaponId: BrWeaponId | null; state: BrPlayerSnapshotState; relevant: boolean; emote: EmoteType | null; emoteEndsAt: number };
-type LootVisual = { group: THREE.Group; state: BrLootState; baseY: number };
+type LootVisual = { group: BrLootLod; state: BrLootState; baseY: number };
 type CrateVisual = { group: THREE.Group; state: BrCrateState; baseY: number };
 type ProjectileVisual = { mesh: THREE.Mesh; target: THREE.Vector3; state: BrProjectileState; trail: THREE.Line; points: THREE.Vector3[] };
 
@@ -78,6 +81,8 @@ export class BattleRoyaleGame {
   private prompt = "";
   private reloadStartedAt = 0;
   private reloadEndsAt = 0;
+  private reloadConfirmed = false;
+  private useConfirmed = false;
   private useStartedAt = 0;
   private useEndsAt = 0;
   private spectatorTargetId: string | null = null;
@@ -116,6 +121,7 @@ export class BattleRoyaleGame {
   private readonly handleResize = () => this.resize();
   private readonly unsubscribeInputMethod: () => void;
   private readonly stormWall = createVoidStorm();
+  private review: ReturnType<typeof createBrReview> | null = null;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -133,7 +139,10 @@ export class BattleRoyaleGame {
     this.scene.fog = new THREE.FogExp2(0x07112c, .0014);
     this.unsubscribeInputMethod = this.input.subscribeMethodChange((method) => { if (this.active) this.onInputMethod?.(method); });
     this.buildScene();
-    if (import.meta.env.DEV) this.setDebugView(new URLSearchParams(location.search).get("brView"));
+    if (import.meta.env.DEV && new URLSearchParams(location.search).has("brView")) {
+      this.setDebugView(new URLSearchParams(location.search).get("brView"));
+      this.review=createBrReview(id=>this.setDebugView(id),quality=>this.setSettings({...this.settings,graphicsQuality:quality}));
+    }
     this.canvas.addEventListener("click", this.handleCanvasClick);
     addEventListener("resize", this.handleResize);
   }
@@ -145,7 +154,7 @@ export class BattleRoyaleGame {
     this.renderer.setAnimationLoop((now) => this.frame(now));
   }
 
-  deactivate(): void { this.active = false; this.renderer.setAnimationLoop(null); this.uiCaptured = false; this.mapVisible = false; document.exitPointerLock?.(); }
+  deactivate(): void { this.active = false; this.renderer.setAnimationLoop(null); this.uiCaptured = false; this.mapVisible = false; this.review?.dispose();this.review=null; document.exitPointerLock?.(); }
   reset(): void {
     for (const visual of this.players.values()) { this.scene.remove(visual.group); this.disposeObject(visual.group); }
     for (const visual of this.loot.values()) { this.scene.remove(visual.group); this.disposeObject(visual.group); }
@@ -154,6 +163,7 @@ export class BattleRoyaleGame {
     for (const ping of this.pings) { this.scene.remove(ping.group); this.disposeObject(ping.group); }
     this.players.clear(); this.loot.clear(); this.crates.clear(); this.projectiles.clear(); this.pings = []; this.localState = null; this.predictedMotion = null; this.spectatorTargetId = null; this.cameraInitialized=false;this.cameraBoom=6.15;
     this.reloadEndsAt = 0; this.useEndsAt = 0; this.lastFireRequestAt = 0;this.lastAnticipatedFireAt=0;
+    this.reloadConfirmed = false; this.useConfirmed = false;
     this.physics.reset(); this.reconciliationTracker.reset(); this.visitedPois.clear(); this.currentPoiId = ""; document.body.classList.remove("br-in-void");
   }
   dispose(): void { if (this.disposed) return; this.deactivate(); this.reset(); this.canvas.removeEventListener("click",this.handleCanvasClick); removeEventListener("resize",this.handleResize); this.unsubscribeInputMethod(); this.scene.remove(this.island,this.stormWall,this.backdrop,this.starliner,this.sun,this.sunTarget); this.world.dispose(); this.disposeObject(this.stormWall); this.disposeObject(this.backdrop); this.disposeObject(this.starliner); this.physics.dispose(); this.disposed=true; }
@@ -174,7 +184,21 @@ export class BattleRoyaleGame {
   getInputMethod(): InputMethod { return this.input.method; }
   setDebugView(poiId: string | null): void {
     if (!import.meta.env.DEV || !poiId) { this.debugCameraView = null; return; }
-    const poi = BR_POIS.find((entry) => entry.id === poiId); if (!poi) return;
+    // Repeatable review cameras live in clear streets/interiors, not inside a
+    // neighboring building. These never move the authoritative player.
+    const reviews: Record<string, [number[], number[]]> = {
+      "nova-street": [[-184, 2.7, -109], [-184, 7, -151]],
+      "nova-roof": [[-209, 40, -137], [-171, 20, -125]],
+      "mall-interior": [[-106, 2.7, 252], [-80, 5, 264]],
+      "helios-interior": [[252, 2.7, 67], [271, 8, 81]],
+      "crash-interior": [[-304, 2.7, -258], [-341, 4, -258]],
+      "foundry-interior": [[342, 2.7, -81], [350, 5, -61]],
+      "foundry-roof": [[342, 24.7, -60], [352, 28, -73]],
+      "aerial": [[-430, 520, 540], [0, 0, 0]]
+    };
+    const review = reviews[poiId];
+    if (review) { this.debugCameraView = {position:new THREE.Vector3(...review[0] as [number,number,number]),focus:new THREE.Vector3(...review[1] as [number,number,number])}; return; }
+    const poi = [...BR_POIS,...BR_SECONDARY_LOCATIONS].find((entry) => entry.id === poiId); if (!poi) return;
     const landmark = poi.style === "reactor" || poi.style === "nexus";
     const urban = poi.style === "city" || poi.style === "mall";
     const focus = new THREE.Vector3(poi.position.x, landmark ? 40 : urban ? 3.5 : 5, poi.position.z);
@@ -208,6 +232,17 @@ export class BattleRoyaleGame {
 
   applySnapshot(snapshot: BrSnapshot): void {
     this.localState = snapshot.localPlayer;
+    if (snapshot.actions) {
+      const now = performance.now();
+      const item = snapshot.localPlayer.inventory[snapshot.localPlayer.selectedSlot];
+      const reloadDuration = item && isBrWeapon(item.itemId) ? BR_WEAPONS[item.itemId].reloadMs : 0;
+      const useDuration = item && isBrHeal(item.itemId) ? BR_HEALS[item.itemId].durationMs : 0;
+      const eligible = snapshot.localPlayer.alive && !snapshot.localPlayer.downed && snapshot.localPlayer.deployment === "grounded";
+      const reload = brActionTimer(eligible ? snapshot.actions.reloadEndsAt : 0,snapshot.serverTime,now,this.reloadStartedAt,this.reloadEndsAt,reloadDuration,this.reloadConfirmed || !eligible);
+      const use = brActionTimer(eligible ? snapshot.actions.useEndsAt : 0,snapshot.serverTime,now,this.useStartedAt,this.useEndsAt,useDuration,this.useConfirmed || !eligible);
+      this.reloadStartedAt=reload.startedAt;this.reloadEndsAt=reload.endsAt;this.reloadConfirmed=reload.confirmed;
+      this.useStartedAt=use.startedAt;this.useEndsAt=use.endsAt;this.useConfirmed=use.confirmed;
+    }
     this.reconcilePrediction(snapshot.localPlayer);
     if (!this.room) return;
     if (snapshot.phase === "ship" && this.room.phase !== "ship") this.shipCameraStartedAt = performance.now();
@@ -224,7 +259,8 @@ export class BattleRoyaleGame {
 
   spawnLoot(states: BrLootState[]): void {
     for (const state of states) {
-      if (this.loot.has(state.id)) continue;
+      const existing = this.loot.get(state.id);
+      if (existing) { existing.state = state; continue; }
       const group = this.makeLoot(state); group.position.copy(vec(state.position)); this.scene.add(group);
       this.loot.set(state.id, { group, state, baseY: state.position.y });
     }
@@ -261,7 +297,7 @@ export class BattleRoyaleGame {
     const marker = new THREE.Mesh(new THREE.ConeGeometry(.32, .8, 6), new THREE.MeshBasicMaterial({ color, depthTest: false })); marker.position.y = 1.2; marker.rotation.z = Math.PI; group.add(marker);
     const label = this.makeLabel(`${name} · MOVE`, color, false); label.position.y = 2.1; label.scale.set(3.4, .85, 1); group.add(label);
     this.scene.add(group); this.pings.push({ group, expiresAt: performance.now() + 6000 });
-    while (this.pings.length > 8) { const old = this.pings.shift()!; this.scene.remove(old.group); }
+    while (this.pings.length > 8) { const old = this.pings.shift()!; this.scene.remove(old.group); this.disposeObject(old.group); }
   }
 
   weaponFired(payload: { playerId: string; weaponId: BrWeaponId; origin: Vec3; direction: Vec3; projectile?: BrProjectileState }): void {
@@ -278,7 +314,10 @@ export class BattleRoyaleGame {
       if (payload.weaponId === "plasma-launcher") this.audio.asteroid(); else if (payload.weaponId === "photon-shotgun" || payload.weaponId === "rail-laser") this.audio.rocket(); else this.audio.cannonTrigger(false);
     }
     if (!payload.projectile && payload.weaponId !== "energy-saber") {
-      const length = payload.weaponId === "rail-laser" ? 190 : payload.weaponId === "photon-shotgun" ? 42 : 85;
+      let length = Math.min(BR_WEAPONS[payload.weaponId].range, payload.weaponId === "rail-laser" ? 190 : payload.weaponId === "photon-shotgun" ? 42 : 85);
+      this.raycaster.set(vec(payload.origin), vec(payload.direction));this.raycaster.far=length;
+      const impact=this.raycaster.intersectObjects(this.islandMeshes,false)[0];
+      if(impact)length=Math.min(length,impact.distance);
       const geometry = new THREE.BufferGeometry().setFromPoints([vec(payload.origin), vec(payload.origin).addScaledVector(vec(payload.direction), length)]);
       const tracer = new THREE.Line(geometry, new THREE.LineBasicMaterial({ color, transparent: true, opacity: payload.weaponId === "rail-laser" ? .95 : .6 })); this.scene.add(tracer);
       setTimeout(() => { this.scene.remove(tracer); geometry.dispose(); (tracer.material as THREE.Material).dispose(); }, payload.weaponId === "rail-laser" ? 125 : 55);
@@ -295,7 +334,12 @@ export class BattleRoyaleGame {
       setTimeout(() => { if (this.players.has(payload.playerId)) { material.emissive.setHex(0x000000); material.emissiveIntensity = 1; } }, 95);
     }
     if(payload.attackerId===this.localId){const crosshair=document.getElementById("br-crosshair");crosshair?.classList.toggle("shield-break",payload.shieldBroken);crosshair?.classList.add("hit");setTimeout(()=>crosshair?.classList.remove("hit","shield-break"),110);}
-    if (payload.playerId === this.localId) { this.audio.incoming(payload.amount >= 35); this.input.vibrate(120, Math.min(.7, payload.amount / 80)); const indicator=document.getElementById("br-damage-direction");if(indicator&&payload.direction){const angle=Math.atan2(payload.direction.x,-payload.direction.z)-this.yaw;indicator.style.setProperty("--damage-angle",`${angle}rad`);indicator.classList.add("visible");setTimeout(()=>indicator.classList.remove("visible"),520);} }
+    if (payload.playerId === this.localId) {
+      this.audio.incoming(payload.amount >= 35); this.input.vibrate(120, Math.min(.7, payload.amount / 80));
+      const indicator=document.getElementById("br-damage-direction");
+      const angle=payload.direction?brDamageBearing(payload.direction,this.yaw):null;
+      if(indicator&&angle!==null){indicator.style.setProperty("--damage-angle",`${angle}rad`);indicator.classList.add("visible");setTimeout(()=>indicator.classList.remove("visible"),520);}
+    }
   }
 
   eliminated(playerId: string): void { const visual = this.players.get(playerId); if (visual) { this.playEnergyBurst(visual.group.position, new THREE.Color(visual.state.color).getHex(), 1.9); visual.group.visible = false; } }
@@ -306,6 +350,10 @@ export class BattleRoyaleGame {
     const frame = this.input.sample(); this.processInput(frame, dt, now);
     this.updatePlayers(dt, now); this.updateLoot(now); this.updateCrates(now); this.updateProjectiles(); this.updatePings(now); this.updateCamera(dt); this.updateShip(); this.updateStorm(now); this.updateWorldPresentation(now);
     this.renderer.render(this.scene, this.camera);
+    this.review?.frame(now,()=>{
+      const stats=this.world.debugStats();
+      return {calls:this.renderer.info.render.calls,triangles:this.renderer.info.render.triangles,textures:this.renderer.info.memory.textures,materials:stats.materials,instances:stats.visibleInstances};
+    });
   }
 
   private processInput(frame: InputFrame, dt: number, now: number): void {
@@ -326,7 +374,11 @@ export class BattleRoyaleGame {
       if (frame.emote.pressed) this.triggerEmote(local);
       return;
     }
+    const mouseScale = .0022 * this.settings.mouseSensitivity; const padScale = 2.2 * this.settings.controllerSensitivity * dt * (local.alive ? this.controllerAimFriction() : 1);
+    const scale = frame.method === "gamepad" ? padScale : mouseScale;
+    this.yaw -= frame.lookX * scale; this.pitch -= frame.lookY * scale * (this.settings.invertY ? -1 : 1); this.pitch = THREE.MathUtils.clamp(this.pitch, -.75, 1.15);
     if (!local.alive) {
+      this.aiming = false;
       if (frame.nextTarget.pressed || frame.switchWeapon.pressed) { this.cycleSpectator(1); this.onSpectateCycle?.(1); }
       if (frame.previousTarget.pressed) { this.cycleSpectator(-1); this.onSpectateCycle?.(-1); }
       if (frame.pause.pressed || frame.cancel.pressed) this.onPause?.();
@@ -334,9 +386,6 @@ export class BattleRoyaleGame {
       this.onHud?.({ player: local, players: this.room?.players ?? [], playersRemaining: this.room?.playersRemaining ?? 0, teamsRemaining: this.room?.teamsRemaining ?? 0, storm: this.room!.storm, phase: this.room!.phase, prompt: this.prompt, reloadProgress: 0, useProgress: 0 });
       return;
     }
-    const mouseScale = .0022 * this.settings.mouseSensitivity; const padScale = 2.2 * this.settings.controllerSensitivity * dt * this.controllerAimFriction();
-    const scale = frame.method === "gamepad" ? padScale : mouseScale;
-    this.yaw -= frame.lookX * scale; this.pitch -= frame.lookY * scale * (this.settings.invertY ? -1 : 1); this.pitch = THREE.MathUtils.clamp(this.pitch, -.75, 1.15);
     this.aiming = frame.grapple.held;
     if (frame.pause.pressed || frame.cancel.pressed) this.onPause?.();
     this.predictLocal(frame, dt, now);
@@ -344,7 +393,15 @@ export class BattleRoyaleGame {
     if (frame.directSlot !== null) this.selectSlot(frame.directSlot);
     if (frame.switchWeapon.pressed || (frame.nextTarget.pressed && !frame.repair.pressed)) this.selectSlot((local.selectedSlot + 1) % BR_BALANCE.inventorySlots);
     if (frame.previousTarget.pressed) this.selectSlot((local.selectedSlot + BR_BALANCE.inventorySlots - 1) % BR_BALANCE.inventorySlots);
-    if (frame.repair.pressed) { const item = local.inventory[local.selectedSlot]; if (item && isBrWeapon(item.itemId)) { const weapon=BR_WEAPONS[item.itemId];if(weapon.ammo&&item.magazine<weapon.magazine&&local.ammo[weapon.ammo]>0&&this.reloadEndsAt<=now&&this.useEndsAt<=now){this.reloadStartedAt = now; this.reloadEndsAt = now + weapon.reloadMs; this.onReload?.();} } }
+    if (frame.repair.pressed && !local.downed && local.deployment === "grounded") {
+      const item = local.inventory[local.selectedSlot];
+      if (item && isBrWeapon(item.itemId)) {
+        const weapon=BR_WEAPONS[item.itemId];
+        if(weapon.ammo&&item.magazine<weapon.magazine&&local.ammo[weapon.ammo]>0&&this.reloadEndsAt<=now&&this.useEndsAt<=now){
+          this.reloadConfirmed=false;this.reloadStartedAt=now;this.reloadEndsAt=now+weapon.reloadMs;this.onReload?.();
+        }
+      }
+    }
     if (frame.jump.pressed) {
       if (local.deployment === "attached") this.onJumpShip?.(); else if (local.deployment === "freefall") this.onDeploy?.();
     }
@@ -358,13 +415,14 @@ export class BattleRoyaleGame {
       if ((!weapon.ammo || selectedItem.magazine > 0) && now - this.lastFireRequestAt >= interval * .88) { this.lastFireRequestAt = now;this.lastAnticipatedFireAt=now;const shooter=this.players.get(this.localId);if(shooter)shooter.weapon.userData.recoil=.65;if(selectedItem.itemId==="plasma-launcher")this.audio.asteroid();else if(selectedItem.itemId==="photon-shotgun"||selectedItem.itemId==="rail-laser")this.audio.rocket();else this.audio.cannonTrigger(false); this.onFire?.(shot.origin, shot.direction, Date.now()); }
     }
     const interactionPosition = this.predictedMotion?.position ?? local.position;
-    const nearbyLoot = this.nearestLoot(interactionPosition);
+    const nearbyLoot = this.nearestLoot(interactionPosition,local);
+    const swapLoot = nearbyLoot && brPickupDisposition(local.inventory,local.ammo,nearbyLoot.state)==="swap";
     const nearbyCrate = this.nearestCrate(interactionPosition);
     const downedTeammate = this.nearestDownedTeammate(local);
     if (frame.interact.pressed && !downedTeammate) {
-      if (nearbyLoot) this.onPickup?.(nearbyLoot.state.id);
+      if (nearbyLoot) this.onPickup?.(nearbyLoot.state.id,swapLoot ? local.selectedSlot : undefined);
       else if (nearbyCrate) this.onOpenCrate?.(nearbyCrate.state.id);
-      else if (selectedItem && isBrHeal(selectedItem.itemId)) { const heal=BR_HEALS[selectedItem.itemId];const usable=heal.hp>0?local.hp<BR_BALANCE.hp:local.shield<BR_BALANCE.shield;if(usable&&this.useEndsAt<=now&&this.reloadEndsAt<=now){this.useStartedAt = now; this.useEndsAt = now + heal.durationMs; this.onUseItem?.();} }
+      else if (selectedItem && isBrHeal(selectedItem.itemId) && !local.downed && local.deployment === "grounded") { const heal=BR_HEALS[selectedItem.itemId];const usable=heal.hp>0?local.hp<BR_BALANCE.hp:local.shield<BR_BALANCE.shield;if(usable&&this.useEndsAt<=now&&this.reloadEndsAt<=now){this.useConfirmed=false;this.useStartedAt = now; this.useEndsAt = now + heal.durationMs; this.onUseItem?.();} }
     }
     if (downedTeammate) this.onRevive?.(downedTeammate.id, frame.interact.held); else if (frame.interact.released) this.onRevive?.("", false);
     if (frame.ping.pressed) { const point = this.aimPoint(); this.onPing?.({ x: point.x, y: point.y, z: point.z }); }
@@ -373,7 +431,7 @@ export class BattleRoyaleGame {
     }
     const jumpKey = inputLabel("jump", frame.method); const interactKey = inputLabel("interact", frame.method);
     const selectedHeal=selectedItem&&isBrHeal(selectedItem.itemId)?BR_HEALS[selectedItem.itemId]:null;const healUsable=Boolean(selectedHeal&&(selectedHeal.hp>0?local.hp<BR_BALANCE.hp:local.shield<BR_BALANCE.shield));
-    this.prompt = local.deployment === "attached" ? `${jumpKey}  JUMP` : local.deployment === "freefall" ? `${jumpKey}  DEPLOY ION WINGS` : downedTeammate ? `HOLD ${interactKey}  REVIVE` : nearbyLoot ? `${interactKey}  PICK UP ${this.lootName(nearbyLoot.state)}` : nearbyCrate ? `${interactKey}  OPEN STAR CRATE` : selectedHeal&&healUsable ? `${interactKey}  USE ${selectedHeal.name}` : selectedItem && isBrWeapon(selectedItem.itemId) && selectedItem.itemId !== "energy-saber" && selectedItem.magazine === 0 ? `${inputLabel("repair", frame.method)}  RELOAD` : "";
+    this.prompt = local.deployment === "attached" ? `${jumpKey}  JUMP` : local.deployment === "freefall" ? `${jumpKey}  DEPLOY ION WINGS` : downedTeammate ? `HOLD ${interactKey}  REVIVE` : nearbyLoot ? `${interactKey}  ${swapLoot ? "SWAP HELD ITEM FOR" : "PICK UP"} ${this.lootName(nearbyLoot.state)}` : nearbyCrate ? `${interactKey}  OPEN STAR CRATE` : selectedHeal&&healUsable ? `${interactKey}  USE ${selectedHeal.name}` : selectedItem && isBrWeapon(selectedItem.itemId) && selectedItem.itemId !== "energy-saber" && selectedItem.magazine === 0 ? `${inputLabel("repair", frame.method)}  RELOAD` : "";
     this.inputAccumulator += dt;
     if (this.inputAccumulator >= 1 / BR_BALANCE.inputRate) {
       this.inputAccumulator %= 1 / BR_BALANCE.inputRate;
@@ -392,7 +450,7 @@ export class BattleRoyaleGame {
     this.playEmote(this.localId, emote, Date.now());
   }
 
-  private selectSlot(slot: number): void { this.reloadEndsAt = 0; this.useEndsAt = 0; this.onSelectSlot?.(slot); if (this.localState) this.localState.selectedSlot = slot; }
+  private selectSlot(slot: number): void { this.reloadEndsAt = 0; this.useEndsAt = 0; this.reloadConfirmed=false;this.useConfirmed=false; this.onSelectSlot?.(slot); if (this.localState) this.localState.selectedSlot = slot; }
 
   private updatePlayers(dt: number, now: number): void {
     for (const visual of this.players.values()) {
@@ -400,8 +458,10 @@ export class BattleRoyaleGame {
       visual.rig.visible = true;
       const displayTarget = visual.state.id === this.localId && this.predictedMotion ? this.temp.set(this.predictedMotion.position.x, this.predictedMotion.position.y, this.predictedMotion.position.z) : visual.target;
       visual.group.position.lerp(displayTarget, visual.state.id === this.localId ? Math.min(1, dt * 22) : Math.min(1, dt * 10));
-      visual.group.rotation.y = THREE.MathUtils.lerp(visual.group.rotation.y, visual.state.yaw, Math.min(1, dt * 10));
-      const speed = Math.hypot(visual.state.velocity.x, visual.state.velocity.z); const run = Math.sin(now * .012 * Math.max(1, speed));
+      visual.group.rotation.y = brSmoothFacing(visual.group.rotation.y, visual.state.yaw, dt);
+      const speed = Math.hypot(visual.state.velocity.x, visual.state.velocity.z);
+      const phase=(Number(visual.group.userData.gaitPhase??0)+speed*dt*2.9)%(Math.PI*2);
+      visual.group.userData.gaitPhase=phase;const run=Math.sin(phase);
       visual.limbs.forEach((limb, index) => { limb.rotation.x = run * .65 * (index % 2 ? -1 : 1) * Math.min(1, speed / 5); limb.rotation.z = THREE.MathUtils.lerp(limb.rotation.z, 0, Math.min(1, dt * 15)); });
       if (visual.state.deployment === "freefall") { visual.limbs[0].rotation.z = .72; visual.limbs[1].rotation.z = -.72; visual.limbs[2].rotation.x = .34; visual.limbs[3].rotation.x = .34; }
       else if (visual.state.deployment === "chute") { visual.limbs[0].rotation.z = .42; visual.limbs[1].rotation.z = -.42; visual.limbs[2].rotation.x = -.16; visual.limbs[3].rotation.x = -.16; }
@@ -421,13 +481,20 @@ export class BattleRoyaleGame {
       visual.wings.visible = visual.state.deployment === "chute";
       if(visual.wings.visible){visual.wings.scale.x=1+Math.sin(now*.008)*.045;visual.wings.rotation.z=Math.sin(now*.004)*.025;}
       const playerDistance=this.camera.position.distanceTo(visual.group.position);const detailDistance=this.settings.graphicsQuality==="low"?18:this.settings.graphicsQuality==="medium"?36:58;for(const detail of visual.lodDetails)detail.visible=visual.state.id===this.localId||playerDistance<detailDistance;
-      this.updateHeldWeapon(visual);
+      this.updateHeldWeapon(visual, dt);
       visual.label.visible = visual.state.id !== this.localId && playerDistance < 145;
       const labelScale = THREE.MathUtils.clamp(playerDistance * .012, 1.5, 3.8); visual.label.scale.set(labelScale * 2.6, labelScale, 1);
     }
   }
 
-  private updateLoot(now: number): void { for (const visual of this.loot.values()) { visual.group.rotation.y += .012; visual.group.position.y = visual.baseY + Math.sin(now * .002 + this.hash(visual.state.id)) * .15; const beam=visual.group.getObjectByName("loot-beam");if(beam)beam.visible=this.camera.position.distanceTo(visual.group.position)<(this.settings.graphicsQuality==="low"?26:this.settings.graphicsQuality==="medium"?48:72); } }
+  private updateLoot(now: number): void {
+    for (const visual of this.loot.values()) {
+      const phase = this.hash(visual.state.id);
+      visual.group.rotation.y = now * .00072 + phase;
+      visual.group.position.y = visual.baseY + Math.sin(now * .002 + phase) * .15;
+      visual.group.updateDetail(this.camera.position, this.settings.graphicsQuality);
+    }
+  }
   private updateCrates(now: number): void { for (const visual of this.crates.values()) { visual.group.rotation.y = Math.sin(now * .0007 + this.hash(visual.state.id)) * .08; visual.group.position.y = visual.baseY + Math.sin(now * .0015 + this.hash(visual.state.id)) * .05; } }
   private updateProjectiles(): void {
     for (const visual of this.projectiles.values()) {
@@ -439,7 +506,7 @@ export class BattleRoyaleGame {
       positions.needsUpdate = true; visual.trail.geometry.setDrawRange(0, visual.points.length);
     }
   }
-  private updatePings(now: number): void { for (let index = this.pings.length - 1; index >= 0; index--) { const ping = this.pings[index]; if (now < ping.expiresAt) { ping.group.position.y += Math.sin(now * .01) * .0015; continue; } this.scene.remove(ping.group); this.pings.splice(index, 1); } }
+  private updatePings(now: number): void { for (let index = this.pings.length - 1; index >= 0; index--) { const ping = this.pings[index]; if (now < ping.expiresAt) { ping.group.position.y += Math.sin(now * .01) * .0015; continue; } this.scene.remove(ping.group); this.disposeObject(ping.group); this.pings.splice(index, 1); } }
   private updateShip(): void {
     updateStarliner(this.starliner, this.room, performance.now());
     if (!this.starliner.visible || this.localState?.deployment === "attached") return;
@@ -450,7 +517,7 @@ export class BattleRoyaleGame {
   }
 
   private updateCamera(dt: number): void {
-    if (this.debugCameraView) { this.cameraInitialized=false;this.camera.position.lerp(this.debugCameraView.position, Math.min(1, dt * 4)); this.camera.up.set(0, 1, 0); this.camera.lookAt(this.debugCameraView.focus); this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, 60, Math.min(1, dt * 4)); this.camera.updateProjectionMatrix(); return; }
+    if (this.debugCameraView) { this.cameraInitialized=false;this.camera.position.copy(this.debugCameraView.position); this.camera.up.set(0, 1, 0); this.camera.lookAt(this.debugCameraView.focus); this.camera.fov = 60; this.camera.updateProjectionMatrix(); return; }
     if(this.room?.phase==="lobby"||this.room?.phase==="countdown"){
       this.cameraInitialized=false;const time=performance.now()*.000035;const focus=new THREE.Vector3(-25,0,15);const desired=new THREE.Vector3(Math.sin(time)*570,330,Math.cos(time)*570);this.camera.position.lerp(desired,Math.min(1,dt*2.2));this.camera.up.set(0,1,0);this.camera.lookAt(focus);this.camera.fov=THREE.MathUtils.lerp(this.camera.fov,58,Math.min(1,dt*3));this.camera.updateProjectionMatrix();return;
     }
@@ -563,13 +630,16 @@ export class BattleRoyaleGame {
     const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace; const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest, depthWrite: false })); sprite.renderOrder = 15; return sprite;
   }
 
-  private makeLoot(state: BrLootState): THREE.Group {
+  private makeLoot(state: BrLootState): BrLootLod {
     const group = new THREE.Group(); const color = rarityColor[state.rarity] ?? 0xffffff;
     if(state.itemId&&isBrWeapon(state.itemId)){this.buildWeaponModel(group,state.itemId,color);group.scale.setScalar(.92);}
     else if(state.ammoType){const ammoColor=state.ammoType==="light"?0x70f5ff:state.ammoType==="heavy"?0xffd84d:0xff6bba;const cell=new THREE.Mesh(new THREE.CylinderGeometry(.18,.18,.58,8),new THREE.MeshStandardMaterial({color:0x23344d,emissive:ammoColor,emissiveIntensity:.75,metalness:.6,roughness:.23}));cell.rotation.z=Math.PI/2;group.add(cell);for(const side of [-1,1]){const cap=new THREE.Mesh(new THREE.CylinderGeometry(.22,.22,.08,8),new THREE.MeshBasicMaterial({color:ammoColor}));cap.rotation.z=Math.PI/2;cap.position.x=side*.32;group.add(cap);}}
     else if(state.itemId&&isBrHeal(state.itemId)){const shield=state.itemId.startsWith("shield");const shell=new THREE.Mesh(shield?new THREE.CapsuleGeometry(.18,.38,4,8):new THREE.BoxGeometry(.58,.18,.42),new THREE.MeshStandardMaterial({color:shield?0x5adfff:0xf2f6ff,emissive:shield?0x176b8a:0x4a1723,emissiveIntensity:.45,metalness:.25,roughness:.34}));shell.rotation.z=shield?Math.PI/2:0;group.add(shell);if(!shield){const cross=new THREE.Mesh(new THREE.BoxGeometry(.32,.06,.1),new THREE.MeshBasicMaterial({color:0xff5f70}));cross.position.y=.13;group.add(cross);const crossB=cross.clone();crossB.rotation.y=Math.PI/2;group.add(crossB);}}
     else{const core=new THREE.Mesh(new THREE.OctahedronGeometry(.33,0),new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.28,metalness:.35,roughness:.25}));group.add(core);}
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(.55, .025, 5, 24), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .72 })); ring.rotation.x = Math.PI / 2; ring.position.y = -.24; group.add(ring);const beam=new THREE.Mesh(new THREE.CylinderGeometry(.035,.12,2.2,6,1,true),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.2,depthWrite:false,blending:THREE.AdditiveBlending}));beam.name="loot-beam";beam.position.y=1;group.add(beam);const shadow=new THREE.Mesh(new THREE.CircleGeometry(.42,14),new THREE.MeshBasicMaterial({color:0x02050b,transparent:true,opacity:.22,depthWrite:false}));shadow.rotation.x=-Math.PI/2;shadow.position.y=-.28;group.add(shadow);return group;
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(.55, .025, 5, 24), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .72 })); ring.rotation.x = Math.PI / 2; ring.position.y = -.24; group.add(ring);
+    const beam=new THREE.Mesh(new THREE.CylinderGeometry(.035,.12,2.2,6,1,true),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.2,depthWrite:false,blending:THREE.AdditiveBlending}));beam.name="loot-beam";beam.position.y=1;group.add(beam);
+    const shadow=new THREE.Mesh(new THREE.CircleGeometry(.42,14),new THREE.MeshBasicMaterial({color:0x02050b,transparent:true,opacity:.22,depthWrite:false}));shadow.rotation.x=-Math.PI/2;shadow.position.y=-.28;group.add(shadow);
+    return new BrLootLod(group, color);
   }
 
   private makeCrate(): THREE.Group {
@@ -595,7 +665,7 @@ export class BattleRoyaleGame {
     setTimeout(() => { this.scene.remove(group); this.disposeObject(group); }, 230);
   }
 
-  private nearestLoot(position: Vec3): LootVisual | null { let best: LootVisual | null = null; let distance: number = BR_BALANCE.pickupRange; for (const visual of this.loot.values()) { const next = visual.group.position.distanceTo(vec(position)); if (next < distance) { best = visual; distance = next; } } return best; }
+  private nearestLoot(position: Vec3, player:BrPlayerState): LootVisual | null { let best: LootVisual | null = null; let distance: number = BR_BALANCE.pickupRange; for (const visual of this.loot.values()) { if(brPickupDisposition(player.inventory,player.ammo,visual.state)==="full")continue;const next = Math.hypot(visual.state.position.x-position.x,visual.state.position.y-position.y,visual.state.position.z-position.z); if (next < distance) { best = visual; distance = next; } } return best; }
   private nearestCrate(position: Vec3): CrateVisual | null { let best: CrateVisual | null = null; let distance = 2.7; for (const visual of this.crates.values()) { const next = visual.group.position.distanceTo(vec(position)); if (next < distance) { best = visual; distance = next; } } return best; }
   private nearestDownedTeammate(local: BrPlayerState): BrPlayerSnapshotState | null { let best: BrPlayerSnapshotState | null = null; let distance: number = BR_BALANCE.reviveRange; for (const visual of this.players.values()) { const state = visual.state; if (!state.downed || state.teamId !== local.teamId || state.id === local.id) continue; const next = visual.group.position.distanceTo(vec(local.position)); if (next < distance) { best = state; distance = next; } } return best; }
   private lootName(state: BrLootState): string { if (state.itemId) return `${state.rarity.toUpperCase()} ${state.itemId.replaceAll("-", " ").toUpperCase()}`; return `${state.ammoType?.toUpperCase()} CELLS`; }
@@ -677,12 +747,13 @@ export class BattleRoyaleGame {
     return best > .995 ? .58 : best > .982 ? .8 : 1;
   }
 
-  private updateHeldWeapon(visual: PlayerVisual): void {
+  private updateHeldWeapon(visual: PlayerVisual, dt: number): void {
     const item = visual.state.heldItem;
-    visual.weapon.visible = Boolean(item && isBrWeapon(item.itemId));
+    visual.weapon.visible = Boolean(item && isBrWeapon(item.itemId) && !visual.state.downed && visual.state.deployment === "grounded");
+    if (!visual.weapon.visible) return;
     if (!item || !isBrWeapon(item.itemId)) { visual.weaponId=null; return; }
     if(visual.weaponId!==item.itemId){for(const child of [...visual.weapon.children]){visual.weapon.remove(child);this.disposeObject(child);}this.buildWeaponModel(visual.weapon,item.itemId,rarityColor[item.rarity]??0xffffff);visual.weaponId=item.itemId;}
-    const recoil=Number(visual.weapon.userData.recoil??0);visual.weapon.position.z=-.34+recoil*.16;visual.weapon.userData.recoil=Math.max(0,recoil-.15);
+    const recoil=Number(visual.weapon.userData.recoil??0);visual.weapon.position.z=-.34+recoil*.16;visual.weapon.userData.recoil=brRecoilAfter(recoil,dt);
     visual.limbs[0].rotation.x=THREE.MathUtils.lerp(visual.limbs[0].rotation.x,-.7,.45);visual.limbs[1].rotation.x=THREE.MathUtils.lerp(visual.limbs[1].rotation.x,-.92,.45);
   }
 
@@ -748,7 +819,9 @@ export class BattleRoyaleGame {
   private buildScene(): void {
     this.scene.background = new THREE.Color(0x020612);
     this.scene.fog = new THREE.FogExp2(0x0a1930, .00046);
-    const hemisphere = new THREE.HemisphereLight(0xbadfff, 0x171529, 1.72);
+    // Cool deck bounce keeps ceilings and the underside of stair flights
+    // readable without filling every room with dynamic point lights.
+    const hemisphere = new THREE.HemisphereLight(0xbadfff, 0x43556a, 1.72);
     this.sun.position.set(-230, 330, 155);
     this.sun.target = this.sunTarget;
     this.sun.castShadow = this.settings.graphicsQuality === "high";
@@ -760,7 +833,7 @@ export class BattleRoyaleGame {
     this.sun.shadow.camera.near = 25;
     this.sun.shadow.camera.far = 430;
     this.sun.shadow.bias = -.00018;
-    const rim = new THREE.DirectionalLight(0x756dff, 1.05);
+    const rim = new THREE.DirectionalLight(0x9dafff, .65);
     rim.position.set(310, 100, -260);
     this.scene.add(hemisphere, this.sun, this.sunTarget, rim, this.backdrop, this.island, this.stormWall, this.starliner);
     this.renderer.shadowMap.enabled = this.settings.graphicsQuality !== "low";

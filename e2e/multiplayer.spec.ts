@@ -370,9 +370,10 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
   await expect.poll(async () => (await debugState(host)).planets.find((planet) => planet.id === guestPlanetId)!.repairDisabledUntil, { timeout: 3000 }).toBeGreaterThan(Date.now());
   await expect(host.locator("#event-feed")).toContainText("Chris jammed Nova's repair");
   await expect.poll(async () => (await debugState(host)).matchStats.find((stats) => stats.playerId === hostPlayer.id)?.stolenScrap ?? 0, { timeout: 3000 }).toBeGreaterThanOrEqual(5);
-  await expect.poll(async () => (await debugState(host)).matchStats.find((stats) => stats.playerId === hostPlayer.id)).toMatchObject({
-    successfulShoves: 1, sabotagesCompleted: 1
-  });
+  // The shove retry loop above permits more than one successful shove while a
+  // snapshot is in flight. Require the action outcome, not exactly one retry.
+  await expect.poll(async () => (await debugState(host)).matchStats.find((stats) => stats.playerId === hostPlayer.id)?.successfulShoves ?? 0).toBeGreaterThanOrEqual(1);
+  await expect.poll(async () => (await debugState(host)).matchStats.find((stats) => stats.playerId === hostPlayer.id)?.sabotagesCompleted).toBe(1);
 
   await moveTo(host, (state) => state.launchPads.find((pad) => pad.planetId === guestPlanetId)!.position, 1.5);
   await expect(host.locator("#context-prompt")).toContainText(/LAUNCH/i);

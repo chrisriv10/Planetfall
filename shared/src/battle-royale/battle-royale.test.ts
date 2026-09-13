@@ -1,10 +1,29 @@
 import { describe, expect, it } from "vitest";
 import {
   BR_BALANCE, BR_BOT_DIFFICULTY, BR_CRATE_SOCKETS, BR_ISLAND_OUTLINE, BR_LOOT_SOCKETS, BR_MAP, BR_MAP_BLOCKS, BR_NAV_NODES, BR_POIS, BR_ROADS, BR_SECONDARY_LOCATIONS, BR_STORM_PHASES, BR_STRUCTURES, BR_TERRAIN_PATCHES, BR_WEAPONS, applyBrDamage, brApproachPlanarVelocity, brHasStandingClearance, brMantleTopAt, brMuzzlePosition, brNextWaypoint, brPlayerHitDistance, brRarityDamage, brShipPath, isInsideBrIsland,
-  createEmptyBrInventory, raySphereDistance, reloadBrItem, stepBrMovement, stormContains, type BrInventoryItem, type BrMotionState
+  brBlocksNear, brPickupDisposition, createEmptyBrInventory, raySphereDistance, reloadBrItem, stepBrMovement, stormContains, type BrInventoryItem, type BrMotionState
 } from "./index.js";
 
 describe("Battle Royale shared rules", () => {
+  it("preserves exact ordered collision candidates across cache cells and broad queries", () => {
+    for (let x = -600; x <= 600; x += 25) for (let z = -600; z <= 600; z += 25) {
+      for (const radius of [0, .6, 2.5, 8, 96]) {
+        const point = { x: x + .001, y: 0, z: z - .001 };
+        const original = BR_MAP_BLOCKS.filter(block => Math.abs(block.position.x-point.x)<=block.size.x/2+radius && Math.abs(block.position.z-point.z)<=block.size.z/2+radius);
+        expect(brBlocksNear(point, radius)).toEqual(original);
+      }
+    }
+  });
+  it("distinguishes stackable pickups, full ammo and an explicit inventory swap", () => {
+    const inventory=createEmptyBrInventory().map((_,index):BrInventoryItem=>({instanceId:`slot-${index}`,itemId:"pulse-rifle",rarity:"common",count:1,magazine:30}));
+    const ammo={light:999,heavy:0,plasma:0};const position={x:0,y:0,z:0};
+    expect(brPickupDisposition(inventory,ammo,{id:"ammo",ammoType:"light",rarity:"common",position,count:10})).toBe("full");
+    expect(brPickupDisposition(inventory,ammo,{id:"gun",itemId:"rail-laser",rarity:"rare",position,count:1})).toBe("swap");
+    inventory[2]={instanceId:"patch",itemId:"med-patch",rarity:"common",count:3,magazine:0};
+    expect(brPickupDisposition(inventory,ammo,{id:"heal",itemId:"med-patch",rarity:"common",position,count:2})).toBe("collect");
+    const empty=createEmptyBrInventory();
+    expect(brPickupDisposition(empty,ammo,{id:"gun",itemId:"rail-laser",rarity:"rare",position,count:1})).toBe("collect");
+  });
   it("applies combat damage to Shield before HP and storm damage directly to HP", () => {
     expect(applyBrDamage(100, 25, 50)).toEqual({ hp: 75, shield: 0, hpDamage: 25, shieldDamage: 25, shieldBroken: true });
     expect(applyBrDamage(100, 25, 50, true)).toEqual({ hp: 50, shield: 25, hpDamage: 50, shieldDamage: 0, shieldBroken: false });

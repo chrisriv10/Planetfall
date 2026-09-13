@@ -30,6 +30,62 @@ function waitForRoom(socket: TestSocket, predicate: (room: BrRoomView) => boolea
 }
 
 describe("Battle Royale room", () => {
+  it("preserves uncollected ammo and healing stack remainders", async () => {
+    const { server, url } = await setup(); const host = await client(url); const joined = await createRoom(host,"Stack conservation");if(!joined.ok)throw new Error(joined.error);
+    const room=server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom;
+    room.configure(joined.playerId,{targetPlayers:10,fillBots:true});room.setReady(joined.playerId,true);room.start(joined.playerId);room.phase="combat";
+    const player=room.players.get(joined.playerId)!;player.deployment="grounded";player.position={x:100,y:0,z:12};
+    player.ammo.light=995;
+    room.loot.set("ammo-remainder",{id:"ammo-remainder",ammoType:"light",count:10,rarity:"common",position:{...player.position}});
+    expect(room.pickup(player.id,"ammo-remainder")).toBe(true);
+    expect(player.ammo.light).toBe(999);expect(room.loot.get("ammo-remainder")?.count).toBe(6);
+    expect(room.pickup(player.id,"ammo-remainder")).toBe(false);
+    expect(room.loot.get("ammo-remainder")?.count).toBe(6);
+    player.inventory.fill(null);player.inventory[0]={instanceId:"patch-stack",itemId:"med-patch",rarity:"common",count:3,magazine:0};
+    room.loot.set("patch-remainder",{id:"patch-remainder",itemId:"med-patch",count:2,rarity:"common",position:{...player.position}});
+    expect(room.pickup(player.id,"patch-remainder")).toBe(true);
+    expect(player.inventory[0]?.count).toBe(4);expect(room.loot.get("patch-remainder")?.count).toBe(1);
+    expect(room.pickup(player.id,"patch-remainder")).toBe(true);
+    expect(player.inventory[1]?.count).toBe(1);expect(room.loot.has("patch-remainder")).toBe(false);
+    expect(room.pickup(player.id,"patch-remainder")).toBe(false);
+  });
+  it("replicates reload/heal deadlines and clears them on slot cancellation", async () => {
+    const { server, url } = await setup(); const host = await client(url); const joined = await createRoom(host, "Action sync"); if (!joined.ok) throw new Error(joined.error);
+    const room = server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom;
+    room.configure(joined.playerId, { teamMode: "solo", targetPlayers: 10, fillBots: true });room.setReady(joined.playerId,true);
+    const now=Date.now();room.start(joined.playerId,now);room.phase="combat";
+    const player=room.players.get(joined.playerId)!;player.deployment="grounded";player.position={x:100,y:0,z:12};
+    player.inventory[0]={instanceId:"reload-test",itemId:"pulse-rifle",rarity:"common",count:1,magazine:1};player.ammo.light=80;
+    player.inventory[1]={instanceId:"heal-test",itemId:"med-patch",rarity:"common",count:2,magazine:0};player.hp=60;
+    const actions = () => new Promise<NonNullable<import("@planetfall/shared").BrSnapshot["actions"]>>((resolve,reject)=>{
+      const timeout=setTimeout(()=>reject(new Error("action snapshot timeout")),2000);
+      host.once("br:match:snapshot",snapshot=>{clearTimeout(timeout);resolve(snapshot.actions!);});
+    });
+    expect(room.reload(player.id,now)).toBe(true);
+    let pending=actions();room.update(.08,now+80);
+    expect((await pending).reloadEndsAt).toBe(now+BR_WEAPONS["pulse-rifle"].reloadMs);
+    room.selectSlot(player.id,1);expect(room.useItem(player.id,now+90)).toBe(true);
+    pending=actions();room.update(.08,now+160);
+    expect(await pending).toEqual({reloadEndsAt:0,useEndsAt:player.useEndsAt});
+    room.selectSlot(player.id,0);pending=actions();room.update(.08,now+240);
+    expect(await pending).toEqual({reloadEndsAt:0,useEndsAt:0});
+    expect(player.inventory[1]?.count).toBe(2);expect(player.hp).toBe(60);
+  });
+  it("cancels timed actions when a pickup replaces or a drop removes their item", async () => {
+    const { server, url } = await setup();const host=await client(url);const joined=await createRoom(host,"Item identity");if(!joined.ok)throw new Error(joined.error);
+    const room=server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom;room.configure(joined.playerId,{targetPlayers:10,fillBots:true});room.setReady(joined.playerId,true);room.start(joined.playerId);room.phase="combat";
+    const player=room.players.get(joined.playerId)!;player.deployment="grounded";player.position={x:100,y:0,z:12};player.hp=50;
+    player.inventory=player.inventory.map((_,slot)=>({instanceId:`weapon-${slot}`,itemId:"pulse-rifle",rarity:"common",count:1,magazine:1}));
+    player.inventory[0]={instanceId:"using-patch",itemId:"med-patch",rarity:"common",count:1,magazine:0};
+    const now=Date.now();expect(room.useItem(player.id,now)).toBe(true);
+    room.loot.set("replacement-kit",{id:"replacement-kit",itemId:"med-kit",rarity:"common",count:1,position:{...player.position}});
+    expect(room.pickup(player.id,"replacement-kit",0)).toBe(true);
+    expect(player.useEndsAt).toBe(0);expect(player.useSlot).toBe(-1);expect(player.hp).toBe(50);
+    expect(player.inventory[0]?.itemId).toBe("med-kit");
+    expect([...room.loot.values()].filter(item=>item.itemId==="med-patch"&&item.position.x===player.position.x).some(item=>item.count===1)).toBe(true);
+    room.selectSlot(player.id,1);player.ammo.light=80;expect(room.reload(player.id,now)).toBe(true);
+    expect(room.drop(player.id,1)).toBe(true);expect(player.reloadEndsAt).toBe(0);expect(player.reloadSlot).toBe(-1);
+  });
   it("accepts owned lobby emotes after elimination but rejects locked and active-match emotes", async () => {
     const { server, url } = await setup(); const host = await client(url); const joined = await createRoom(host, "Emoter"); if (!joined.ok) throw new Error(joined.error);
     const room = server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom;

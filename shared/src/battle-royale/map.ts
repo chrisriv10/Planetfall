@@ -335,8 +335,24 @@ export function isInsideBrIsland(position: Vec3, margin = 0): boolean {
   return margin > 0 && Math.hypot(position.x,position.z) <= BR_MAP.radius+margin && distanceToOutline(position.x,position.z) <= margin;
 }
 
+// The map is immutable. Cache ordered candidates for the small clearance and
+// mantle queries executed by every character; broad sector construction queries
+// still use the complete map. Bound the cache to the island's surrounding cells.
+const localBlockCandidates = new Map<number, readonly BrMapBlock[]>();
 export function brBlocksNear(position: Vec3, radius = 8): BrMapBlock[] {
-  return BR_MAP_BLOCKS.filter((block) => Math.abs(block.position.x-position.x)<=block.size.x/2+radius && Math.abs(block.position.z-position.z)<=block.size.z/2+radius);
+  let candidates = BR_MAP_BLOCKS;
+  const cellX = Math.floor(position.x / 50), cellZ = Math.floor(position.z / 50);
+  if (radius >= 0 && radius <= 8 && cellX >= -11 && cellX <= 10 && cellZ >= -11 && cellZ <= 10) {
+    const key = (cellX + 11) * 22 + cellZ + 11;
+    let cached = localBlockCandidates.get(key);
+    if (!cached) {
+      const x = cellX * 50 + 25, z = cellZ * 50 + 25;
+      cached = BR_MAP_BLOCKS.filter(block => Math.abs(block.position.x-x)<=block.size.x/2+33 && Math.abs(block.position.z-z)<=block.size.z/2+33);
+      localBlockCandidates.set(key, cached);
+    }
+    candidates = cached;
+  }
+  return candidates.filter((block) => Math.abs(block.position.x-position.x)<=block.size.x/2+radius && Math.abs(block.position.z-position.z)<=block.size.z/2+radius);
 }
 
 /** Stable spatial partition used by both prediction and authority for movement queries. */

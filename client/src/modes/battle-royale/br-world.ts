@@ -14,13 +14,24 @@ import {
 } from "@planetfall/shared";
 import type { GraphicsQuality } from "../../settings";
 import { BrMaterialLibrary } from "./br-materials";
+import { buildFacadeParts, buildDistantFacadeParts, buildExteriorServiceParts } from "./br-facades";
+import { brRoadDetailClear } from "./br-road-detail";
+import { spinBrMachinery } from "./br-machinery";
+import { buildGrowhouseRoof } from "./br-growhouse";
+import { buildRetailInterior } from "./br-retail-interiors";
+import { buildInteriorSurfaces } from "./br-interior-surfaces";
+import { buildCargoCrane, buildIndustrialRoof } from "./br-industrial";
+import { buildWreckRoof, buildWreckInterior } from "./br-wreck";
+import { buildFoundryEngines } from "./br-foundry";
 
 export type BrPoiLabel = { sprite: THREE.Sprite; position: THREE.Vector3 };
 
 type DistrictDetail = {
   group: THREE.Group;
+  distant?: THREE.Group;
   center: THREE.Vector3;
   visible: boolean;
+  distanceScale?: number;
 };
 
 type MatrixSpec = {
@@ -73,8 +84,9 @@ export class BrWorldRenderer {
     });
   }
 
-  debugStats(): { objects: number; meshes: number; instances: number; materials: number; visibleDistricts: number } {
-    let objects = 0, meshes = 0, instances = 0; const materials = new Set<THREE.Material>();
+  debugStats(): { objects: number; meshes: number; instances: number; visibleInstances:number; materials: number; visibleDistricts: number } {
+    let objects = 0, meshes = 0, instances = 0, visibleInstances=0; const materials = new Set<THREE.Material>();
+    this.root.traverseVisible(object=>{if(object instanceof THREE.InstancedMesh)visibleInstances+=object.count;});
     this.root.traverse((object) => {
       objects++;
       if (object instanceof THREE.Mesh || object instanceof THREE.InstancedMesh) {
@@ -83,7 +95,7 @@ export class BrWorldRenderer {
         const source = object.material; for (const material of Array.isArray(source) ? source : [source]) materials.add(material);
       }
     });
-    return { objects, meshes, instances, materials: materials.size, visibleDistricts: this.districtDetails.filter((detail) => detail.group.visible).length };
+    return { objects, meshes, instances, visibleInstances, materials: materials.size, visibleDistricts: this.districtDetails.filter((detail) => detail.group.visible).length };
   }
 
   update(camera: THREE.Camera, now: number): void {
@@ -94,16 +106,17 @@ export class BrWorldRenderer {
     const maxDetailDistance = this.quality === "high" ? 340 : this.quality === "medium" ? 250 : 170;
     for (const detail of this.districtDetails) {
       const distance = camera.position.distanceTo(detail.center);
-      const nextVisible = distance < maxDetailDistance + (detail.visible ? 36 : 0);
+      const nextVisible = distance < maxDetailDistance * (detail.distanceScale ?? 1) + (detail.visible ? 36 : 0);
       if (nextVisible !== detail.visible) {
         detail.visible = nextVisible;
         detail.group.visible = nextVisible;
+        if (detail.distant) detail.distant.visible = !nextVisible;
       }
     }
     for (let index = 0; index < this.animated.length; index++) {
       const object = this.animated[index];
       const speed = Number(object.userData.rotationSpeed ?? .0002);
-      object.rotation.y = now * speed + Number(object.userData.rotationOffset ?? 0);
+      spinBrMachinery(object, now * speed + Number(object.userData.rotationOffset ?? 0), object.userData.rotationAxis ?? "y");
       if (object.userData.pulse) {
         const base = Number(object.userData.baseScale ?? 1);
         object.scale.setScalar(base + Math.sin(now * .0024 + index) * .035);
@@ -151,20 +164,20 @@ export class BrWorldRenderer {
     this.root.add(shell);
 
     const panelTexture = this.materials.createPanelTexture();
-    const panelMaterial = this.materials.own(new THREE.MeshStandardMaterial({ map: panelTexture, color: 0x56738a, roughness: .74, metalness: .25 }));
+    const panelMaterial = this.materials.own(new THREE.MeshStandardMaterial({ map: panelTexture, color: 0x56738a, roughness: .74, metalness: .25, polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1 }));
     const panelMatrices: MatrixSpec[] = [];
     for (let x = -438; x <= 438; x += 44) {
       for (let z = -430; z <= 430; z += 44) {
         if (!this.insideIsland(x, z, 22)) continue;
-        panelMatrices.push({ position: position(x + ((Math.abs(Math.round(z / 44)) % 2) * 7), .04, z), scale: position(39, .08, 39), rotationY: ((x + z) / 44 % 2) * .035 });
+        panelMatrices.push({ position: position(x, .004, z), scale: position(43.6, .004, 43.6) });
       }
     }
     this.addInstances(this.root, this.materials.unitBox, panelMaterial, panelMatrices, false);
 
     for (const patch of BR_TERRAIN_PATCHES) {
       const key = patch.kind === "park" ? "grass" : patch.kind === "coolant" ? "glass" : patch.kind === "industrial" ? "concrete" : "sidewalk";
-      const deck = new THREE.Mesh(this.geometry(new THREE.BoxGeometry(patch.size.x, patch.size.y, patch.size.z)), this.materials.get(key));
-      deck.position.set(patch.position.x, patch.position.y, patch.position.z);
+      const deck = new THREE.Mesh(this.geometry(new THREE.BoxGeometry(patch.size.x, .018, patch.size.z)), this.materials.surface(key,2));
+      deck.position.set(patch.position.x, .006, patch.position.z);
       deck.rotation.y = patch.rotation;
       deck.receiveShadow = true;
       this.root.add(deck);
@@ -227,40 +240,42 @@ export class BrWorldRenderer {
       const dz = road.to.z - road.from.z;
       const length = Math.hypot(dx, dz);
       const angle = -Math.atan2(dz, dx);
-      const pavedWidth = road.width * 1.66;
+      const pavedWidth = road.width;
       const centerX = (road.from.x + road.to.x) / 2;
       const centerZ = (road.from.z + road.to.z) / 2;
-      roads.push({ position: position(centerX, .48, centerZ), scale: position(length, .24, pavedWidth), rotationY: angle });
+      roads.push({ position: position(centerX, .024, centerZ), scale: position(length, .014, pavedWidth), rotationY: angle });
       for (const side of [-1, 1]) {
         const curbOffset = side * pavedWidth * .49;
         const lightOffset = side * pavedWidth * .43;
-        curbs.push({ position: position(centerX + Math.sin(angle) * curbOffset, .67, centerZ + Math.cos(angle) * curbOffset), scale: position(length, .3, 1.2), rotationY: angle });
-        edgeLights.push({ position: position(centerX + Math.sin(angle) * lightOffset, .86, centerZ + Math.cos(angle) * lightOffset), scale: position(length, .07, .18), rotationY: angle });
+        const sections=Math.ceil(length/6);
+        for(let index=0;index<sections;index++) {
+          const t=(index+.5)/sections;
+          const px=road.from.x+dx*t+Math.sin(angle)*curbOffset,pz=road.from.z+dz*t+Math.cos(angle)*curbOffset;
+          if(!brRoadDetailClear(road,px,pz))continue;
+          curbs.push({position:position(px,.045,pz),scale:position(length/sections-.15,.07,.38),rotationY:angle});
+          if(index%4===0)edgeLights.push({position:position(road.from.x+dx*t+Math.sin(angle)*lightOffset,.044,road.from.z+dz*t+Math.cos(angle)*lightOffset),scale:position(1.7,.016,.065),rotationY:angle});
+        }
       }
       const dashCount = Math.max(2, Math.floor(length / 12));
       for (let index = 0; index < dashCount; index++) {
         const t = (index + .5) / dashCount;
+        if(!brRoadDetailClear(road,road.from.x+dx*t,road.from.z+dz*t))continue;
         dashMatrices.push({
-          position: position(road.from.x + dx * t, .66, road.from.z + dz * t),
-          scale: position(5.2, .035, .42), rotationY: angle
+          position: position(road.from.x + dx * t, .042, road.from.z + dz * t),
+          scale: position(3.2, .012, .18), rotationY: angle
         });
       }
-      if (length > 52) {
+      if (length > 100 && road.id.startsWith("ring-")) {
         for (const endT of [.11, .89]) {
           for (let stripe = -2; stripe <= 2; stripe++) {
             const t = THREE.MathUtils.clamp(endT + stripe * (2.25 / length), .04, .96);
+            if(!brRoadDetailClear(road,road.from.x+dx*t,road.from.z+dz*t))continue;
             crossings.push({
-              position: position(road.from.x + dx * t, .69, road.from.z + dz * t),
+              position: position(road.from.x + dx * t, .048, road.from.z + dz * t),
               scale: position(pavedWidth * .58, .025, .72), rotationY: angle + Math.PI / 2
             });
           }
         }
-      }
-      if (length > 96) {
-        for (const t of [.32, .68]) medians.push({
-          position: position(road.from.x + dx * t, .73, road.from.z + dz * t),
-          scale: position(13, .18, 1.2), rotationY: angle
-        });
       }
       const lampCount = Math.max(1, Math.floor(length / 58));
       const nx = -dz / length, nz = dx / length;
@@ -274,17 +289,31 @@ export class BrWorldRenderer {
         }
       }
     }
-    this.addInstances(this.root, this.materials.unitBox, this.materials.get("road"), roads, false);
+    this.addInstances(this.root, this.materials.unitBox, this.materials.surface("road",4), roads, false);
     this.addInstances(this.root, this.materials.unitBox, this.materials.get("sidewalk"), curbs, false);
     this.addInstances(this.root, this.materials.unitBox, this.materials.get("energyCyan"), edgeLights, false);
-    this.addInstances(this.root, this.materials.unitBox, this.materials.get("sidewalk"), dashMatrices, false);
-    this.addInstances(this.root, this.materials.unitBox, this.materials.get("structuralWhite"), crossings, false);
+    this.addInstances(this.root, this.materials.unitBox, this.materials.surface("sidewalk",5), dashMatrices, false);
+    this.addInstances(this.root, this.materials.unitBox, this.materials.surface("structuralWhite",5), crossings, false);
     this.addInstances(this.root, this.materials.unitChamferedBox, this.materials.get("industrialOrange"), medians, false);
     this.addInstances(this.root, this.materials.unitBox, this.materials.get("structuralDark"), lampPosts, false);
     this.addInstances(this.root, this.materials.unitBox, this.materials.get("energyCyan"), lampBulbs, false);
   }
 
   private buildGameplayGeometry(): void {
+    // One vertex-colored slab batch: navy walkable tops, pale composite
+    // soffits/edges. This keeps interiors readable without extra light or
+    // draw calls, and uses the exact authoritative platform dimensions.
+    const slabGeometry = this.geometry(this.materials.unitBox.clone());
+    const normals = slabGeometry.getAttribute("normal");
+    const colors = new Float32Array(normals.count * 3);
+    const top = new THREE.Color(0x263548), underside = new THREE.Color(0xb7c6cb);
+    for (let index = 0; index < normals.count; index++) {
+      const color = normals.getY(index) > .5 ? top : underside;
+      colors.set([color.r,color.g,color.b], index * 3);
+    }
+    slabGeometry.setAttribute("color",new THREE.BufferAttribute(colors,3));
+    const slabMaterial = this.materials.own((this.materials.get("interiorFloor") as THREE.MeshStandardMaterial).clone());
+    slabMaterial.color.set(0xffffff);slabMaterial.vertexColors = true;
     const batches = new Map<string, typeof BR_MAP_BLOCKS[number][]>();
     for (const block of BR_MAP_BLOCKS) {
       const authoredVisible=block.kind==="platform"||block.kind==="ramp"||block.kind==="cover"||(block.kind==="wall"&&block.id.includes("-room-"));
@@ -304,7 +333,8 @@ export class BrWorldRenderer {
         rotationY: block.rotation?.y,
         rotationZ: block.rotation?.z
       }));
-      this.addInstances(this.root, this.materials.unitBox, material, matrices, true);
+      const slab = key.startsWith("platform:") || key.startsWith("ramp:");
+      this.addInstances(this.root, slab ? slabGeometry : this.materials.unitBox, slab ? slabMaterial : material, matrices, true);
     }
   }
 
@@ -313,11 +343,16 @@ export class BrWorldRenderer {
     for (const poi of [...BR_POIS,...BR_SECONDARY_LOCATIONS]) {
       const group = new THREE.Group();
       group.name = `detail-${poi.id}`;
+      const distant = new THREE.Group();
+      distant.name = `distant-facade-${poi.id}`;
+      distant.visible = false;
+      const distantWindows: MatrixSpec[] = [];
       const structures = BR_STRUCTURES.filter((structure) => structure.districtId === poi.id);
       const columns: MatrixSpec[] = [];
       const trims: MatrixSpec[] = [];
       const windowsDark: MatrixSpec[] = [];
       const windowsLit: MatrixSpec[] = [];
+      const facadePlants: MatrixSpec[] = [];
       const roofUnits: MatrixSpec[] = [];
       const doorFrames: MatrixSpec[] = [];
       const interiorProps: MatrixSpec[] = [];
@@ -329,41 +364,84 @@ export class BrWorldRenderer {
       const glassVolumes: MatrixSpec[] = [];
       const accentVolumes: MatrixSpec[] = [];
       const machinery: MatrixSpec[] = [];
+      const displayGlass: MatrixSpec[] = [];
+      const floorSeams: MatrixSpec[] = [], floorTrim: MatrixSpec[] = [];
+      const growFrames: MatrixSpec[] = [], growGlass: MatrixSpec[] = [], growBases: MatrixSpec[] = [];
+      const industrial = { frame: [] as MatrixSpec[], paint: [] as MatrixSpec[], metal: [] as MatrixSpec[], glass: [] as MatrixSpec[] };
       for (const structure of structures) {
+        for (const part of buildIndustrialRoof(structure)) industrial[part.finish].push({
+          position: position(part.position.x, part.position.y, part.position.z),
+          scale: position(part.scale.x, part.scale.y, part.scale.z)
+        });
+        for(const part of buildInteriorSurfaces(structure)) (part.finish==="seam"?floorSeams:floorTrim).push({
+          position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z),rotationX:part.rotationX
+        });
+        const retail=buildRetailInterior(structure);
+        const retailTargets={frame:interiorDark,panel:interiorProps,glass:displayGlass,light:interiorLights,accent:accentVolumes};
+        for(const part of retail.parts) retailTargets[part.finish].push({position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z)});
+        for(const label of retail.signs) {
+          const sign=this.materials.createMountedSign(label.text,{border:poi.color});
+          sign.position.set(label.position.x,label.position.y,label.position.z); sign.rotation.y=Math.PI;
+          sign.scale.set(label.width,.58,1);group.add(sign);
+        }
+        for (const part of buildGrowhouseRoof(structure)) {
+          (part.finish === "frame" ? growFrames : part.finish === "glass" ? growGlass : growBases).push({
+            position: position(part.position.x, part.position.y, part.position.z),
+            scale: position(part.scale.x, part.scale.y, part.scale.z), rotationZ: part.rotationZ
+          });
+        }
+        for (const part of buildDistantFacadeParts(structure)) {
+          distantWindows.push({ position: position(part.position.x,part.position.y,part.position.z), scale: position(part.scale.x,part.scale.y,part.scale.z) });
+        }
         this.architectureMatrices(
           structure, shells, columns, trims, windowsDark, windowsLit, roofUnits, doorFrames,
-          interiorProps, interiorDark, interiorLights, railings, massing, glassVolumes, accentVolumes, machinery
+          interiorProps, interiorDark, interiorLights, railings, massing, glassVolumes, accentVolumes, machinery, facadePlants
         );
         const signText = this.facadeSignText(structure);
         if (signText) {
-          const sign = this.materials.createSign(signText, { border: poi.color });
-          const y = Math.min(structure.size.y - 1.1, 6.4);
-          const offset = .75;
+          const sign = this.materials.createMountedSign(signText, { border: poi.color });
+          // Short kiosks previously mounted a full sign across the open door.
+          const y = Math.max(5.65, Math.min(structure.size.y - 1.1, 6.4));
+          const offset = .95;
           sign.position.set(
             structure.position.x + (structure.entrance === "east" ? structure.size.x / 2 + offset : structure.entrance === "west" ? -structure.size.x / 2 - offset : 0),
             y,
             structure.position.z + (structure.entrance === "north" ? structure.size.z / 2 + offset : structure.entrance === "south" ? -structure.size.z / 2 - offset : 0)
           );
+          sign.rotation.y = structure.entrance === "north" ? 0 : structure.entrance === "south" ? Math.PI : structure.entrance === "east" ? Math.PI / 2 : -Math.PI / 2;
           sign.scale.set(8.5, 2.15, 1); group.add(sign);
         }
       }
       allShells.push(...shells);
       this.addInstances(group, this.materials.unitChamferedBox, this.materials.get("structuralDark"), columns, false);
       this.addInstances(group, this.materials.unitBox, this.materials.accent(poi.color, .12), trims, false);
-      this.addInstances(group, this.materials.unitBox, this.materials.get("windowDark"), windowsDark, false);
-      this.addInstances(group, this.materials.unitBox, this.materials.get("windowLit"), windowsLit, false);
+      this.addInstances(group, this.materials.unitBox, this.materials.get(poi.style === "farm" ? "growGlass" : "windowDark"), windowsDark, false);
+      this.addInstances(group, this.materials.unitBox, this.materials.get(poi.style === "farm" ? "growGlass" : "windowLit"), windowsLit, false);
+      this.addInstances(group, this.materials.unitOctahedron, this.materials.get("grass"), facadePlants, false);
       this.addInstances(group, this.materials.unitBox, this.materials.get("brushedMetal"), roofUnits, false);
-      this.addInstances(group, this.materials.unitBox, this.materials.accent(poi.color, .26), doorFrames, false);
+      this.addInstances(group, this.materials.unitBox, this.materials.architecturalPaint(poi.color), doorFrames, false);
       this.addInstances(group, this.materials.unitBox, this.materials.get("interiorWall"), interiorProps, false);
       this.addInstances(group, this.materials.unitChamferedBox, this.materials.get("structuralDark"), interiorDark, false);
       this.addInstances(group, this.materials.unitBox, this.materials.get("windowLit"), interiorLights, false);
+      this.addInstances(group, this.materials.unitBox, this.materials.get("windowDark"), displayGlass, false);
+      this.addInstances(group, this.materials.unitBox, this.materials.surface("paintedMetal",2), floorSeams, false);
+      this.addInstances(group, this.materials.unitBox, this.materials.surface("sidewalk",2), floorTrim, false);
       this.addInstances(group, this.materials.unitBox, this.materials.get("structuralDark"), railings, false);
-      this.addInstances(group, this.materials.unitChamferedBox, this.materials.get("structuralWhite"), massing, false);
-      this.addInstances(group, this.materials.unitChamferedBox, this.materials.get("glass"), glassVolumes, false);
-      this.addInstances(group, this.materials.unitChamferedBox, this.materials.accent(poi.color, .2), accentVolumes, false);
+      // Roof crowns and major silhouette masses must not disappear at the
+      // same threshold as tiny interior props and facade signs.
+      this.addInstances(this.root, this.materials.unitChamferedBox, this.materials.get("structuralWhite"), massing, false);
+      this.addInstances(this.root, this.materials.unitChamferedBox, this.materials.get("glass"), glassVolumes, false);
+      this.addInstances(group, this.materials.unitChamferedBox, this.materials.architecturalPaint(poi.color), accentVolumes, false);
       this.addInstances(group, this.materials.unitCylinder, this.materials.get("brushedMetal"), machinery, false);
-      this.root.add(group);
-      this.districtDetails.push({ group, center: position(poi.position.x, 0, poi.position.z), visible: true });
+      this.addInstances(distant, this.materials.unitBox, this.materials.get("windowDark"), distantWindows, false);
+      this.addInstances(this.root, this.materials.unitBox, this.materials.get("structuralWhite"), growFrames, false);
+      this.addInstances(this.root, this.materials.unitBox, this.materials.get("growGlass"), growGlass, false);
+      this.addInstances(this.root, this.materials.unitBox, this.materials.get("structuralDark"), growBases, false);
+      this.addInstances(this.root, this.materials.unitBox, this.materials.get("structuralDark"), industrial.frame, false);
+      this.addInstances(this.root, this.materials.unitBox, this.materials.get("industrialOrange"), industrial.paint, false);
+      this.addInstances(this.root, this.materials.unitBox, this.materials.get("brushedMetal"), industrial.metal, false);
+      this.root.add(group, distant);
+      this.districtDetails.push({ group, distant, center: position(poi.position.x, 0, poi.position.z), visible: true });
     }
     this.addInstances(this.root, this.materials.unitBox, this.materials.get("structuralWhite"), allShells, true);
   }
@@ -374,17 +452,14 @@ export class BrWorldRenderer {
     columns: MatrixSpec[], trims: MatrixSpec[], darkWindows: MatrixSpec[], litWindows: MatrixSpec[],
     roofUnits: MatrixSpec[], doorFrames: MatrixSpec[], interiorProps: MatrixSpec[], interiorDark: MatrixSpec[],
     interiorLights: MatrixSpec[], railings: MatrixSpec[], massing: MatrixSpec[], glassVolumes: MatrixSpec[],
-    accentVolumes: MatrixSpec[], machinery: MatrixSpec[]
+    accentVolumes: MatrixSpec[], machinery: MatrixSpec[], facadePlants: MatrixSpec[]
   ): void {
     const { x, z } = structure.position;
     const { x: width, y: height, z: depth } = structure.size;
     const wall=.65,door=4.8;
-    const shellTrim = structure.style === "city" || structure.style === "mall"
-      ? Math.min(5.4, Math.min(width, depth) * .16)
-      : 2.2;
     const wallSpec=(px:number,pz:number,sx:number,sz:number)=>shells.push({
       position:position(px,height/2,pz),
-      scale:position(sx>=width-.1?Math.max(1,sx-shellTrim):sx,height,sz>=depth-.1?Math.max(1,sz-shellTrim):sz)
+      scale:position(sx,height,sz)
     });
     if(!structure.enterable){wallSpec(x,z-depth/2,width,wall);wallSpec(x,z+depth/2,width,wall);wallSpec(x-width/2,z,wall,depth);wallSpec(x+width/2,z,wall,depth);}
     else if(structure.entrance==="north"||structure.entrance==="south"){
@@ -397,49 +472,19 @@ export class BrWorldRenderer {
       wallSpec(backX,z,wall,depth);wallSpec(doorX,z-(depth+door)/4,wall,(depth-door)/2);wallSpec(doorX,z+(depth+door)/4,wall,(depth-door)/2);
     }
     const gameplayFloorHeight = height / structure.floors;
-    const visualLevels = structure.style === "industrial" || structure.style === "dock" ? Math.max(structure.floors, Math.round(height / 6)) : Math.max(structure.floors, Math.round(height / 4.4));
-    const floorHeight = height / visualLevels;
-    columns.push({ position: position(x, .48, z - depth / 2 - .38), scale: position(width - 1.2, .88, .34) });
-    columns.push({ position: position(x, .48, z + depth / 2 + .38), scale: position(width - 1.2, .88, .34) });
-    columns.push({ position: position(x - width / 2 - .38, .48, z), scale: position(.34, .88, depth - 1.2) });
-    columns.push({ position: position(x + width / 2 + .38, .48, z), scale: position(.34, .88, depth - 1.2) });
     for (const [sx, sz] of [[-1, -1], [-1, 1], [1, -1], [1, 1]] as const) {
       const corner = structure.style === "city" || structure.style === "mall" || structure.archetype === "tower" || structure.archetype === "hotel"
         ? THREE.MathUtils.clamp(Math.min(width, depth) * .11, 2.1, 4.2)
         : 1.55;
       columns.push({ position: position(x + sx * (width / 2 - corner * .42), height / 2, z + sz * (depth / 2 - corner * .42)), scale: position(corner, height + 1.1, corner) });
     }
-    const panelHeight = Math.max(2.8, height * .72);
-    columns.push({ position: position(x, height * .52, z - depth / 2 - .22), scale: position(width * .76, panelHeight, .16) });
-    columns.push({ position: position(x, height * .52, z + depth / 2 + .22), scale: position(width * .76, panelHeight, .16) });
-    columns.push({ position: position(x - width / 2 - .22, height * .52, z), scale: position(.16, panelHeight, depth * .7) });
-    columns.push({ position: position(x + width / 2 + .22, height * .52, z), scale: position(.16, panelHeight, depth * .7) });
-    for (let floor = 0; floor < visualLevels; floor++) {
-      const y = floorHeight * (floor + 1);
-      trims.push({ position: position(x, y, z - depth / 2 - .12), scale: position(width, .34, .3) });
-      trims.push({ position: position(x, y, z + depth / 2 + .12), scale: position(width, .34, .3) });
-      trims.push({ position: position(x - width / 2 - .12, y, z), scale: position(.3, .34, depth) });
-      trims.push({ position: position(x + width / 2 + .12, y, z), scale: position(.3, .34, depth) });
-      for (const offset of [-.2, .2]) trims.push({ position: position(x, Math.max(.65, y - .3), z + depth * offset), scale: position(width * .46, .07, .16) });
-      const windowY = Math.max(1.65, floor * floorHeight + floorHeight * .54);
-      const xCount = Math.max(2, Math.floor((width - 5) / 4));
-      const zCount = Math.max(2, Math.floor((depth - 5) / 4));
-      for (let index = 0; index < xCount; index++) {
-        const wx = x - width / 2 + 3 + index * ((width - 6) / Math.max(1, xCount - 1));
-        const target = (index + floor + structure.id.length) % 4 === 0 ? litWindows : darkWindows;
-        target.push({ position: position(wx, windowY, z - depth / 2 - .36), scale: position(2.25, Math.min(1.2, floorHeight * .28), .16) });
-        target.push({ position: position(wx, windowY, z + depth / 2 + .36), scale: position(2.25, Math.min(1.2, floorHeight * .28), .16) });
-      }
-      for (let index = 0; index < zCount; index++) {
-        const wz = z - depth / 2 + 3 + index * ((depth - 6) / Math.max(1, zCount - 1));
-        const target = (index + floor + structure.id.length) % 5 === 0 ? litWindows : darkWindows;
-        target.push({ position: position(x - width / 2 - .36, windowY, wz), scale: position(.16, Math.min(1.2, floorHeight * .28), 2.25) });
-        target.push({ position: position(x + width / 2 + .36, windowY, wz), scale: position(.16, Math.min(1.2, floorHeight * .28), 2.25) });
-      }
+    const facadeTargets = { panel: interiorProps, frame: columns, glass: darkWindows, lit: litWindows, accent: trims, foliage: facadePlants, metal: roofUnits };
+    for (const part of [...buildFacadeParts(structure), ...buildExteriorServiceParts(structure)]) {
+      facadeTargets[part.finish].push({position: position(part.position.x, part.position.y, part.position.z), scale: position(part.scale.x, part.scale.y, part.scale.z)});
     }
     const facadeHeight = Math.max(3, height * .62);
     const facadeY = Math.max(2.1, height * .54);
-    const accentWidth = structure.style === "city" || structure.style === "mall" ? 1.25 : .72;
+    const accentWidth = structure.style === "city" || structure.style === "mall" ? .38 : .3;
     for (const side of [-1, 1]) {
       trims.push({ position: position(x + side * width * .31, facadeY, z - depth / 2 - .43), scale: position(accentWidth, facadeHeight, .19) });
       trims.push({ position: position(x + side * width * .31, facadeY, z + depth / 2 + .43), scale: position(accentWidth, facadeHeight, .19) });
@@ -447,11 +492,17 @@ export class BrWorldRenderer {
     if (structure.style === "reactor" || structure.style === "industrial" || structure.style === "dock") {
       for (const side of [-1, 1]) trims.push({ position: position(x + side * (width / 2 + .44), facadeY, z), scale: position(.2, facadeHeight, Math.max(2.2, depth * .16)) });
     }
+    if (!["crash-fuselage", "thruster-foundry"].includes(structure.id) && (structure.archetype !== "greenhouse" || structure.roofAccess) && !["warehouse", "hangar"].includes(structure.archetype)) {
     roofUnits.push({ position: position(x - width * .2, height + .7, z + depth * .18), scale: position(Math.min(6, width * .22), 1.4, Math.min(4.5, depth * .2)) });
     roofUnits.push({ position: position(x + width * .22, height + .42, z - depth * .16), scale: position(Math.min(3.5, width * .16), .8, Math.min(5, depth * .24)) });
     roofUnits.push({ position: position(x, height + .32, z), scale: position(width * .58, .58, depth * .36) });
-    trims.push({ position: position(x, height + .26, z), scale: position(width + 1.5, .48, depth + 1.5) });
-    if (height > 15) {
+    }
+    // Keep the authored roof exposed instead of covering it with a bright slab.
+    for (const side of [-1, 1]) {
+      columns.push({position:position(x, height + .25, z + side * depth / 2),scale:position(width,.28,.6)});
+      columns.push({position:position(x + side * width / 2, height + .25,z),scale:position(.6,.28,depth)});
+    }
+    if (height > 15 && structure.id !== "thruster-foundry") {
       roofUnits.push({ position: position(x, height + 1.15, z), scale: position(width * .36, 1.65, depth * .42) });
       for (const side of [-1, 1]) columns.push({ position: position(x + side * (width / 2 + .52), height * .72, z), scale: position(.65, height * .42, depth * .22) });
       const crownWidth = structure.style === "city" ? width * .5 : width * .38;
@@ -470,6 +521,7 @@ export class BrWorldRenderer {
     }
 
     const doorHalf = 2.7;
+    const shopCanopy = structure.archetype === "shop" || structure.archetype === "transit";
     const northSouth = structure.entrance === "north" || structure.entrance === "south";
     const doorX = northSouth ? x : x + (structure.entrance === "east" ? width / 2 + .48 : -width / 2 - .48);
     const doorZ = northSouth ? z + (structure.entrance === "north" ? depth / 2 + .48 : -depth / 2 - .48) : z;
@@ -477,14 +529,14 @@ export class BrWorldRenderer {
       doorFrames.push({ position: position(doorX - doorHalf, 2.1, doorZ), scale: position(.42, 4.2, .5) });
       doorFrames.push({ position: position(doorX + doorHalf, 2.1, doorZ), scale: position(.42, 4.2, .5) });
       doorFrames.push({ position: position(doorX, 4.05, doorZ), scale: position(5.8, .38, .55) });
-      doorFrames.push({ position: position(doorX, 4.45, doorZ + (structure.entrance === "north" ? .75 : -.75)), scale: position(7.4, .22, 1.8) });
+      doorFrames.push({ position: position(doorX, 4.45, doorZ + (structure.entrance === "north" ? .75 : -.75)), scale: position(shopCanopy ? Math.max(7.4,width*.72) : 7.4, .22, shopCanopy ? 2.4 : 1.8) });
     } else {
       doorFrames.push({ position: position(doorX, 2.1, doorZ - doorHalf), scale: position(.5, 4.2, .42) });
       doorFrames.push({ position: position(doorX, 2.1, doorZ + doorHalf), scale: position(.5, 4.2, .42) });
       doorFrames.push({ position: position(doorX, 4.05, doorZ), scale: position(.55, .38, 5.8) });
-      doorFrames.push({ position: position(doorX + (structure.entrance === "east" ? .75 : -.75), 4.45, doorZ), scale: position(1.8, .22, 7.4) });
+      doorFrames.push({ position: position(doorX + (structure.entrance === "east" ? .75 : -.75), 4.45, doorZ), scale: position(shopCanopy ? 2.4 : 1.8, .22, shopCanopy ? Math.max(7.4,depth*.72) : 7.4) });
     }
-    for (let index = 0; index < Math.min(4, 1 + structure.floors); index++) {
+    for (let index = 0; structure.id !== "crash-fuselage" && index < Math.min(4, 1 + structure.floors); index++) {
       interiorProps.push({ position: position(x - width * .22 + index * 2.8, .62, z + depth * .2), scale: position(2.1, 1.2, .75), rotationY: index % 2 ? Math.PI / 2 : 0 });
     }
     if (structure.roofAccess) {
@@ -502,17 +554,12 @@ export class BrWorldRenderer {
       railings.push({ position: position(x, balconyY + .72, frontZ + (structure.entrance === "north" ? .68 : -.68)), scale: position(width * .45, .12, .12) });
       for (const side of [-1, 1]) railings.push({ position: position(x + side * width * .225, balconyY + .72, frontZ), scale: position(.12, .12, 1.35) });
     }
-    if(structure.archetype==="shop"||structure.archetype==="transit"){
-      const northSouth=structure.entrance==="north"||structure.entrance==="south";
-      roofUnits.push({position:position(x+(structure.entrance==="east"?width/2+.7:structure.entrance==="west"?-width/2-.7:0),4.7,z+(structure.entrance==="north"?depth/2+.7:structure.entrance==="south"?-depth/2-.7:0)),scale:position(northSouth?Math.min(10,width*.58):1.5,.28,northSouth?1.5:Math.min(10,depth*.58))});
-    }else if(structure.archetype==="warehouse"||structure.archetype==="hangar"){
-      for(const side of [-1,1])trims.push({position:position(x+side*width*.31,height+.95,z),scale:position(Math.max(2,width*.14),1.9,depth*.65)});
-    }else if(structure.archetype==="utility"||structure.archetype==="lab"){
+    if(structure.id!=="crash-fuselage"&&(structure.archetype==="utility"||structure.archetype==="lab")){
       roofUnits.push({position:position(x,height+3.2,z),scale:position(.35,5.2,.35)});
       trims.push({position:position(x,height+5.9,z),scale:position(3.5,.18,.18)});
     }else if(structure.archetype==="greenhouse"){
       trims.push({position:position(x,height+1.2,z),scale:position(width*.72,.28,depth*.72)});
-    }else if(structure.archetype==="tower"||structure.archetype==="hotel"){
+    }else if(structure.id!=="thruster-foundry"&&(structure.archetype==="tower"||structure.archetype==="hotel")){
       roofUnits.push({position:position(x,height+3.1,z),scale:position(width*.42,3.8,depth*.4)});
     }
     this.addArchetypeMassing(structure, massing, glassVolumes, accentVolumes, machinery, roofUnits, railings);
@@ -524,6 +571,9 @@ export class BrWorldRenderer {
     massing: MatrixSpec[], glass: MatrixSpec[], accents: MatrixSpec[], machinery: MatrixSpec[],
     roofUnits: MatrixSpec[], railings: MatrixSpec[]
   ): void {
+    // The observatory has an authored dome. Generic tower crowns used to
+    // protrude through its glass and obscure the instrument chamber.
+    if (["astra-observatory", "crash-fuselage", "thruster-foundry"].includes(structure.id)) return;
     const { x, z } = structure.position;
     const { x: width, y: height, z: depth } = structure.size;
     const northSouth = structure.entrance === "north" || structure.entrance === "south";
@@ -535,17 +585,17 @@ export class BrWorldRenderer {
     // Shallow masses create readable silhouettes while staying visually tied to
     // the authoritative box collider beneath them.
     if (structure.archetype === "shop" || structure.archetype === "transit") {
-      glass.push({ position: position(frontX, 2.35, frontZ), scale: facadeScale(Math.max(5.8, (northSouth ? width : depth) * .62), 3.25, .22) });
-      accents.push({ position: position(frontX, 4.55, frontZ), scale: facadeScale(Math.max(7, (northSouth ? width : depth) * .72), .42, 1.45) });
+      // Storefront windows are split around the door by buildFacadeParts.
+      // A single canopy is emitted with the doorway; three nearly coplanar
+      // versions used to stack into a large fluorescent slab here.
       for (const side of [-1, 1]) {
         const offset = side * (northSouth ? width : depth) * .29;
         massing.push({ position: position(frontX + (northSouth ? offset : 0), 2.1, frontZ + (northSouth ? 0 : offset)), scale: facadeScale(.72, 4.2, .7) });
       }
     } else if (structure.archetype === "office" || structure.archetype === "lab" || structure.archetype === "academy") {
-      glass.push({ position: position(frontX, Math.min(height * .52, 5.4), frontZ), scale: facadeScale(Math.max(5.5, (northSouth ? width : depth) * .48), Math.min(height * .58, 8), .3) });
-      accents.push({ position: position(frontX, 4.75, frontZ), scale: facadeScale(Math.max(7, (northSouth ? width : depth) * .58), .28, 2) });
-      const annexOffset = (northSouth ? width : depth) * .32;
-      massing.push({ position: position(x + (northSouth ? annexOffset : 0), height * .34, z + (northSouth ? 0 : annexOffset)), scale: northSouth ? position(width * .22, height * .5, depth * .84) : position(width * .84, height * .5, depth * .22) });
+      // The doorway assembly already owns the entrance canopy.
+      // Service ribs are mounted outside the back wall by buildExteriorServiceParts.
+      // The old solid annex occupied an entire strip of the playable interior.
     } else if (structure.archetype === "apartment" || structure.archetype === "hotel" || structure.archetype === "tower") {
       const tiers = structure.roofAccess ? 1 : 2;
       for (let tier = 0; tier < tiers; tier++) {
@@ -559,8 +609,6 @@ export class BrWorldRenderer {
       machinery.push({ position: position(x, height + (structure.archetype === "tower" ? 5.1 : 3.8), z), scale: position(width * .28, structure.archetype === "tower" ? 5.8 : 3.2, depth * .28) });
       accents.push({ position: position(x, height + (structure.archetype === "tower" ? 8.15 : 5.55), z), scale: position(width * .35, .32, depth * .35) });
     } else if (structure.archetype === "warehouse" || structure.archetype === "hangar") {
-      massing.push({ position: position(x, height + 1.15, z), scale: position(width * .86, 2.3, depth * .72) });
-      accents.push({ position: position(frontX, height * .54, frontZ), scale: facadeScale(Math.max(8, (northSouth ? width : depth) * .72), Math.min(7.5, height * .72), .48) });
       for (const side of [-1, 1]) {
         const offset = side * (northSouth ? width : depth) * .39;
         massing.push({ position: position(frontX + (northSouth ? offset : 0), height * .52, frontZ + (northSouth ? 0 : offset)), scale: facadeScale(1.15, height * .92, 1.25) });
@@ -568,16 +616,11 @@ export class BrWorldRenderer {
     } else if (structure.archetype === "mall") {
       const facadeSpan = (northSouth ? width : depth) * .62;
       const facadeHeight = Math.min(9, height * .68);
-      glass.push({ position: position(frontX, Math.min(6, height * .52), frontZ), scale: facadeScale(facadeSpan, facadeHeight, .46) });
       const backX = northSouth ? x : x - frontSign * (width / 2 + .34);
       const backZ = northSouth ? z - frontSign * (depth / 2 + .34) : z;
       glass.push({ position: position(backX, Math.min(5.2, height * .48), backZ), scale: facadeScale(facadeSpan * .72, facadeHeight * .7, .28) });
       for (const side of [-1, 1]) {
         const offset = side * (northSouth ? width : depth) * .38;
-        massing.push({
-          position: position(x + (northSouth ? offset : 0), height * .58, z + (northSouth ? 0 : offset)),
-          scale: facadeScale(Math.max(3.6, facadeSpan * .16), height * .76, 1.4)
-        });
         accents.push({
           position: position(frontX + (northSouth ? offset : 0), 4.8, frontZ + (northSouth ? 0 : offset)),
           scale: facadeScale(Math.max(3.2, facadeSpan * .14), .34, 2.25)
@@ -591,17 +634,13 @@ export class BrWorldRenderer {
         machinery.push({ position: position(x + side * width * .28, height + 2.1, z), scale: position(1.35, 4.2, 1.35) });
         accents.push({ position: position(x + side * width * .28, height + 4.25, z), scale: position(1.7, .34, 1.7) });
       }
-      massing.push({ position: position(x, height * .46, z + depth * .39), scale: position(width * .72, height * .44, depth * .18) });
-    } else if (structure.archetype === "greenhouse") {
-      glass.push({ position: position(x, height * .62, z), scale: position(width * .8, height * .72, depth * .82) });
-      for (const side of [-1, 1]) accents.push({ position: position(x + side * width * .36, height * .62, z), scale: position(.28, height * .82, depth * .88) });
     }
 
     if (structure.roofAccess) {
       // Roof access remains open; details hug the perimeter instead of creating
       // misleading collision-free masses in the combat lane.
       for (const side of [-1, 1]) {
-        roofUnits.push({ position: position(x + side * width * .34, height + .52, z + depth * .31), scale: position(width * .14, 1.04, depth * .18) });
+        if (!["warehouse", "hangar"].includes(structure.archetype)) roofUnits.push({ position: position(x + side * width * .34, height + .52, z + depth * .31), scale: position(width * .14, 1.04, depth * .18) });
         railings.push({ position: position(x + side * width * .42, height + .72, z), scale: position(.12, .14, depth * .72) });
       }
     }
@@ -609,15 +648,68 @@ export class BrWorldRenderer {
 
   private addInteriorKit(structure: BrStructure, light: MatrixSpec[], dark: MatrixSpec[], emissive: MatrixSpec[]): void {
     if (!structure.enterable) return;
+    if (structure.id === "crash-fuselage") {
+      const targets={panel:light,frame:dark,light:emissive};
+      for(const part of buildWreckInterior(structure)) targets[part.finish].push({
+        position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z)
+      });
+      return;
+    }
     const { x, z } = structure.position;
     const width = structure.size.x, depth = structure.size.z;
     const archetype = structure.archetype;
-    const addCeiling = () => emissive.push({ position: position(x, Math.min(structure.size.y - .45, 3.75), z), scale: position(Math.max(2.8, width * .42), .08, .24) });
-    addCeiling();
+    const serviceRoom = ["industrial", "reactor", "dock"].includes(structure.style) || ["lab", "office", "academy"].includes(archetype);
+    const floorHeight=structure.size.y/structure.floors;
+    for(let floor=0;floor<structure.floors;floor++) {
+      const base=floor*floorHeight,ceiling=base+floorHeight-.35;
+      // Ceiling luminaires sit against the actual floor above, not suspended
+      // at a fixed 3.75m through the middle of tall rooms and stairwells.
+      for(const side of [-1,1]) {
+        dark.push({position:position(x-width*.18,ceiling,z+side*depth*.28),scale:position(width*.48,.18,.65)});
+        emissive.push({position:position(x-width*.18,ceiling-.11,z+side*depth*.28),scale:position(width*.4,.035,.19)});
+      }
+      for(const side of [-1,1]) {
+        const face=side<0?"south":"north";
+        if(structure.entrance===face)continue;
+        const wallZ=z+side*(depth/2-.45);
+        // Durable wall dado, inset service panels and console clusters.
+        dark.push({position:position(x,base+.52,wallZ),scale:position(width-1.8,.9,.13)});
+        // Structural wall bays give tall rooms scale without introducing false
+        // cover into the floor plan. All detail stays within .9m of the wall.
+        dark.push({position:position(x,ceiling-.65,wallZ),scale:position(width-1.8,.28,.21)});
+        for(const offset of [-.45,-.15,.15,.45]) {
+          dark.push({position:position(x+width*offset,base+floorHeight/2,wallZ),scale:position(.19,floorHeight-.9,.26)});
+        }
+        for(const offset of [-.3,0,.3]) {
+          light.push({position:position(x+width*offset,base+2.1,wallZ-side*.1),scale:position(width*.23,Math.min(2.5,floorHeight-1.5),.12)});
+          if(serviceRoom){
+            const panelX=x+width*offset;
+            dark.push({position:position(panelX,base+1.72,wallZ-side*.22),scale:position(2.5,1.4,.22)});
+            emissive.push({position:position(panelX,base+1.86,wallZ-side*.345),scale:position(2.08,.87,.025)});
+            // Graphic bars break the screen into a readable instrument panel,
+            // instead of a uniform glowing rectangle.
+            for(let bar=0;bar<3;bar++) dark.push({position:position(panelX-.58+bar*.55,base+1.72+bar*.1,wallZ-side*.365),scale:position(.33,.32+bar*.12,.018)});
+            dark.push({position:position(panelX,base+1.12,wallZ-side*.32),scale:position(2.6,.13,.45)});
+            light.push({position:position(panelX,base+.98,wallZ-side*.29),scale:position(2.05,.15,.32)});
+            if(floorHeight>6) {
+              // High-level ventilation arrays keep the reactor's fourteen-metre
+              // storeys from reading as blank warehouse walls.
+              dark.push({position:position(panelX,ceiling-1.9,wallZ-side*.1),scale:position(width*.21,1.25,.18)});
+              for(let slat=0;slat<4;slat++)light.push({position:position(panelX,ceiling-2.3+slat*.25,wallZ-side*.21),scale:position(width*.19,.09,.12)});
+            }
+          }
+        }
+      }
+    }
     if (archetype === "shop" || archetype === "mall") {
-      dark.push({ position: position(x, .72, z + depth * .27), scale: position(width * .55, 1.35, .7) });
-      for (const side of [-1, 0, 1]) light.push({ position: position(x + side * width * .22, 1.05, z - depth * .22), scale: position(width * .13, 2.1, .52) });
-      emissive.push({ position: position(x, 2.35, z + depth * .29), scale: position(width * .38, .13, .08) });
+      // The partition-mounted display kit replaces blocks and counters placed
+      // in the aisle (including the former exact overlap with interior loot).
+      for(let floor=0;floor<structure.floors;floor++) {
+        const ceiling=(floor+1)*floorHeight-.3;
+        // Suspended detail hugs the ceiling and stops before the stair slot.
+        for(let strip=0;strip<5;strip++) dark.push({position:position(x-width*.16,ceiling,z-depth*.36+strip*depth*.18),scale:position(width*.55,.08,.23)});
+        for(const side of [-1,1]) light.push({position:position(x-width*.16+side*width*.255,ceiling,z),scale:position(.16,.09,depth*.82)});
+      }
     } else if (archetype === "warehouse" || archetype === "hangar") {
       for (const side of [-1, 1]) for (const row of [-1, 0, 1]) dark.push({ position: position(x + side * width * .3, 1.25, z + row * depth * .22), scale: position(1.35, 2.5, depth * .13) });
       light.push({ position: position(x, .7, z + depth * .27), scale: position(width * .25, 1.4, 2.2) });
@@ -640,15 +732,15 @@ export class BrWorldRenderer {
     for (const poi of BR_POIS) {
       const radius = poi.style === "city" || poi.style === "mall" ? 75 : 62;
       const pad = new THREE.Mesh(
-        this.geometry(new THREE.CylinderGeometry(radius, radius + 4, .36, 28)),
-        this.materials.accent(poi.color, .035)
+        this.geometry(new THREE.CylinderGeometry(radius, radius + 4, .01, 28)),
+        this.materials.surface(poi.style === "farm" || poi.style === "academy" ? "grass" : "concrete",3)
       );
-      pad.position.set(poi.position.x, .17, poi.position.z);
+      pad.position.set(poi.position.x, .016, poi.position.z);
       pad.receiveShadow = true;
       this.root.add(pad);
       const ring = new THREE.Mesh(this.geometry(new THREE.RingGeometry(radius - 3, radius - 1.5, 64)), this.materials.translucent(poi.color, .5, true));
       ring.rotation.x = -Math.PI / 2;
-      ring.position.set(poi.position.x, .4, poi.position.z);
+      ring.position.set(poi.position.x, .027, poi.position.z);
       ring.userData.cameraCollision = false;
       this.root.add(ring);
       const label = this.materials.createSign(poi.name, { border: poi.color, subtitle: this.poiSubtitle(poi) });
@@ -686,7 +778,7 @@ export class BrWorldRenderer {
       this.addInstances(group,this.materials.unitOctahedron,this.materials.get("grass"),foliage,false);
       this.addInstances(group,this.materials.unitBox,this.materials.accent(location.color,.12),groundAccents,false);
       if(location.style==="industrial"||location.style==="dock")group.add(this.makeTurbine(location.position.x+10,location.position.z+8,location.color));
-      else if(location.style==="farm")group.add(this.makeGreenhouse(location.position.x+10,location.position.z+7,location.color));
+      else if(location.style==="farm")this.addCropRows(group,location.position.x,location.position.z);
       else if(location.style==="city"){
         group.add(this.makeHoverVehicle(location.position.x+8,location.position.z+24,.12,location.color));
         group.add(this.makeTransitShelter(location.position.x-16,location.position.z+22,location.color));
@@ -714,7 +806,7 @@ export class BrWorldRenderer {
       const radius = 24 + random() * 47;
       const x = poi.position.x + Math.cos(angle) * radius;
       const z = poi.position.z + Math.sin(angle) * radius;
-      if (this.isReservedForGameplay(x, z, poi.id)) continue;
+      if (this.isReservedForGameplay(x, z)) continue;
       if (poi.style === "farm" || poi.style === "academy") {
         const tree = index % 3 !== 0;
         if (tree) {
@@ -753,9 +845,8 @@ export class BrWorldRenderer {
         const sign = this.materials.createSign(text, { border: poi.color }); sign.position.set(x + ox, y, z + oz); sign.scale.set(12, 3, 1); group.add(sign);
       }
       for (const offset of [-22, 22]) group.add(this.makeHoverVehicle(x + offset, z + 36, offset < 0 ? .12 : -.18, poi.color));
-      group.add(this.makeEnergyFountain(x, z, poi.color));
+      // Keep the plaza center clear; the smaller metal sculpture supplies the landmark.
     } else if (poi.style === "dock") {
-      for (const offset of [-24, 24]) group.add(this.makeCrane(x + offset, z + 13, offset < 0 ? 1 : -1, poi.color));
       group.add(this.makeCargoMover(x - 31, z - 18, .18, poi.color));
       group.add(this.makeCargoMover(x + 33, z - 24, -.12, poi.color));
       const hangarSign = this.materials.createSign("DOCK 07", { border: poi.color, subtitle: "CARGO TRANSFER" }); hangarSign.position.set(x, 15, z - 32); hangarSign.scale.set(20, 6, 1); group.add(hangarSign);
@@ -768,17 +859,15 @@ export class BrWorldRenderer {
       const academySign = this.materials.createSign("ASTRA ACADEMY", { border: poi.color, subtitle: "OBSERVE · DISCOVER" }); academySign.position.set(x, 10, z - 31); academySign.scale.set(20, 6, 1); group.add(academySign);
       group.add(this.makeEnergyFountain(x, z + 20, poi.color));
     } else if (poi.style === "mall") {
-      for (const [text, ox] of [["VOID MARKET", -28], ["FOOD COURT", 0], ["STAR STYLE", 28]] as const) {
-        const sign = this.materials.createSign(text, { border: poi.color }); sign.position.set(x + ox, 7, z - 18); sign.scale.set(13, 3.3, 1); group.add(sign);
-      }
-      for (const offset of [-18, 0, 18]) group.add(this.makeKiosk(x + offset, z + 8, poi.color));
+      // Interior signs/displays belong to the real partition walls. Floating
+      // POI-relative signs and kiosks overlapped ceilings, aisles and loot.
     } else if (poi.style === "farm") {
-      for (const offset of [-28, 0, 28]) group.add(this.makeGreenhouse(x + offset, z + 7, poi.color));
       this.addCropRows(group, x, z);
     } else if (poi.style === "wreck") {
-      group.add(this.makeWreck(x, z));
+      // The landmark owns the sole wreck shell, aligned to its playable room.
     } else if (poi.style === "industrial") {
-      for (const offset of [-22, 22]) group.add(this.makeTurbine(x + offset, z + 10, poi.color));
+      // Large turbine housings used to intersect the foundry's occupied rooms.
+      // Its rooftop engine-test assembly now owns the machinery landmark.
       group.add(this.makeCargoMover(x - 28, z - 22, .42, poi.color));
       group.add(this.makeMaintenanceRover(x + 30, z - 16, -.34, poi.color));
     }
@@ -803,30 +892,55 @@ export class BrWorldRenderer {
         const stream=new THREE.Mesh(this.geometry(new THREE.CylinderGeometry(.34,.34,38,8)),this.materials.translucent(0x70f5ff,.5,true));stream.position.set(Math.cos(angle)*21,30,Math.sin(angle)*21);stream.rotation.z=Math.PI/2;stream.rotation.y=-angle;stream.userData.pulse=true;stream.userData.baseScale=1;group.add(stream);this.animated.push(stream);
       }
     } else if (poi.style === "reactor") {
-      const core = new THREE.Mesh(this.geometry(new THREE.CylinderGeometry(5.5, 8, 52, 16)), this.materials.get("energyCyan")); core.position.y = 45; group.add(core);
+      // Containment hardware sits above the 42m playable core building. The
+      // previous tilted conduits pierced its floors and looked like solid
+      // obstacles despite having no authoritative collision.
+      const core = new THREE.Mesh(this.geometry(new THREE.CylinderGeometry(5.5, 8, 32, 16)), this.materials.get("energyCyan")); core.position.y = 59; group.add(core);
       const light = new THREE.PointLight(0xffd84d, 7, 115, 1.7); light.position.y = 48; group.add(light);
-      for (const [radius, y] of [[13, 31], [16, 45], [12, 58]] as const) {
-        const ring = new THREE.Mesh(this.geometry(new THREE.TorusGeometry(radius, 1, 9, 36)), dark); ring.position.y = y; ring.rotation.x = Math.PI / 2; ring.userData.rotationSpeed = y === 45 ? -.00022 : .00017; group.add(ring); this.animated.push(ring);
+      for (const [radius, y] of [[13, 46], [16, 59], [12, 72]] as const) {
+        const ring = new THREE.Mesh(this.geometry(new THREE.TorusGeometry(radius, 1, 9, 36)), dark); ring.position.y = y; ring.rotation.x = Math.PI / 2; ring.userData.rotationSpeed = y === 59 ? -.00022 : .00017; group.add(ring); this.animated.push(ring);
       }
-      for(let index=0;index<4;index++){const angle=index/4*Math.PI*2;const conduit=new THREE.Mesh(this.geometry(new THREE.TorusGeometry(22,.72,7,30,Math.PI*.7)),this.materials.get(index%2?"industrialOrange":"energyCyan"));conduit.position.set(Math.cos(angle)*6,18,Math.sin(angle)*6);conduit.rotation.set(Math.PI/2,angle,0);group.add(conduit);}
-      for (let index = 0; index < 6; index++) { const angle = index / 6 * Math.PI * 2; const turbine = this.makeTurbine(Math.cos(angle) * 21, Math.sin(angle) * 21, poi.color); turbine.position.y = 37; group.add(turbine); }
+      for(let index=0;index<4;index++){const angle=index/4*Math.PI*2;const conduit=new THREE.Mesh(this.geometry(new THREE.TorusGeometry(22,.72,7,30,Math.PI*.7)),this.materials.get(index%2?"industrialOrange":"energyCyan"));conduit.position.set(Math.cos(angle)*6,46+index*.9,Math.sin(angle)*6);conduit.rotation.set(Math.PI/2,0,angle);group.add(conduit);}
+      for (let index = 0; index < 6; index++) { const angle = index / 6 * Math.PI * 2; const turbine = this.makeTurbine(Math.cos(angle) * 21, Math.sin(angle) * 21, poi.color); turbine.position.y = 44; group.add(turbine); }
     } else if (poi.style === "dock") {
-      for (const offset of [-25, 25]) group.add(this.makeCrane(offset, 8, offset < 0 ? 1 : -1, poi.color));
+      for (const offset of [-25, 25]) group.add(this.makeCrane(offset, 8, offset < 0 ? 1 : -1));
     } else if (poi.style === "academy") {
-      const dome = new THREE.Mesh(this.geometry(new THREE.SphereGeometry(14, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2)), this.materials.get("glass")); dome.position.y = .2; group.add(dome);
-      const orbit = new THREE.Mesh(this.geometry(new THREE.TorusGeometry(10, .42, 8, 36)), accent); orbit.position.y = 8; orbit.rotation.x = .9; orbit.userData.rotationSpeed = .00018; group.add(orbit); this.animated.push(orbit);
+      // The observatory is the northern tower, not the occupied campus hall.
+      const observatory = BR_STRUCTURES.find(s => s.id === "astra-observatory")!;
+      const mount = new THREE.Group(); mount.position.set(observatory.position.x - poi.position.x, observatory.size.y + 3, observatory.position.z - poi.position.z); group.add(mount);
+      const dome = new THREE.Mesh(this.geometry(new THREE.SphereGeometry(8, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2)), this.materials.get("glass")); mount.add(dome);
+      const base = new THREE.Mesh(this.materials.unitCylinder, dark); base.scale.set(8.4,.7,8.4); mount.add(base);
+      const drum = new THREE.Mesh(this.materials.unitCylinder, this.materials.get("structuralWhite")); drum.position.y=-1.5; drum.scale.set(8.1,3,8.1); mount.add(drum);
+      const instrument = new THREE.Mesh(this.materials.unitCylinder,this.materials.get("brushedMetal")); instrument.position.set(0,3.2,0); instrument.scale.set(.9,5,.9); instrument.rotation.z=-.65; mount.add(instrument);
+      const ribGeometry = this.geometry(new THREE.TorusGeometry(8.1,.16,6,28,Math.PI));
+      for (let rib = 0; rib < 4; rib++) { const frame = new THREE.Mesh(ribGeometry,this.materials.get("structuralWhite")); frame.rotation.y = rib*Math.PI/4; mount.add(frame); }
+      const orbit = new THREE.Mesh(this.geometry(new THREE.TorusGeometry(10, .25, 8, 36)), accent); orbit.position.y = 10; orbit.rotation.x = .9; orbit.userData.rotationSpeed = .00018; mount.add(orbit); this.animated.push(orbit);
     } else if (poi.style === "mall") {
-      const arch = new THREE.Mesh(this.geometry(new THREE.TorusGeometry(18, 1.7, 10, 36, Math.PI)), accent); arch.position.y = .8; group.add(arch);
-      const skylight = new THREE.Mesh(this.geometry(new THREE.SphereGeometry(14, 20, 8, 0, Math.PI * 2, 0, Math.PI / 2)), this.materials.get("glass")); skylight.position.set(0, 4, 12); group.add(skylight);
+      // The old 36m arch and dome cut through the mall's playable floors.
+      const arch = new THREE.Mesh(this.geometry(new THREE.TorusGeometry(4, .28, 8, 28, Math.PI)), dark); arch.position.set(0,4,-18); group.add(arch);
+      const skylight = new THREE.Mesh(this.geometry(new THREE.SphereGeometry(8, 20, 8, 0, Math.PI * 2, 0, Math.PI / 2)), this.materials.get("glass")); skylight.position.set(0,18.3,4); group.add(skylight);
     } else if (poi.style === "farm") {
-      for (const offset of [-20, 0, 20]) group.add(this.makeGreenhouse(offset, 0, poi.color));
+      // Growing houses are authored roof assemblies, not overlapping domes.
     } else if (poi.style === "wreck") {
       group.add(this.makeWreck(0, 0));
     } else if (poi.style === "industrial") {
-      for (const offset of [-15, 15]) group.add(this.makeTurbine(offset, 0, poi.color));
-      const chimney = new THREE.Mesh(this.geometry(new THREE.CylinderGeometry(3, 5, 32, 10)), dark); chimney.position.y = 16; group.add(chimney);
+      const foundry=BR_STRUCTURES.find(s=>s.id==="thruster-foundry")!;
+      const geometries={box:this.materials.unitBox,barrel:this.materials.unitCylinder,
+        bell:this.geometry(new THREE.CylinderGeometry(1,.8,1,16,1,true)),
+        ring:this.geometry(new THREE.TorusGeometry(1,.06,6,24))};
+      const finishes={frame:"structuralDark",shell:"paintedMetal",metal:"brushedMetal",paint:"industrialOrange",energy:"energyCyan"} as const;
+      const batches=new Map<string,{shape:keyof typeof geometries;finish:keyof typeof finishes;parts:MatrixSpec[]}>();
+      for(const part of buildFoundryEngines(foundry)) {
+        const key=`${part.shape}:${part.finish}`;
+        let batch=batches.get(key);
+        if(!batch){batch={shape:part.shape,finish:part.finish,parts:[]};batches.set(key,batch);}
+        batch.parts.push({position:position(part.position.x-poi.position.x,part.position.y-.45,part.position.z-poi.position.z),
+          scale:position(part.scale.x,part.scale.y,part.scale.z),rotationX:part.rotationX,rotationZ:part.rotationZ});
+      }
+      for(const batch of batches.values()) this.addInstances(group,geometries[batch.shape],this.materials.get(finishes[batch.finish]),batch.parts,false);
     } else {
-      const sculpture = new THREE.Mesh(this.geometry(new THREE.TorusKnotGeometry(6, 1.2, 72, 8)), accent); sculpture.position.y = 8; sculpture.userData.rotationSpeed = .00012; group.add(sculpture); this.animated.push(sculpture);
+      const sculpture = new THREE.Mesh(this.geometry(new THREE.TorusKnotGeometry(2.1, .22, 64, 8)), this.materials.get("brushedMetal")); sculpture.position.set(-9,3.3,14); sculpture.userData.rotationSpeed = .00012; group.add(sculpture); this.animated.push(sculpture);
+      const plinth=new THREE.Mesh(this.materials.unitCylinder,dark);plinth.position.set(-9,.28,14);plinth.scale.set(2.1,.55,2.1);group.add(plinth);
     }
     group.userData.cameraCollision = false;
     return group;
@@ -946,59 +1060,72 @@ export class BrWorldRenderer {
     return group;
   }
 
-  private makeCrane(x: number, z: number, direction: number, color: string): THREE.Group {
-    const group = new THREE.Group(); group.position.set(x, 0, z);
-    const mast = new THREE.Mesh(this.geometry(new THREE.BoxGeometry(2.3, 24, 2.3)), this.materials.get("structuralDark")); mast.position.y = 12; group.add(mast);
-    const arm = new THREE.Mesh(this.geometry(new THREE.BoxGeometry(19, 1.8, 1.8)), this.materials.accent(color, .18)); arm.position.set(direction * 8, 23, 0); group.add(arm);
-    const cable = new THREE.Mesh(this.geometry(new THREE.CylinderGeometry(.12, .12, 10, 6)), this.materials.get("structuralDark")); cable.position.set(direction * 15, 17.5, 0); group.add(cable);
-    return group;
-  }
-
-  private makeGreenhouse(x: number, z: number, color: string): THREE.Group {
-    const group = new THREE.Group(); group.position.set(x, 0, z);
-    const dome = new THREE.Mesh(this.geometry(new THREE.SphereGeometry(8, 18, 8, 0, Math.PI * 2, 0, Math.PI / 2)), this.materials.get("glass")); dome.position.y = .25; dome.scale.z = .72; group.add(dome);
-    for (const offset of [-4, 0, 4]) { const bed = new THREE.Mesh(this.geometry(new THREE.BoxGeometry(2.2, .5, 9)), this.materials.get("soil")); bed.position.set(offset, .42, 0); group.add(bed); }
-    const frame = new THREE.Mesh(this.geometry(new THREE.TorusGeometry(7.7, .18, 6, 28, Math.PI)), this.materials.accent(color, .08)); frame.rotation.y = Math.PI / 2; group.add(frame);
+  private makeCrane(x: number, z: number, direction: -1 | 1): THREE.Group {
+    // Cancel the landmark's display offset so the mast actually meets the deck.
+    const group = new THREE.Group(); group.position.set(x, -.45, z);
+    const batches = { frame: [] as MatrixSpec[], paint: [] as MatrixSpec[], metal: [] as MatrixSpec[], glass: [] as MatrixSpec[] };
+    for (const part of buildCargoCrane(direction)) batches[part.finish].push({
+      position: position(part.position.x, part.position.y, part.position.z),
+      scale: position(part.scale.x, part.scale.y, part.scale.z), rotationZ: part.rotationZ
+    });
+    this.addInstances(group, this.materials.unitBox, this.materials.get("structuralDark"), batches.frame, false);
+    this.addInstances(group, this.materials.unitBox, this.materials.get("industrialOrange"), batches.paint, false);
+    this.addInstances(group, this.materials.unitBox, this.materials.get("brushedMetal"), batches.metal, false);
+    this.addInstances(group, this.materials.unitBox, this.materials.get("windowDark"), batches.glass, false);
     return group;
   }
 
   private addCropRows(group: THREE.Group, x: number, z: number): void {
-    const crops: MatrixSpec[] = [];
-    for (let row = 0; row < 5; row++) for (let column = 0; column < 10; column++) crops.push({
-      position: position(x - 33 + column * 7.2, 1.1 + (column % 3) * .15, z - 31 + row * 7),
-      scale: position(.55 + (column % 2) * .2, 1.4 + (column % 3) * .35, .55 + (row % 2) * .2)
-    });
-    this.addInstances(group, this.geometry(new THREE.OctahedronGeometry(1, 0)), this.materials.get("grass"), crops, false);
+    const leaves: MatrixSpec[] = [], buds: MatrixSpec[] = [], beds: MatrixSpec[] = [], irrigation: MatrixSpec[] = [];
+    for (let row = -6; row <= 6; row++) for (let column = -7; column <= 7; column++) {
+      const bx = x + column * 6, bz = z + row * 8;
+      // Test the whole bed footprint against roads/buildings/cover, not just
+      // its center. These low plants are decoration, never apparent cover.
+      if ([-1.4,0,1.4].some(dx => [-3.2,0,3.2].some(dz =>
+        !this.insideIsland(bx+dx,bz+dz,8) || this.isReservedForGameplay(bx+dx,bz+dz) ||
+        BR_MAP_BLOCKS.some(b => b.kind === "cover" && Math.abs(bx+dx-b.position.x)<b.size.x/2+2 && Math.abs(bz+dz-b.position.z)<b.size.z/2+2)))) continue;
+      beds.push({position:position(bx,.12,bz),scale:position(2.8,.12,6.4)});
+      irrigation.push({position:position(bx,.25,bz),scale:position(.09,.09,6.4)});
+      for (let plant=0;plant<5;plant++) for (const side of [-1,1]) {
+        const px=bx+side*.72,pz=bz-2.5+plant*1.2;
+        leaves.push({position:position(px,.48,pz),scale:position(.45,.34,.25),rotationZ:side*.55,rotationY:plant*.7});
+        leaves.push({position:position(px,.65,pz),scale:position(.24,.4,.22),rotationZ:-side*.35});
+        if ((row+column)%3===0) buds.push({position:position(px,.92,pz),scale:position(.17,.18,.17)});
+      }
+    }
+    this.addInstances(group,this.materials.unitBox,this.materials.get("soil"),beds,false);
+    this.addInstances(group,this.materials.unitBox,this.materials.get("brushedMetal"),irrigation,false);
+    const planting = new THREE.Group(); planting.name="near-crop-foliage"; group.add(planting);
+    // Eight faces are enough for sub-metre leaves. The shared detailed
+    // octahedron quadrupled the triangle cost without a visible benefit.
+    const leafGeometry=this.geometry(new THREE.OctahedronGeometry(1,0));
+    this.addInstances(planting,leafGeometry,this.materials.get("grass"),leaves,false);
+    this.addInstances(planting,leafGeometry,this.materials.get("industrialOrange"),buds,false);
+    this.districtDetails.push({group:planting,center:position(x,0,z),visible:true,distanceScale:.45});
   }
 
   private makeWreck(x: number, z: number): THREE.Group {
-    const group = new THREE.Group(); group.position.set(x, 1, z); group.rotation.y = -.48;
-    const scorch = new THREE.Mesh(this.geometry(new THREE.RingGeometry(9, 30, 32)), this.materials.translucent(0x27131d, .52)); scorch.rotation.x = -Math.PI / 2; scorch.position.y = -.92; scorch.scale.z = .48; group.add(scorch);
-    const hull = new THREE.Mesh(this.geometry(new THREE.CapsuleGeometry(6, 34, 8, 15)), this.materials.get("paintedMetal")); hull.rotation.z = Math.PI / 2; hull.position.y = 6; group.add(hull);
-    const torn = new THREE.Mesh(this.geometry(new THREE.ConeGeometry(7.2, 15, 9, 1, true)), this.materials.get("structuralDark")); torn.rotation.z = -Math.PI / 2; torn.position.set(24, 6, 0); group.add(torn);
-    const wing = new THREE.Mesh(this.geometry(new THREE.BoxGeometry(22, 1.2, 10)), this.materials.get("warningRed")); wing.position.set(-4, 4, -8); wing.rotation.y = -.3; group.add(wing);
-    const brokenWing = new THREE.Mesh(this.geometry(new THREE.BoxGeometry(15, .85, 7)), this.materials.get("warningRed")); brokenWing.position.set(10, 2.6, 12); brokenWing.rotation.set(.14,.62,-.18); group.add(brokenWing);
-    const exposedFrame = new THREE.Mesh(this.geometry(new THREE.ConeGeometry(5.4, 13, 8, 1, true)), this.materials.get("brushedMetal")); exposedFrame.rotation.z = Math.PI / 2; exposedFrame.position.set(-23, 5, 1); group.add(exposedFrame);
-    for (const offset of [-7, 7]) { const rib = new THREE.Mesh(this.geometry(new THREE.TorusGeometry(6.1, .65, 7, 14, Math.PI)), this.materials.get("brushedMetal")); rib.position.set(offset, 6, 0); rib.rotation.y = Math.PI / 2; group.add(rib); }
-    const ember = new THREE.Mesh(this.geometry(new THREE.IcosahedronGeometry(2.2, 1)), this.materials.get("warningRed")); ember.position.set(25, 5.5, 0); ember.userData.pulse = true; ember.userData.baseScale = 1; group.add(ember); this.animated.push(ember);
-    const debris:MatrixSpec[]=[];for(let index=0;index<12;index++){const angle=index/12*Math.PI*2;debris.push({position:position(Math.cos(angle)*(22+index%4*4),.2+index%3*.18,Math.sin(angle)*(10+index%5*2)),scale:position(1.2+index%3*1.1,.35+index%2*.25,2+index%4),rotationY:angle+.35});}
-    this.addInstances(group,this.materials.unitChamferedBox,this.materials.get("structuralDark"),debris,false);
+    const group = new THREE.Group(); group.position.set(x, 0, z);
+    const fuselage = BR_STRUCTURES.find(s => s.id === "crash-fuselage")!;
+    const batches = { hull: [] as MatrixSpec[], frame: [] as MatrixSpec[], paint: [] as MatrixSpec[] };
+    for (const part of buildWreckRoof(fuselage)) batches[part.finish].push({
+      position:position(part.position.x-fuselage.position.x,part.position.y-.45,part.position.z-fuselage.position.z),
+      scale:position(part.scale.x,part.scale.y,part.scale.z),rotationX:part.rotationX
+    });
+    // The POI landmark parent has a .45m display offset. Undo it here so the
+    // tested shell bounds remain aligned with the actual authoritative roof.
+    this.addInstances(group,this.materials.unitBox,this.materials.get("paintedMetal"),batches.hull,false);
+    this.addInstances(group,this.materials.unitBox,this.materials.get("brushedMetal"),batches.frame,false);
+    this.addInstances(group,this.materials.unitBox,this.materials.get("warningRed"),batches.paint,false);
     return group;
   }
 
   private makeTurbine(x: number, z: number, color: string): THREE.Group {
     const group = new THREE.Group(); group.position.set(x, 0, z);
-    const casing = new THREE.Mesh(this.geometry(new THREE.TorusGeometry(6, 1.5, 9, 24)), this.materials.get("brushedMetal")); casing.position.y = 6; casing.rotation.y = Math.PI / 2; group.add(casing);
+    const casing = new THREE.Mesh(this.geometry(new THREE.TorusGeometry(6, 1.5, 9, 24)), this.materials.get("brushedMetal")); casing.position.y = 6; group.add(casing);
     const rotor = new THREE.Group(); rotor.position.y = 6; rotor.rotation.z = .2;
     for (let index = 0; index < 6; index++) { const blade = new THREE.Mesh(this.geometry(new THREE.BoxGeometry(5.2, .7, .24)), this.materials.accent(color, .2)); blade.rotation.z = index / 6 * Math.PI * 2; blade.position.x = Math.cos(blade.rotation.z) * 2.3; blade.position.y = Math.sin(blade.rotation.z) * 2.3; rotor.add(blade); }
-    rotor.userData.rotationSpeed = .00042; group.add(rotor); this.animated.push(rotor);
-    return group;
-  }
-
-  private makeKiosk(x: number, z: number, color: string): THREE.Group {
-    const group = new THREE.Group(); group.position.set(x, 0, z);
-    const body = new THREE.Mesh(this.geometry(new THREE.CylinderGeometry(2.7, 3, 2.2, 8)), this.materials.get("structuralWhite")); body.position.y = 1.1; group.add(body);
-    const canopy = new THREE.Mesh(this.geometry(new THREE.CylinderGeometry(3.7, 3.1, .5, 8)), this.materials.accent(color, .16)); canopy.position.y = 3.1; group.add(canopy);
+    rotor.userData.rotationSpeed = .00042; rotor.userData.rotationAxis = "z"; group.add(rotor); this.animated.push(rotor);
     return group;
   }
 
@@ -1098,9 +1225,9 @@ export class BrWorldRenderer {
     return signs[structure.id] ?? secondary?.name ?? null;
   }
 
-  private isReservedForGameplay(x: number, z: number, districtId: string): boolean {
+  private isReservedForGameplay(x: number, z: number): boolean {
     for (const structure of BR_STRUCTURES) {
-      if (structure.districtId !== districtId) continue;
+      // Neighbouring district structures can overlap the dressing radius too.
       if (Math.abs(x - structure.position.x) < structure.size.x / 2 + 3.5 && Math.abs(z - structure.position.z) < structure.size.z / 2 + 3.5) return true;
     }
     for (const road of BR_ROADS) {

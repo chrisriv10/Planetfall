@@ -3,7 +3,7 @@ import type { Server, Socket } from "socket.io";
 import {
   BR_BALANCE, BR_BOT_DIFFICULTY, BR_CRATE_SOCKETS, BR_HEALS, BR_LOOT_SOCKETS, BR_MAP, BR_POIS, BR_RARITY_MULTIPLIER, BR_STARTING_AMMO, BR_STORM_PHASES, BR_WEAPONS,
   DEFAULT_COSMETICS, FREE_EMOTES, PLAYER_COLORS, PLANET_PASS_REWARDS, SESSION_PROGRESSION, SHOP_CATALOG, applyBrDamage, brAimDirection, brClamp, brDistance2d, brItemMagazine, brMuzzlePosition, brNormalize,
-  brBlocksNear, brNextWaypoint, brPlayerHitDistance, brRarityDamage, brShipPath, createEmptyBrInventory, isBrHeal, isBrWeapon, isInsideBrIsland,
+  brBlocksNear, brNextWaypoint, brPickupDisposition, brPlayerHitDistance, brRarityDamage, brShipPath, createEmptyBrInventory, isBrHeal, isBrWeapon, isInsideBrIsland,
   reloadBrItem, seededRandom, sessionLevelForXp, sessionXpInLevel, stepBrMovement, stormContains,
   type BotDifficulty, type BrCrateState, type BrInput, type BrInventoryItem, type BrItemId, type BrJoinResult, type BrLootState,
   type BrMatchResult, type BrPhase, type BrPlayerSnapshotState, type BrPlayerState, type BrProjectileState, type BrRarity, type BrRoomView,
@@ -211,21 +211,35 @@ export class BattleRoyaleRoom {
   pickup(playerId: string, lootId: string, replaceSlot?: number): boolean {
     const player = this.players.get(playerId); const loot = this.loot.get(lootId);
     if (!this.isActionPhase() || !player || !loot || !player.alive || player.downed || player.deployment !== "grounded" || this.distance(player.position, loot.position) > BR_BALANCE.pickupRange) return false;
+    let collected = 0;
     if (loot.ammoType) {
-      player.ammo[loot.ammoType] = Math.min(999, player.ammo[loot.ammoType] + loot.count);
+      collected = Math.min(999 - player.ammo[loot.ammoType], loot.count);
+      if (collected <= 0) return false;
+      player.ammo[loot.ammoType] += collected;
     } else if (loot.itemId) {
       const itemId = loot.itemId;
       const heal = isBrHeal(itemId) ? BR_HEALS[itemId] : null;
       const stack = heal ? player.inventory.find((item) => item?.itemId === itemId && item.count < heal.maxStack) : undefined;
-      if (stack && heal) stack.count = Math.min(heal.maxStack, stack.count + loot.count);
+      if (stack && heal) {
+        collected = Math.min(heal.maxStack - stack.count, loot.count);
+        stack.count += collected;
+      }
       else {
         let slot = player.inventory.findIndex((item) => item === null);
         if (slot < 0 && Number.isInteger(replaceSlot) && replaceSlot! >= 0 && replaceSlot! < BR_BALANCE.inventorySlots) slot = replaceSlot!;
         if (slot < 0) return false;
+        this.cancelTimedActions(player);
         if (player.inventory[slot]) this.drop(playerId, slot);
-        player.inventory[slot] = { instanceId: id("item"), itemId: loot.itemId, rarity: loot.rarity, count: loot.count, magazine: loot.magazine ?? brItemMagazine(loot.itemId) };
+        collected = Math.min(loot.count, heal ? heal.maxStack : 1);
+        player.inventory[slot] = { instanceId: id("item"), itemId: loot.itemId, rarity: loot.rarity, count: collected, magazine: loot.magazine ?? brItemMagazine(loot.itemId) };
         player.selectedSlot = slot;
       }
+    }
+    if (collected <= 0) return false;
+    loot.count -= collected;
+    if (loot.count > 0) {
+      this.io.to(this.code).emit("br:loot:spawned", [{ ...loot }]);
+      return true;
     }
     this.loot.delete(lootId); this.io.to(this.code).emit("br:loot:removed", { ids: [lootId] }); return true;
   }
@@ -240,6 +254,7 @@ export class BattleRoyaleRoom {
   private dropItem(player: BrPlayerRecord, slot: number): void {
     const item = player.inventory[slot];
     if (!item) return;
+    if (slot === player.selectedSlot || slot === player.useSlot || slot === player.reloadSlot) this.cancelTimedActions(player);
     const loot: BrLootState = { id: id("loot"), itemId: item.itemId, rarity: item.rarity, count: item.count, magazine: item.magazine, position: { x: player.position.x + Math.sin(player.yaw) * 1.2, y: player.position.y + .5, z: player.position.z - Math.cos(player.yaw) * 1.2 } };
     this.loot.set(loot.id, loot); player.inventory[slot] = null; this.io.to(this.code).emit("br:loot:spawned", [loot]);
   }
@@ -645,7 +660,7 @@ export class BattleRoyaleRoom {
       if (now < bot.nextBotDecisionAt) continue;
       bot.nextBotDecisionAt = now + profile.reactionMs;
       const random = seededRandom(this.seed ^ this.hash(`${bot.id}:${Math.floor(now / profile.reactionMs)}`));
-      const nearbyLoot = this.nearestTo(bot.position,this.lootGrid.nearby(bot.position, profile.lootRadius));
+      const nearbyLoot = this.nearestTo(bot.position,this.lootGrid.nearby(bot.position, profile.lootRadius).filter(loot=>brPickupDisposition(bot.inventory,bot.ammo,loot)==="collect"));
       const nearbyCrate = this.nearestTo(bot.position,[...this.crates.values()].filter((crate) => !crate.opened && this.distance(bot.position, crate.position) <= profile.lootRadius));
       const safeTarget = !stormContains(this.storm, bot.position) ? { x: this.storm.center.x, y: BR_BALANCE.playerHeight, z: this.storm.center.z } : null;
       const nearestEnemy = this.nearestTo(bot.position,this.playerGrid.nearby(bot.position, 70).filter((target) => this.canDamage(bot, target)));
@@ -753,6 +768,7 @@ export class BattleRoyaleRoom {
       relevantIds.add(player.id); if (spectator) relevantIds.add(spectator.id);
       for (const teammate of all) if (teammate.teamId === player.teamId) relevantIds.add(teammate.id);
       const snapshot: BrSnapshot = { serverTime: now, phase: this.phase, localPlayer: clonePlayer(player), players: all.filter((entry) => relevantIds.has(entry.id)).map(networkState), projectiles: this.projectileGrid.nearby(anchor, BR_BALANCE.interest.projectiles).map((entry) => ({ ...entry, position: { ...entry.position }, velocity: { ...entry.velocity } })), loot: this.lootGrid.nearby(anchor,BR_BALANCE.interest.loot).map((entry)=>({...entry,position:{...entry.position}})), storm: { ...this.storm, center: { ...this.storm.center }, nextCenter: { ...this.storm.nextCenter } }, ship: this.ship ? { ...this.ship, position: { ...this.ship.position }, start: { ...this.ship.start }, end: { ...this.ship.end } } : null, playersRemaining, teamsRemaining, spectatorTargetId: spectator?.id ?? null };
+      snapshot.actions = { reloadEndsAt: player.reloadEndsAt, useEndsAt: player.useEndsAt };
       this.io.to(player.socketId).emit("br:match:snapshot", snapshot);
     }
   }

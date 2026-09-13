@@ -121,12 +121,13 @@ export function updateStarliner(ship: THREE.Group, room: BrRoomView | null, now:
 
 export function createVoidStorm(): THREE.Group {
   const root = new THREE.Group(); root.name = "void-storm"; root.visible = false;
+  const curtain=createStormCurtain();
   for (let index = 0; index < 5; index++) {
     const geometry = new THREE.CylinderGeometry(1 + index * .008, 1 + index * .008, 180 - index * 9, 96, 8, true);
     const material = new THREE.MeshBasicMaterial({
       color: index % 2 ? 0x487eff : 0xa95cff,
       transparent: true, opacity: .06 + index * .016, side: THREE.DoubleSide,
-      depthWrite: false, blending: THREE.AdditiveBlending, wireframe: index === 4
+      depthWrite: false, blending: THREE.AdditiveBlending, map: index>=2 ? curtain : null
     });
     const layer = new THREE.Mesh(geometry, material); layer.position.y = index * 2; layer.userData.stormLayer = true; layer.userData.index = index; root.add(layer);
   }
@@ -164,6 +165,7 @@ export function updateVoidStorm(storm: THREE.Group, room: BrRoomView | null, now
       child.rotation.y = (index % 2 ? 1 : -1) * now * (.000025 + index * .000012);
       const material = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
       material.opacity = (closing ? .1 : .055) + index * .012 + Math.sin(now * .003 + index) * .018;
+      if(material.map)material.map.offset.y=now*.000025;
     } else if (child.userData.stormGround) {
       child.rotation.z = now * .00018;
       const material = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
@@ -177,6 +179,21 @@ export function updateVoidStorm(storm: THREE.Group, room: BrRoomView | null, now
       material.opacity = .12 + Math.max(0, Math.sin(now * .004 + index * 1.7)) * .42;
     }
   }
+}
+
+function createStormCurtain():THREE.CanvasTexture {
+  const canvas=document.createElement("canvas");canvas.width=256;canvas.height=256;
+  const context=canvas.getContext("2d")!;const random=seededRandom(48321);
+  context.clearRect(0,0,256,256);
+  for(let i=0;i<44;i++) {
+    const x=random()*256,y=random()*256,width=1+random()*7,height=22+random()*150;
+    const gradient=context.createLinearGradient(x,y,x,y+height);
+    gradient.addColorStop(0,"rgba(160,200,255,0)");gradient.addColorStop(.4,`rgba(185,215,255,${.18+random()*.55})`);gradient.addColorStop(1,"rgba(160,200,255,0)");
+    context.fillStyle=gradient;context.fillRect(x,y,width,height);
+    if(y+height>256)context.fillRect(x,y-256,width,height);
+  }
+  const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
+  texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.repeat.set(10,2);return texture;
 }
 
 function createNebulaTexture(): THREE.CanvasTexture {

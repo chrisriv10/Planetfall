@@ -194,6 +194,8 @@ export interface BrSnapshot {
   serverTime: number;
   phase: BrPhase;
   localPlayer: BrPlayerState;
+  /** Private local action deadlines, in server time; not replicated to rivals. */
+  actions?: { reloadEndsAt: number; useEndsAt: number };
   players: BrPlayerSnapshotState[];
   projectiles: BrProjectileState[];
   loot: BrLootState[];

@@ -8,6 +8,7 @@ export type BrMaterialKey =
   | "glass"
   | "windowDark"
   | "windowLit"
+  | "growGlass"
   | "road"
   | "concrete"
   | "sidewalk"
@@ -43,15 +44,28 @@ export class BrMaterialLibrary {
 
   constructor() {
     this.materials.set("structuralWhite", this.standard(0xe4edf0, .34, .28));
-    this.materials.set("structuralDark", this.standard(0x101a2c, .32, .76));
+    this.materials.set("structuralDark", this.standard(0x26364b, .46, .42));
     this.materials.set("paintedMetal", this.standard(0x344b67, .44, .56));
     this.materials.set("brushedMetal", this.standard(0x899aa8, .26, .82));
-    this.materials.set("glass", new THREE.MeshPhysicalMaterial({
+    this.materials.set("glass", new THREE.MeshStandardMaterial({
       color: 0x66b8d7, roughness: .1, metalness: .06, transparent: true,
-      opacity: .34, transmission: .16, depthWrite: false, side: THREE.DoubleSide
+      opacity: .34, depthWrite: false, side: THREE.DoubleSide
     }));
-    this.materials.set("windowDark", this.standard(0x071322, .14, .52, 0x06152a, .36));
-    this.materials.set("windowLit", this.standard(0xffd898, .21, .18, 0xffad55, .66));
+    const glazing = this.standard(0x83b5ce, .25, .24, 0x17364e, .38);
+    const windowCanvas = document.createElement("canvas");
+    windowCanvas.width = windowCanvas.height = 128;
+    const glassContext = windowCanvas.getContext("2d")!;
+    const gradient = glassContext.createLinearGradient(0, 0, 80, 128);
+    gradient.addColorStop(0, "#6b9dae"); gradient.addColorStop(.48, "#26445a"); gradient.addColorStop(1, "#172f44");
+    glassContext.fillStyle = gradient; glassContext.fillRect(0, 0, 128, 128);
+    glassContext.fillStyle = "rgba(180,225,235,.12)";
+    glassContext.beginPath(); glassContext.moveTo(12,0); glassContext.lineTo(34,0); glassContext.lineTo(116,128); glassContext.lineTo(94,128); glassContext.fill();
+    const glassTexture = new THREE.CanvasTexture(windowCanvas); glassTexture.colorSpace = THREE.SRGBColorSpace;
+    this.textures.add(glassTexture); glazing.map = glassTexture;
+    this.materials.set("windowDark", glazing);
+    const growGlazing = glazing.clone(); growGlazing.color.set(0xa5d6ac); growGlazing.emissive.set(0x204332); growGlazing.emissiveIntensity = .24;
+    this.materials.set("growGlass", growGlazing);
+    this.materials.set("windowLit", this.standard(0xdcc7a3, .38, .1, 0xffbc79, .3));
     this.materials.set("road", this.standard(0x1c2939, .84, .14));
     this.materials.set("concrete", this.standard(0x64727b, .78, .06));
     this.materials.set("sidewalk", this.standard(0xa9b7bc, .74, .1));
@@ -75,6 +89,16 @@ export class BrMaterialLibrary {
     const material = this.materials.get(key);
     if (!material) throw new Error(`Unknown BR material: ${key}`);
     return material;
+  }
+
+  /** Ordered decal layers prevent long-distance depth fighting without raising
+   * visual roads above the player's authoritative ground plane. */
+  surface(key: BrMaterialKey, layer: number): THREE.Material {
+    const cacheKey=`surface:${key}:${layer}`;
+    const cached=this.materials.get(cacheKey);if(cached)return cached;
+    const material=this.get(key).clone();material.polygonOffset=true;
+    material.polygonOffsetFactor=-layer;material.polygonOffsetUnits=-layer;
+    this.materials.set(cacheKey,material);return material;
   }
 
   own<T extends THREE.Material>(material: T): T {
@@ -104,6 +128,9 @@ export class BrMaterialLibrary {
   }
 
   createSign(text: string, options: SignOptions = {}): THREE.Sprite {
+    const cacheKey = `sign:${text}:${JSON.stringify(options)}`;
+    const cached = this.materials.get(cacheKey) as THREE.SpriteMaterial | undefined;
+    if (cached) return new THREE.Sprite(cached);
     const canvas = document.createElement("canvas");
     canvas.width = 512;
     canvas.height = options.subtitle ? 160 : 128;
@@ -133,10 +160,31 @@ export class BrMaterialLibrary {
     texture.minFilter = THREE.LinearFilter;
     this.textures.add(texture);
     const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: true, depthWrite: false });
-    this.materials.set(`sign:${this.materials.size}`, material);
+    this.materials.set(cacheKey, material);
     const sprite = new THREE.Sprite(material);
     sprite.userData.brSign = true;
     return sprite;
+  }
+
+  /** Broad painted architecture carries a district tint, not an emissive slab. */
+  architecturalPaint(color: THREE.ColorRepresentation): THREE.MeshStandardMaterial {
+    const key = `architecture-paint:${String(color)}`;
+    const cached = this.materials.get(key);
+    if (cached) return cached as THREE.MeshStandardMaterial;
+    const tint = new THREE.Color(0xb8c9d0).lerp(new THREE.Color(color), .16);
+    const material = this.standard(tint, .52, .22);
+    this.materials.set(key, material);
+    return material;
+  }
+
+  createMountedSign(text: string, options: SignOptions = {}): THREE.Mesh {
+    const key = `mounted:${text}:${JSON.stringify(options)}`;
+    let material = this.materials.get(key);
+    if (!material) {
+      material = new THREE.MeshBasicMaterial({ map: this.createSign(text, options).material.map, transparent: true, depthWrite: false });
+      this.materials.set(key, material);
+    }
+    return new THREE.Mesh(this.unitPlane, material);
   }
 
   createPanelTexture(): THREE.CanvasTexture {

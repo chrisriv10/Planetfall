@@ -1,7 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { BR_BALANCE, type BrTeamMode, type ClientToServerEvents, type ServerToClientEvents } from "@planetfall/shared";
 import type { Server, Socket } from "socket.io";
 import { BattleRoyaleRoom } from "./br-room.js";
+
+// Bot drop timing, destination and decisions hash their player IDs. Seeding
+// the map alone did NOT make this soak reproducible when UUIDs stayed random.
+// This mock is local to the test module; production IDs/tokens are unchanged.
+const identifiers = vi.hoisted(() => ({ next: 0 }));
+vi.mock("node:crypto", async importOriginal => ({
+  ...await importOriginal<typeof import("node:crypto")>(),
+  randomUUID: () => `${(++identifiers.next).toString(16).padStart(8, "0")}-0000-4000-8000-000000000000`
+}));
+beforeEach(() => { identifiers.next = 0; });
 
 function makeRoom(teamMode: BrTeamMode): BattleRoyaleRoom {
   const io = { to: () => ({ emit: () => undefined }) } as unknown as Server<ClientToServerEvents, ServerToClientEvents>;
@@ -23,11 +33,31 @@ function assertFiniteRoom(room: BattleRoyaleRoom): void {
 }
 
 describe("Battle Royale 40-player lifecycle", () => {
+  it("reproduces participant IDs, drop timing and movement for the same seed", () => {
+    const sample = () => {
+      identifiers.next = 0;
+      const room = makeRoom("solo");
+      try {
+        for (let tick = 1; tick <= 200; tick++) room.update(.1, 1000 + tick * 100);
+        return [...room.players.values()].map(player => ({
+          id: player.id, deployment: player.deployment, position: { ...player.position },
+          velocity: { ...player.velocity }, yaw: player.yaw, shipJumpAt: player.shipJumpAt
+        }));
+      } finally { room.dispose(); }
+    };
+    expect(sample()).toEqual(sample());
+  });
   for (const teamMode of ["solo", "duo", "squad"] as const) {
     it(`completes a seeded 40-player ${teamMode} simulation without invalid state`, () => {
       const room = makeRoom(teamMode); const began = performance.now(); let now = 1_000;
-      for (let tick = 0; tick < 12_000 && room.phase !== "results"; tick++) { now += 100; room.update(.1, now); if (tick % 300 === 0) assertFiniteRoom(room); }
-      assertFiniteRoom(room); expect(room.players.size).toBe(40); expect(room.phase).toBe("results"); expect(room.matchResult).not.toBeNull(); expect(performance.now() - began).toBeLessThan(15_000);
+      try {
+        for (let tick = 0; tick < 12_000 && room.phase !== "results"; tick++) { now += 100; room.update(.1, now); if (tick % 300 === 0) assertFiniteRoom(room); }
+        assertFiniteRoom(room); expect(room.players.size).toBe(40); expect(room.phase).toBe("results"); expect(room.matchResult).not.toBeNull(); expect(performance.now() - began).toBeLessThan(15_000);
+      } finally {
+        // Rapier worlds own WASM memory; JavaScript GC is not their lifecycle.
+        // Release each round even when an assertion fails.
+        room.dispose();
+      }
     }, 20_000);
   }
 });
