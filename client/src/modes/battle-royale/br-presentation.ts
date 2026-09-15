@@ -1,5 +1,7 @@
 import * as THREE from "three";
 import { seededRandom, type BrRoomView } from "@planetfall/shared";
+import { brStormBandPositions, brStormDetail, BR_STORM_BAND_SEGMENTS, BR_STORM_HEIGHT } from "./br-storm-shape";
+import { createStarlinerHull, createStarlinerWing } from "./br-starliner-hull";
 
 export function createBrBackdrop(): THREE.Group {
   const root = new THREE.Group();
@@ -66,35 +68,38 @@ export function createStarliner(): THREE.Group {
   const white = new THREE.MeshStandardMaterial({ color: 0xe5edf0, metalness: .58, roughness: .25 });
   const dark = new THREE.MeshStandardMaterial({ color: 0x111c31, metalness: .76, roughness: .28 });
   const blue = new THREE.MeshStandardMaterial({ color: 0x3d61bf, emissive: 0x142b65, emissiveIntensity: .32, metalness: .54, roughness: .3 });
-  const glass = new THREE.MeshPhysicalMaterial({ color: 0x5bd5ff, roughness: .08, metalness: .08, transparent: true, opacity: .66, transmission: .14, depthWrite: false });
+  const glass = new THREE.MeshStandardMaterial({ color: 0x163e63, emissive:0x14384b, emissiveIntensity:.32, roughness: .18, metalness: .5 });
   const glow = new THREE.MeshBasicMaterial({ color: 0x70f5ff, transparent: true, opacity: .74, blending: THREE.AdditiveBlending, depthWrite: false });
-  const hull = new THREE.Mesh(new THREE.CapsuleGeometry(9.5, 46, 10, 20), white); hull.rotation.x = Math.PI / 2; hull.position.y = -7; ship.add(hull);
+  const hull = new THREE.Mesh(createStarlinerHull(), [white,dark,blue]); hull.position.y = -7; ship.add(hull);
   const undercarriage = new THREE.Mesh(new THREE.BoxGeometry(17, 7, 33), dark); undercarriage.position.set(0, -10, 3); ship.add(undercarriage);
   const dropBay = new THREE.Mesh(new THREE.BoxGeometry(20, 2, 22), blue); dropBay.position.set(0, -13.2, 2); ship.add(dropBay);
-  const cockpit = new THREE.Mesh(new THREE.SphereGeometry(7.2, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), glass); cockpit.rotation.x = Math.PI / 2; cockpit.position.set(0, -1.2, -18); ship.add(cockpit);
+  const cockpit = new THREE.Mesh(new THREE.BoxGeometry(9,2.2,7.5), glass); cockpit.rotation.x=.1;cockpit.position.set(0,1.5,-18.5); ship.add(cockpit);
+  const sweptWing=createStarlinerWing();
   for (const x of [-14, 14]) {
-    const wing = new THREE.Mesh(new THREE.BoxGeometry(16, 1.1, 20), blue); wing.position.set(x, -7, 3); wing.rotation.z = x < 0 ? -.05 : .05; ship.add(wing);
+    const wing = new THREE.Mesh(sweptWing, blue); wing.position.y=-7;wing.scale.x=Math.sign(x); ship.add(wing);
     const enginePod = new THREE.Mesh(new THREE.CapsuleGeometry(3.3, 10, 7, 12), dark); enginePod.rotation.x = Math.PI / 2; enginePod.position.set(x, -8.5, 12); ship.add(enginePod);
     const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(3, 4, 5, 12), white); nozzle.rotation.x = Math.PI / 2; nozzle.position.set(x, -8.5, 20); ship.add(nozzle);
-    const trail = new THREE.Mesh(new THREE.ConeGeometry(3, 38, 12, 1, true), glow.clone()); trail.rotation.x = -Math.PI / 2; trail.position.set(x, -8.5, 41); trail.userData.engineTrail = true; ship.add(trail);
+    const trailMaterial=glow.clone();trailMaterial.opacity=.28;
+    const trail = new THREE.Mesh(new THREE.ConeGeometry(3, 38, 12, 1, true), trailMaterial); trail.rotation.x = Math.PI / 2; trail.position.set(x, -8.5, 41); trail.userData.engineTrail = true; ship.add(trail);
   }
   for (const side of [-1, 1]) {
     const stabilizer = new THREE.Mesh(new THREE.BoxGeometry(2, 12, 15), blue); stabilizer.position.set(side * 8, -2, 13); stabilizer.rotation.z = side * -.2; ship.add(stabilizer);
     const sideRail = new THREE.Mesh(new THREE.BoxGeometry(.5, 2.4, 37), glow); sideRail.position.set(side * 8.2, -5.5, 0); ship.add(sideRail);
   }
-  for (const z of [-13, -5, 3, 11]) {
-    const band = new THREE.Mesh(new THREE.TorusGeometry(9.6, .48, 7, 22), z === 3 ? blue : dark); band.rotation.x = Math.PI / 2; band.position.set(0, -7, z); ship.add(band);
-  }
+  const roofFrame=new THREE.BoxGeometry(12.4,.26,.55);
+  for (const z of [-12,-4,4,12]) {const frame=new THREE.Mesh(roofFrame,dark);frame.position.set(0,1.1,z);ship.add(frame);}
   const topBridge = new THREE.Mesh(new THREE.BoxGeometry(10, 5, 14), white); topBridge.position.set(0, 1, -7); ship.add(topBridge);
   const bridgeGlass = new THREE.Mesh(new THREE.BoxGeometry(10.2, 1.5, 5), glass); bridgeGlass.position.set(0, 2.1, -12); ship.add(bridgeGlass);
-  const centerEngine = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 5.2, 7, 14), dark); centerEngine.rotation.x = Math.PI / 2; centerEngine.position.set(0, -10.5, 21); ship.add(centerEngine);
-  const centerTrail = new THREE.Mesh(new THREE.ConeGeometry(4, 28, 14, 1, true), glow.clone()); centerTrail.rotation.x = -Math.PI / 2; centerTrail.position.set(0, -10.5, 38); centerTrail.userData.engineTrail = true; ship.add(centerTrail);
+  const centerEngine = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 4, 6, 14), dark); centerEngine.rotation.x = Math.PI / 2; centerEngine.position.set(0, -7, 28.5); ship.add(centerEngine);
+  const nozzleRim=new THREE.Mesh(new THREE.TorusGeometry(3.35,.24,6,18),glow);nozzleRim.position.set(0,-7,31.6);ship.add(nozzleRim);
+  const centerTrailMaterial=glow.clone();centerTrailMaterial.opacity=.32;
+  const centerTrail = new THREE.Mesh(new THREE.ConeGeometry(3.2, 28, 14, 1, true), centerTrailMaterial); centerTrail.rotation.x = Math.PI / 2; centerTrail.position.set(0, -7, 45.7); centerTrail.userData.engineTrail = true; ship.add(centerTrail);
   for (const side of [-1, 1]) {
     const cargoPod = new THREE.Mesh(new THREE.CapsuleGeometry(2.15, 15, 6, 10), dark); cargoPod.rotation.x = Math.PI / 2; cargoPod.position.set(side * 7.2, -12.4, 1); ship.add(cargoPod);
     const fin = new THREE.Mesh(new THREE.BoxGeometry(1.1, 9, 13), blue); fin.position.set(side * 12.4, -2.6, 13.5); fin.rotation.z = side * -.38; ship.add(fin);
     for (let panel = 0; panel < 5; panel++) {
       const hullPanel = new THREE.Mesh(new THREE.BoxGeometry(.34, 4.2, 5), panel % 2 ? blue : dark);
-      hullPanel.position.set(side * 9.15, -6.4, -12 + panel * 6.2); ship.add(hullPanel);
+      hullPanel.position.set(side * 9.62, -6.4, -12 + panel * 6.2); ship.add(hullPanel);
     }
   }
   for (let deck = 0; deck < 4; deck++) {
@@ -122,24 +127,29 @@ export function updateStarliner(ship: THREE.Group, room: BrRoomView | null, now:
 export function createVoidStorm(): THREE.Group {
   const root = new THREE.Group(); root.name = "void-storm"; root.visible = false;
   const curtain=createStormCurtain();
-  for (let index = 0; index < 5; index++) {
-    const geometry = new THREE.CylinderGeometry(1 + index * .008, 1 + index * .008, 180 - index * 9, 96, 8, true);
+  for (let index = 0; index < 3; index++) {
+    const geometry = new THREE.CylinderGeometry(1, 1, BR_STORM_HEIGHT, 192, 1, true);
     const material = new THREE.MeshBasicMaterial({
       color: index % 2 ? 0x487eff : 0xa95cff,
-      transparent: true, opacity: .06 + index * .016, side: THREE.DoubleSide,
-      depthWrite: false, blending: THREE.AdditiveBlending, map: index>=2 ? curtain : null
+      transparent: true, opacity: .3, side: THREE.DoubleSide,
+      depthWrite: false, blending: THREE.AdditiveBlending, map: curtain
     });
-    const layer = new THREE.Mesh(geometry, material); layer.position.y = index * 2; layer.userData.stormLayer = true; layer.userData.index = index; root.add(layer);
+    const layer = new THREE.Mesh(geometry, material); layer.position.y = BR_STORM_HEIGHT/2; layer.userData.stormLayer = true; layer.userData.index = index; root.add(layer);
   }
-  const ground = new THREE.Mesh(new THREE.TorusGeometry(1, .012, 6, 128), new THREE.MeshBasicMaterial({ color: 0xb878ff, transparent: true, opacity: .82, blending: THREE.AdditiveBlending, depthWrite: false }));
-  ground.rotation.x = Math.PI / 2; ground.position.y = .65; ground.userData.stormGround = true; root.add(ground);
+  const bandGeometry=new THREE.BufferGeometry();
+  bandGeometry.setAttribute("position",new THREE.BufferAttribute(brStormBandPositions(1),3).setUsage(THREE.DynamicDrawUsage));
+  const indices:number[]=[];
+  for(let i=0;i<BR_STORM_BAND_SEGMENTS;i++){const next=i+BR_STORM_BAND_SEGMENTS+1;indices.push(i,next,i+1,i+1,next,next+1);}
+  bandGeometry.setIndex(indices);
+  const ground = new THREE.Mesh(bandGeometry, new THREE.MeshBasicMaterial({ color: 0xc49bff, transparent: true, opacity: .82, side:THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
+  ground.userData.stormGround = true; root.add(ground);
   const sparkGeometry = new THREE.BufferGeometry();
   const sparkPositions = new Float32Array(360 * 3);
   const random = seededRandom(7302);
   for (let index = 0; index < 360; index++) { const angle = random() * Math.PI * 2; sparkPositions[index * 3] = Math.cos(angle); sparkPositions[index * 3 + 1] = random() * 170; sparkPositions[index * 3 + 2] = Math.sin(angle); }
   sparkGeometry.setAttribute("position", new THREE.BufferAttribute(sparkPositions, 3));
-  const sparks = new THREE.Points(sparkGeometry, new THREE.PointsMaterial({ color: 0xd5c3ff, size: .022, transparent: true, opacity: .72, blending: THREE.AdditiveBlending, depthWrite: false })); sparks.userData.stormSparks = true; root.add(sparks);
-  for (let arcIndex = 0; arcIndex < 18; arcIndex++) {
+  const sparks = new THREE.Points(sparkGeometry, new THREE.PointsMaterial({ color: 0xd5c3ff, size: .24, transparent: true, opacity: .6, blending: THREE.AdditiveBlending, depthWrite: false })); sparks.userData.stormSparks = true; root.add(sparks);
+  for (let arcIndex = 0; arcIndex < 12; arcIndex++) {
     const start = random() * Math.PI * 2, span = .1 + random() * .34, height = 6 + random() * 158;
     const points: THREE.Vector3[] = [];
     for (let pointIndex = 0; pointIndex < 7; pointIndex++) {
@@ -153,27 +163,39 @@ export function createVoidStorm(): THREE.Group {
   return root;
 }
 
-export function updateVoidStorm(storm: THREE.Group, room: BrRoomView | null, now: number): void {
-  if (!room) { storm.visible = false; return; }
+export function updateVoidStorm(storm: THREE.Group, room: Pick<BrRoomView,"storm"> | null, now: number, quality: "low"|"medium"|"high" = "high"): void {
+  if (!room || !Number.isFinite(room.storm.radius) || room.storm.radius <= 0) { storm.visible = false; return; }
   storm.visible = true;
   storm.position.set(room.storm.center.x, 0, room.storm.center.z);
-  storm.scale.set(room.storm.radius, 1, room.storm.radius);
+  const radius=room.storm.radius;
+  const detail=brStormDetail(quality);
   const closing = room.storm.stage === "closing";
   for (const child of storm.children) {
     if (child.userData.stormLayer) {
       const index = Number(child.userData.index);
+      child.visible=index<detail.layers;
+      child.scale.set(radius+index*.35,1,radius+index*.35);
       child.rotation.y = (index % 2 ? 1 : -1) * now * (.000025 + index * .000012);
       const material = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
-      material.opacity = (closing ? .1 : .055) + index * .012 + Math.sin(now * .003 + index) * .018;
-      if(material.map)material.map.offset.y=now*.000025;
+      material.opacity = (closing ? .48 : .36) - index * .07 + Math.sin(now * .002 + index) * .025;
+      if(material.map){material.map.offset.y=now*.000025;material.map.repeat.x=Math.max(1,Math.PI*2*radius/38);}
     } else if (child.userData.stormGround) {
-      child.rotation.z = now * .00018;
+      const geometry=(child as THREE.Mesh).geometry;
+      if(child.userData.radius!==radius){
+        const position=geometry.getAttribute("position") as THREE.BufferAttribute;
+        brStormBandPositions(radius,position.array as Float32Array);position.needsUpdate=true;
+        geometry.computeBoundingSphere();child.userData.radius=radius;
+      }
       const material = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
       material.opacity = .65 + Math.sin(now * .006) * .2;
     } else if (child.userData.stormSparks) {
+      child.scale.set(radius,1,radius);
+      (child as THREE.Points).geometry.setDrawRange(0,detail.sparks);
       child.rotation.y = -now * .00013;
     } else if (child.userData.stormArc) {
       const index = Number(child.userData.index);
+      child.visible=index<detail.arcs;
+      child.scale.set(radius,1,radius);
       child.rotation.y = now * (index % 2 ? .000055 : -.000043) + index;
       const material = (child as THREE.Line).material as THREE.LineBasicMaterial;
       material.opacity = .12 + Math.max(0, Math.sin(now * .004 + index * 1.7)) * .42;
@@ -185,12 +207,20 @@ function createStormCurtain():THREE.CanvasTexture {
   const canvas=document.createElement("canvas");canvas.width=256;canvas.height=256;
   const context=canvas.getContext("2d")!;const random=seededRandom(48321);
   context.clearRect(0,0,256,256);
+  // A quiet haze joins the streaks into a readable wall, without an opaque
+  // overlay. The repeating texture remains continuous at both vertical edges.
+  context.fillStyle="rgba(120,160,255,.22)";context.fillRect(0,0,256,256);
   for(let i=0;i<44;i++) {
     const x=random()*256,y=random()*256,width=1+random()*7,height=22+random()*150;
-    const gradient=context.createLinearGradient(x,y,x,y+height);
-    gradient.addColorStop(0,"rgba(160,200,255,0)");gradient.addColorStop(.4,`rgba(185,215,255,${.18+random()*.55})`);gradient.addColorStop(1,"rgba(160,200,255,0)");
-    context.fillStyle=gradient;context.fillRect(x,y,width,height);
-    if(y+height>256)context.fillRect(x,y-256,width,height);
+    const alpha=.18+random()*.55;
+    for(let copy=0;copy<(y+height>256?2:1);copy++) {
+      const top=y-copy*256;
+      // A wrapped rectangle needs a wrapped gradient too. Reusing the original
+      // gradient made its copied pixels transparent and left a repeating seam.
+      const gradient=context.createLinearGradient(x,top,x,top+height);
+      gradient.addColorStop(0,"rgba(160,200,255,0)");gradient.addColorStop(.4,`rgba(185,215,255,${alpha})`);gradient.addColorStop(1,"rgba(160,200,255,0)");
+      context.fillStyle=gradient;context.fillRect(x,top,width,height);
+    }
   }
   const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
   texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.repeat.set(10,2);return texture;

@@ -72,6 +72,52 @@ describe("Battle Royale shared rules", () => {
     expect(BR_BOT_DIFFICULTY.hard.aggression).toBeLessThan(1);
   });
 
+  it("connects interior inclines to upper landings without covering the stairwell",()=>{
+    let checked=0;
+    for(const structure of BR_STRUCTURES.filter(s=>s.enterable))for(let floor=1;floor<structure.floors;floor++){
+      const ramp=BR_MAP_BLOCKS.find(b=>b.id===`${structure.id}-stairs-${floor}`)!;
+      const landing=BR_MAP_BLOCKS.find(b=>b.id===`${structure.id}-deck-${floor}-landing`)!;
+      const angle=ramp.rotation!.x;
+      const highY=ramp.position.y+Math.sin(angle)*ramp.size.z/2;
+      const highZ=ramp.position.z-Math.cos(angle)*ramp.size.z/2;
+      expect(highY).toBeCloseTo(landing.position.y,8);
+      expect(highZ).toBeCloseTo(landing.position.z+landing.size.z/2,8);
+      expect(landing.position.z-landing.size.z/2).toBeCloseTo(structure.position.z-structure.size.z/2,8);
+      expect(landing.size.z).toBeGreaterThanOrEqual(1.49);
+      expect(landing.size.z).toBeLessThan(structure.size.z/2);
+      checked++;
+    }
+    expect(checked).toBeGreaterThan(20);
+  });
+
+  it("joins every roof ramp centerline to the deck and building edge in every orientation", () => {
+    const directions=new Set<string>();
+    for(const structure of BR_STRUCTURES.filter(s=>s.enterable&&s.roofAccess)){
+      directions.add(structure.entrance);
+      const ramp=BR_MAP_BLOCKS.find(b=>b.id===`${structure.id}-roof-ramp`)!;
+      const ns=structure.entrance==="north"||structure.entrance==="south";
+      const sign=structure.entrance==="north"||structure.entrance==="east"?1:-1;
+      const axis=ns?"z":"x",angle=ns?ramp.rotation!.x:ramp.rotation!.z;
+      const along=-sign*ramp.size[axis]/2;
+      const highY=ramp.position.y+(ns?-Math.sin(angle):Math.sin(angle))*along;
+      const highAxis=ramp.position[axis]+Math.cos(angle)*along;
+      expect(highY).toBeCloseTo(structure.size.y,8);
+      expect(highAxis).toBeCloseTo(structure.position[axis]+sign*structure.size[axis]/2,8);
+      expect(ramp.position.y-(highY-ramp.position.y)).toBeCloseTo(0,8);
+    }
+    expect(directions.size).toBe(4);
+  });
+
+  it("gives residential neighborhoods their intended architectural identity", () => {
+    for (const id of ["horizon-homes","northwest-housing","academy-dorms"]) {
+      const structures=BR_STRUCTURES.filter(s=>s.districtId===id);
+      expect(structures[0].archetype).toBe("apartment");
+      expect(structures.some(s=>s.archetype==="shop")).toBe(true);
+      expect(structures.some(s=>s.archetype==="hangar"||s.archetype==="greenhouse")).toBe(false);
+    }
+    expect(BR_STRUCTURES.find(s=>s.id==="comet-hotel-1")?.archetype).toBe("hotel");
+  });
+
   it("builds one authored island with nine distinct connected districts and enterable structures", () => {
     expect(BR_POIS).toHaveLength(9);
     expect(BR_SECONDARY_LOCATIONS).toHaveLength(30);

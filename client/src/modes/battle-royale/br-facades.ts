@@ -19,6 +19,7 @@ export function buildFacadeParts(structure: BrStructure): FacadePart[] {
   const cargo = structure.archetype === "warehouse" || structure.archetype === "hangar" || structure.id === "thruster-foundry";
   const fuselage = structure.id === "crash-fuselage";
   const tower = ["tower", "hotel", "apartment"].includes(structure.archetype);
+  const residential = structure.archetype === "apartment" || structure.archetype === "hotel";
   const shop = ["shop", "transit", "mall"].includes(structure.archetype);
   const levels = cargo || fuselage ? 1 : Math.max(1, Math.round(height / (industrial ? 6 : tower ? 4.8 : 4)));
   const floor = height / levels;
@@ -46,16 +47,26 @@ export function buildFacadeParts(structure: BrStructure): FacadePart[] {
       const pitch = length / bays;
       for (let bay = 0; bay < bays; bay++) {
         const center = start + pitch * (bay + .5);
-        const windowWidth = fuselage ? Math.min(1.6, pitch - 1) : pitch - (industrial ? 1.35 : .65);
+        const windowWidth = fuselage ? Math.min(1.6, pitch - 1) : residential ? Math.min(2.65, pitch - 1.1) : pitch - (industrial ? 1.35 : .65);
         for (let level = 0; level < levels; level++) {
           const y = fuselage ? height * .72 : cargo ? height * .8 : level * floor + floor * .54;
-          const windowHeight = Math.min(floor - 1.15, fuselage ? .72 : cargo ? height * .12 : industrial ? 1.5 : tower ? 4.2 : shop ? 2.65 : 2.8);
+          const windowHeight = Math.min(floor - 1.15, fuselage ? .72 : cargo ? height * .12 : industrial ? 1.5 : residential ? 2.35 : tower ? 4.2 : shop ? 2.65 : 2.8);
           if (windowWidth <= .3 || windowHeight <= .3) continue;
           add("frame", center, y, windowWidth + .25, windowHeight + .26, .51, .15);
           const lit = !fuselage && (bay * 3 + level + structure.id.length) % 9 === 0;
           add(lit ? "lit" : "glass", center, y, windowWidth, windowHeight, .605, .06);
           add("frame", center, y - windowHeight / 2 - .18, windowWidth + .45, .13, .73, .42);
           if (shop || tower) add("frame", center, y, .09, windowHeight, .66, .06);
+          if (residential) {
+            // Shallow, wall-supported shade cassettes: residential openings
+            // read as individual rooms, not another floor-to-ceiling office grid.
+            add("panel", center, y + windowHeight / 2 + .22, windowWidth + .62, .18, .76, .58);
+            add("frame", center, y, windowWidth + .52, windowHeight + .62, .48, .14);
+            // The frame above is behind the existing inset glazing. A low
+            // spandrel establishes human scale without pretending to be a balcony.
+            add("metal", center, y - windowHeight / 2 - .53, windowWidth + .26, .48, .55, .12);
+            add("frame", center, y - windowHeight * .12, windowWidth, .085, .66, .06);
+          }
         }
         if (cargo) {
           // High clerestory glazing and recessed sheet-metal cassettes give
@@ -70,7 +81,7 @@ export function buildFacadeParts(structure: BrStructure): FacadePart[] {
           add("frame", center, height * .56, pitch * .8, .12, .61, .06);
         }
         // Recessed window bays framed by broad structural fins, not pinprick windows.
-        if (bay < bays - 1) add("frame", center + pitch / 2, height / 2, .18, height - .4, tower ? .83 : .62, tower ? .9 : .3);
+        if (bay < bays - 1) add(residential ? "panel" : "frame", center + pitch / 2, height / 2, residential ? .38 : .18, height - .4, tower ? .83 : .62, tower ? .9 : .3);
       }
       if (industrial) {
         for (let i = 0; i < 3; i++) add("frame", start + length * .18, 1.5 + i * .22, Math.min(2, length * .25), .09, .59, .16);

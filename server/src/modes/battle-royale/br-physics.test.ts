@@ -1,8 +1,51 @@
 import { describe,expect,it } from "vitest";
-import { BR_STRUCTURES } from "@planetfall/shared";
+import { BR_MAP_BLOCKS, BR_STRUCTURES } from "@planetfall/shared";
 import { BrPhysicsWorld } from "./br-physics.js";
 
 describe("Battle Royale Rapier world",()=>{
+  it.each(["comet-hotel-1","horizon-homes-1"])("climbs %s interior stairs onto the upper floor without jumping",(id)=>{
+    const physics=new BrPhysicsWorld();
+    try {
+      const structure=BR_STRUCTURES.find(s=>s.id===id)!;
+      const ramp=BR_MAP_BLOCKS.find(b=>b.id===`${id}-stairs-1`)!;
+      const rise=structure.size.y/structure.floors;
+      const run=Math.max(6,Math.min(structure.size.z-3,rise*2.6));
+      let feet={x:ramp.position.x,y:.4,z:ramp.position.z+run/2+.7};
+      for(let step=0;step<600;step++){
+        const movement=physics.move("stair-walk",feet,{x:0,y:-.07,z:-.1},false).movement;
+        feet={x:feet.x+movement.x,y:feet.y+movement.y,z:feet.z+movement.z};
+        if(feet.z<ramp.position.z-run/2-.35)break;
+      }
+      // Settle beyond the incline: floating briefly over the hole is not a landing.
+      for(let step=0;step<20;step++){
+        const movement=physics.move("stair-walk",feet,{x:0,y:-.1,z:0},false).movement;
+        feet={x:feet.x+movement.x,y:feet.y+movement.y,z:feet.z+movement.z};
+      }
+      expect(feet.z).toBeLessThan(ramp.position.z-run/2-.3);
+      expect(feet.y).toBeGreaterThan(rise);
+    } finally {physics.dispose();}
+  });
+  it.each(["central-heights-1","relay-market-1","comet-hotel-1","horizon-homes-1"])("walks from deck to %s roof without jumping",(id)=>{
+    const physics=new BrPhysicsWorld();
+    try {
+      const structure=BR_STRUCTURES.find(s=>s.id===id)!;
+      const ramp=BR_MAP_BLOCKS.find(b=>b.id===`${structure.id}-roof-ramp`)!;
+      const ns=structure.entrance==="north"||structure.entrance==="south";
+      const sign=structure.entrance==="north"||structure.entrance==="east"?1:-1;
+      const run=Math.max(10,structure.size.y*2.35);
+      let feet={x:ramp.position.x+(ns?0:sign*(run/2+1)),y:.04,z:ramp.position.z+(ns?sign*(run/2+1):0)};
+      // Character-controller slope projection shortens horizontal movement;
+      // stop on arrival, rather than assuming input distance equals travel.
+      for(let step=0;step<1000;step++){
+        const result=physics.move("roof-walk",feet,{x:ns?0:-sign*.12,y:-.08,z:ns?-sign*.12:0},false);
+        feet={x:feet.x+result.movement.x,y:feet.y+result.movement.y,z:feet.z+result.movement.z};
+        if(feet.y>structure.size.y&&Math.abs(feet.x-structure.position.x)<structure.size.x/2-.6&&Math.abs(feet.z-structure.position.z)<structure.size.z/2-.6)break;
+      }
+      expect(feet.y).toBeGreaterThan(structure.size.y);
+      expect(Math.abs(feet.x-structure.position.x)).toBeLessThan(structure.size.x/2);
+      expect(Math.abs(feet.z-structure.position.z)).toBeLessThan(structure.size.z/2);
+    } finally {physics.dispose();}
+  });
   it("keeps a capsule on the authored island and blocks solid building walls",()=>{
     const physics=new BrPhysicsWorld();
     const floor=physics.move("pilot",{x:72,y:.08,z:72},{x:.2,y:-.3,z:0},false);expect(floor.grounded).toBe(true);expect(floor.movement.y).toBeLessThan(-.03);expect(floor.movement.y).toBeGreaterThan(-.09);

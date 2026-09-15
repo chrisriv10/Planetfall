@@ -13,7 +13,8 @@ import { BrPredictionPhysics } from "./br-physics";
 import { brCameraGeometry, brCameraMode } from "./br-camera";
 import { createBrBackdrop, createStarliner, createVoidStorm, updateStarliner, updateVoidStorm } from "./br-presentation";
 import { BrWorldRenderer, type BrPoiLabel } from "./br-world";
-import { brWeaponAccent, buildBrWeaponModel } from "./br-weapons";
+import { buildBrWeaponModel } from "./br-weapons";
+import { BrShotEffects } from "./br-shot-effects";
 import { brActionTimer, brDamageBearing, brRecoilAfter, brSmoothFacing } from "./br-feedback";
 import { createBrReview } from "./br-review";
 import { BrLootLod } from "./br-loot-lod";
@@ -121,6 +122,7 @@ export class BattleRoyaleGame {
   private readonly handleResize = () => this.resize();
   private readonly unsubscribeInputMethod: () => void;
   private readonly stormWall = createVoidStorm();
+  private readonly shotEffects = new BrShotEffects();
   private review: ReturnType<typeof createBrReview> | null = null;
 
   constructor(
@@ -154,8 +156,9 @@ export class BattleRoyaleGame {
     this.renderer.setAnimationLoop((now) => this.frame(now));
   }
 
-  deactivate(): void { this.active = false; this.renderer.setAnimationLoop(null); this.uiCaptured = false; this.mapVisible = false; this.review?.dispose();this.review=null; document.exitPointerLock?.(); }
+  deactivate(): void { this.active = false; this.renderer.setAnimationLoop(null); this.shotEffects.clear(); this.uiCaptured = false; this.mapVisible = false; this.review?.dispose();this.review=null; document.exitPointerLock?.(); }
   reset(): void {
+    this.shotEffects.clear();
     for (const visual of this.players.values()) { this.scene.remove(visual.group); this.disposeObject(visual.group); }
     for (const visual of this.loot.values()) { this.scene.remove(visual.group); this.disposeObject(visual.group); }
     for (const visual of this.crates.values()) { this.scene.remove(visual.group); this.disposeObject(visual.group); }
@@ -166,7 +169,7 @@ export class BattleRoyaleGame {
     this.reloadConfirmed = false; this.useConfirmed = false;
     this.physics.reset(); this.reconciliationTracker.reset(); this.visitedPois.clear(); this.currentPoiId = ""; document.body.classList.remove("br-in-void");
   }
-  dispose(): void { if (this.disposed) return; this.deactivate(); this.reset(); this.canvas.removeEventListener("click",this.handleCanvasClick); removeEventListener("resize",this.handleResize); this.unsubscribeInputMethod(); this.scene.remove(this.island,this.stormWall,this.backdrop,this.starliner,this.sun,this.sunTarget); this.world.dispose(); this.disposeObject(this.stormWall); this.disposeObject(this.backdrop); this.disposeObject(this.starliner); this.physics.dispose(); this.disposed=true; }
+  dispose(): void { if (this.disposed) return; this.deactivate(); this.reset(); this.shotEffects.dispose(); this.canvas.removeEventListener("click",this.handleCanvasClick); removeEventListener("resize",this.handleResize); this.unsubscribeInputMethod(); this.scene.remove(this.island,this.stormWall,this.backdrop,this.starliner,this.sun,this.sunTarget); this.world.dispose(); this.disposeObject(this.stormWall); this.disposeObject(this.backdrop); this.disposeObject(this.starliner); this.physics.dispose(); this.disposed=true; }
   /** Compatibility aliases retained while callers migrate to the explicit lifecycle. */
   start(room: BrRoomView, localId: string): void { this.activate(room,localId); }
   stop(): void { this.deactivate(); }
@@ -183,6 +186,7 @@ export class BattleRoyaleGame {
   setRoom(room: BrRoomView): void { this.room = room; this.syncPlayers(room.players); }
   getInputMethod(): InputMethod { return this.input.method; }
   setDebugView(poiId: string | null): void {
+    this.debugStormPreview = import.meta.env.DEV && poiId === "storm-boundary" ? {center:{x:-184,z:-80},radius:55} : import.meta.env.DEV && poiId === "storm-final" ? {center:{x:-184,z:-109},radius:25} : null;
     if (!import.meta.env.DEV || !poiId) { this.debugCameraView = null; return; }
     // Repeatable review cameras live in clear streets/interiors, not inside a
     // neighboring building. These never move the authoritative player.
@@ -190,10 +194,15 @@ export class BattleRoyaleGame {
       "nova-street": [[-184, 2.7, -109], [-184, 7, -151]],
       "nova-roof": [[-209, 40, -137], [-171, 20, -125]],
       "mall-interior": [[-106, 2.7, 252], [-80, 5, 264]],
+      "hotel-stairs": [[-53, 2.2, -210.3], [-53, 7.3, -230]],
+      "hotel-lobby": [[-56, 2.2, -214], [-67, 2, -223]],
+      "hotel-landing": [[-53, 8.8, -229.6], [-54, 4, -214]],
       "helios-interior": [[252, 2.7, 67], [271, 8, 81]],
       "crash-interior": [[-304, 2.7, -258], [-341, 4, -258]],
       "foundry-interior": [[342, 2.7, -81], [350, 5, -61]],
       "foundry-roof": [[342, 24.7, -60], [352, 28, -73]],
+      "storm-boundary": [[-184, 2.7, -109], [-184, 7, -151]],
+      "storm-final": [[-184, 2.7, -109], [-184, 7, -151]],
       "aerial": [[-430, 520, 540], [0, 0, 0]]
     };
     const review = reviews[poiId];
@@ -301,27 +310,19 @@ export class BattleRoyaleGame {
   }
 
   weaponFired(payload: { playerId: string; weaponId: BrWeaponId; origin: Vec3; direction: Vec3; projectile?: BrProjectileState }): void {
-    const color = brWeaponAccent(payload.weaponId);
     const shooter=this.players.get(payload.playerId);if(shooter){shooter.weapon.userData.recoil=1;shooter.body.rotation.x=-.08;}
-    const flash = new THREE.PointLight(color, 4, 13, 2); flash.position.copy(vec(payload.origin)); this.scene.add(flash); setTimeout(() => this.scene.remove(flash), 70);
-    const burst = new THREE.Mesh(
-      payload.weaponId === "rail-laser" ? new THREE.CylinderGeometry(.045, .13, 2.4, 8) : payload.weaponId === "photon-shotgun" ? new THREE.IcosahedronGeometry(.46, 1) : new THREE.IcosahedronGeometry(.2, 1),
-      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .86, blending: THREE.AdditiveBlending, depthWrite: false })
-    );
-    burst.position.copy(vec(payload.origin)); burst.scale.setScalar(payload.weaponId === "plasma-launcher" ? 1.8 : 1); this.scene.add(burst);
-    setTimeout(() => { this.scene.remove(burst); this.disposeObject(burst); }, payload.weaponId === "rail-laser" ? 130 : 85);
     if (payload.playerId === this.localId && performance.now()-this.lastAnticipatedFireAt>180) {
       if (payload.weaponId === "plasma-launcher") this.audio.asteroid(); else if (payload.weaponId === "photon-shotgun" || payload.weaponId === "rail-laser") this.audio.rocket(); else this.audio.cannonTrigger(false);
     }
+    let traceLength:number|null=null;
     if (!payload.projectile && payload.weaponId !== "energy-saber") {
       let length = Math.min(BR_WEAPONS[payload.weaponId].range, payload.weaponId === "rail-laser" ? 190 : payload.weaponId === "photon-shotgun" ? 42 : 85);
       this.raycaster.set(vec(payload.origin), vec(payload.direction));this.raycaster.far=length;
       const impact=this.raycaster.intersectObjects(this.islandMeshes,false)[0];
       if(impact)length=Math.min(length,impact.distance);
-      const geometry = new THREE.BufferGeometry().setFromPoints([vec(payload.origin), vec(payload.origin).addScaledVector(vec(payload.direction), length)]);
-      const tracer = new THREE.Line(geometry, new THREE.LineBasicMaterial({ color, transparent: true, opacity: payload.weaponId === "rail-laser" ? .95 : .6 })); this.scene.add(tracer);
-      setTimeout(() => { this.scene.remove(tracer); geometry.dispose(); (tracer.material as THREE.Material).dispose(); }, payload.weaponId === "rail-laser" ? 125 : 55);
+      traceLength=length;
     }
+    this.shotEffects.fire(payload.weaponId,payload.origin,payload.direction,traceLength,performance.now());
     if (payload.projectile && !this.projectiles.has(payload.projectile.id)) this.addProjectile(payload.projectile);
   }
 
@@ -349,6 +350,7 @@ export class BattleRoyaleGame {
     const dt = Math.min(.05, (now - this.lastFrame) / 1000); this.lastFrame = now;
     const frame = this.input.sample(); this.processInput(frame, dt, now);
     this.updatePlayers(dt, now); this.updateLoot(now); this.updateCrates(now); this.updateProjectiles(); this.updatePings(now); this.updateCamera(dt); this.updateShip(); this.updateStorm(now); this.updateWorldPresentation(now);
+    this.shotEffects.update(now);
     this.renderer.render(this.scene, this.camera);
     this.review?.frame(now,()=>{
       const stats=this.world.debugStats();
@@ -774,9 +776,17 @@ export class BattleRoyaleGame {
     };
   }
 
+  private debugStormPreview: {center:{x:number;z:number};radius:number}|null = null;
+
   private updateStorm(now:number): void {
+    // Art-only storm fixtures: neither room state nor the authoritative player
+    // is changed. Selecting Gameplay camera restores the live storm immediately.
+    if (import.meta.env.DEV && this.debugStormPreview && this.room) {
+      updateVoidStorm(this.stormWall, {storm:{...this.room.storm,...this.debugStormPreview,stage:"closing"}}, now, this.settings.graphicsQuality);
+      document.body.classList.remove("br-in-void");return;
+    }
     if (!this.room || this.room.phase !== "combat") { this.stormWall.visible = false; document.body.classList.remove("br-in-void"); return; }
-    updateVoidStorm(this.stormWall, this.room, now);
+    updateVoidStorm(this.stormWall, this.room, now, this.settings.graphicsQuality);
     const local = this.localState;
     const outside = Boolean(local?.alive && Math.hypot(local.position.x - this.room.storm.center.x, local.position.z - this.room.storm.center.z) > this.room.storm.radius);
     document.body.classList.toggle("br-in-void", outside);
@@ -835,7 +845,7 @@ export class BattleRoyaleGame {
     this.sun.shadow.bias = -.00018;
     const rim = new THREE.DirectionalLight(0x9dafff, .65);
     rim.position.set(310, 100, -260);
-    this.scene.add(hemisphere, this.sun, this.sunTarget, rim, this.backdrop, this.island, this.stormWall, this.starliner);
+    this.scene.add(hemisphere, this.sun, this.sunTarget, rim, this.backdrop, this.island, this.stormWall, this.starliner, this.shotEffects.root);
     this.renderer.shadowMap.enabled = this.settings.graphicsQuality !== "low";
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;

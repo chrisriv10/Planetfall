@@ -3,6 +3,19 @@ import { BR_STRUCTURES } from "@planetfall/shared";
 import { buildFacadeParts, buildDistantFacadeParts, buildExteriorServiceParts } from "./br-facades";
 
 describe("BR architectural skin", () => {
+  it("gives residences room-sized shaded windows rather than tower curtain glazing", () => {
+    const apartment = BR_STRUCTURES.find(s => s.archetype === "apartment")!;
+    const panes = buildFacadeParts(apartment).filter(p => p.finish === "glass" || p.finish === "lit");
+    const towerPanes = buildFacadeParts({ ...apartment, archetype: "tower" }).filter(p => p.finish === "glass" || p.finish === "lit");
+    expect(panes.length).toBeGreaterThan(0);
+    expect(Math.max(...panes.map(p=>p.scale.y))).toBeLessThan(Math.max(...towerPanes.map(p=>p.scale.y)));
+    for (const pane of panes) {
+      expect(pane.scale.y).toBeLessThanOrEqual(2.35);
+      const axis = pane.face === "north" || pane.face === "south" ? "x" : "z";
+      expect(pane.scale[axis]).toBeLessThanOrEqual(2.65);
+      expect(buildFacadeParts(apartment).some(p=>p.finish === "panel" && p.face === pane.face && p.position[axis] === pane.position[axis] && p.position.y > pane.position.y && p.scale.y === .18)).toBe(true);
+    }
+  });
   it("gives cargo halls high glazing and solid lower wall cassettes", () => {
     for (const structure of BR_STRUCTURES.filter(s => ["warehouse", "hangar"].includes(s.archetype) || s.id === "thruster-foundry")) {
       const parts = buildFacadeParts(structure);

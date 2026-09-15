@@ -1,3 +1,12 @@
+import type { BrPhase, BrRoomView } from "@planetfall/shared";
+
+/** Do not present an expired storm countdown while pilots are still dropping. */
+export function brStormReadout(phase:BrPhase,storm:Pick<BrRoomView["storm"],"stage"|"stageEndsAt">,now:number) {
+  if(phase!=="combat")return {label:phase==="ship"?"DROP PHASE":phase==="results"?"ROUND COMPLETE":"PREPARING",time:"—"};
+  const seconds=storm.stageEndsAt?Math.max(0,Math.ceil((storm.stageEndsAt-now)/1000)):0;
+  return {label:storm.stage==="closing"?"VOID CLOSING":"VOID STORM",time:`${String(Math.floor(seconds/60)).padStart(2,"0")}:${String(seconds%60).padStart(2,"0")}`};
+}
+
 /** Damage events carry the impulse direction (attacker -> victim). The HUD
  * points back toward the attacker, relative to the current camera yaw. */
 export function brDamageBearing(direction: {x:number;z:number}, yaw:number): number | null {

@@ -195,6 +195,8 @@ test("Battle Royale creates an isolated room and enters the Starliner drop", asy
   await expect(page.locator("#hud")).toBeHidden();
   await expect(page.locator("#modifier-chip")).not.toHaveClass(/visible/);
   await expect.poll(() => page.evaluate(() => (window as unknown as { __PLANETFALL_BR_DEBUG__?: () => { phase: string; players: unknown[]; crateCount: number } }).__PLANETFALL_BR_DEBUG__?.().phase), { timeout: 9000 }).toBe("ship");
+  await expect(page.locator("#br-storm-copy")).toHaveText("DROP PHASE");
+  await expect(page.locator("#br-storm-timer")).toHaveText("—");
   const state = await page.evaluate(() => (window as unknown as { __PLANETFALL_BR_DEBUG__: () => { players: unknown[]; crateCount: number; world:{shipVisible:boolean;islandObjects:number} } }).__PLANETFALL_BR_DEBUG__());
   expect(state.players).toHaveLength(10);
   expect(state.crateCount).toBeGreaterThanOrEqual(19);
@@ -347,7 +349,9 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
     await moveTo(host, (state) => state.players.find((player) => player.id === guestPlayer.id)!.position, .8, 60);
   }
   await expect(host.locator("#context-prompt")).toContainText(/SHOVE NOVA/i);
-  const guestBeforeShove = (await debugState(guest)).localPosition;
+  const guestBeforeShoveState = await debugState(guest);
+  const guestBeforeShove = guestBeforeShoveState.localPosition;
+  const guestAuthoritativeBeforeShove = guestBeforeShoveState.players.find((player) => player.id === guestPlayer.id)!.position;
   await host.keyboard.press("e");
   await expect.poll(async () => {
     const successful = (await debugState(host)).matchStats.find((stats) => stats.playerId === hostPlayer.id)?.successfulShoves ?? 0;
@@ -358,6 +362,15 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
     return successful;
   }, { timeout: 6000, intervals: [350, 500, 700] }).toBeGreaterThanOrEqual(1);
   await expect(host.locator("#event-feed")).toContainText("Chris shoved Nova");
+  // The defender's presentation is frame-driven. Observe it in a foreground
+  // tab rather than testing a throttled background WebGL loop. Independently
+  // require authoritative displacement so a camera/prediction update cannot
+  // stand in for real server knockback. Neither threshold is relaxed.
+  await guest.bringToFront();
+  await expect.poll(async () => {
+    const state = await debugState(guest);
+    return pointDistance(state.players.find((player) => player.id === guestPlayer.id)!.position, guestAuthoritativeBeforeShove);
+  }, { timeout: 3000 }).toBeGreaterThan(0.6);
   await expect.poll(async () => pointDistance((await debugState(guest)).localPosition, guestBeforeShove), { timeout: 3000 }).toBeGreaterThan(0.6);
 
   await moveTo(host, (state) => state.repairs.find((repair) => repair.planetId === guestPlanetId)!.position, 2.5);

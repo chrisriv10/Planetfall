@@ -20,6 +20,7 @@ import { spinBrMachinery } from "./br-machinery";
 import { buildGrowhouseRoof } from "./br-growhouse";
 import { buildRetailInterior } from "./br-retail-interiors";
 import { buildInteriorSurfaces } from "./br-interior-surfaces";
+import { buildResidentialInterior } from "./br-residential-interiors";
 import { buildCargoCrane, buildIndustrialRoof } from "./br-industrial";
 import { buildWreckRoof, buildWreckInterior } from "./br-wreck";
 import { buildFoundryEngines } from "./br-foundry";
@@ -384,6 +385,13 @@ export class BrWorldRenderer {
           sign.position.set(label.position.x,label.position.y,label.position.z); sign.rotation.y=Math.PI;
           sign.scale.set(label.width,.58,1);group.add(sign);
         }
+        const residential=buildResidentialInterior(structure);
+        for(const part of residential.parts) retailTargets[part.finish].push({position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z)});
+        for(const label of residential.signs) {
+          const sign=this.materials.createMountedSign(label.text,{border:"#8ca6b8"});
+          sign.position.set(label.position.x,label.position.y,label.position.z);sign.rotation.y=Math.PI/2;
+          sign.scale.set(label.width,.45,1);group.add(sign);
+        }
         for (const part of buildGrowhouseRoof(structure)) {
           (part.finish === "frame" ? growFrames : part.finish === "glass" ? growGlass : growBases).push({
             position: position(part.position.x, part.position.y, part.position.z),
@@ -536,7 +544,7 @@ export class BrWorldRenderer {
       doorFrames.push({ position: position(doorX, 4.05, doorZ), scale: position(.55, .38, 5.8) });
       doorFrames.push({ position: position(doorX + (structure.entrance === "east" ? .75 : -.75), 4.45, doorZ), scale: position(shopCanopy ? 2.4 : 1.8, .22, shopCanopy ? Math.max(7.4,depth*.72) : 7.4) });
     }
-    for (let index = 0; structure.id !== "crash-fuselage" && index < Math.min(4, 1 + structure.floors); index++) {
+    for (let index = 0; structure.id !== "crash-fuselage" && !["apartment","hotel"].includes(structure.archetype) && index < Math.min(4, 1 + structure.floors); index++) {
       interiorProps.push({ position: position(x - width * .22 + index * 2.8, .62, z + depth * .2), scale: position(2.1, 1.2, .75), rotationY: index % 2 ? Math.PI / 2 : 0 });
     }
     if (structure.roofAccess) {
@@ -722,7 +730,7 @@ export class BrWorldRenderer {
     } else if (archetype === "industrial" || archetype === "utility") {
       for (const side of [-1, 1]) dark.push({ position: position(x + side * width * .25, 1.55, z), scale: position(1.25, 3.1, 1.25) });
       emissive.push({ position: position(x, .18, z), scale: position(width * .58, .08, .36) });
-    } else {
+    } else if(archetype!=="apartment"&&archetype!=="hotel") {
       light.push({ position: position(x - width * .2, .62, z + depth * .2), scale: position(2.3, 1.2, 1.1) });
       dark.push({ position: position(x + width * .2, .45, z - depth * .2), scale: position(2.1, .8, 1.3) });
     }

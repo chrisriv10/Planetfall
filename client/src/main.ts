@@ -3,6 +3,7 @@ import { BALANCE, BR_MAP, BR_POIS, BR_ROADS, BR_SECONDARY_LOCATIONS, BR_WEAPONS,
 import { createGameSocket } from "./network";
 import { inputLabel, type InputMethod } from "./input";
 import { SETTINGS_STORAGE_KEY, parseStoredSettings, type UserSettings } from "./settings";
+import { brStormReadout } from "./modes/battle-royale/br-feedback";
 
 const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const canvas = byId<HTMLCanvasElement>("game-canvas");
@@ -551,7 +552,7 @@ function renderBrHud(state: import("./modes/battle-royale/br-game").BrHudState):
   const { player } = state;
   byId("br-players-remaining").textContent = `${state.playersRemaining} PLAYERS`; byId("br-teams-remaining").textContent = `${state.teamsRemaining} TEAMS`; byId("br-elims").textContent = `${player.kills} ELIMS`;
   byId("br-hp").textContent = String(Math.ceil(player.hp)); byId("br-shield").textContent = String(Math.ceil(player.shield)); byId<HTMLElement>("br-hp-meter").style.width = `${player.hp}%`; byId<HTMLElement>("br-shield-meter").style.width = `${player.shield}%`;
-  const seconds = state.storm.stageEndsAt ? Math.max(0, Math.ceil((state.storm.stageEndsAt - Date.now()) / 1000)) : 0; byId("br-storm-timer").textContent = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`; byId("br-storm-copy").textContent = state.storm.stage === "closing" ? "VOID CLOSING" : "VOID STORM";
+  const stormReadout=brStormReadout(state.phase,state.storm,Date.now());byId("br-storm-timer").textContent=stormReadout.time;byId("br-storm-copy").textContent=stormReadout.label;
   const mini = byId("br-minimap"); const miniStorm = mini.querySelector<HTMLElement>(".br-mini-storm")!; const span = 110; miniStorm.style.left = `${50 + (state.storm.center.x - player.position.x) / span * 50}%`; miniStorm.style.top = `${50 + (state.storm.center.z - player.position.z) / span * 50}%`; miniStorm.style.width = `${state.storm.radius / span * 100}%`; miniStorm.style.height = miniStorm.style.width;
   const teamMembers = state.players.filter((entry) => entry.teamId === player.teamId && entry.id !== player.id);
   const teammates = teamMembers.filter((entry) => entry.alive);

@@ -1,7 +1,68 @@
 # Battle Royale polish checkpoint
 
-Base: `92c9e82` (`Polish Battle Royale world and presentation`), on `main`.
-This is a progress record, not a declaration that the full visual/gameplay acceptance standard has been met. No push or deployment was performed.
+Original base: `92c9e82` (`Polish Battle Royale world and presentation`), on `main`.
+The district/gameplay checkpoint was committed as `590af5b` (`Polish Battle Royale districts and harden gameplay interactions`) and pushed to `origin/main` at the user's request. Subsequent storm/combat work below remains local. No manual deployment was performed or hosting result verified.
+This is a progress record, not a declaration that the full visual/gameplay acceptance standard has been met.
+
+## Residential lounge checkpoint
+
+- Added shallow wall-side seating with separate cushions, arms and feet, framed abstract artwork, sconces and compact shared wayfinding signs for enterable apartments/hotels. Replaced the two generic furnishing paths that left unrecognizable blocks in the room. Detail uses existing geometry/material batches and district LOD; floor inlays now also follow residential slabs.
+- Whole furnishing bays are skipped near doorways, dividers or loot. Three focused tests cover bounded/finite placement, floor/roof bounds, clearance and non-residential exclusion. The first taller-wall-bay iteration exceeded an 8m room's conservative ceiling margin by 2cm; reduced the bay height rather than relaxing the assertion.
+- Browser comparison confirmed recognizable wall seating instead of bare side walls; the first iteration also revealed a second generic block-placement path, which was subsequently excluded for residences. The later cleanup still needs a follow-up screenshot review. The overall interior remains spacious and is not claimed as final art quality.
+- This is the work-in-progress state requested for a commit/push checkpoint. Earlier stair/storm/Starliner validation below remains applicable; validation of this last visual increment is recorded separately rather than represented as a complete human gameplay test.
+- Pre-commit validation: typecheck and build passed; **220/220 tests across 34 files passed in 92.57s**, including the new lounge coverage and existing mechanics/network/lifecycle suites. BR bundle 125.20 KB / 38.99 KB gzip. The latest complete E2E result is **9/9 in 3.6 minutes** from the immediately preceding stair checkpoint; it predates this lounge-only increment. A browser follow-up and fresh E2E remain next.
+
+## Residential identity and roof-access repair
+
+- Reviewed Nova street, Horizon Homes and Comet Hotel with the HUD hidden. Residential shells were using the same oversized curtain glazing as towers. Apartments/hotels now use room-sized window groups (maximum 2.65m wide / 2.35m tall), projecting shade caps, divided panes, spandrels and wider neutral piers. Existing instanced geometry/material batches are reused; entrances stay clear.
+- Found secondary archetypes were assigned by an unrelated rotating list: Horizon Homes was greenhouse/hangar/academy. Assigned explicit visual families to Horizon Homes, Northwest Housing, Academy Dorms and Comet Hotel. For this metadata-only change, serialized collision blocks + loot sockets + navigation nodes had identical SHA-256 before/after: `420fef7bf500a3a145b6b5acf8462ef4eb5294213d9b9e63379f8d31f4e367dd`.
+- Subsequent screenshot review exposed a separate **authoritative roof-ramp bug**, so the following collision corrections are intentional exceptions to the visual-only changes: horizontal run was used as the rotated slab length, leaving the foot floating and the upper end short. Roof ramps now use `hypot(run, rise)`; east/west rotations were also reversed, causing those ramps to rise away from their buildings. Fixed their signs. Placement run, slope angle, buildings and movement constants remain unchanged.
+- Rapier traversal additionally reproduced Horizon's ramp intersecting its neighboring shop. Shifted that one access lane 6.4m along the same roof edge, preserving the shop, entrance and incline. Four real Rapier deck-to-roof walking tests (north/south/east/west), plus a catalog-wide endpoint test, now pass. The tests failed before fixes: the original hotel walk remained at deck height; east/west cases failed after length-only correction; Horizon then stopped at 6.35m until its obstructed lane was shifted.
+- This does **not** certify all internal stairs, every building approach, or the complete human combat sequence. Roof ramps still need more architectural support detail; that was not used to disguise their collision defects.
+- Seven added regressions cover residential proportions/family identity, roof-ramp endpoints and four actual walking routes. Browser reinspection confirmed Horizon's ramp now rises toward its roof instead of into open space. Housing sample after changes: 257 calls / 258,114 triangles / 26 textures / 195 world materials / 28,159 enabled instances, about 60 FPS at that moment; not a controlled hardware benchmark.
+
+### Interior stair continuation
+
+- Two actual Rapier ascent tests reproduced falls at the upper end of the hotel/housing stairs: after settling beyond the incline, the players were at 4.24m / 5.03m instead of the 7m / 8.5m upper floors.
+- Corrected interior ramp slope length to `hypot(run, rise)` and added a small landing at the upper end, spanning only the margin between the incline and back wall. The central stairwell remains open. Both prediction and authority consume these same blocks; the renderer displays their matching slabs.
+- Added two climb-and-settle tests, a catalog-wide endpoint/landing test and a stair-marking coverage test. Extended existing low-cost ramp stripes to hotel/housing stairs instead of limiting them to retail buildings; no new material or decorative collision for the paint.
+- Added dev-only Hotel stairs / Hotel upper landing review cameras. Inspected both in browser with HUD hidden. The route is continuous and markings are aligned with the incline. These were visual camera fixtures, not a manual human movement test.
+- Hotel lower-stair spot sample: 123 calls / 179,646 triangles / 23 textures; upper view: 133 calls / 179,792 triangles / 23 textures. Both showed about 60 FPS at the sampling moment. The surrounding interior remains sparsely furnished and needs further composition work.
+- The prior roof/residential nine-test E2E run completed successfully (`.last-run.json`, 10:25:13, no failed tests). For the subsequent interior-stair edits, typecheck/build passed and the full suite passed **217/217 tests across 33 files in 59.41s**. Final E2E **9/9 passed in 3.6 minutes**, including the Classic raid, BR drop/landing isolation, Chaos and six-participant checks.
+
+## Starliner and validation continuation
+
+- Replaced the plain capsule hull with a closed, chamfered transport shell: tapered cockpit/nose, broad cargo middle, narrowed aft section, swept wings and exterior structural frames. The visual envelope, route and drop mechanics are unchanged.
+- Replaced the transmissive spherical cockpit with framed dark glazing; moved buried side panels outside the hull. Browser screenshots then exposed a buried central engine and reversed exhaust cones. The central nozzle now projects beyond the tail, and all three lower-opacity plumes taper aft instead of widening into opaque wedges.
+- The hull has 96 triangles and three contiguous material groups, rather than 56 per-panel groups. Three focused tests cover finite outward-facing panels/bounds, swept-wing geometry, nozzle/plume orientation and opacity; the hull test also enforces the three-group budget.
+- Browser review covered the revised ship silhouette and the later grounded view after a jump. The player landed and the ground camera returned, but this follow-up missed the immediate post-jump frame; it is not proof of the complete manual combat flow. Pre-group-optimization ship sample: 642 calls / 249,118 triangles / 68 textures, about 60 FPS in that spot check, not a controlled performance benchmark.
+- A full E2E run intermittently failed the Classic raid's rendered knockback assertion (0.069m versus the existing >0.6m requirement). The shove event was present. The unchanged test then passed in isolation (1/1, 2.1 minutes). Its defender had been observed in a background tab, while local presentation updates are frame-driven. The test now foregrounds the defender and independently checks authoritative displacement as well as the original presentation displacement. No gameplay values or distance/time thresholds were relaxed. Background rendering is a plausible cause, not a proven server-physics defect.
+
+## Storm/combat continuation after checkpoint push
+
+- Fixed storm presentation dimensions: the old 180m cylinder was centered at deck height, wasting half of its height below the map. The curtain now spans deck to 180m. Outer layers are separated by 0.35m rather than a percentage of the safe radius.
+- Replaced the radius-scaled torus (12m across at a 500m circle) with a 0.76m-wide ground annulus. Position buffers update in place as the circle shrinks, with finite collapsed-radius handling. No change to authoritative radius, damage, or timing.
+- Iterated the scrolling energy curtain after street-level screenshots. Added restrained haze, world-scale streak spacing, readable sparks, and explicit High/Medium/Low decoration budgets: 3/2/1 curtain layers, 12/8/4 arcs, 360/180/90 particles. The ground boundary remains on every preset.
+- Added development-only Storm boundary and Final circle art-review views. These are clearly labeled visual fixtures; they do not move a player, progress the real match, or simulate combat.
+- Replaced per-shot lights, meshes, line geometry and timeout cleanup with a 32-slot reusable muzzle/tracer pool. It aligns flashes with the shot direction (the previous rail cylinder remained vertical), keeps wall-clipped tracer endpoints, excludes saber/projectile hitscan beams, expires effects from the frame clock, and clears on deactivate/reset/dispose. Weapon damage, ammunition, cooldowns and projectile authority are unchanged.
+- Added 15 focused regressions: storm dimension/buffer/quality tests, real Three transform checks, gradient wrapping, muzzle/tracer direction, bounded resources under 400 shots, expiry, no false projectile/melee traces, invalid direction, cleanup, and drop/combat HUD phase tests.
+- Fixed a live-observed HUD issue: the ship phase showed `VOID STORM 00:00` before combat. It now displays `DROP PHASE` with no misleading countdown, then restores the live storm countdown in combat. The existing BR E2E flow now checks this text during the ship phase.
+- Corrected procedural storm texture wrapping: copied rectangles now use correspondingly shifted gradients, avoiding a transparent discontinuity at the vertical repeat seam.
+- Browser review: High and Low final-circle art fixtures, live Starliner, input-triggered jump, automatic Ion Wings deployment and rooftop landing. The wings retracted and the ground camera returned. This is partial live validation, not the complete loot/fight/reload/heal acceptance sequence or a human gamepad playtest.
+- Render-counter spot checks: High final-circle fixture 269 calls / 243,808 triangles / 35 textures; Low 169 calls / 200,110 triangles / 35 textures. Both report 195 **world** materials (this counter excludes player/effect materials). Visible-instance counts 23,782 / 14,690. FPS varied with browser activity; these are not controlled target-hardware benchmarks. Live rooftop view: 690 calls / 364,924 triangles / 60 textures, about 36 FPS in that sample. More performance work is still needed before claiming reliable 60 FPS.
+- Remaining visual weaknesses seen during review: distant development remains sparse, architecture still repeats, and interiors need more authored composition. The capsule-like Starliner silhouette noted earlier has since been revised above. No claim of overall visual completion.
+
+Latest full-suite validation after interior-stair work: **217/217 tests passed across 33 files in 59.41s**, including Classic/Chaos ten-minute soaks, BR 10/20/40-participant checks, Solo/Duo/Squad lifecycle, and 20–200ms inventory/action network cases. Typecheck/build passed; BR chunk 122.92 KB / 38.27 KB gzip, Classic chunk 445.40 KB / 112.35 KB gzip. E2E **9/9 passed in 3.6 minutes**. The existing large shared Three/Rapier chunk warning remains (3,095.20 KB / 1,161.00 KB gzip).
+
+Fresh post-interior-landing server profile (up to 30 simulated seconds at 30 Hz per case, ending early if results occur, snapshots at production cadence; **3/3 profiling tests passed in 3.94s**):
+
+| Participants | Avg tick ms | p95 ms | Max ms | Avg snapshot bytes | Max snapshot bytes | Heap delta MiB |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 10 | 0.717 | 1.572 | 16.528 | 8,033 | 8,868 | 4.48 |
+| 20 | 1.429 | 3.913 | 8.850 | 14,899 | 16,194 | 12.53 |
+| 40 | 1.977 | 5.020 | 16.137 | 29,351 | 30,524 | -10.26 |
+
+Snapshot p95 bytes: 8,659 / 15,797 / 30,213 respectively. Heap deltas are short-run JS heap samples affected by garbage collection, not leak proofs. These server measurements are not client FPS or a WAN capacity guarantee. The profiler uses random player IDs; this is not a strict paired comparison with the earlier roof-repair sample (40 participants 1.926 / 5.137 / 9.887ms average/p95/max).
 
 Thruster Works checkpoint: `npm test` **188/188 passed across 29 files in 59.20s**. Typecheck and build passed; BR chunk **119.15 KB / 36.96 KB gzip**. Full E2E rerun: **9/9 passed in 3.7 minutes**, including BR room/drop/landing isolation and Classic raid, Chaos, six participants and solo bots. Collision, weapon balance and server simulation were not changed by this visual follow-up. Browser exterior/interior/roof views were reviewed, not a hands-on combat playtest. Temporary review tabs and the agent's preview server were closed/stopped.
 
@@ -137,4 +198,4 @@ Earlier full runs failed BR soak wall-time assertions. The issue also recurred a
 
 ## Git
 
-`main` remains at `92c9e82`; a fresh fetch showed `HEAD...origin/main` = `0 0`. Changes are uncommitted in the working tree. No push or deployment.
+`main` remains at the pushed checkpoint `590af5b`; subsequent changes described at the top are uncommitted. No further push or deployment was performed.

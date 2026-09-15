@@ -3,6 +3,14 @@ import { BR_MAP_BLOCKS,BR_STRUCTURES } from "@planetfall/shared";
 import { buildInteriorSurfaces } from "./br-interior-surfaces";
 
 describe("interior surface inlays",()=>{
+  it("marks stair inclines in hotels and housing, not only retail interiors",()=>{
+    for(const id of ["comet-hotel-1","horizon-homes-1"]){
+      const structure=BR_STRUCTURES.find(s=>s.id===id)!;
+      const strips=buildInteriorSurfaces(structure).filter(p=>p.rotationX!==undefined);
+      expect(strips.length).toBeGreaterThan(5);
+      expect(strips.some(p=>p.scale.x===.09)).toBe(true);
+    }
+  });
   it("follows floor slabs without bridging stair openings",()=>{
     let count=0;
     for(const structure of BR_STRUCTURES)for(const part of buildInteriorSurfaces(structure).filter(p=>p.rotationX===undefined)){

@@ -7,8 +7,9 @@ export function createBrReview(selectView:(id:string|null)=>void, quality:(value
   const select=document.createElement("select");select.setAttribute("aria-label","BR review view");
   const options=[
     ["","Gameplay camera"],["aerial","Island aerial"],["nova-street","Nova street"],["nova-roof","Nova rooftop"],
-    ["mall-interior","Mall interior"],["helios-interior","Helios interior"],["crash-interior","Crash fuselage interior"],
+    ["mall-interior","Mall interior"],["hotel-lobby","Hotel lounge"],["hotel-stairs","Hotel stairs"],["hotel-landing","Hotel upper landing"],["helios-interior","Helios interior"],["crash-interior","Crash fuselage interior"],
     ["foundry-interior","Foundry interior"],["foundry-roof","Foundry roof access"],
+    ["storm-boundary","Storm boundary (art preview)"],["storm-final","Final circle (art preview)"],
     ...BR_POIS.map(p=>[p.id,p.name]),...BR_SECONDARY_LOCATIONS.map(p=>[p.id,p.name])
   ];
   for(const [value,label] of options){const option=document.createElement("option");option.value=value;option.textContent=label;select.append(option);}

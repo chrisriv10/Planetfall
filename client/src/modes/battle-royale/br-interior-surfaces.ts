@@ -5,10 +5,11 @@ export type InteriorSurfacePart = { position: Vec3; scale: Vec3; rotationX?: num
 /** Inlays follow actual slabs and inclines, including split upper floors.
  * Never paint a continuous floor across the authoritative stair opening. */
 export function buildInteriorSurfaces(structure: BrStructure): InteriorSurfacePart[] {
-  if(!structure.enterable || !["mall","shop","academy"].includes(structure.archetype))return [];
+  if(!structure.enterable)return [];
+  const detailedFloors=["mall","shop","academy","apartment","hotel"].includes(structure.archetype);
   const parts:InteriorSurfacePart[]=[];
   for(const block of BR_MAP_BLOCKS.filter(b=>b.id.startsWith(`${structure.id}-`))) {
-    if(block.kind==="platform" && !block.id.endsWith("-roof")) {
+    if(detailedFloors && block.kind==="platform" && !block.id.endsWith("-roof")) {
       const {x,z}=block.position, y=block.position.y+block.size.y/2+.012;
       const width=block.size.x-1.6, depth=block.size.z-1.6;
       if(width<1||depth<1)continue;

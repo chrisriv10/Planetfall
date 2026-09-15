@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { brActionTimer, brDamageBearing, brRecoilAfter, brSmoothFacing } from "./br-feedback";
+import { brActionTimer, brDamageBearing, brRecoilAfter, brSmoothFacing, brStormReadout } from "./br-feedback";
 
 describe("BR presentation correctness",()=>{
+  it("shows a drop phase instead of a misleading expired storm countdown aboard the ship",()=>{
+    expect(brStormReadout("ship",{stage:"waiting",stageEndsAt:null},100)).toEqual({label:"DROP PHASE",time:"—"});
+    expect(brStormReadout("countdown",{stage:"waiting",stageEndsAt:100},100)).toEqual({label:"PREPARING",time:"—"});
+  });
+  it("restores the correct storm countdown in combat and clamps expired deadlines",()=>{
+    expect(brStormReadout("combat",{stage:"closing",stageEndsAt:62_000},1000)).toEqual({label:"VOID CLOSING",time:"01:01"});
+    expect(brStormReadout("combat",{stage:"waiting",stageEndsAt:1000},2000)).toEqual({label:"VOID STORM",time:"00:00"});
+  });
   it("turns through the short arc across the yaw wrap",()=>{
     expect(brSmoothFacing(Math.PI-.01,-Math.PI+.01,.05)).toBeGreaterThan(Math.PI-.01);
     expect(Math.abs(brSmoothFacing(Math.PI-.01,-Math.PI+.01,.05)-Math.PI)).toBeLessThan(.01);

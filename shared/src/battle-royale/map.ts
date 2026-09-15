@@ -178,6 +178,14 @@ const PRIMARY_BR_STRUCTURES: readonly BrStructure[] = [
 ];
 
 const SECONDARY_ARCHETYPES:readonly BrStructureArchetype[]=["apartment","shop","utility","hotel","transit","warehouse","office","lab","industrial","greenhouse","hangar","academy","mall","tower"];
+// Presentation identities, not collision rules. The generic rotation assigned
+// greenhouses/hangars to Horizon Homes and unrelated shells to the hotel.
+const RESIDENTIAL_ARCHETYPES:Readonly<Record<string,readonly BrStructureArchetype[]>>={
+  "horizon-homes":["apartment","shop","apartment"],
+  "northwest-housing":["apartment","apartment","shop"],
+  "academy-dorms":["apartment","academy","shop"],
+  "comet-hotel":["hotel","shop","office"]
+};
 const secondaryStructures=BR_SECONDARY_LOCATIONS.flatMap((location,index)=>{
   const angle=(index%6)*Math.PI/3+.18;const cos=Math.cos(angle),sin=Math.sin(angle);
   const offsets=[[-15,-9],[14,-7],[1,15]] as const;
@@ -189,7 +197,8 @@ const secondaryStructures=BR_SECONDARY_LOCATIONS.flatMap((location,index)=>{
     const floors=Math.min(3,Math.max(1,Math.round(height/7))) as 1|2|3;
     const entrance=(["south","east","north","west"] as const)[(index+buildingIndex)%4];
     const enterable=buildingIndex===0&&index<8;
-    return S(`${location.id}-${buildingIndex+1}`,location.id,x,z,width,depth,height,location.color,location.style,floors,entrance,enterable&&height<18,enterable,SECONDARY_ARCHETYPES[(index*3+buildingIndex)%SECONDARY_ARCHETYPES.length]);
+    const archetype=RESIDENTIAL_ARCHETYPES[location.id]?.[buildingIndex]??SECONDARY_ARCHETYPES[(index*3+buildingIndex)%SECONDARY_ARCHETYPES.length];
+    return S(`${location.id}-${buildingIndex+1}`,location.id,x,z,width,depth,height,location.color,location.style,floors,entrance,enterable&&height<18,enterable,archetype);
   });
 });
 
@@ -255,7 +264,11 @@ function structureBlocks(structure: BrStructure): BrMapBlock[] {
     if(leftWidth>.5)blocks.push({id:`${structure.id}-deck-${floor}-left`,districtId:structure.districtId,position:{x:x-width/2+leftWidth/2,y:levelY,z},size:{x:leftWidth,y:.35,z:depth},color:"#253554",kind:"platform"});
     if(rightWidth>.5)blocks.push({id:`${structure.id}-deck-${floor}-right`,districtId:structure.districtId,position:{x:stairX+opening/2+rightWidth/2,y:levelY,z},size:{x:rightWidth,y:.35,z:depth},color:"#253554",kind:"platform"});
     const rampLength=Math.max(6,Math.min(depth-3,floorHeight*2.6));const angle=Math.atan2(floorHeight,rampLength);
-    blocks.push({id:`${structure.id}-stairs-${floor}`,districtId:structure.districtId,position:{x:stairX,y:levelY-floorHeight/2,z},size:{x:opening-.7,y:.32,z:rampLength},rotation:{x:angle,y:0,z:0},color:"#405978",kind:"ramp"});
+    blocks.push({id:`${structure.id}-stairs-${floor}`,districtId:structure.districtId,position:{x:stairX,y:levelY-floorHeight/2,z},size:{x:opening-.7,y:.32,z:Math.hypot(rampLength,floorHeight)},rotation:{x:angle,y:0,z:0},color:"#405978",kind:"ramp"});
+    // Bridge only the upper-end margin of the stair opening. The old split
+    // decks left a full-depth hole, so walking off the incline caused a fall.
+    const landingDepth=(depth-rampLength)/2;
+    blocks.push({id:`${structure.id}-deck-${floor}-landing`,districtId:structure.districtId,position:{x:stairX,y:levelY,z:z-depth/2+landingDepth/2},size:{x:opening,y:.35,z:landingDepth},color:"#253554",kind:"platform"});
   }
   blocks.push({ id:`${structure.id}-roof`, districtId:structure.districtId, position:{x,y:height,z}, size:{x:width,y:.42,z:depth}, color:structure.color, kind:"platform" });
   const addWall = (suffix:string,px:number,pz:number,sx:number,sz:number) => blocks.push({ id:`${structure.id}-${suffix}`, districtId:structure.districtId, position:{x:px,y:height/2,z:pz}, size:{x:sx,y:height,z:sz}, color:structure.color, kind:"wall" });
@@ -277,9 +290,15 @@ function structureBlocks(structure: BrStructure): BrMapBlock[] {
     const length=Math.max(10,height*2.35),angle=Math.atan2(height,length);let px=x,pz=z,rotation:Vec3={x:0,y:0,z:0};
     if(structure.entrance==="south"){pz=z-depth/2-length/2;rotation={x:-angle,y:0,z:0};}
     else if(structure.entrance==="north"){pz=z+depth/2+length/2;rotation={x:angle,y:0,z:0};}
-    else if(structure.entrance==="east"){px=x+width/2+length/2;rotation={x:0,y:0,z:angle};}
-    else {px=x-width/2-length/2;rotation={x:0,y:0,z:-angle};}
-    blocks.push({id:`${structure.id}-roof-ramp`,districtId:structure.districtId,position:{x:px,y:height/2,z:pz},size:{x:structure.entrance==="north"||structure.entrance==="south"?3.4:length,y:.36,z:structure.entrance==="north"||structure.entrance==="south"?length:3.4},rotation,color:"#354d6d",kind:"ramp"});
+    else if(structure.entrance==="east"){px=x+width/2+length/2;rotation={x:0,y:0,z:-angle};}
+    else {px=x-width/2-length/2;rotation={x:0,y:0,z:angle};}
+    // This authored access lane crossed Horizon's neighboring shop at mid-rise.
+    // Shift along the same roof edge; retain the building, entrance and slope.
+    if(structure.id==="horizon-homes-1")pz+=6.4;
+    // `length` is the horizontal run used for placement and slope. Rotating a
+    // slab of that same length leaves both ends short (and the bottom floating).
+    const slopeLength=Math.hypot(length,height);
+    blocks.push({id:`${structure.id}-roof-ramp`,districtId:structure.districtId,position:{x:px,y:height/2,z:pz},size:{x:structure.entrance==="north"||structure.entrance==="south"?3.4:slopeLength,y:.36,z:structure.entrance==="north"||structure.entrance==="south"?slopeLength:3.4},rotation,color:"#354d6d",kind:"ramp"});
   }
   return blocks;
 }
