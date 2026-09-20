@@ -20,7 +20,7 @@ import { spinBrMachinery } from "./br-machinery";
 import { buildGrowhouseRoof } from "./br-growhouse";
 import { buildRetailInterior } from "./br-retail-interiors";
 import { buildInteriorSurfaces } from "./br-interior-surfaces";
-import { buildResidentialInterior } from "./br-residential-interiors";
+import { buildResidentialInterior, buildResidentialCeiling, buildResidentialLandingMarkers } from "./br-residential-interiors";
 import { buildCargoCrane, buildIndustrialRoof } from "./br-industrial";
 import { buildWreckRoof, buildWreckInterior } from "./br-wreck";
 import { buildFoundryEngines } from "./br-foundry";
@@ -386,6 +386,14 @@ export class BrWorldRenderer {
           sign.scale.set(label.width,.58,1);group.add(sign);
         }
         const residential=buildResidentialInterior(structure);
+        const landingMarkers=buildResidentialLandingMarkers(structure);
+        for(const part of landingMarkers.parts) retailTargets[part.finish].push({position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z)});
+        for(const label of landingMarkers.signs) {
+          const sign=this.materials.createMountedSign(label.text,{border:"#8ca6b8"});
+          sign.position.set(label.position.x,label.position.y,label.position.z);
+          sign.scale.set(label.width,.55,1);group.add(sign);
+        }
+        for(const part of buildResidentialCeiling(structure)) retailTargets[part.finish].push({position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z)});
         for(const part of residential.parts) retailTargets[part.finish].push({position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z)});
         for(const label of residential.signs) {
           const sign=this.materials.createMountedSign(label.text,{border:"#8ca6b8"});
@@ -672,7 +680,7 @@ export class BrWorldRenderer {
       const base=floor*floorHeight,ceiling=base+floorHeight-.35;
       // Ceiling luminaires sit against the actual floor above, not suspended
       // at a fixed 3.75m through the middle of tall rooms and stairwells.
-      for(const side of [-1,1]) {
+      for(const side of ["apartment","hotel"].includes(archetype)?[]:[-1,1]) {
         dark.push({position:position(x-width*.18,ceiling,z+side*depth*.28),scale:position(width*.48,.18,.65)});
         emissive.push({position:position(x-width*.18,ceiling-.11,z+side*depth*.28),scale:position(width*.4,.035,.19)});
       }

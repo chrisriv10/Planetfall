@@ -32,8 +32,10 @@ const collectBrowserErrors = (page: Page): string[] => {
 
 async function takeControl(page: Page): Promise<void> {
   const hasControl = () => page.evaluate(() => document.pointerLockElement?.id === "game-canvas");
-  if (await hasControl()) return;
+  // Pointer lock is not proof that this page is foreground. Always activate
+  // the player being driven before checking its existing lock.
   await page.bringToFront();
+  if (await hasControl()) return;
   const canvas = page.locator("#game-canvas");
   await expect(canvas).toBeVisible();
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -57,6 +59,9 @@ async function moveTo(
 ): Promise<void> {
   await takeControl(page);
   for (let step = 0; step < maxSteps; step++) {
+    if (await page.locator("#results-screen").isVisible()) {
+      throw new Error("match reached results before navigation completed");
+    }
     const state = await debugState(page);
     if (done(state)) return;
     const target = targetFor(state);
@@ -84,8 +89,11 @@ async function moveTo(
       window.dispatchEvent(event);
     }, -turn / 0.0022);
     await page.keyboard.down("w");
-    await page.waitForTimeout(110);
-    await page.keyboard.up("w");
+    try {
+      await page.waitForTimeout(110);
+    } finally {
+      await page.keyboard.up("w");
+    }
   }
   const state = await debugState(page);
   throw new Error(`movement did not reach target; remaining distance ${pointDistance(state.localPosition, targetFor(state)).toFixed(2)} from ${JSON.stringify(state.localPosition)} toward ${JSON.stringify(targetFor(state))}`);
@@ -193,6 +201,7 @@ test("Battle Royale creates an isolated room and enters the Starliner drop", asy
   await page.locator("#br-start-button").click();
   await expect(page.locator("#br-hud")).toBeVisible();
   await expect(page.locator("#hud")).toBeHidden();
+  await expect(page.locator("#modifier-reveal")).toBeHidden();
   await expect(page.locator("#modifier-chip")).not.toHaveClass(/visible/);
   await expect.poll(() => page.evaluate(() => (window as unknown as { __PLANETFALL_BR_DEBUG__?: () => { phase: string; players: unknown[]; crateCount: number } }).__PLANETFALL_BR_DEBUG__?.().phase), { timeout: 9000 }).toBe("ship");
   await expect(page.locator("#br-storm-copy")).toHaveText("DROP PHASE");
@@ -393,14 +402,22 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
   await host.keyboard.press("e");
   await expect(host.locator("#context-prompt")).toContainText(/LAUNCH TO CHRIS/i);
   await host.keyboard.press("e");
+  // Separate server acceptance from arrival so a rejected return launch does
+  // not surface only as a destination timeout twelve seconds later.
+  await expect(host.locator("#event-feed")).toContainText("Chris launched to Chris");
   await expect.poll(async () => (await debugState(host)).players.find((player) => player.id === hostPlayer.id)?.surfacePlanetId, { timeout: 12_000 }).toBe(hostPlanetId);
 
   await moveTo(guest, (state) => state.cannons.find((cannon) => cannon.planetId === guestPlanetId)!.position, 3.7);
   await aimAt(guest, (state) => state.planets.find((planet) => planet.id === hostPlanetId)!.position);
   const scrapBeforeFire = (await debugState(guest)).players.find((player) => player.id === guestPlayer.id)!.scrap;
   await fireCannon(guest);
-  await expect.poll(async () => (await debugState(guest)).players.find((player) => player.id === guestPlayer.id)!.scrap, { timeout: 3000 }).toBeLessThan(scrapBeforeFire);
-  await expect.poll(async () => (await debugState(host)).planets.find((planet) => planet.id === hostPlanetId)!.integrity, { timeout: 5000 }).toBeLessThan(100);
+  // Feed entries expire after 6.2 seconds. Observe the first hit as it happens,
+  // not after the second-shot navigation/retry sequence (which can outlast it).
+  await Promise.all([
+    expect.poll(async () => (await debugState(guest)).players.find((player) => player.id === guestPlayer.id)!.scrap, { timeout: 3000 }).toBeLessThan(scrapBeforeFire),
+    expect.poll(async () => (await debugState(host)).planets.find((planet) => planet.id === hostPlanetId)!.integrity, { timeout: 5000 }).toBeLessThan(100),
+    expect(host.locator("#event-feed")).toContainText("Nova hit Chris")
+  ]);
   await guest.waitForTimeout(BALANCE.weapons.rocket.cooldownMs + 100);
   const scrapAfterFirst = (await debugState(guest)).players.find((player) => player.id === guestPlayer.id)!.scrap;
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -414,7 +431,6 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
   }
   await expect.poll(async () => (await debugState(guest)).players.find((player) => player.id === guestPlayer.id)!.scrap, { timeout: 3000 }).toBeLessThan(scrapAfterFirst);
   await expect.poll(async () => (await debugState(host)).matchStats.find((stats) => stats.playerId === guestPlayer.id)?.damageDealt ?? 0, { timeout: 5000 }).toBeGreaterThanOrEqual(BALANCE.weapons.rocket.damage * 2);
-  await expect(host.locator("#event-feed")).toContainText("Nova hit Chris");
 
   await expect(host.locator("#results-screen")).toBeVisible({ timeout: 55_000 });
   await expect(guest.locator("#results-screen")).toBeVisible();
@@ -467,6 +483,7 @@ test("the host can start one clearly revealed Chaos modifier", async ({ browser 
   await host.getByRole("button", { name: "Ready" }).click();
   await host.getByRole("button", { name: "Start" }).click();
   await expect(host.locator("#modifier-reveal")).toHaveClass(/visible/);
+  await expect(host.locator("#modifier-reveal")).toBeVisible();
   await expect(host.locator("#modifier-chip")).toBeVisible();
   const state = await debugState(host);
   expect(state.gameMode).toBe("chaos");

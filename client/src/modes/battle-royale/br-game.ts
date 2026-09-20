@@ -196,6 +196,7 @@ export class BattleRoyaleGame {
       "mall-interior": [[-106, 2.7, 252], [-80, 5, 264]],
       "hotel-stairs": [[-53, 2.2, -210.3], [-53, 7.3, -230]],
       "hotel-lobby": [[-56, 2.2, -214], [-67, 2, -223]],
+      "housing-lounge": [[-84, 2.2, -98], [-97, 2, -92]],
       "hotel-landing": [[-53, 8.8, -229.6], [-54, 4, -214]],
       "helios-interior": [[252, 2.7, 67], [271, 8, 81]],
       "crash-interior": [[-304, 2.7, -258], [-341, 4, -258]],
