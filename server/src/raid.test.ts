@@ -124,15 +124,19 @@ describe("planet raids", () => {
   });
 
   it("rejects invalid shoves and applies funny but bounded knockback on cooldown", async () => {
-    const { room, host, guest, hostPlanet } = await duel();
+    const { room, host, guest, hostPlanet, hostSocket } = await duel();
     const now = Date.now();
     const surface = add(hostPlanet.position, { x: 0, y: BALANCE.planetRadius + 0.95, z: 0 });
     place(host, surface, hostPlanet.id);
     place(guest, add(surface, { x: BALANCE.shove.range + 0.2, y: 0, z: 0 }), hostPlanet.id);
+    const rangeError = new Promise<string>((resolve) => hostSocket.once("server:error", ({ message }) => resolve(message)));
     expect(room.shove(host.id, guest.id, now)).toBe(false);
+    await expect(rangeError).resolves.toBe("Move closer to shove.");
     place(guest, add(surface, { x: 1.5, y: 0, z: 0 }), hostPlanet.id);
     room.setInput(host.id, { sequence: 1, dt: .05, moveX: 0, moveY: 0, cameraForward: { x: -1, y: 0, z: 0 }, jump: false, burst: false, grapple: false }, now);
+    const facingError = new Promise<string>((resolve) => hostSocket.once("server:error", ({ message }) => resolve(message)));
     expect(room.shove(host.id, guest.id, now)).toBe(false);
+    await expect(facingError).resolves.toBe("Face the player to shove.");
     host.lastInputAt = 0;
     room.setInput(host.id, { sequence: 2, dt: .05, moveX: 0, moveY: 0, cameraForward: { x: 1, y: 0, z: 0 }, jump: false, burst: false, grapple: false }, now + 30);
     expect(room.shove(host.id, guest.id, now + 31)).toBe(true);
@@ -142,7 +146,9 @@ describe("planet raids", () => {
     expect(guest.velocity.y).toBeGreaterThan(0);
     expect(room.view().matchStats.find((entry) => entry.playerId === host.id)?.successfulShoves).toBe(1);
     expect(room.view().matchStats.find((entry) => entry.playerId === guest.id)?.timesShoved).toBe(1);
+    const cooldownError = new Promise<string>((resolve) => hostSocket.once("server:error", ({ message }) => resolve(message)));
     expect(room.shove(host.id, guest.id, now + 10)).toBe(false);
+    await expect(cooldownError).resolves.toBe("Shove recharging.");
     host.shoveCooldownUntil = 0;
     place(host, surface, hostPlanet.id);
     place(guest, add(surface, { x: 1.5, y: 0, z: 0 }), hostPlanet.id);

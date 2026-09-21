@@ -65,7 +65,8 @@ async function moveTo(
     const state = await debugState(page);
     if (done(state)) return;
     const target = targetFor(state);
-    if (pointDistance(state.localPosition, target) <= tolerance) return;
+    const remaining = pointDistance(state.localPosition, target);
+    if (remaining <= tolerance) return;
     const planet = [...state.planets].sort((a, b) => pointDistance(state.localPosition, a.position) - pointDistance(state.localPosition, b.position))[0];
     const turn = (() => {
       const normalize = (point: Point): Point => {
@@ -90,7 +91,9 @@ async function moveTo(
     }, -turn / 0.0022);
     await page.keyboard.down("w");
     try {
-      await page.waitForTimeout(110);
+      // Cover open ground with fewer browser round trips, but keep short
+      // corrections near an interaction so the driver does not overshoot it.
+      await page.waitForTimeout(remaining > 8 ? 480 : remaining > 3 ? 240 : 110);
     } finally {
       await page.keyboard.up("w");
     }
@@ -99,7 +102,7 @@ async function moveTo(
   throw new Error(`movement did not reach target; remaining distance ${pointDistance(state.localPosition, targetFor(state)).toFixed(2)} from ${JSON.stringify(state.localPosition)} toward ${JSON.stringify(targetFor(state))}`);
 }
 
-async function aimAt(page: Page, targetFor: (state: DebugState) => Point): Promise<void> {
+async function aimAt(page: Page, targetFor: (state: DebugState) => Point, origin: "cannon" | "player" = "cannon"): Promise<void> {
   await takeControl(page);
   for (let attempt = 0; attempt < 12; attempt++) {
     const state = await debugState(page);
@@ -116,7 +119,8 @@ async function aimAt(page: Page, targetFor: (state: DebugState) => Point): Promi
       return normalize({ x: value.x - outward.x * radial, y: value.y - outward.y * radial, z: value.z - outward.z * radial });
     };
     const outward = normalize({ x: state.localPosition.x - planet.position.x, y: state.localPosition.y - planet.position.y, z: state.localPosition.z - planet.position.z });
-    const desired = normalize({ x: target.x - cannon.position.x, y: target.y - cannon.position.y, z: target.z - cannon.position.z });
+    const aimOrigin = origin === "player" ? state.localPosition : cannon.position;
+    const desired = normalize({ x: target.x - aimOrigin.x, y: target.y - aimOrigin.y, z: target.z - aimOrigin.z });
     if (dot(normalize(state.cameraForward), desired) > .999) return;
     const currentTangent = tangent(state.cameraForward, outward);
     const desiredTangent = tangent(desired, outward);
@@ -321,24 +325,24 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
   await expect.poll(async () => (await debugState(host)).players.find((player) => player.id === hostPlayer.id)?.surfacePlanetId, { timeout: 12_000 }).toBe(guestPlanetId);
 
   hostState = await debugState(host);
+  const stolenScrapFeed = expect(host.locator("#event-feed")).toContainText("Chris stole Nova's scrap", { timeout: 75_000 });
   if ((hostState.matchStats.find((stats) => stats.playerId === hostPlayer.id)?.stolenScrap ?? 0) === 0) {
     await moveTo(host, (state) => {
       const scraps = state.scraps.filter((scrap) => scrap.planetId === guestPlanetId);
       return scraps.sort((a, b) => pointDistance(state.localPosition, a.position) - pointDistance(state.localPosition, b.position))[0].position;
     }, 1.45, 75, (state) => (state.matchStats.find((stats) => stats.playerId === hostPlayer.id)?.stolenScrap ?? 0) >= BALANCE.scrapValue);
   }
-  await expect.poll(async () => (await debugState(host)).matchStats.find((stats) => stats.playerId === hostPlayer.id)?.stolenScrap ?? 0).toBeGreaterThanOrEqual(BALANCE.scrapValue);
-  await expect(host.locator("#event-feed")).toContainText("Chris stole Nova's scrap");
+  await Promise.all([
+    expect.poll(async () => (await debugState(host)).matchStats.find((stats) => stats.playerId === hostPlayer.id)?.stolenScrap ?? 0).toBeGreaterThanOrEqual(BALANCE.scrapValue),
+    stolenScrapFeed
+  ]);
 
-  const neutralPoint = (state: DebugState): Point => {
-    const planet = state.planets.find((candidate) => candidate.id === guestPlanetId)!;
-    return { x: planet.position.x, y: planet.position.y, z: planet.position.z + 8.95 };
-  };
-  await moveTo(host, neutralPoint, 1.8);
-  for (let approach = 0; approach < 4; approach++) {
+  // Bring the defender to the invader's actual landing/loot position. A detour
+  // through a fixed neutral point makes this real-time match expire while the
+  // browser drives both avatars across the planet.
+  for (let approach = 0; approach < 2; approach++) {
     await moveTo(guest, (state) => state.players.find((player) => player.id === hostPlayer.id)!.position, .9, 100);
-    await moveTo(host, (state) => state.players.find((player) => player.id === guestPlayer.id)!.position, .9, 100);
-    await host.waitForTimeout(400);
+    await moveTo(host, (state) => state.players.find((player) => player.id === guestPlayer.id)!.position, .9, 40);
     const state = await debugState(host);
     const attacker = state.players.find((player) => player.id === hostPlayer.id)!;
     const target = state.players.find((player) => player.id === guestPlayer.id)!;
@@ -353,7 +357,7 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
       && pointDistance(state.localPosition, target.position) < BALANCE.shove.range;
   }).toBe(true);
   for (let aimAttempt = 0; aimAttempt < 3; aimAttempt++) {
-    await aimAt(host, (state) => state.players.find((player) => player.id === guestPlayer.id)!.position);
+    await aimAt(host, (state) => state.players.find((player) => player.id === guestPlayer.id)!.position, "player");
     if (/SHOVE NOVA/i.test(await host.locator("#context-prompt").innerText())) break;
     await moveTo(host, (state) => state.players.find((player) => player.id === guestPlayer.id)!.position, .8, 60);
   }
@@ -362,14 +366,27 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
   const guestBeforeShove = guestBeforeShoveState.localPosition;
   const guestAuthoritativeBeforeShove = guestBeforeShoveState.players.find((player) => player.id === guestPlayer.id)!.position;
   await host.keyboard.press("e");
-  await expect.poll(async () => {
-    const successful = (await debugState(host)).matchStats.find((stats) => stats.playerId === hostPlayer.id)?.successfulShoves ?? 0;
-    if (successful < 1) {
-      await moveTo(host, (state) => state.players.find((player) => player.id === guestPlayer.id)!.position, .7, 10);
-      await host.keyboard.press("e");
-    }
-    return successful;
-  }, { timeout: 6000, intervals: [350, 500, 700] }).toBeGreaterThanOrEqual(1);
+  try {
+    await expect.poll(async () => {
+      const successful = (await debugState(host)).matchStats.find((stats) => stats.playerId === hostPlayer.id)?.successfulShoves ?? 0;
+      if (successful < 1) {
+        await moveTo(host, (state) => state.players.find((player) => player.id === guestPlayer.id)!.position, .7, 10);
+        await aimAt(host, (state) => state.players.find((player) => player.id === guestPlayer.id)!.position, "player");
+        await host.keyboard.press("e");
+        // The input is asynchronous. Observe the server stat after this attempt;
+        // returning the pre-input value can fail on the final successful retry.
+        await expect.poll(async () => (await debugState(host)).matchStats.find((stats) => stats.playerId === hostPlayer.id)?.successfulShoves ?? 0,
+          { timeout: 800, intervals: [100, 150, 250] }).toBeGreaterThanOrEqual(1).catch(() => undefined);
+      }
+      return (await debugState(host)).matchStats.find((stats) => stats.playerId === hostPlayer.id)?.successfulShoves ?? 0;
+    }, { timeout: 6000, intervals: [350, 500, 700] }).toBeGreaterThanOrEqual(1);
+  } catch (error) {
+    const state = await debugState(host);
+    const attacker = state.players.find((player) => player.id === hostPlayer.id)!;
+    const target = state.players.find((player) => player.id === guestPlayer.id)!;
+    const denial = await host.locator(".toast").last().textContent().catch(() => null);
+    throw new Error(`shove was rejected: ${denial ?? "no server reason"}; predicted=${pointDistance(state.localPosition, target.position).toFixed(2)} authoritative=${pointDistance(attacker.position, target.position).toFixed(2)} surfaces=${attacker.surfacePlanetId}/${target.surfacePlanetId}`, { cause: error });
+  }
   await expect(host.locator("#event-feed")).toContainText("Chris shoved Nova");
   // The defender's presentation is frame-driven. Observe it in a foreground
   // tab rather than testing a throttled background WebGL loop. Independently

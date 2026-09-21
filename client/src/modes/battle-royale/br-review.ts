@@ -6,7 +6,7 @@ export function createBrReview(selectView:(id:string|null)=>void, quality:(value
   root.style.cssText="position:fixed;right:12px;bottom:88px;z-index:9999;max-width:300px;background:#0b1528e8;color:#d6eaf5;padding:9px;border:1px solid #57778b;border-radius:8px;font:11px system-ui;pointer-events:auto";
   const select=document.createElement("select");select.setAttribute("aria-label","BR review view");
   const options=[
-    ["","Gameplay camera"],["aerial","Island aerial"],["nova-street","Nova street"],["nova-roof","Nova rooftop"],
+    ["","Gameplay camera"],["aerial","Island aerial"],["nova-street","Nova street"],["nova-storefront","Nova storefront"],["nova-roof","Nova rooftop"],
     ["mall-interior","Mall interior"],["hotel-lobby","Hotel lounge"],["housing-lounge","Housing lounge"],["hotel-stairs","Hotel stairs"],["hotel-landing","Hotel upper landing"],["helios-interior","Helios interior"],["crash-interior","Crash fuselage interior"],
     ["foundry-interior","Foundry interior"],["foundry-roof","Foundry roof access"],
     ["storm-boundary","Storm boundary (art preview)"],["storm-final","Final circle (art preview)"],

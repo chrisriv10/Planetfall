@@ -2222,9 +2222,13 @@ export class PlanetfallGame {
       if (!player.state.alive || player.state.id === this.localId || player.state.surfacePlanetId !== surfacePlanetId) continue;
       const targetPosition = vec(player.state.position);
       const d = targetPosition.distanceTo(this.localPosition);
-      if (d <= nearestDistance && isShoveTarget(
-        plain(this.localPosition), plain(targetPosition), planet.state.position, plain(this.cameraForward)
-      )) { nearest = player; nearestDistance = d; }
+      const authoritativeLocal = local.state.position;
+      const authoritativeRange = BALANCE.shove.range + BALANCE.shove.networkRangeTolerance;
+      if (d <= nearestDistance
+        && distance(authoritativeLocal, player.state.position) <= authoritativeRange
+        && isShoveTarget(plain(this.localPosition), plain(targetPosition), planet.state.position, plain(this.cameraForward))
+        && isShoveTarget(authoritativeLocal, player.state.position, planet.state.position, plain(this.cameraForward), authoritativeRange)
+      ) { nearest = player; nearestDistance = d; }
     }
     return nearest;
   }

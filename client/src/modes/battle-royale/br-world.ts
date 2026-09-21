@@ -15,6 +15,9 @@ import {
 import type { GraphicsQuality } from "../../settings";
 import { BrMaterialLibrary } from "./br-materials";
 import { buildFacadeParts, buildDistantFacadeParts, buildExteriorServiceParts } from "./br-facades";
+import { buildNovaStorefrontParts } from "./br-storefronts";
+import { buildNovaEntrancePaving } from "./br-entrance-paving";
+import { buildReactorInterior } from "./br-reactor-interior";
 import { brRoadDetailClear } from "./br-road-detail";
 import { spinBrMachinery } from "./br-machinery";
 import { buildGrowhouseRoof } from "./br-growhouse";
@@ -367,9 +370,23 @@ export class BrWorldRenderer {
       const machinery: MatrixSpec[] = [];
       const displayGlass: MatrixSpec[] = [];
       const floorSeams: MatrixSpec[] = [], floorTrim: MatrixSpec[] = [];
+      const entrancePavers: MatrixSpec[] = [], entranceInsets: MatrixSpec[] = [], entranceDrains: MatrixSpec[] = [];
+      const reactorFrames: MatrixSpec[] = [], reactorPanels: MatrixSpec[] = [], reactorEnergy: MatrixSpec[] = [], reactorWarnings: MatrixSpec[] = [];
       const growFrames: MatrixSpec[] = [], growGlass: MatrixSpec[] = [], growBases: MatrixSpec[] = [];
       const industrial = { frame: [] as MatrixSpec[], paint: [] as MatrixSpec[], metal: [] as MatrixSpec[], glass: [] as MatrixSpec[] };
       for (const structure of structures) {
+        for (const part of buildReactorInterior(structure)) {
+          (part.finish === "frame" ? reactorFrames : part.finish === "panel" ? reactorPanels : part.finish === "energy" ? reactorEnergy : reactorWarnings).push({
+            position: position(part.position.x, part.position.y, part.position.z),
+            scale: position(part.scale.x, part.scale.y, part.scale.z)
+          });
+        }
+        for (const part of buildNovaEntrancePaving(structure)) {
+          (part.finish === "paver" ? entrancePavers : part.finish === "inset" ? entranceInsets : entranceDrains).push({
+            position: position(part.position.x, part.position.y, part.position.z),
+            scale: position(part.scale.x, part.scale.y, part.scale.z)
+          });
+        }
         for (const part of buildIndustrialRoof(structure)) industrial[part.finish].push({
           position: position(part.position.x, part.position.y, part.position.z),
           scale: position(part.scale.x, part.scale.y, part.scale.z)
@@ -442,6 +459,13 @@ export class BrWorldRenderer {
       this.addInstances(group, this.materials.unitBox, this.materials.get("windowDark"), displayGlass, false);
       this.addInstances(group, this.materials.unitBox, this.materials.surface("paintedMetal",2), floorSeams, false);
       this.addInstances(group, this.materials.unitBox, this.materials.surface("sidewalk",2), floorTrim, false);
+      this.addInstances(group, this.materials.unitBox, this.materials.surface("sidewalk",6), entrancePavers, false);
+      this.addInstances(group, this.materials.unitBox, this.materials.surface("concrete",6), entranceInsets, false);
+      this.addInstances(group, this.materials.unitBox, this.materials.surface("paintedMetal",7), entranceDrains, false);
+      this.addInstances(group, this.materials.unitChamferedBox, this.materials.get("structuralDark"), reactorFrames, false);
+      this.addInstances(group, this.materials.unitBox, this.materials.get("brushedMetal"), reactorPanels, false);
+      this.addInstances(group, this.materials.unitBox, this.materials.get("energyCyan"), reactorEnergy, false);
+      this.addInstances(group, this.materials.unitBox, this.materials.get("industrialOrange"), reactorWarnings, false);
       this.addInstances(group, this.materials.unitBox, this.materials.get("structuralDark"), railings, false);
       // Roof crowns and major silhouette masses must not disappear at the
       // same threshold as tiny interior props and facade signs.
@@ -495,7 +519,7 @@ export class BrWorldRenderer {
       columns.push({ position: position(x + sx * (width / 2 - corner * .42), height / 2, z + sz * (depth / 2 - corner * .42)), scale: position(corner, height + 1.1, corner) });
     }
     const facadeTargets = { panel: interiorProps, frame: columns, glass: darkWindows, lit: litWindows, accent: trims, foliage: facadePlants, metal: roofUnits };
-    for (const part of [...buildFacadeParts(structure), ...buildExteriorServiceParts(structure)]) {
+    for (const part of [...buildFacadeParts(structure), ...buildExteriorServiceParts(structure), ...buildNovaStorefrontParts(structure)]) {
       facadeTargets[part.finish].push({position: position(part.position.x, part.position.y, part.position.z), scale: position(part.scale.x, part.scale.y, part.scale.z)});
     }
     const facadeHeight = Math.max(3, height * .62);

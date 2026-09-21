@@ -485,13 +485,16 @@ export class GameRoom {
     const target = this.players.get(targetPlayerId);
     if (!player?.alive || !target?.alive || player.id === target.id || (this.phase !== "playing" && this.phase !== "overtime")) return false;
     const validationRange = BALANCE.shove.range + clamp(rangeTolerance, 0, BALANCE.shove.networkRangeTolerance);
-    if (now < player.shoveCooldownUntil || distance(player.position, target.position) > validationRange) return false;
+    if (now < player.shoveCooldownUntil) { this.error(playerId, "Shove recharging."); return false; }
+    if (distance(player.position, target.position) > validationRange) { this.error(playerId, "Move closer to shove."); return false; }
     const planet = this.nearestAlivePlanet(player.position);
     const targetPlanet = this.nearestAlivePlanet(target.position);
-    if (!planet || targetPlanet?.id !== planet.id) return false;
-    if (distance(player.position, planet.position) - BALANCE.planetRadius > 2 || distance(target.position, planet.position) - BALANCE.planetRadius > 2) return false;
+    if (!planet || targetPlanet?.id !== planet.id) { this.error(playerId, "Shove targets must share a planet."); return false; }
+    if (distance(player.position, planet.position) - BALANCE.planetRadius > 2 || distance(target.position, planet.position) - BALANCE.planetRadius > 2) {
+      this.error(playerId, "Land before shoving."); return false;
+    }
     const shoveFacing = facing ?? player.input?.cameraForward ?? sub(target.position, player.position);
-    if (!isShoveTarget(player.position, target.position, planet.position, shoveFacing, validationRange)) return false;
+    if (!isShoveTarget(player.position, target.position, planet.position, shoveFacing, validationRange)) { this.error(playerId, "Face the player to shove."); return false; }
     const outward = normalize(sub(target.position, planet.position));
     const tangentAway = projectOnPlane(sub(target.position, player.position), outward);
     let away = length(tangentAway) >= 0.1 ? normalize(tangentAway) : normalize(projectOnPlane(shoveFacing, outward));

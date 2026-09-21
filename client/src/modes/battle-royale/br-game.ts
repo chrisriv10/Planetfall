@@ -192,13 +192,14 @@ export class BattleRoyaleGame {
     // neighboring building. These never move the authoritative player.
     const reviews: Record<string, [number[], number[]]> = {
       "nova-street": [[-184, 2.7, -109], [-184, 7, -151]],
+      "nova-storefront": [[-178, 2.7, -100], [-204, 3.2, -103]],
       "nova-roof": [[-209, 40, -137], [-171, 20, -125]],
       "mall-interior": [[-106, 2.7, 252], [-80, 5, 264]],
       "hotel-stairs": [[-53, 2.2, -210.3], [-53, 7.3, -230]],
       "hotel-lobby": [[-56, 2.2, -214], [-67, 2, -223]],
       "housing-lounge": [[-84, 2.2, -98], [-97, 2, -92]],
       "hotel-landing": [[-53, 8.8, -229.6], [-54, 4, -214]],
-      "helios-interior": [[252, 2.7, 67], [271, 8, 81]],
+      "helios-interior": [[262, 2.7, 64], [262, 5, 88]],
       "crash-interior": [[-304, 2.7, -258], [-341, 4, -258]],
       "foundry-interior": [[342, 2.7, -81], [350, 5, -61]],
       "foundry-roof": [[342, 24.7, -60], [352, 28, -73]],
