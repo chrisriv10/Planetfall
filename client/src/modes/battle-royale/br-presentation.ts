@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { seededRandom, type BrRoomView } from "@planetfall/shared";
-import { brStormBandPositions, brStormDetail, BR_STORM_BAND_SEGMENTS, BR_STORM_HEIGHT } from "./br-storm-shape";
+import { brStormBandPositions, brStormCurtainRepeats, brStormDetail, brStormLayerSpacing, BR_STORM_BAND_SEGMENTS, BR_STORM_HEIGHT } from "./br-storm-shape";
 import { createStarlinerHull, createStarlinerWing } from "./br-starliner-hull";
 
 export function createBrBackdrop(): THREE.Group {
@@ -127,21 +127,29 @@ export function updateStarliner(ship: THREE.Group, room: BrRoomView | null, now:
 export function createVoidStorm(): THREE.Group {
   const root = new THREE.Group(); root.name = "void-storm"; root.visible = false;
   const curtain=createStormCurtain();
+  const curtainGeometry=createStormFadeGeometry(BR_STORM_HEIGHT,false);
   for (let index = 0; index < 3; index++) {
-    const geometry = new THREE.CylinderGeometry(1, 1, BR_STORM_HEIGHT, 192, 1, true);
     const material = new THREE.MeshBasicMaterial({
-      color: index % 2 ? 0x487eff : 0xa95cff,
+      color: index % 2 ? 0x739fff : 0xb995ff,
       transparent: true, opacity: .3, side: THREE.DoubleSide,
-      depthWrite: false, blending: THREE.AdditiveBlending, map: curtain
+      depthWrite: false, blending: THREE.AdditiveBlending, map: curtain,
+      vertexColors: true, toneMapped: false, forceSinglePass: true
     });
-    const layer = new THREE.Mesh(geometry, material); layer.position.y = BR_STORM_HEIGHT/2; layer.userData.stormLayer = true; layer.userData.index = index; root.add(layer);
+    const layer = new THREE.Mesh(curtainGeometry, material); layer.position.y = BR_STORM_HEIGHT/2; layer.userData.stormLayer = true; layer.userData.index = index; root.add(layer);
   }
+  // A low, continuous cyan-violet edge supplies depth at eye level, even when
+  // the floor annulus is nearly edge-on. It fades fully out above the player.
+  const boundaryGlow=new THREE.Mesh(createStormFadeGeometry(5,true),new THREE.MeshBasicMaterial({
+    color:0xb2bcff,transparent:true,opacity:.5,side:THREE.DoubleSide,
+    depthWrite:false,blending:THREE.AdditiveBlending,vertexColors:true,toneMapped:false,forceSinglePass:true
+  }));
+  boundaryGlow.position.y=2.5;boundaryGlow.userData.stormBoundaryGlow=true;root.add(boundaryGlow);
   const bandGeometry=new THREE.BufferGeometry();
   bandGeometry.setAttribute("position",new THREE.BufferAttribute(brStormBandPositions(1),3).setUsage(THREE.DynamicDrawUsage));
   const indices:number[]=[];
   for(let i=0;i<BR_STORM_BAND_SEGMENTS;i++){const next=i+BR_STORM_BAND_SEGMENTS+1;indices.push(i,next,i+1,i+1,next,next+1);}
   bandGeometry.setIndex(indices);
-  const ground = new THREE.Mesh(bandGeometry, new THREE.MeshBasicMaterial({ color: 0xc49bff, transparent: true, opacity: .82, side:THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
+  const ground = new THREE.Mesh(bandGeometry, new THREE.MeshBasicMaterial({ color: 0xe0d6ff, transparent: true, opacity: .9, side:THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped:false, forceSinglePass:true }));
   ground.userData.stormGround = true; root.add(ground);
   const sparkGeometry = new THREE.BufferGeometry();
   const sparkPositions = new Float32Array(360 * 3);
@@ -168,17 +176,23 @@ export function updateVoidStorm(storm: THREE.Group, room: Pick<BrRoomView,"storm
   storm.visible = true;
   storm.position.set(room.storm.center.x, 0, room.storm.center.z);
   const radius=room.storm.radius;
-  const detail=brStormDetail(quality);
+  const detail=brStormDetail(quality,radius);
+  const layerSpacing=brStormLayerSpacing(radius);
+  const curtainRepeats=brStormCurtainRepeats(radius);
   const closing = room.storm.stage === "closing";
   for (const child of storm.children) {
     if (child.userData.stormLayer) {
       const index = Number(child.userData.index);
       child.visible=index<detail.layers;
-      child.scale.set(radius+index*.35,1,radius+index*.35);
+      child.scale.set(radius+index*layerSpacing,1,radius+index*layerSpacing);
       child.rotation.y = (index % 2 ? 1 : -1) * now * (.000025 + index * .000012);
       const material = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
       material.opacity = (closing ? .48 : .36) - index * .07 + Math.sin(now * .002 + index) * .025;
-      if(material.map){material.map.offset.y=now*.000025;material.map.repeat.x=Math.max(1,Math.PI*2*radius/38);}
+      if(material.map){material.map.offset.y=now*.000025;material.map.repeat.x=curtainRepeats;}
+    } else if (child.userData.stormBoundaryGlow) {
+      child.scale.set(radius,1,radius);
+      const material=(child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+      material.opacity=(closing ? .52 : .42)+Math.sin(now*.002)*.025;
     } else if (child.userData.stormGround) {
       const geometry=(child as THREE.Mesh).geometry;
       if(child.userData.radius!==radius){
@@ -187,7 +201,7 @@ export function updateVoidStorm(storm: THREE.Group, room: Pick<BrRoomView,"storm
         geometry.computeBoundingSphere();child.userData.radius=radius;
       }
       const material = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
-      material.opacity = .65 + Math.sin(now * .006) * .2;
+      material.opacity = .85 + Math.sin(now * .006) * .1;
     } else if (child.userData.stormSparks) {
       child.scale.set(radius,1,radius);
       (child as THREE.Points).geometry.setDrawRange(0,detail.sparks);
@@ -201,6 +215,21 @@ export function updateVoidStorm(storm: THREE.Group, room: Pick<BrRoomView,"storm
       material.opacity = .12 + Math.max(0, Math.sin(now * .004 + index * 1.7)) * .42;
     }
   }
+}
+
+function createStormFadeGeometry(height:number,boundary:boolean):THREE.CylinderGeometry {
+  const geometry=new THREE.CylinderGeometry(1,1,height,BR_STORM_BAND_SEGMENTS,8,true);
+  const positions=geometry.getAttribute("position");
+  const colors=new Float32Array(positions.count*3);
+  for(let i=0;i<positions.count;i++) {
+    const y=positions.getY(i)+height/2;
+    // Additive black contributes no light, so the low boundary disappears
+    // smoothly at its top while the tall veil retains a quiet upper haze.
+    const intensity=boundary?Math.pow(1-y/height,2):.12+.88*Math.exp(-y/28);
+    colors[i*3]=colors[i*3+1]=colors[i*3+2]=intensity;
+  }
+  geometry.setAttribute("color",new THREE.BufferAttribute(colors,3));
+  return geometry;
 }
 
 function createStormCurtain():THREE.CanvasTexture {

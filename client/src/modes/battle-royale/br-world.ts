@@ -955,8 +955,14 @@ export class BrWorldRenderer {
       }
       for(const batch of batches.values()) this.addInstances(group,geometries[batch.shape],this.materials.get(finishes[batch.finish]),batch.parts,false);
     } else {
-      const sculpture = new THREE.Mesh(this.geometry(new THREE.TorusKnotGeometry(2.1, .22, 64, 8)), this.materials.get("brushedMetal")); sculpture.position.set(-9,3.3,14); sculpture.userData.rotationSpeed = .00012; group.add(sculpture); this.animated.push(sculpture);
-      const plinth=new THREE.Mesh(this.materials.unitCylinder,dark);plinth.position.set(-9,.28,14);plinth.scale.set(2.1,.55,2.1);group.add(plinth);
+      // Nova's plaza marker is open filigree, not a large solid-looking knot
+      // blocking the main street view despite having no gameplay collider.
+      const marker=new THREE.Group();marker.position.set(-9,0,14);group.add(marker);
+      const plinth=new THREE.Mesh(this.materials.unitCylinder,dark);plinth.position.y=.22;plinth.scale.set(1.85,.44,1.85);marker.add(plinth);
+      const rim=new THREE.Mesh(this.geometry(new THREE.TorusGeometry(1.6,.08,6,28)),this.materials.get("brushedMetal"));rim.rotation.x=Math.PI/2;rim.position.y=.47;marker.add(rim);
+      const core=new THREE.Mesh(this.geometry(new THREE.OctahedronGeometry(.65,1)),this.materials.get("energyCyan"));core.position.y=2.15;core.userData.rotationSpeed=.00023;marker.add(core);this.animated.push(core);
+      const orbitGeometry=this.geometry(new THREE.TorusGeometry(1.35,.075,6,32));
+      for(const angle of [-.55,.55]){const orbit=new THREE.Mesh(orbitGeometry,angle<0?this.materials.get("brushedMetal"):accent);orbit.position.y=2.15;orbit.rotation.set(.3,angle,.18);orbit.userData.rotationSpeed=angle<0?.0001:-.0001;marker.add(orbit);this.animated.push(orbit);}
     }
     group.userData.cameraCollision = false;
     return group;

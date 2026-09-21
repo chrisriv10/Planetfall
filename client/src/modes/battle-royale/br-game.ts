@@ -202,8 +202,8 @@ export class BattleRoyaleGame {
       "crash-interior": [[-304, 2.7, -258], [-341, 4, -258]],
       "foundry-interior": [[342, 2.7, -81], [350, 5, -61]],
       "foundry-roof": [[342, 24.7, -60], [352, 28, -73]],
-      "storm-boundary": [[-184, 2.7, -109], [-184, 7, -151]],
-      "storm-final": [[-184, 2.7, -109], [-184, 7, -151]],
+      "storm-boundary": [[-184, 2.7, -40], [-184, 7, -10]],
+      "storm-final": [[-184, 2.7, -96], [-184, 7, -60]],
       "aerial": [[-430, 520, 540], [0, 0, 0]]
     };
     const review = reviews[poiId];

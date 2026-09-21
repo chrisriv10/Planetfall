@@ -19,6 +19,25 @@ export function brStormBandPositions(radius: number, target: Float32Array = new 
   return target;
 }
 
-export function brStormDetail(quality: "low" | "medium" | "high") {
-  return quality === "low" ? {layers:1,arcs:4,sparks:90} : quality === "medium" ? {layers:2,arcs:8,sparks:180} : {layers:3,arcs:12,sparks:360};
+export function brStormDetail(quality: "low" | "medium" | "high", radius = 650) {
+  const budget = quality === "low" ? {layers:1,arcs:4,sparks:90} : quality === "medium" ? {layers:2,arcs:8,sparks:180} : {layers:3,arcs:12,sparks:360};
+  const circumference = Math.PI * 2 * (Number.isFinite(radius) ? Math.max(0, radius) : 0);
+  // Preserve the continuous wall and ground boundary at every quality. Only
+  // decorative sparks/arcs thin out as the same pool crowds a smaller circle.
+  budget.arcs = Math.min(budget.arcs, Math.max(1, Math.ceil(circumference / 35)));
+  budget.sparks = Math.min(budget.sparks, Math.max(12, Math.ceil(circumference / 3)));
+  return budget;
+}
+
+export function brStormLayerSpacing(radius: number): number {
+  const r = Number.isFinite(radius) ? Math.max(0, radius) : 0;
+  // Secondary curtains stay outside the true boundary, but never balloon into
+  // separate concentric walls when the final circle approaches zero.
+  return Math.min(.35, r * .025);
+}
+
+export function brStormCurtainRepeats(radius: number): number {
+  const r = Number.isFinite(radius) ? Math.max(0, radius) : 0;
+  // A fractional repeat ends on a different texel at the cylinder seam.
+  return Math.max(1, Math.round(Math.PI * 2 * r / 38));
 }

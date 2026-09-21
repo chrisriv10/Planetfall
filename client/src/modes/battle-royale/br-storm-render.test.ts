@@ -57,15 +57,69 @@ describe("BR storm renderer regression",()=>{
     dispose(storm);
   });
   it("reduces active layers/arcs/particles on Low and hides invalid collapsed storms",()=>{
-    const storm=stormFixture();updateVoidStorm(storm,room(25),200,"low");
+    const storm=stormFixture();updateVoidStorm(storm,room(500),200,"low");
     expect(storm.children.filter(c=>c.userData.stormLayer&&c.visible)).toHaveLength(1);
     expect(storm.children.filter(c=>c.userData.stormArc&&c.visible)).toHaveLength(4);
     const sparks=storm.children.find(c=>c.userData.stormSparks)! as THREE.Points;
     expect(sparks.geometry.drawRange.count).toBe(90);
     updateVoidStorm(storm,room(0),300);expect(storm.visible).toBe(false);
     updateVoidStorm(storm,room(NaN),300);expect(storm.visible).toBe(false);
-    updateVoidStorm(storm,room(25),400,"high");expect(storm.visible).toBe(true);
+    updateVoidStorm(storm,room(500),400,"high");expect(storm.visible).toBe(true);
     expect(sparks.geometry.drawRange.count).toBe(360);
+    dispose(storm);
+  });
+  it("reuses decoration pools while thinning final circles and restores opening detail",()=>{
+    const storm=stormFixture();
+    const sparks=storm.children.find(c=>c.userData.stormSparks)! as THREE.Points;
+    const positions=sparks.geometry.getAttribute("position");
+    const layers=storm.children.filter(c=>c.userData.stormLayer) as THREE.Mesh<THREE.CylinderGeometry,THREE.MeshBasicMaterial>[];
+    updateVoidStorm(storm,room(1),200,"high");
+    expect(sparks.geometry.drawRange.count).toBe(12);
+    expect(storm.children.filter(c=>c.userData.stormArc&&c.visible)).toHaveLength(1);
+    expect(layers[0].scale.x).toBe(1);
+    for(const layer of layers) {
+      expect(layer.visible).toBe(true);
+      expect(layer.scale.x).toBeLessThanOrEqual(1.05);
+      expect(Number.isInteger(layer.material.map!.repeat.x)).toBe(true);
+    }
+    updateVoidStorm(storm,room(500),400,"high");
+    expect(sparks.geometry.getAttribute("position")).toBe(positions);
+    expect(sparks.geometry.drawRange.count).toBe(360);
+    expect(storm.children.filter(c=>c.userData.stormArc&&c.visible)).toHaveLength(12);
+    dispose(storm);
+  });
+  it("anchors a fading eye-level glow to the exact circle at every quality",()=>{
+    const storm=stormFixture();
+    const glow=storm.children.find(c=>c.userData.stormBoundaryGlow)! as THREE.Mesh<THREE.CylinderGeometry,THREE.MeshBasicMaterial>;
+    const geometry=glow.geometry;
+    const positions=geometry.getAttribute("position"),colors=geometry.getAttribute("color");
+    for(let i=0;i<positions.count;i++) {
+      if(positions.getY(i)===-2.5)expect(colors.getX(i)).toBe(1);
+      if(positions.getY(i)===2.5)expect(colors.getX(i)).toBe(0);
+    }
+    for(const quality of ["low","medium","high"] as const)for(const radius of [1,25,500]) {
+      updateVoidStorm(storm,room(radius),200,quality);
+      expect(glow.visible).toBe(true);
+      expect(glow.scale.x).toBe(radius);expect(glow.scale.z).toBe(radius);
+      expect(glow.geometry).toBe(geometry);
+      const bounds=new THREE.Box3().setFromObject(glow);
+      expect(bounds.min.y).toBe(0);expect(bounds.max.y).toBe(5);
+    }
+    expect(glow.material.depthTest).toBe(true);
+    expect(glow.material.depthWrite).toBe(false);
+    expect(glow.material.toneMapped).toBe(false);
+    expect(glow.material.forceSinglePass).toBe(true);
+    dispose(storm);
+  });
+  it("concentrates the tall curtain near the deck and shares its static geometry",()=>{
+    const storm=stormFixture();
+    const layers=storm.children.filter(c=>c.userData.stormLayer) as THREE.Mesh<THREE.CylinderGeometry,THREE.MeshBasicMaterial>[];
+    const geometry=layers[0].geometry,positions=geometry.getAttribute("position"),colors=geometry.getAttribute("color");
+    for(const layer of layers)expect(layer.geometry).toBe(geometry);
+    for(let i=0;i<positions.count;i++) {
+      if(positions.getY(i)===-90)expect(colors.getX(i)).toBe(1);
+      if(positions.getY(i)===90)expect(colors.getX(i)).toBeLessThan(.13);
+    }
     dispose(storm);
   });
 });
