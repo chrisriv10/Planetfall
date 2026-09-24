@@ -30,7 +30,7 @@ interface RoadsideInputs {
 }
 
 const SITE_RADIUS = 4;
-const MAX_SITES = 16;
+const MAX_SITES = 22;
 const defaults: RoadsideInputs = {
   roads: BR_ROADS, locations: BR_SECONDARY_LOCATIONS, structures: BR_STRUCTURES,
   blocks: BR_MAP_BLOCKS, outline: BR_ISLAND_OUTLINE, traversal: BR_TRAVERSAL
@@ -124,7 +124,7 @@ function partsForSite(center: Vec3, angle: number, style: BrDistrictStyle): Road
   return parts;
 }
 
-/** At most sixteen sparse roadside rest/service pockets. Sorts copies, accepts authored geometry as
+/** At most twenty-two sparse roadside rest/service pockets. Sorts copies, accepts authored geometry as
  * exclusion input, and never modifies road/collider/navigation data. All parts
  * use cached primitive geometry; surface parts use materials.surface(finish, 6).
  * Keep every generated instance cameraCollision=false and apply visual LOD. */

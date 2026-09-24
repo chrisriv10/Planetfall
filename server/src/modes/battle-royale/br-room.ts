@@ -3,7 +3,7 @@ import type { Server, Socket } from "socket.io";
 import {
   BR_BALANCE, BR_BOT_DIFFICULTY, BR_CRATE_SOCKETS, BR_HEALS, BR_LOOT_SOCKETS, BR_MAP, BR_POIS, BR_RARITY_MULTIPLIER, BR_STARTING_AMMO, BR_STORM_PHASES, BR_WEAPONS,
   DEFAULT_COSMETICS, FREE_EMOTES, PLAYER_COLORS, PLANET_PASS_REWARDS, SESSION_PROGRESSION, SHOP_CATALOG, applyBrDamage, brAimDirection, brClamp, brDistance2d, brItemMagazine, brMuzzlePosition, brNormalize,
-  brBlocksNear, brNextWaypoint, brPickupDisposition, brPlayerHitDistance, brRarityDamage, brShipPath, brSpectatorPriority, createEmptyBrInventory, isBrHeal, isBrWeapon, isInsideBrIsland, preferBrSpectator,
+  brBlocksNear, brDropVelocity, brNextWaypoint, brPickupDisposition, brPlayerHitDistance, brRarityDamage, brShipPath, brSpectatorPriority, createEmptyBrInventory, isBrHeal, isBrWeapon, isInsideBrIsland, preferBrSpectator,
   reloadBrItem, seededRandom, sessionLevelForXp, sessionXpInLevel, stepBrMovement, stormContains,
   type BotDifficulty, type BrCrateState, type BrInput, type BrInventoryItem, type BrItemId, type BrJoinResult, type BrLootState,
   type BrMatchResult, type BrPhase, type BrPlayerSnapshotState, type BrPlayerState, type BrProjectileState, type BrRarity, type BrRoomView,
@@ -92,7 +92,7 @@ export class BattleRoyaleRoom {
   hostId = "";
   phase: BrPhase = "lobby";
   teamMode: BrTeamMode = "solo";
-  targetPlayers: 10 | 20 | 40 = 10;
+  targetPlayers: 10 | 20 | 40 = 40;
   fillBots = true;
   botDifficulty: BotDifficulty = "normal";
   players = new Map<string, BrPlayerRecord>();
@@ -192,7 +192,10 @@ export class BattleRoyaleRoom {
     const player = this.players.get(playerId);
     if (this.phase !== "ship" || !player || player.deployment !== "attached" || !this.ship) return false;
     player.deployment = "freefall"; player.position = { ...this.ship.position };
-    player.velocity = { x: Math.sin(player.yaw) * 4, y: -5, z: -Math.cos(player.yaw) * 4 };
+    // Preserve most of the transport's momentum so leaving the Starliner is a
+    // continuous motion instead of an abrupt stop. Camera-forward steering can
+    // then redirect the dive through the shared air-control model.
+    player.velocity = brDropVelocity(this.ship,player.yaw);
     this.io.to(this.code).emit("br:ship:jumped", { playerId, position: player.position, velocity: player.velocity });
     this.ship.playersAboard = Math.max(0, this.ship.playersAboard - 1);
     return true;

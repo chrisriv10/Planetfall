@@ -43,7 +43,8 @@ describe("BR secondary neighborhood decks", () => {
     for (const location of BR_SECONDARY_LOCATIONS) {
       const first = buildSecondaryDeckParts(location, destinationFor(location.id));
       expect(buildSecondaryDeckParts(location, destinationFor(location.id))).toEqual(first);
-      expect(first.every((part) => part.position.y <= .018 && part.scale.y <= .014)).toBe(true);
+      expect(first.every((part) => part.position.y >= .04 && part.position.y <= .052 && part.scale.y <= .014)).toBe(true);
+      expect(first.every((part) => part.position.y-part.scale.y/2 > .032)).toBe(true);
     }
   });
 });

@@ -59,13 +59,37 @@ describe("BR park dressing",()=>{
     expect(buildBrParkDressing({...park,style:"industrial"},destination,open)).toEqual([]);
   });
   it("lays out two flush pedestrian axes toward the connected district",()=>{
-    const paths=buildBrParkPaths(park,destination);
-    expect(paths).toHaveLength(4);
-    expect(paths.filter(path=>path.finish==="sidewalk")).toHaveLength(2);
-    expect(paths.every(path=>path.position.y<.05&&path.scale.y<.04)).toBe(true);
+    const paths=buildBrParkPaths(park,destination,open);
+    expect(paths.filter(path=>path.finish==="sidewalk")).toHaveLength(3);
+    expect(paths.every(path=>path.position.y<.08&&path.scale.y<.04)).toBe(true);
     expect(paths.every(path=>[path.position.x,path.position.y,path.position.z,path.rotationY,...Object.values(path.scale)].every(Number.isFinite))).toBe(true);
     expect(paths[0].rotationY).toBeCloseTo(0);
-    expect(paths[2].rotationY).toBeCloseTo(Math.PI/2);
+    expect(paths[2].rotationY).toBeCloseTo(-Math.PI/2);
     expect(buildBrParkPaths({...park,style:"industrial"},destination)).toEqual([]);
+  });
+  it("points paths at a diagonal destination and keeps accents above their paving",()=>{
+    const paths=buildBrParkPaths(park,{x:80,y:0,z:60},open);
+    const direction=new THREE.Vector3(1,0,0).applyAxisAngle(new THREE.Vector3(0,1,0),paths[0].rotationY);
+    expect(direction.x).toBeCloseTo(.8);
+    expect(direction.z).toBeCloseTo(.6);
+    for(let i=0;i<paths.length;i+=2){
+      const sidewalk=paths[i],stripe=paths[i+1];
+      expect(stripe.position.y-stripe.scale.y/2).toBeGreaterThan(sidewalk.position.y+sidewalk.scale.y/2);
+    }
+  });
+  it("breaks promenade paving before roads, buildings and the island edge",()=>{
+    const input={...open,roads:[{from:{x:18,y:0,z:-100},to:{x:18,y:0,z:100},width:8}],
+      structures:[{position:{x:-20,y:0,z:0},size:{x:10,y:10,z:14}}]};
+    const paths=buildBrParkPaths(park,destination,input);
+    expect(paths.length).toBeGreaterThan(0);
+    for(const path of paths){
+      const cosine=Math.cos(path.rotationY),sine=Math.sin(path.rotationY);
+      for(let x=-path.scale.x/2;x<=path.scale.x/2;x+=.5)for(const z of [-path.scale.z/2,0,path.scale.z/2]){
+        const worldX=path.position.x+x*cosine+z*sine,worldZ=path.position.z-x*sine+z*cosine;
+        expect(Math.abs(worldX-18)).toBeGreaterThan(4);
+        expect(Math.abs(worldX+20)>5||Math.abs(worldZ)>7).toBe(true);
+      }
+    }
+    expect(buildBrParkPaths(park,destination,{...open,outline:[[0,0],[1,0],[0,1]]})).toEqual([]);
   });
 });

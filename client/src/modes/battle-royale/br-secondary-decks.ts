@@ -32,7 +32,7 @@ const transform = (
   localZ: number
 ): Vec3 => ({
   x: location.position.x + localX * Math.cos(angle) - localZ * Math.sin(angle),
-  y: .018,
+  y: .04,
   z: location.position.z + localX * Math.sin(angle) + localZ * Math.cos(angle)
 });
 
@@ -65,13 +65,13 @@ export function buildSecondaryDeckParts(location: BrSecondaryLocation, destinati
   // entire ground plane or creating apparent gameplay cover.
   for (const localZ of [-26.1, 26.1]) parts.push({
     finish: accent,
-    position: transform(location, angle, 0, localZ),
+    position: { ...transform(location, angle, 0, localZ), y: .052 },
     scale: { x: 52, y: .014, z: .42 },
     rotationY: -angle
   });
   for (const localX of [-27.1, 27.1]) parts.push({
     finish: accent,
-    position: transform(location, angle, localX, 0),
+    position: { ...transform(location, angle, localX, 0), y: .052 },
     scale: { x: .42, y: .014, z: 51.5 },
     rotationY: -angle
   });
@@ -81,7 +81,7 @@ export function buildSecondaryDeckParts(location: BrSecondaryLocation, destinati
     // the central road and entrances open.
     for (const localX of [-16, 16]) parts.push({
       finish: "soil",
-      position: transform(location, angle, localX, 15),
+      position: { ...transform(location, angle, localX, 15), y: .052 },
       scale: { x: 12, y: .014, z: 3.2 },
       rotationY: -angle
     });

@@ -1265,8 +1265,8 @@ export class PlanetfallGame {
       indicator.add(halo, slashA, slashB); indicator.visible = false;
       return indicator;
     };
-    const cannonJam = makeJamIndicator(); cannonJam.position.y = 2.25; cannon.add(cannonJam);
-    const repairJam = makeJamIndicator(); repair.add(repairJam);
+    const cannonJam = makeJamIndicator(); cannonJam.position.y = 3.35; cannon.add(cannonJam);
+    const repairJam = makeJamIndicator(); repairJam.position.y = 2.45; repair.add(repairJam);
     const cannonLabel = makeWorldLabel("CANNON", ownerColor); cannonLabel.position.set(0, BALANCE.planetRadius + 4.2, 0); cannonLabel.scale.set(3.5, .88, 1);
     const repairLabel = makeWorldLabel("REPAIR", ownerColor); repairLabel.position.set(BALANCE.planetRadius + 3.15, 0, 0); repairLabel.scale.set(3.4, .85, 1);
     const launchLabel = makeWorldLabel("LAUNCH PAD", "#70f5ff"); launchLabel.position.copy(padNormal.clone().multiplyScalar(BALANCE.planetRadius + 2.9)); launchLabel.scale.set(4.15, 1.02, 1);
@@ -2057,7 +2057,7 @@ export class PlanetfallGame {
     for (const planet of this.planets.values()) planet.launchHighlight.visible = false;
     if (this.room?.phase === "countdown") {
       this.trajectory.visible = false;
-      this.onPrompt?.("GET READY", false, undefined, "idle");
+      this.onPrompt?.("", false, undefined, "idle");
       return;
     }
 
@@ -2120,8 +2120,10 @@ export class PlanetfallGame {
     const launchPad = this.nearbyLaunchPad();
     if (launchPad) {
       const cooldown = Math.max(0, (local.state.launchCooldownUntil - Date.now()) / 1000);
-      this.onHint?.("launch", "Launch to rival planets and steal their scrap");
-      const boost = local.state.launchBoostUntil > Date.now() ? "BOOST READY" : `${this.label("repair")}  BOOST ${BALANCE.utilities.launchBoost.cost}`;
+      const boostCost=BALANCE.utilities.launchBoost.cost;
+      const boost = local.state.launchBoostUntil > Date.now() ? "BOOST READY"
+        : local.state.scrap<boostCost?`NEED ${boostCost-local.state.scrap} SCRAP FOR BOOST`
+          : `${this.label("repair")}  BOOST ${boostCost}`;
       this.onPrompt?.(cooldown > 0 ? `LAUNCH READY IN ${cooldown.toFixed(1)}s  ·  ${boost}` : `${this.label("interact")}  LAUNCH  ·  ${boost}`, false, undefined, cooldown > 0 ? "cooldown" : "launch");
       return;
     }
@@ -2149,9 +2151,11 @@ export class PlanetfallGame {
       const flatAim = this.cameraForward.clone().projectOnPlane(new THREE.Vector3(0, 1, 0)).normalize();
       if (flatAim.lengthSq() > 0.1) ownPlanet.cannon.rotation.y = Math.atan2(-flatAim.x, -flatAim.z);
       this.trajectory.visible = true;
-      this.onHint?.("cannon", "Fire at rival planets");
       const weaponCost = BALANCE.weapons[this.weapon].cost;
-      const overchargeCopy = local.state.overchargeUntil > Date.now() ? "OVERCHARGE READY" : `${this.label("interact")}  OVERCHARGE ${BALANCE.utilities.overcharge.cost}`;
+      const overchargeCost=BALANCE.utilities.overcharge.cost;
+      const overchargeCopy = local.state.overchargeUntil > Date.now() ? "OVERCHARGE READY"
+        : local.state.scrap<overchargeCost?`NEED ${overchargeCost-local.state.scrap} SCRAP FOR OVERCHARGE`
+          : `${this.label("interact")}  OVERCHARGE ${overchargeCost}`;
       this.onPrompt?.(
         local.state.scrap < weaponCost ? `NEED ${weaponCost - local.state.scrap} MORE SCRAP` : `${this.label("fire")}  FIRE  ·  ${overchargeCopy}`,
         true,
@@ -2159,20 +2163,21 @@ export class PlanetfallGame {
         local.state.scrap < weaponCost ? "cooldown" : "weapon"
       );
     } else if (nearRepair) {
-      this.onHint?.("repair", `${this.label("repair")} repairs your planet`);
+      const shieldCost=BALANCE.utilities.shield.cost;
       const shieldCopy = ownPlanet.state.shieldUntil > Date.now() ? "SHIELD ACTIVE"
         : ownPlanet.state.shieldCooldownUntil > Date.now() ? `SHIELD READY IN ${Math.ceil((ownPlanet.state.shieldCooldownUntil - Date.now()) / 1000)}s`
-          : `${this.label("interact")}  SHIELD ${BALANCE.utilities.shield.cost}`;
+          : local.state.scrap<shieldCost?`NEED ${shieldCost-local.state.scrap} SCRAP FOR SHIELD`
+            : `${this.label("interact")}  SHIELD ${shieldCost}`;
       if (this.room?.phase === "overtime") this.onPrompt?.("REPAIRS OFFLINE IN OVERTIME", false, undefined, "cooldown");
       else if (ownPlanet.state.integrity >= this.rules.maxIntegrity) this.onPrompt?.(`PLANET FULL  ·  ${shieldCopy}`, false, undefined, "idle");
       else if (local.state.scrap < BALANCE.repair.cost) this.onPrompt?.(`NEED ${BALANCE.repair.cost - local.state.scrap} MORE SCRAP`, false, undefined, "cooldown");
       else this.onPrompt?.(`${this.label("repair")}  REPAIR ${BALANCE.repair.heal}% · ${shieldCopy}`, false, undefined, "idle");
-    } else if (this.input.method === "keyboard" && document.pointerLockElement !== this.canvas) this.onPrompt?.("CLICK THE ARENA TO TAKE CONTROL", false, undefined, "idle");
+    } else if (this.input.method === "keyboard" && document.pointerLockElement !== this.canvas) this.onPrompt?.("CLICK TO AIM & CONTROL CAMERA", false, undefined, "idle");
     else {
       if (!this.localSurfacePlanetId && this.localVelocity.length() > 8) this.onHint?.("grapple-space", `${this.label("grapple")} to grapple back`);
       else if (this.localSurfacePlanetId && this.localSurfacePlanetId !== local.state.planetId) this.onHint?.("enemy-world", "Steal scrap, shove defenders, or jam structures");
       else if ([...this.scraps.values()].some((scrap) => scrap.position.distanceTo(this.localPosition) < 4)) this.onHint?.("scrap", "Collect scrap to fire and repair");
-      this.onPrompt?.("COLLECT · RAID · DEFEND", false, undefined, "idle");
+      this.onPrompt?.("", false, undefined, "idle");
     }
   }
 

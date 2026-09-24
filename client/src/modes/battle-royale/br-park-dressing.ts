@@ -89,15 +89,34 @@ export function buildBrParkDressing(location:BrSecondaryLocation,destination:Vec
 
 /** Flush visual paths that establish an entrance-to-district axis and a
  * perpendicular park promenade. They intentionally carry no collision. */
-export function buildBrParkPaths(location:BrSecondaryLocation,destination:Vec3):BrParkPath[] {
+export function buildBrParkPaths(location:BrSecondaryLocation,destination:Vec3,overrides:Partial<BrParkClearance>={}):BrParkPath[] {
   if(!["academy","city","farm"].includes(location.style))return [];
   if(![location.position.x,location.position.z,destination.x,destination.z].every(Number.isFinite))return [];
   const angle=Math.atan2(destination.z-location.position.z,destination.x-location.position.x);
-  const paths:BrParkPath[]=[];
+  const paths:BrParkPath[]=[],input={...defaults,...overrides};
   for(const offset of [0,Math.PI/2]) {
-    const rotationY=angle+offset;
-    paths.push({position:{x:location.position.x,y:.044,z:location.position.z},scale:{x:74,y:.035,z:5.4},rotationY,finish:"sidewalk"});
-    paths.push({position:{x:location.position.x,y:.047,z:location.position.z},scale:{x:68,y:.018,z:.24},rotationY,finish:"accent"});
+    const heading=angle+offset,rotationY=-heading;
+    let start:number|null=null;
+    const flush=(end:number)=>{
+      if(start===null)return;
+      const midpoint=(start+end)/2,length=end-start;
+      const center={x:location.position.x+Math.cos(heading)*midpoint,z:location.position.z+Math.sin(heading)*midpoint};
+      paths.push({position:{...center,y:.044},scale:{x:length,y:.018,z:5.4},rotationY,finish:"sidewalk"});
+      // The stripe's bottom is above the paving's top, including at grazing
+      // angles. Previously the stripe was buried inside the sidewalk box.
+      paths.push({position:{...center,y:.065},scale:{x:Math.max(.2,length-.4),y:.008,z:.24},rotationY,finish:"accent"});
+      start=null;
+    };
+    for(let distance=-36;distance<=36;distance+=2){
+      const center={x:location.position.x+Math.cos(heading)*distance,y:0,z:location.position.z+Math.sin(heading)*distance};
+      // Each 2m x 5.4m sample fits inside the same conservative clearance
+      // circle as a planting cluster. Joining adjacent clear samples preserves
+      // the exclusion. Leave the perpendicular arm open at the shared cross.
+      const allowed=!(offset!==0&&Math.abs(distance)<4)&&clear(center,input);
+      if(allowed){if(start===null)start=distance-1;}
+      else flush(distance-1);
+    }
+    flush(37);
   }
   return paths;
 }

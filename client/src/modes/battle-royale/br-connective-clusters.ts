@@ -77,7 +77,7 @@ function clear(center: Vec3, inputs: ClusterInputs, clusters: ConnectiveCluster[
   }
   if (inputs.traversal.some(t => distance(center, t.position) < radius + 10)) return false;
   if (inputs.reserved.some(site => distance(center, site.position) < radius + site.radius + 3)) return false;
-  return clusters.every(cluster => distance(center, cluster.center) >= 65);
+  return clusters.every(cluster => distance(center,cluster.center)>=55);
 }
 
 function createParts(center: Vec3, angle: number, theme: ConnectiveClusterTheme): ConnectiveClusterPart[] {
@@ -123,7 +123,7 @@ function createParts(center: Vec3, angle: number, theme: ConnectiveClusterTheme)
   return parts;
 }
 
-/** Ten low-density pockets with 11–14 parts each. Geometry keys map directly to
+/** Up to sixteen low-density pockets with 11–14 parts each. Geometry keys map directly to
  * existing unitBox/unitCylinder/unitOctahedron (radius-one cylinders/octas).
  * Batch by geometry+finish+surface, using surface(finish,6) for flush parts and
  * get(finish) otherwise; cameraCollision=false. No textures, lights or updates.
@@ -141,7 +141,7 @@ export function buildConnectiveClusters(overrides: Partial<ClusterInputs> = {}):
     .sort((a, b) => distance(b.from, b.to) - distance(a.from, a.to) || (a.id < b.id ? -1 : 1));
   const clusters: ConnectiveCluster[] = [];
   for (const road of roads) {
-    if (clusters.length === 10) break;
+    if(clusters.length===16)break;
     const dx = road.to.x - road.from.x, dz = road.to.z - road.from.z, length = Math.hypot(dx, dz);
     let placed = false;
     for (const extra of [26, 44, 62, 80]) {

@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { seededRandom, type BrRoomView } from "@planetfall/shared";
+import { seededRandom, type BrRoomView, type BrShipState, type Vec3 } from "@planetfall/shared";
 import { brStormBandPositions, brStormCurtainRepeats, brStormDetail, brStormLayerSpacing, BR_STORM_BAND_SEGMENTS, BR_STORM_HEIGHT } from "./br-storm-shape";
 import { createStarlinerHull, createStarlinerWing } from "./br-starliner-hull";
 import { createBrStormTexture } from "./br-storm-texture";
@@ -129,10 +129,22 @@ export function createStarliner(): THREE.Group {
   return ship;
 }
 
-export function updateStarliner(ship: THREE.Group, room: BrRoomView | null, now: number): void {
+/** Reconstruct the continuous server-authored route between sparse snapshots. */
+export function brStarlinerPosition(state: BrShipState, serverNow: number): Vec3 {
+  const duration=Math.max(1,state.endsAt-state.startedAt);
+  const t=THREE.MathUtils.clamp((serverNow-state.startedAt)/duration,0,1);
+  return {
+    x:THREE.MathUtils.lerp(state.start.x,state.end.x,t),
+    y:THREE.MathUtils.lerp(state.start.y,state.end.y,t),
+    z:THREE.MathUtils.lerp(state.start.z,state.end.z,t)
+  };
+}
+
+export function updateStarliner(ship: THREE.Group, room: BrRoomView | null, now: number, serverNow = Date.now()): void {
   ship.visible = Boolean(room?.ship);
   if (!room?.ship) return;
-  ship.position.set(room.ship.position.x, room.ship.position.y, room.ship.position.z);
+  const position=brStarlinerPosition(room.ship,serverNow);
+  ship.position.set(position.x,position.y,position.z);
   ship.lookAt(room.ship.end.x, room.ship.end.y, room.ship.end.z);
   ship.rotateY(Math.PI);
   ship.traverse((object) => {

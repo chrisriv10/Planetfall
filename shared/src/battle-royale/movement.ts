@@ -1,7 +1,7 @@
 import { BR_BALANCE } from "./balance.js";
 import { BR_MAP_BLOCKS, BR_TRAVERSAL, brBlocksNear, isInsideBrIsland } from "./map.js";
 import { brClamp } from "./math.js";
-import type { BrDeploymentState } from "./types.js";
+import type { BrDeploymentState, BrShipState } from "./types.js";
 import type { Vec3 } from "../index.js";
 
 export interface BrMotionState {
@@ -36,6 +36,46 @@ export interface BrMotionResult extends BrMotionState {
 
 export interface BrCollisionResult { movement: Vec3; grounded: boolean; ceiling: boolean; crouched?: boolean; }
 export type BrCollisionResolver = (position: Vec3, desiredMovement: Vec3, options: { jumping: boolean; downed: boolean; crouched: boolean }) => BrCollisionResult;
+
+/** Fast, deterministic collision result for unobstructed flat deck. Returning
+ * null means authored geometry is nearby and Rapier must resolve the move. */
+export function brFlatDeckCollision(feet:Vec3,desiredMovement:Vec3,jumping:boolean):BrCollisionResult|null {
+  const horizontal=Math.hypot(desiredMovement.x,desiredMovement.z);
+  const midpoint={x:feet.x+desiredMovement.x*.5,y:feet.y,z:feet.z+desiredMovement.z*.5};
+  const next={x:feet.x+desiredMovement.x,y:feet.y+desiredMovement.y,z:feet.z+desiredMovement.z};
+  const sweptBottom=Math.min(feet.y,next.y),sweptTop=Math.max(feet.y,next.y)+BR_BALANCE.playerHeight;
+  const minX=Math.min(feet.x,next.x),maxX=Math.max(feet.x,next.x),minZ=Math.min(feet.z,next.z),maxZ=Math.max(feet.z,next.z);
+  let floorTop=isInsideBrIsland(next)?0:Number.NEGATIVE_INFINITY;
+  for(const block of brBlocksNear(midpoint,horizontal*.5+BR_BALANCE.playerRadius+.25)){
+    const halfX=block.size.x/2+BR_BALANCE.playerRadius,halfZ=block.size.z/2+BR_BALANCE.playerRadius;
+    const planarOverlap=maxX>=block.position.x-halfX&&minX<=block.position.x+halfX&&maxZ>=block.position.z-halfZ&&minZ<=block.position.z+halfZ;
+    if(!planarOverlap)continue;
+    // Ramp AABBs are stored before their X/Z rotation, so keep their full
+    // planar approach on Rapier's exact path.
+    if(block.rotation)return null;
+    const blockBottom=block.position.y-block.size.y/2,blockTop=block.position.y+block.size.y/2;
+    if(block.kind==="platform"||block.kind==="bridge"){
+      const endpointOverlap=next.x>=block.position.x-halfX&&next.x<=block.position.x+halfX&&next.z>=block.position.z-halfZ&&next.z<=block.position.z+halfZ;
+      if(desiredMovement.y>0&&feet.y+BR_BALANCE.playerHeight<=blockBottom&&next.y+BR_BALANCE.playerHeight>=blockBottom)return null;
+      if(endpointOverlap&&feet.y>=blockTop-.45)floorTop=Math.max(floorTop,blockTop);
+      continue;
+    }
+    if(sweptTop>=blockBottom&&sweptBottom<=blockTop)return null;
+  }
+  if(Number.isFinite(floorTop)&&desiredMovement.y<=0&&next.y<=floorTop+.08&&feet.y>=floorTop-.45){
+    // Match the controller's small contact offset so a grounded capsule does
+    // not flicker between exact y=0 and airborne on consecutive fast frames.
+    return {movement:{x:desiredMovement.x,y:floorTop+.035-feet.y,z:desiredMovement.z},grounded:!jumping,ceiling:false};
+  }
+  return {movement:{...desiredMovement},grounded:false,ceiling:false};
+}
+
+/** Initial drop velocity shared by prediction and the authoritative server. */
+export function brDropVelocity(ship:Pick<BrShipState,"start"|"end"|"startedAt"|"endsAt">,yaw:number):Vec3 {
+  const routeSeconds=Math.max(.001,(ship.endsAt-ship.startedAt)/1000);
+  const shipX=(ship.end.x-ship.start.x)/routeSeconds,shipZ=(ship.end.z-ship.start.z)/routeSeconds;
+  return {x:shipX*.72+Math.sin(yaw)*4,y:-5,z:shipZ*.72-Math.cos(yaw)*4};
+}
 
 /** Moves a planar velocity toward its target without diagonal acceleration gain or overshoot. */
 export function brApproachPlanarVelocity(current:Vec3,target:Vec3,maximumDelta:number):Vec3 {
@@ -72,9 +112,9 @@ export function stepBrMovement(current: BrMotionState, input: BrMotionInput, raw
   if (state.deployment === "freefall" || state.deployment === "chute") {
     if (state.position.y <= BR_BALANCE.autoDeployHeight) state.deployment = "chute";
     const maxFall = state.deployment === "chute" ? BR_BALANCE.chuteSpeed : BR_BALANCE.freefallSpeed;
-    const airSpeed = state.deployment === "chute" ? 8 : 12;
-    state.velocity.x += (desired.x * airSpeed - state.velocity.x) * Math.min(1, dt * 2.4);
-    state.velocity.z += (desired.z * airSpeed - state.velocity.z) * Math.min(1, dt * 2.4);
+    const airSpeed=state.deployment==="chute"?BR_BALANCE.chuteHorizontalSpeed:BR_BALANCE.freefallHorizontalSpeed;
+    state.velocity.x+=(desired.x*airSpeed-state.velocity.x)*Math.min(1,dt*BR_BALANCE.airSteering);
+    state.velocity.z+=(desired.z*airSpeed-state.velocity.z)*Math.min(1,dt*BR_BALANCE.airSteering);
     state.velocity.y = Math.max(-maxFall, state.velocity.y - BR_BALANCE.gravity * dt);
   } else {
     const crouchSignal = Boolean(input.crouch);

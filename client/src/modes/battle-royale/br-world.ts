@@ -912,8 +912,6 @@ export class BrWorldRenderer {
 
   private buildSecondaryLocations():void {
     const parkCrown=this.geometry(new THREE.IcosahedronGeometry(1,1));
-    const parkWalkRing=this.geometry(new THREE.RingGeometry(23.5,27.5,28));
-    const parkEdgeRing=this.geometry(new THREE.RingGeometry(34.1,34.75,28));
     for(const location of BR_SECONDARY_LOCATIONS){
       const group=new THREE.Group();group.name=`secondary-${location.id}`;
       const pad=new THREE.Mesh(
@@ -924,8 +922,6 @@ export class BrWorldRenderer {
       const title=this.materials.createSign(location.name,{border:location.color,subtitle:this.poiSubtitle(location)});title.name="secondary-title";title.position.set(location.position.x,8.5,location.position.z);title.scale.set(13,3.8,1);group.add(title);this.secondaryLabels.push(title);
       const greenLocation=location.style==="farm"||location.style==="academy"||location.style==="city";
       if(greenLocation){
-        const walk=new THREE.Mesh(parkWalkRing,this.materials.get("sidewalk"));walk.name="park-circulation-path";walk.rotation.x=-Math.PI/2;walk.position.set(location.position.x,.043,location.position.z);walk.userData.cameraCollision=false;group.add(walk);
-        const edge=new THREE.Mesh(parkEdgeRing,this.materials.accent(location.color,.04));edge.name="park-perimeter-inlay";edge.rotation.x=-Math.PI/2;edge.position.set(location.position.x,.045,location.position.z);edge.userData.cameraCollision=false;group.add(edge);
         const destination=BR_POIS.find(poi=>poi.id===location.connectTo)?.position??location.position;
         const pathBatches=new Map<"sidewalk"|"accent",MatrixSpec[]>();
         for(const path of buildBrParkPaths(location,destination)){
@@ -949,6 +945,7 @@ export class BrWorldRenderer {
         const lamps:MatrixSpec[]=[],lampBulbs:MatrixSpec[]=[],props:MatrixSpec[]=[],groundAccents:MatrixSpec[]=[];
         for(let index=0;index<8;index++){
           const angle=index/8*Math.PI*2,radius=index%2?34:29,x=location.position.x+Math.cos(angle)*radius,z=location.position.z+Math.sin(angle)*radius;
+          if(this.isReservedForGameplay(x,z,3))continue;
           if(index%2===0){lamps.push({position:position(x,2.2,z),scale:position(.18,4.4,.18)});lampBulbs.push({position:position(x,4.55,z),scale:position(.5,.18,.5)});}
           props.push({position:position(x,.85,z),scale:position(index%3===0?4.4:2.4,1.7,index%3===0?2.2:3.3),rotationY:angle});
           if(index%2===1)groundAccents.push({position:position(location.position.x+Math.cos(angle)*36,.36,location.position.z+Math.sin(angle)*36),scale:position(6,.08,.5),rotationY:angle+Math.PI/2});
@@ -958,12 +955,12 @@ export class BrWorldRenderer {
         this.addInstances(group,this.materials.unitBox,this.materials.get("cargoMetal"),props,false);
         this.addInstances(group,this.materials.unitBox,this.materials.accent(location.color,.12),groundAccents,false);
       }
-      if(location.style==="industrial"||location.style==="dock")group.add(this.makeTurbine(location.position.x+10,location.position.z+8,location.color));
+      if((location.style==="industrial"||location.style==="dock")&&!this.isReservedForGameplay(location.position.x+10,location.position.z+8,5))group.add(this.makeTurbine(location.position.x+10,location.position.z+8,location.color));
       else if(location.style==="farm")this.addCropRows(group,location.position.x,location.position.z);
       else if(location.style==="city"){
-        group.add(this.makeHoverVehicle(location.position.x+8,location.position.z+24,.12,location.color));
-        group.add(this.makeTransitShelter(location.position.x-16,location.position.z+22,location.color));
-      }else if(location.style==="academy")group.add(this.makeTransitShelter(location.position.x+18,location.position.z-20,location.color));
+        if(!this.isReservedForGameplay(location.position.x+8,location.position.z+24,5))group.add(this.makeHoverVehicle(location.position.x+8,location.position.z+24,.12,location.color));
+        if(!this.isReservedForGameplay(location.position.x-16,location.position.z+22,5))group.add(this.makeTransitShelter(location.position.x-16,location.position.z+22,location.color));
+      }else if(location.style==="academy"&&!this.isReservedForGameplay(location.position.x+18,location.position.z-20,5))group.add(this.makeTransitShelter(location.position.x+18,location.position.z-20,location.color));
       this.root.add(group);this.districtDetails.push({group,center:position(location.position.x,0,location.position.z),visible:true});
     }
   }
@@ -988,7 +985,7 @@ export class BrWorldRenderer {
       const radius = 24 + random() * 47;
       const x = poi.position.x + Math.cos(angle) * radius;
       const z = poi.position.z + Math.sin(angle) * radius;
-      if (this.isReservedForGameplay(x, z)) continue;
+      if (this.isReservedForGameplay(x,z,3.5)) continue;
       if (poi.style === "farm" || poi.style === "academy") {
         const tree = index % 3 !== 0;
         if (tree) {
@@ -1598,17 +1595,17 @@ export class BrWorldRenderer {
     return signs[structure.id] ?? secondary?.name ?? null;
   }
 
-  private isReservedForGameplay(x: number, z: number): boolean {
+  private isReservedForGameplay(x:number,z:number,margin=0):boolean {
     for (const structure of BR_STRUCTURES) {
       // Neighbouring district structures can overlap the dressing radius too.
-      if (Math.abs(x - structure.position.x) < structure.size.x / 2 + 3.5 && Math.abs(z - structure.position.z) < structure.size.z / 2 + 3.5) return true;
+      if(Math.abs(x-structure.position.x)<structure.size.x/2+3.5+margin&&Math.abs(z-structure.position.z)<structure.size.z/2+3.5+margin)return true;
     }
     for (const road of BR_ROADS) {
       const dx = road.to.x - road.from.x, dz = road.to.z - road.from.z;
       const lengthSquared = dx * dx + dz * dz;
       const t = lengthSquared > 0 ? THREE.MathUtils.clamp(((x - road.from.x) * dx + (z - road.from.z) * dz) / lengthSquared, 0, 1) : 0;
       const rx = road.from.x + dx * t, rz = road.from.z + dz * t;
-      if (Math.hypot(x - rx, z - rz) < road.width * .8) return true;
+      if(Math.hypot(x-rx,z-rz)<road.width*.8+margin)return true;
     }
     return false;
   }

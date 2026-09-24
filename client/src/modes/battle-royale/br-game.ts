@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import {
-  BR_BALANCE, BR_HEALS, BR_POIS, BR_SECONDARY_LOCATIONS, BR_WEAPONS, FREE_EMOTES, SHOP_CATALOG, brMuzzlePosition, brPickupDisposition, brSpectatorPriority, isBrHeal, isBrWeapon, isInsideBrIsland, stepBrMovement,
+  BR_BALANCE, BR_HEALS, BR_POIS, BR_SECONDARY_LOCATIONS, BR_WEAPONS, FREE_EMOTES, SHOP_CATALOG, brDropVelocity, brMuzzlePosition, brPickupDisposition, brSpectatorPriority, isBrHeal, isBrWeapon, isInsideBrIsland, stepBrMovement,
   type BrCrateState, type BrInput, type BrLootState, type BrPoi, type BrPlayerSnapshotState, type BrPlayerState, type BrProjectileState, type BrRoomView,
   type BrMotionState, type BrSnapshot, type BrWeaponId, type EmoteType, type Vec3
 } from "@planetfall/shared";
@@ -19,18 +19,19 @@ import { brActionTimer, brDamageBearing, brFireRequestDue, brRecoilAfter, brSmoo
 import { createBrReview } from "./br-review";
 import { shouldKeepStarlinerInDropView } from "./br-starliner-visibility";
 import { BrLootLod } from "./br-loot-lod";
+import { BR_LOOT_RARITY_COLORS, BrLootRarityResources, BrLootRarityVisual } from "./br-loot-rarity";
 import { brReviveInput, brReviveRetryDue } from "./br-revive-input";
 import { BrDamageFeedback, brDamageFeedbackFade } from "./br-damage-feedback";
 import { createBrIonWings } from "./br-ion-wings";
 import { nextOccupiedBrSlot } from "./br-inventory-selection";
 
 type PlayerVisual = { group: THREE.Group; rig: THREE.Group; target: THREE.Vector3; label: THREE.Sprite; body: THREE.Mesh; helmet: THREE.Group; backpack: THREE.Group; suitMaterial: THREE.MeshStandardMaterial; lodDetails: THREE.Object3D[]; limbs: THREE.Group[]; wings: THREE.Group; weapon: THREE.Group; weaponId: BrWeaponId | null; actionDevice:THREE.Group; actionCore:THREE.Mesh<THREE.OctahedronGeometry,THREE.MeshBasicMaterial>; state: BrPlayerSnapshotState; relevant: boolean; emote: EmoteType | null; emoteEndsAt: number; damageFeedback:BrDamageFeedback; damageRipple:THREE.Mesh<THREE.SphereGeometry,THREE.MeshBasicMaterial> };
-type LootVisual = { group: BrLootLod; state: BrLootState; baseY: number };
+type LootVisual = { group: BrLootLod; state: BrLootState };
 type CrateVisual = { group: THREE.Group; state: BrCrateState; baseY: number };
 type ProjectileVisual = { mesh: THREE.Mesh; target: THREE.Vector3; state: BrProjectileState; trail: THREE.Line; points: THREE.Vector3[] };
 
 const vec = (value: Vec3) => new THREE.Vector3(value.x, value.y, value.z);
-const rarityColor: Record<string, number> = { common: 0xb8c4dc, rare: 0x54b8ff, epic: 0xc565ff, legendary: 0xffc84f };
+const rarityColor = BR_LOOT_RARITY_COLORS;
 const cosmeticColor = (itemId: string, fallback: string): string => SHOP_CATALOG.find((item) => item.id === itemId)?.color ?? fallback;
 
 export interface BrHudState {
@@ -114,6 +115,8 @@ export class BattleRoyaleGame {
   private readonly cameraProbeTarget = new THREE.Vector3();
   private cameraBoom = 6.15;
   private cameraInitialized = false;
+  private serverClockOffsetMs = 0;
+  private dropPredictionStartedAt = 0;
   private readonly reconciliationTracker = new ReconciliationTracker();
   private readonly raycaster = new THREE.Raycaster();
   private readonly world: BrWorldRenderer;
@@ -138,6 +141,7 @@ export class BattleRoyaleGame {
   private readonly stormWall = createVoidStorm();
   private readonly shotEffects = new BrShotEffects();
   private readonly hitMarkerFeedback = new BrDamageFeedback();
+  private readonly lootRarity = new BrLootRarityResources();
   private readonly crateBoxGeometry = new THREE.BoxGeometry(1,1,1);
   private readonly crateLockGeometry = new THREE.OctahedronGeometry(1,1);
   private readonly crateShadowGeometry = new THREE.CircleGeometry(1,18);
@@ -186,16 +190,16 @@ export class BattleRoyaleGame {
   reset(): void {
     this.shotEffects.clear();this.clearTransients();
     for (const visual of this.players.values()) { this.scene.remove(visual.group); this.disposeObject(visual.group); }
-    for (const visual of this.loot.values()) { this.scene.remove(visual.group); this.disposeObject(visual.group); }
+    for (const visual of this.loot.values()) this.releaseLootVisual(visual);
     for (const visual of this.crates.values()) { this.scene.remove(visual.group); this.disposeObject(visual.group); }
     for (const visual of this.projectiles.values()) { this.scene.remove(visual.mesh, visual.trail); this.disposeObject(visual.mesh); this.disposeObject(visual.trail); }
     for (const ping of this.pings) { this.scene.remove(ping.group); this.disposeObject(ping.group); }
-    this.players.clear(); this.loot.clear(); this.crates.clear(); this.projectiles.clear(); this.pings = []; this.localState = null; this.predictedMotion = null; this.spectatorTargetId = null; this.cameraInitialized=false;this.cameraBoom=6.15;
+    this.players.clear(); this.loot.clear(); this.crates.clear(); this.projectiles.clear(); this.pings = []; this.localState = null; this.predictedMotion = null; this.spectatorTargetId = null; this.cameraInitialized=false;this.cameraBoom=6.15;this.serverClockOffsetMs=0;this.dropPredictionStartedAt=0;
     this.reloadEndsAt = 0; this.useEndsAt = 0; this.activeReviveTargetId=null;this.confirmedReviveTargetId=null;this.reviveConfirmedDuringHold=false;this.lastReviveRequestAt=0;this.reviveStartedAt=0;this.lastFireRequestAt = 0;this.lastAnticipatedFireAt=0;
     this.reloadConfirmed = false; this.useConfirmed = false; this.hitMarkerFeedback.clear();this.damageIndicatorUntil=0;document.getElementById("br-damage-direction")?.classList.remove("visible");
     this.physics.reset(); this.reconciliationTracker.reset(); this.visitedPois.clear(); this.currentPoiId = "";this.clearPoiTitle(); document.body.classList.remove("br-in-void");
   }
-  dispose(): void { if (this.disposed) return; this.deactivate(); this.reset(); this.shotEffects.dispose(); this.canvas.removeEventListener("click",this.handleCanvasClick); removeEventListener("resize",this.handleResize); this.unsubscribeInputMethod(); this.scene.remove(this.island,this.stormWall,this.backdrop,this.starliner,this.sun,this.sunTarget); this.world.dispose(); this.disposeObject(this.stormWall); this.disposeObject(this.backdrop); this.disposeObject(this.starliner); for(const geometry of this.crateSharedGeometries)geometry.dispose();for(const material of this.crateSharedMaterials)material.dispose();this.physics.dispose(); this.disposed=true; }
+  dispose(): void { if (this.disposed) return; this.deactivate(); this.reset(); this.shotEffects.dispose();this.lootRarity.dispose(); this.canvas.removeEventListener("click",this.handleCanvasClick); removeEventListener("resize",this.handleResize); this.unsubscribeInputMethod(); this.scene.remove(this.island,this.stormWall,this.backdrop,this.starliner,this.sun,this.sunTarget); this.world.dispose(); this.disposeObject(this.stormWall); this.disposeObject(this.backdrop); this.disposeObject(this.starliner); for(const geometry of this.crateSharedGeometries)geometry.dispose();for(const material of this.crateSharedMaterials)material.dispose();this.physics.dispose(); this.disposed=true; }
   /** Compatibility aliases retained while callers migrate to the explicit lifecycle. */
   start(room: BrRoomView, localId: string): void { this.activate(room,localId); }
   stop(): void { this.deactivate(); }
@@ -281,6 +285,9 @@ export class BattleRoyaleGame {
   }
 
   applySnapshot(snapshot: BrSnapshot): void {
+    const measuredOffset=snapshot.serverTime-Date.now();
+    this.serverClockOffsetMs=this.serverClockOffsetMs===0?measuredOffset:THREE.MathUtils.lerp(this.serverClockOffsetMs,measuredOffset,.12);
+    if(snapshot.localPlayer.deployment!=="attached")this.dropPredictionStartedAt=0;
     this.localState = snapshot.localPlayer;
     if (snapshot.actions) {
       const now = performance.now();
@@ -315,13 +322,17 @@ export class BattleRoyaleGame {
   spawnLoot(states: BrLootState[]): void {
     for (const state of states) {
       const existing = this.loot.get(state.id);
-      if (existing) { existing.state = state; continue; }
+      if (existing) { existing.state = state; existing.group.position.copy(vec(state.position)); continue; }
       const group = this.makeLoot(state); group.position.copy(vec(state.position)); this.scene.add(group);
-      this.loot.set(state.id, { group, state, baseY: state.position.y });
+      this.loot.set(state.id, { group, state });
     }
   }
-  removeLoot(ids: string[]): void { for (const id of ids) { const visual = this.loot.get(id); if (!visual) continue; this.scene.remove(visual.group); this.disposeObject(visual.group); this.loot.delete(id); } }
-  private syncLoot(states:BrLootState[]):void {const ids=new Set(states.map((entry)=>entry.id));this.spawnLoot(states);for(const [id,visual] of this.loot)if(!ids.has(id)){this.scene.remove(visual.group);this.disposeObject(visual.group);this.loot.delete(id);}}
+  removeLoot(ids: string[]): void { for (const id of ids) { const visual = this.loot.get(id); if (!visual) continue; this.releaseLootVisual(visual); this.loot.delete(id); } }
+  private syncLoot(states:BrLootState[]):void {const ids=new Set(states.map((entry)=>entry.id));this.spawnLoot(states);for(const [id,visual] of this.loot)if(!ids.has(id)){this.releaseLootVisual(visual);this.loot.delete(id);}}
+  private releaseLootVisual(visual: LootVisual): void {
+    if (visual.group.detail instanceof BrLootRarityVisual) visual.group.detail.release();
+    this.scene.remove(visual.group); this.disposeObject(visual.group);
+  }
 
   spawnCrates(states: BrCrateState[]): void {
     for (const state of states) {
@@ -394,7 +405,7 @@ export class BattleRoyaleGame {
     if (!this.active) return;
     const dt = Math.min(.05, (now - this.lastFrame) / 1000); this.lastFrame = now;
     const frame = this.input.sample(); this.processInput(frame, dt, now);
-    this.updatePlayers(dt, now); this.updateLoot(now); this.updateCrates(now); this.updateProjectiles(); this.updatePings(now);this.updateTransients(now); this.updateCamera(dt); this.updateShip(); this.updateStorm(now); this.updateWorldPresentation(now);
+    this.updatePlayers(dt, now); this.updateLoot(now); this.updateCrates(now); this.updateProjectiles(); this.updatePings(now);this.updateTransients(now); this.updateShip(); this.updateCamera(dt); this.updateStorm(now); this.updateWorldPresentation(now);
     this.shotEffects.update(now);this.updateHitMarker(now);
     this.renderer.render(this.scene, this.camera);
     this.review?.frame(now,()=>{
@@ -453,7 +464,18 @@ export class BattleRoyaleGame {
       }
     }
     if (frame.jump.pressed) {
-      if (local.deployment === "attached") this.onJumpShip?.(); else if (local.deployment === "freefall") this.onDeploy?.();
+      // Do not wait for a snapshot to acknowledge the jump before accepting a
+      // chute deployment. Fast jump-then-deploy input used to resend jump.
+      const activeDeployment=this.predictedMotion?.deployment??local.deployment;
+      if(activeDeployment==="attached"&&this.room?.ship){
+        const predicted=this.motionFromPlayer(local);
+        predicted.position={x:this.starliner.position.x,y:this.starliner.position.y,z:this.starliner.position.z};
+        predicted.velocity=brDropVelocity(this.room.ship,this.yaw);predicted.deployment="freefall";predicted.grounded=false;
+        this.predictedMotion=predicted;this.dropPredictionStartedAt=now;this.onJumpShip?.();
+      }else if(activeDeployment==="freefall"){
+        if(this.predictedMotion)this.predictedMotion.deployment="chute";
+        this.onDeploy?.();
+      }
     }
     const lookDirection = this.lookDirection();
     const shot = this.shotSolution(local);
@@ -481,7 +503,17 @@ export class BattleRoyaleGame {
     }
     const jumpKey = inputLabel("jump", frame.method); const interactKey = inputLabel("interact", frame.method);
     const selectedHeal=selectedItem&&isBrHeal(selectedItem.itemId)?BR_HEALS[selectedItem.itemId]:null;const healUsable=Boolean(selectedHeal&&(selectedHeal.hp>0?local.hp<BR_BALANCE.hp:local.shield<BR_BALANCE.shield));
-    this.prompt = local.deployment === "attached" ? `${jumpKey}  JUMP` : local.deployment === "freefall" ? `${jumpKey}  DEPLOY ION WINGS` : downedTeammate ? `HOLD ${interactKey}  REVIVE` : nearbyLoot ? `${interactKey}  ${swapLoot ? "SWAP HELD ITEM FOR" : "PICK UP"} ${this.lootName(nearbyLoot.state)}` : nearbyCrate ? `${interactKey}  OPEN STAR CRATE` : selectedHeal&&healUsable ? `${interactKey}  USE ${selectedHeal.name}` : selectedItem && isBrWeapon(selectedItem.itemId) && selectedItem.itemId !== "energy-saber" && selectedItem.magazine === 0 ? `${inputLabel("repair", frame.method)}  RELOAD` : "";
+    const promptDeployment=this.predictedMotion?.deployment??local.deployment;
+    this.prompt = promptDeployment === "attached" ? `${jumpKey}  JUMP`
+      : promptDeployment === "freefall" ? `${jumpKey}  DEPLOY ION WINGS`
+        : this.confirmedReviveTargetId || (this.activeReviveTargetId && this.reviveStartedAt) ? "REVIVING TEAMMATE"
+          : this.reloadEndsAt > now ? "RELOADING"
+            : this.useEndsAt > now ? `USING ${selectedHeal?.name ?? "ITEM"}`
+              : downedTeammate ? `HOLD ${interactKey}  REVIVE`
+                : nearbyLoot ? `${interactKey}  ${swapLoot ? "SWAP HELD ITEM FOR" : "PICK UP"} ${this.lootName(nearbyLoot.state)}`
+                  : nearbyCrate ? `${interactKey}  OPEN STAR CRATE`
+                    : selectedHeal&&healUsable ? `${interactKey}  USE ${selectedHeal.name}`
+                      : selectedItem && isBrWeapon(selectedItem.itemId) && selectedItem.itemId !== "energy-saber" && selectedItem.magazine === 0 ? `${inputLabel("repair", frame.method)}  RELOAD` : "";
     this.inputAccumulator += dt;
     if (this.inputAccumulator >= 1 / BR_BALANCE.inputRate) {
       this.inputAccumulator %= 1 / BR_BALANCE.inputRate;
@@ -508,31 +540,39 @@ export class BattleRoyaleGame {
 
   private updatePlayers(dt: number, now: number): void {
     for (const visual of this.players.values()) {
-      visual.group.visible = visual.state.alive && visual.relevant && visual.state.deployment !== "attached" && this.room?.phase!=="lobby" && this.room?.phase!=="countdown";
+      const localMotion=visual.state.id===this.localId?this.predictedMotion:null;
+      visual.group.visible=visual.state.alive&&visual.relevant&&(localMotion?.deployment??visual.state.deployment)!=="attached"&&this.room?.phase!=="lobby"&&this.room?.phase!=="countdown";
       visual.rig.visible = true;
-      const displayTarget = visual.state.id === this.localId && this.predictedMotion ? this.temp.set(this.predictedMotion.position.x, this.predictedMotion.position.y, this.predictedMotion.position.z) : visual.target;
-      visual.group.position.lerp(displayTarget, visual.state.id === this.localId ? Math.min(1, dt * 22) : Math.min(1, dt * 10));
-      visual.group.rotation.y = brSmoothFacing(visual.group.rotation.y, visual.state.yaw, dt);
-      const speed = Math.hypot(visual.state.velocity.x, visual.state.velocity.z);
+      const displayTarget=localMotion?this.temp.set(localMotion.position.x,localMotion.position.y,localMotion.position.z):visual.target;
+      // Prediction and reconciliation already smooth local corrections. The old
+      // second lerp made the astronaut and following camera visibly trail input.
+      if(localMotion)visual.group.position.copy(displayTarget);else visual.group.position.lerp(displayTarget,Math.min(1,dt*10));
+      visual.group.rotation.y=brSmoothFacing(visual.group.rotation.y,localMotion?this.yaw:visual.state.yaw,dt);
+      const velocity=localMotion?.velocity??visual.state.velocity;
+      const deployment=localMotion?.deployment??visual.state.deployment;
+      const downed=localMotion?.downed??visual.state.downed;
+      const crouched=localMotion?.crouched??visual.state.crouched;
+      const grounded=localMotion?.grounded??visual.state.grounded;
+      const speed=Math.hypot(velocity.x,velocity.z);
       const phase=(Number(visual.group.userData.gaitPhase??0)+speed*dt*2.9)%(Math.PI*2);
       visual.group.userData.gaitPhase=phase;const run=Math.sin(phase);
       visual.limbs.forEach((limb, index) => { limb.rotation.x = run * .65 * (index % 2 ? -1 : 1) * Math.min(1, speed / 5); limb.rotation.z = THREE.MathUtils.lerp(limb.rotation.z, 0, Math.min(1, dt * 15)); });
-      if (visual.state.deployment === "freefall") { visual.limbs[0].rotation.z = .72; visual.limbs[1].rotation.z = -.72; visual.limbs[2].rotation.x = .34; visual.limbs[3].rotation.x = .34; }
-      else if (visual.state.deployment === "chute") { visual.limbs[0].rotation.z = .42; visual.limbs[1].rotation.z = -.42; visual.limbs[2].rotation.x = -.16; visual.limbs[3].rotation.x = -.16; }
-      else if (visual.state.downed) { visual.limbs[0].rotation.x = -.9 + run * .25; visual.limbs[1].rotation.x = -.9 - run * .25; visual.limbs[2].rotation.x = .65; visual.limbs[3].rotation.x = .65; }
-      else if (visual.state.crouched) { visual.limbs[2].rotation.x = .62 + run * .16; visual.limbs[3].rotation.x = .62 - run * .16; }
+      if (deployment === "freefall") { visual.limbs[0].rotation.z = .72; visual.limbs[1].rotation.z = -.72; visual.limbs[2].rotation.x = .34; visual.limbs[3].rotation.x = .34; }
+      else if (deployment === "chute") { visual.limbs[0].rotation.z = .42; visual.limbs[1].rotation.z = -.42; visual.limbs[2].rotation.x = -.16; visual.limbs[3].rotation.x = -.16; }
+      else if (downed) { visual.limbs[0].rotation.x = -.9 + run * .25; visual.limbs[1].rotation.x = -.9 - run * .25; visual.limbs[2].rotation.x = .65; visual.limbs[3].rotation.x = .65; }
+      else if (crouched) { visual.limbs[2].rotation.x = .62 + run * .16; visual.limbs[3].rotation.x = .62 - run * .16; }
       visual.body.rotation.x = THREE.MathUtils.lerp(visual.body.rotation.x, 0, Math.min(1, dt * 16));
       visual.body.rotation.z = THREE.MathUtils.lerp(visual.body.rotation.z, 0, Math.min(1, dt * 12));
       visual.body.rotation.y = THREE.MathUtils.lerp(visual.body.rotation.y, 0, Math.min(1, dt * 12));
       if (visual.emote && now < visual.emoteEndsAt) this.animateEmote(visual, now);
       else visual.emote = null;
-      const airborne = visual.state.deployment === "freefall" || visual.state.deployment === "chute";
-      const targetLean = visual.state.downed ? -1.12 : visual.state.deployment === "freefall" ? .72 : visual.state.deployment === "chute" ? -.14 : visual.state.crouched && speed > 5 ? .3 : Math.min(.2, speed * .016);
+      const airborne=deployment==="freefall"||deployment==="chute";
+      const targetLean=downed?-1.12:deployment==="freefall"?.72:deployment==="chute"?-.14:crouched&&speed>5?.3:Math.min(.2,speed*.016);
       visual.rig.rotation.x = THREE.MathUtils.lerp(visual.rig.rotation.x, targetLean, Math.min(1, dt * 9));
-      visual.rig.position.y = THREE.MathUtils.lerp(visual.rig.position.y, visual.state.downed ? .28 : airborne ? .05 : visual.state.crouched ? -.3 : 0, Math.min(1, dt * 10));
-      const squash = visual.state.grounded && Math.abs(visual.state.velocity.y) < .2 ? 1 + Math.sin(now * .01) * .008 : 1;
+      visual.rig.position.y=THREE.MathUtils.lerp(visual.rig.position.y,downed?.28:airborne?.05:crouched?-.3:0,Math.min(1,dt*10));
+      const squash=grounded&&Math.abs(velocity.y)<.2?1+Math.sin(now*.01)*.008:1;
       visual.rig.scale.set(1 / Math.sqrt(squash), squash, 1 / Math.sqrt(squash));
-      visual.wings.visible = visual.state.deployment === "chute";
+      visual.wings.visible=deployment==="chute";
       if(visual.wings.visible){visual.wings.scale.x=1+Math.sin(now*.008)*.045;visual.wings.rotation.z=Math.sin(now*.004)*.025;}
       const playerDistance=this.camera.position.distanceTo(visual.group.position);const detailDistance=this.settings.graphicsQuality==="low"?18:this.settings.graphicsQuality==="medium"?36:58;for(const detail of visual.lodDetails)detail.visible=visual.state.id===this.localId||playerDistance<detailDistance;
       this.updateHeldWeapon(visual, dt);
@@ -545,10 +585,13 @@ export class BattleRoyaleGame {
 
   private updateLoot(now: number): void {
     for (const visual of this.loot.values()) {
-      const phase = this.hash(visual.state.id);
-      visual.group.rotation.y = now * .00072 + phase;
-      visual.group.position.y = visual.baseY + Math.sin(now * .002 + phase) * .15;
       visual.group.updateDetail(this.camera.position, this.settings.graphicsQuality);
+      const rarityVisual = visual.group.detail;
+      if (rarityVisual instanceof BrLootRarityVisual) rarityVisual.update(
+        now,
+        this.settings.graphicsQuality,
+        visual.group.position.distanceTo(this.camera.position),
+      );
     }
   }
   private updateCrates(now: number): void { for (const visual of this.crates.values()) { visual.group.rotation.y = Math.sin(now * .0007 + this.hash(visual.state.id)) * .08; visual.group.position.y = visual.baseY + Math.sin(now * .0015 + this.hash(visual.state.id)) * .05; } }
@@ -564,7 +607,7 @@ export class BattleRoyaleGame {
   }
   private updatePings(now: number): void { for (let index = this.pings.length - 1; index >= 0; index--) { const ping = this.pings[index]; if (now < ping.expiresAt) { ping.group.position.y += Math.sin(now * .01) * .0015; continue; } this.scene.remove(ping.group); this.disposeObject(ping.group); this.pings.splice(index, 1); } }
   private updateShip(): void {
-    updateStarliner(this.starliner, this.room, performance.now());
+    updateStarliner(this.starliner,this.room,performance.now(),Date.now()+this.serverClockOffsetMs);
     const renderedDeployment=this.players.get(this.localId)?.state.deployment;
     if (!this.starliner.visible || shouldKeepStarlinerInDropView(this.room?.phase,renderedDeployment,this.localState?.deployment)) return;
     // Once a player has jumped, the very large transport can cross the camera
@@ -579,8 +622,13 @@ export class BattleRoyaleGame {
       this.cameraInitialized=false;const time=performance.now()*.000035;const focus=new THREE.Vector3(-25,0,15);const desired=new THREE.Vector3(Math.sin(time)*570,330,Math.cos(time)*570);this.camera.position.lerp(desired,Math.min(1,dt*2.2));this.camera.up.set(0,1,0);this.camera.lookAt(focus);this.camera.fov=THREE.MathUtils.lerp(this.camera.fov,58,Math.min(1,dt*3));this.camera.updateProjectionMatrix();return;
     }
     const localPlayer = this.players.get(this.localId);
-    if (this.room?.phase === "ship" && this.room.ship && (!localPlayer || localPlayer.state.deployment === "attached")) {
-      this.cameraInitialized=false;const shipPosition = vec(this.room.ship.position); const route = vec(this.room.ship.end).sub(vec(this.room.ship.start)); route.y = 0; route.normalize();
+    if(this.room?.phase==="ship"&&this.room.ship&&(!localPlayer||(this.predictedMotion?.deployment??localPlayer.state.deployment)==="attached")){
+      this.cameraInitialized=false;const shipPosition=this.starliner.position.clone(); const route = vec(this.room.ship.end).sub(vec(this.room.ship.start)); route.y = 0; route.normalize();
+      // Seed the post-jump camera and camera-relative steering with the route
+      // direction. Previously the cinematic camera faced the ship while the
+      // gameplay yaw stayed at its unrelated default, causing a disorienting
+      // turn the instant the astronaut jumped.
+      this.yaw=Math.atan2(route.x,-route.z);
       const side = new THREE.Vector3(-route.z, 0, route.x); const establishing = performance.now() - this.shipCameraStartedAt < 1650;
       const focus = shipPosition.clone().addScaledVector(route, establishing ? 12 : 24).add(new THREE.Vector3(0, establishing ? 0 : -5, 0));
       const desired = shipPosition.clone().addScaledVector(route, establishing ? -58 : -108).addScaledVector(side,establishing ? 55 : 34).add(new THREE.Vector3(0,establishing ? 38 : 46,0));
@@ -589,9 +637,14 @@ export class BattleRoyaleGame {
     if (!localPlayer) return;
     const local = localPlayer.state.alive ? localPlayer : this.getSpectatorTarget() ?? localPlayer;
     const spectator=!localPlayer.state.alive&&local.state.id!==localPlayer.state.id;
-    const speed=Math.hypot(local.state.velocity.x,local.state.velocity.z);
-    const mode=brCameraMode(local.state.deployment,local.state.downed,this.aiming,spectator);
-    const rig=brCameraGeometry({x:local.group.position.x,y:local.group.position.y,z:local.group.position.z},this.yaw,this.pitch,mode,speed);
+    const localMotion=!spectator&&local.state.id===this.localId?this.predictedMotion:null;
+    const position=localMotion?.position??local.state.position;
+    const velocity=localMotion?.velocity??local.state.velocity;
+    const deployment=localMotion?.deployment??local.state.deployment;
+    const downed=localMotion?.downed??local.state.downed;
+    const speed=Math.hypot(velocity.x,velocity.z);
+    const mode=brCameraMode(deployment,downed,this.aiming,spectator);
+    const rig=brCameraGeometry(position,this.yaw,this.pitch,mode,speed);
     this.cameraFocus.set(rig.focus.x,rig.focus.y,rig.focus.z);
     this.cameraDesired.set(rig.desired.x,rig.desired.y,rig.desired.z);
     this.cameraRight.set(rig.right.x,0,rig.right.z);
@@ -704,15 +757,15 @@ export class BattleRoyaleGame {
   }
 
   private makeLoot(state: BrLootState): BrLootLod {
-    const group = new THREE.Group(); const color = rarityColor[state.rarity] ?? 0xffffff;
-    if(state.itemId&&isBrWeapon(state.itemId)){this.buildWeaponModel(group,state.itemId,color);group.scale.setScalar(.92);}
-    else if(state.ammoType){const ammoColor=state.ammoType==="light"?0x70f5ff:state.ammoType==="heavy"?0xffd84d:0xff6bba;const cell=new THREE.Mesh(new THREE.CylinderGeometry(.18,.18,.58,8),new THREE.MeshStandardMaterial({color:0x23344d,emissive:ammoColor,emissiveIntensity:.75,metalness:.6,roughness:.23}));cell.rotation.z=Math.PI/2;group.add(cell);for(const side of [-1,1]){const cap=new THREE.Mesh(new THREE.CylinderGeometry(.22,.22,.08,8),new THREE.MeshBasicMaterial({color:ammoColor}));cap.rotation.z=Math.PI/2;cap.position.x=side*.32;group.add(cap);}}
-    else if(state.itemId&&isBrHeal(state.itemId)){const shield=state.itemId.startsWith("shield");const shell=new THREE.Mesh(shield?new THREE.CapsuleGeometry(.18,.38,4,8):new THREE.BoxGeometry(.58,.18,.42),new THREE.MeshStandardMaterial({color:shield?0x5adfff:0xf2f6ff,emissive:shield?0x176b8a:0x4a1723,emissiveIntensity:.45,metalness:.25,roughness:.34}));shell.rotation.z=shield?Math.PI/2:0;group.add(shell);if(!shield){const cross=new THREE.Mesh(new THREE.BoxGeometry(.32,.06,.1),new THREE.MeshBasicMaterial({color:0xff5f70}));cross.position.y=.13;group.add(cross);const crossB=cross.clone();crossB.rotation.y=Math.PI/2;group.add(crossB);}}
-    else{const core=new THREE.Mesh(new THREE.OctahedronGeometry(.33,0),new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.28,metalness:.35,roughness:.25}));group.add(core);}
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(.55, .025, 5, 24), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .72 })); ring.rotation.x = Math.PI / 2; ring.position.y = -.24; group.add(ring);
-    const beam=new THREE.Mesh(new THREE.CylinderGeometry(.035,.12,2.2,6,1,true),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.2,depthWrite:false,blending:THREE.AdditiveBlending}));beam.name="loot-beam";beam.position.y=1;group.add(beam);
-    const shadow=new THREE.Mesh(new THREE.CircleGeometry(.42,14),new THREE.MeshBasicMaterial({color:0x02050b,transparent:true,opacity:.22,depthWrite:false}));shadow.rotation.x=-Math.PI/2;shadow.position.y=-.28;group.add(shadow);
-    return new BrLootLod(group, color);
+    const model = new THREE.Group(); const color = rarityColor[state.rarity];
+    if(state.itemId&&isBrWeapon(state.itemId)){this.buildWeaponModel(model,state.itemId,color);model.scale.setScalar(.92);}
+    else if(state.ammoType){const ammoColor=state.ammoType==="light"?0x70f5ff:state.ammoType==="heavy"?0xffd84d:0xff6bba;const cell=new THREE.Mesh(new THREE.CylinderGeometry(.18,.18,.58,8),new THREE.MeshStandardMaterial({color:0x23344d,emissive:ammoColor,emissiveIntensity:.75,metalness:.6,roughness:.23}));cell.rotation.z=Math.PI/2;model.add(cell);for(const side of [-1,1]){const cap=new THREE.Mesh(new THREE.CylinderGeometry(.22,.22,.08,8),new THREE.MeshBasicMaterial({color:ammoColor}));cap.rotation.z=Math.PI/2;cap.position.x=side*.32;model.add(cap);}}
+    else if(state.itemId&&isBrHeal(state.itemId)){const shield=state.itemId.startsWith("shield");const shell=new THREE.Mesh(shield?new THREE.CapsuleGeometry(.18,.38,4,8):new THREE.BoxGeometry(.58,.18,.42),new THREE.MeshStandardMaterial({color:shield?0x5adfff:0xf2f6ff,emissive:shield?0x176b8a:0x4a1723,emissiveIntensity:.45,metalness:.25,roughness:.34}));shell.rotation.z=shield?Math.PI/2:0;model.add(shell);if(!shield){const cross=new THREE.Mesh(new THREE.BoxGeometry(.32,.06,.1),new THREE.MeshBasicMaterial({color:0xff5f70}));cross.position.y=.13;model.add(cross);const crossB=cross.clone();crossB.rotation.y=Math.PI/2;model.add(crossB);}}
+    else{const core=new THREE.Mesh(new THREE.OctahedronGeometry(.33,0),new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.28,metalness:.35,roughness:.25}));model.add(core);}
+    // Loot state positions are authored around the item's old center. Keep the
+    // rarity field on its supporting surface while only the item floats.
+    const field = this.lootRarity.create(model,state.rarity,state.id,-.28);
+    return new BrLootLod(field, color);
   }
 
   private makeCrate(): THREE.Group {
@@ -815,14 +868,22 @@ export class BattleRoyaleGame {
     if (!authoritative.alive) { this.predictedMotion = null; return; }
     if (!this.predictedMotion) { this.predictedMotion = this.motionFromPlayer(authoritative); return; }
     const prediction = this.predictedMotion; const dx = authoritative.position.x - prediction.position.x; const dy = authoritative.position.y - prediction.position.y; const dz = authoritative.position.z - prediction.position.z; const error = Math.hypot(dx, dy, dz);
-    const hardStateChange = prediction.deployment !== authoritative.deployment && (authoritative.deployment === "attached" || authoritative.deployment === "grounded" || authoritative.deployment === "eliminated");
+    if(authoritative.deployment==="attached"&&prediction.deployment==="freefall"&&performance.now()-this.dropPredictionStartedAt<350)return;
+    const terminalStateChange=prediction.deployment!==authoritative.deployment&&(authoritative.deployment==="attached"||authoritative.deployment==="eliminated");
+    const materiallyMissedLanding=prediction.deployment!==authoritative.deployment&&authoritative.deployment==="grounded"&&error>1.5;
+    const hardStateChange=terminalStateChange||materiallyMissedLanding;
     const snapped = error > 4.5 || hardStateChange;
     if (import.meta.env.DEV) this.reconciliationTracker.record(error, snapped, performance.now());
     if (snapped) { this.predictedMotion = this.motionFromPlayer(authoritative); return; }
     const correction = error > 1.25 ? .48 : error > .2 ? .22 : .08;
-    prediction.position.x += dx * correction; prediction.position.y += dy * correction; prediction.position.z += dz * correction;
-    prediction.velocity.x += (authoritative.velocity.x - prediction.velocity.x) * .25; prediction.velocity.y += (authoritative.velocity.y - prediction.velocity.y) * .25; prediction.velocity.z += (authoritative.velocity.z - prediction.velocity.z) * .25;
-    prediction.grounded = authoritative.grounded; prediction.deployment = authoritative.deployment; prediction.downed = authoritative.downed;
+    const order={freefall:0,chute:1,grounded:2} as const;
+    const predictedOrder=prediction.deployment in order?order[prediction.deployment as keyof typeof order]:-1;
+    const authoritativeOrder=authoritative.deployment in order?order[authoritative.deployment as keyof typeof order]:-1;
+    const preserveAdvancedDrop=predictedOrder>authoritativeOrder&&error<1.5;
+    prediction.position.x += dx * correction; if(!preserveAdvancedDrop)prediction.position.y += dy * correction; prediction.position.z += dz * correction;
+    prediction.velocity.x += (authoritative.velocity.x - prediction.velocity.x) * .25;if(!preserveAdvancedDrop)prediction.velocity.y += (authoritative.velocity.y - prediction.velocity.y) * .25;prediction.velocity.z += (authoritative.velocity.z - prediction.velocity.z) * .25;
+    if(!preserveAdvancedDrop){prediction.grounded=authoritative.grounded;prediction.deployment=authoritative.deployment;}
+    prediction.downed = authoritative.downed;
   }
 
   private motionFromPlayer(player: BrPlayerState): BrMotionState {

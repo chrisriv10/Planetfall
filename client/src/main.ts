@@ -1,9 +1,10 @@
 import "./style.css";
-import { BALANCE, BR_MAP, BR_POIS, BR_ROADS, BR_SECONDARY_LOCATIONS, BR_WEAPONS, CHAOS_COPY, PLANET_PASS_REWARDS, SESSION_PROGRESSION, SHOP_CATALOG, WEAPON_COPY, WEAPON_ORDER, isBrWeapon, type BotDifficulty, type BrCrateState, type BrJoinResult, type BrLootState, type BrMatchResult, type BrRoomView, type BrTeamMode, type ChaosModifier, type CosmeticCategory, type EmoteType, type GameFamily, type GameMode, type JoinResult, type MatchCalloutType, type MatchEvent, type MatchResult, type RoomView, type WeaponType } from "@planetfall/shared";
+import { BALANCE, BR_MAP, BR_POIS, BR_SECONDARY_LOCATIONS, BR_WEAPONS, CHAOS_COPY, PLANET_PASS_REWARDS, SESSION_PROGRESSION, SHOP_CATALOG, WEAPON_COPY, WEAPON_ORDER, isBrWeapon, type BotDifficulty, type BrCrateState, type BrJoinResult, type BrLootState, type BrMatchResult, type BrRoomView, type BrTeamMode, type ChaosModifier, type CosmeticCategory, type EmoteType, type GameFamily, type GameMode, type JoinResult, type MatchCalloutType, type MatchEvent, type MatchResult, type RoomView, type WeaponType } from "@planetfall/shared";
 import { createGameSocket } from "./network";
 import { inputLabel, type InputMethod } from "./input";
 import { SETTINGS_STORAGE_KEY, parseStoredSettings, type UserSettings } from "./settings";
 import { brStormReadout } from "./modes/battle-royale/br-feedback";
+import { brMapPercent, createBrMapArt, updateBrMinimapArt } from "./modes/battle-royale/br-map-art";
 
 const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const canvas = byId<HTMLCanvasElement>("game-canvas");
@@ -25,6 +26,9 @@ const connectionPill = byId("connection-pill");
 const contextPrompt = byId("context-prompt");
 const contextCopy = byId("context-copy");
 const contextProgress = byId<HTMLElement>("context-progress");
+const brContextPrompt = byId<HTMLElement>("br-context");
+const brContextCopy = byId("br-context-copy");
+const brContextProgress = byId<HTMLElement>("br-context-progress");
 const trajectoryLabel = byId("trajectory");
 const countdown = byId("countdown");
 const eventFeed = byId("event-feed");
@@ -105,6 +109,8 @@ let countdownNumber = -1;
 let announcedWinner: string | null | undefined;
 let hintTimer = 0;
 let controlsTimer = 0;
+let modifierRevealTimer = 0;
+let majorCalloutTimer = 0;
 let currentScreen: keyof typeof screens = "home";
 let settingsReturn: "pause" | "screen" = "screen";
 const indicatorNodes = new Map<string, HTMLElement>();
@@ -219,7 +225,7 @@ socket.on("match:ended", ({ winnerId, result }) => {
 socket.on("br:error", ({ message }) => toast(message));
 socket.on("br:room:state", (nextRoom) => { void applyBrRoom(nextRoom); });
 socket.on("br:match:snapshot", (snapshot) => { if(currentFamily==="battle-royale")brGame?.applySnapshot(snapshot); });
-socket.on("br:match:countdown", () => { if(currentFamily==="battle-royale")toast("BATTLE ROYALE · ORBITAL ISLE"); });
+socket.on("br:match:countdown", () => undefined);
 socket.on("br:loot:spawned", (loot) => { if (brGame) brGame.spawnLoot(loot); else pendingBrLoot.push(...loot); });
 socket.on("br:loot:removed", ({ ids }) => brGame?.removeLoot(ids));
 socket.on("br:crate:spawned", (crates) => { if (brGame) brGame.spawnCrates(crates); else pendingBrCrates.push(...crates); });
@@ -230,7 +236,7 @@ socket.on("br:player:downed", ({ playerId: targetId }) => appendBrFeed(`${brName
 socket.on("br:player:revived", ({ playerId: targetId, reviverId }) => appendBrFeed(`${brName(reviverId)} revived ${brName(targetId)}`, "#63ef8b"));
 socket.on("br:player:eliminated", ({ playerId: targetId, attackerId, weaponId }) => { brGame?.eliminated(targetId); appendBrFeed(`${attackerId ? brName(attackerId) : "THE VOID"} eliminated ${brName(targetId)}${weaponId ? ` with ${BR_WEAPONS[weaponId].name}` : ""}`, "#ff6b8a"); });
 socket.on("br:kill-feed", () => undefined);
-socket.on("br:ping", ({ playerId: sourceId, position }) => { const source = brRoom?.players.find((player) => player.id === sourceId); brGame?.showPing(source?.name ?? "Pilot", position, source?.color ?? "#70f5ff"); showBrPing(brName(sourceId), position); });
+socket.on("br:ping", ({ playerId: sourceId, position }) => { const source = brRoom?.players.find((player) => player.id === sourceId); brGame?.showPing(source?.name ?? "Pilot", position, source?.color ?? "#70f5ff"); });
 socket.on("br:emote", ({ playerId: sourceId, emote, startedAt }) => { brGame?.playEmote(sourceId, emote, startedAt); showLobbyEmote(sourceId, emote, "battle-royale"); });
 socket.on("br:match:ended", (result) => showBrResults(result));
 
@@ -247,8 +253,9 @@ game.onEmoteMenu = (open, selected) => {
 };
 game.onPrompt = (text, aiming, label, kind = "idle", progress = 0) => {
   contextCopy.textContent = text;
+  contextPrompt.hidden = !text;
   contextPrompt.dataset.kind = kind;
-  contextProgress.style.width = `${Math.round(progress * 100)}%`;
+  contextProgress.style.width = `${text ? Math.round(progress * 100) : 0}%`;
   trajectoryLabel.style.opacity = aiming ? "1" : "0";
   if (label) trajectoryLabel.textContent = label;
 };
@@ -326,7 +333,15 @@ byId("pass-results").addEventListener("click", openPass);
 byId("pass-close").addEventListener("click", closePass);
 byId("settings-lobby").addEventListener("click", () => openSettings("screen"));
 addEventListener("keydown", (event) => {
-  if (event.key !== "Tab" || currentScreen !== "hud" || isEditableTarget(event.target)) return;
+  if(event.key!=="Tab")return;
+  const overlay=activeOverlay();
+  if(overlay){
+    const focusable=focusableElements(overlay);if(!focusable.length)return;
+    event.preventDefault();const current=focusable.indexOf(document.activeElement as HTMLElement);
+    const next=event.shiftKey?(current<=0?focusable.length-1:current-1):(current<0||current===focusable.length-1?0:current+1);
+    focusable[next].focus();return;
+  }
+  if(currentScreen!=="hud"||isEditableTarget(event.target))return;
   event.preventDefault(); leaderboardExpanded = true; leaderboard.classList.add("expanded");
 });
 addEventListener("keyup", (event) => {
@@ -398,9 +413,7 @@ function joinOrCreate(kind: "create" | "join" | "solo"): void {
       sessionStorage.setItem(`planetfall:br:${currentCode}`, result.sessionToken);
       void applyBrRoom(result.room);
       if (kind === "solo") {
-        socket.emit("br:room:configure", { teamMode: "solo", targetPlayers: 10, fillBots: true, botDifficulty: "normal" });
-        socket.emit("br:room:ready", { ready: true });
-        socket.emit("br:match:start");
+        socket.emit("br:match:quick-start");
       }
     };
     if (kind === "join") socket.emit("br:room:join", { code, name, sessionToken: sessionStorage.getItem(`planetfall:br:${code}`) ?? undefined }, doneBr);
@@ -465,7 +478,6 @@ function applyRoom(nextRoom: RoomView): void {
   } else if (nextRoom.phase === "countdown" || nextRoom.phase === "playing" || nextRoom.phase === "overtime") {
     showScreen("hud"); game.setMode("match"); updateHud();
     if (nextRoom.phase === "countdown" && nextRoom.countdownEndsAt && previousPhase !== "countdown") runCountdown(nextRoom.countdownEndsAt);
-    if (nextRoom.phase === "overtime" && previousPhase !== "overtime") toast("OVERTIME! Repairs off. Damage doubled.");
   } else if (nextRoom.phase === "results") {
     game.audio.setUrgency(0);
     showResults(nextRoom.winnerId, nextRoom.matchResult);
@@ -554,7 +566,7 @@ function renderBrHud(state: import("./modes/battle-royale/br-game").BrHudState):
   byId("br-players-remaining").textContent = `${state.playersRemaining} PLAYERS`; byId("br-teams-remaining").textContent = `${state.teamsRemaining} TEAMS`; byId("br-elims").textContent = `${player.kills} ELIMS`;
   byId("br-hp").textContent = String(Math.ceil(player.hp)); byId("br-shield").textContent = String(Math.ceil(player.shield)); byId<HTMLElement>("br-hp-meter").style.width = `${player.hp}%`; byId<HTMLElement>("br-shield-meter").style.width = `${player.shield}%`;
   const stormReadout=brStormReadout(state.phase,state.storm,Date.now());byId("br-storm-timer").textContent=stormReadout.time;byId("br-storm-copy").textContent=stormReadout.label;
-  const mini = byId("br-minimap"); const miniStorm = mini.querySelector<HTMLElement>(".br-mini-storm")!; const span = 110; miniStorm.style.left = `${50 + (state.storm.center.x - player.position.x) / span * 50}%`; miniStorm.style.top = `${50 + (state.storm.center.z - player.position.z) / span * 50}%`; miniStorm.style.width = `${state.storm.radius / span * 100}%`; miniStorm.style.height = miniStorm.style.width;
+  const mini = byId("br-minimap"); const miniStorm = mini.querySelector<HTMLElement>(".br-mini-storm")!; const span = 110; updateBrMinimapArt(mini,player.position.x,player.position.z,span); miniStorm.style.left = `${50 + (state.storm.center.x - player.position.x) / span * 50}%`; miniStorm.style.top = `${50 + (state.storm.center.z - player.position.z) / span * 50}%`; miniStorm.style.width = `${state.storm.radius / span * 100}%`; miniStorm.style.height = miniStorm.style.width;
   const teamMembers = state.players.filter((entry) => entry.teamId === player.teamId && entry.id !== player.id);
   const teammates = teamMembers.filter((entry) => entry.alive);
   const activeMiniIds = new Set(teammates.map((entry) => entry.id));
@@ -566,7 +578,10 @@ function renderBrHud(state: import("./modes/battle-royale/br-game").BrHudState):
     node.style.top = `${Math.max(4, Math.min(96, 50 + (teammate.position.z - player.position.z) / span * 50))}%`;
     node.style.setProperty("--mate-color", teammate.color);
   }
-  byId("br-context-copy").textContent = state.prompt || (document.pointerLockElement === canvas ? "" : "CLICK THE ARENA TO TAKE CONTROL"); byId<HTMLElement>("br-context-progress").style.width = `${Math.max(state.reloadProgress, state.useProgress, state.reviveProgress) * 100}%`;
+  const needsMouseCapture=(brGame?.getInputMethod()??game.getInputMethod())==="keyboard"&&document.pointerLockElement!==canvas;
+  const contextText=state.prompt || (needsMouseCapture ? "CLICK TO AIM & CONTROL CAMERA" : "");
+  const contextAmount=contextText ? Math.max(state.reloadProgress,state.useProgress,state.reviveProgress) : 0;
+  brContextCopy.textContent=contextText;brContextPrompt.hidden=!contextText;brContextProgress.style.width=`${contextAmount*100}%`;
   const inventory = byId("br-inventory"); const nextInventoryMarkup = player.inventory.map((item, index) => {
     const color = item ? ({ common: "#b8c4dc", rare: "#54b8ff", epic: "#c565ff", legendary: "#ffc84f" }[item.rarity]) : "#56617f";
     const name = item ? isBrWeapon(item.itemId) ? BR_WEAPONS[item.itemId].name : item.itemId.replaceAll("-", " ").toUpperCase() : "EMPTY"; const ammo = item && isBrWeapon(item.itemId) ? item.itemId === "energy-saber" ? "∞" : `${item.magazine} / ${BR_WEAPONS[item.itemId].ammo ? player.ammo[BR_WEAPONS[item.itemId].ammo!] : 0}` : item ? `×${item.count}` : "";
@@ -591,18 +606,16 @@ function showBrResults(result: BrMatchResult): void {
   byId<HTMLButtonElement>("br-return-lobby").disabled = Boolean(brRoom?.returnVotes.includes(playerId));
 }
 
-function appendBrFeed(message: string, color: string): void { const row = document.createElement("div"); row.className = "br-feed-row"; row.style.setProperty("--feed-color", color); row.textContent = message; byId("br-kill-feed").prepend(row); while (byId("br-kill-feed").children.length > 5) byId("br-kill-feed").lastElementChild?.remove(); setTimeout(() => row.remove(), 6000); }
+function appendBrFeed(message: string, color: string): void { if(currentScreen!=="brHud")return;const row = document.createElement("div"); row.className = "br-feed-row"; row.style.setProperty("--feed-color", color); row.textContent = message; byId("br-kill-feed").prepend(row); while (byId("br-kill-feed").children.length > 4) byId("br-kill-feed").lastElementChild?.remove(); setTimeout(() => row.remove(), 5200); }
 function brName(id: string): string { return brRoom?.players.find((player) => player.id === id)?.name ?? "A pilot"; }
-function showBrPing(name: string, _position: { x: number; y: number; z: number }): void { toast(`${name.toUpperCase()} PINGED A LOCATION`); }
 function ordinal(value: number): string { const mod100 = value % 100; return `${value}${mod100 >= 11 && mod100 <= 13 ? "TH" : value % 10 === 1 ? "ST" : value % 10 === 2 ? "ND" : value % 10 === 3 ? "RD" : "TH"}`; }
 
-function showBrMap(visible: boolean): void { brMapOverlay.hidden = !visible; if (visible) { const me = brRoom?.players.find((player) => player.id === playerId); if (me) renderBrMap(me); focusFirst(brMapOverlay); } }
+function showBrMap(visible: boolean): void { brMapOverlay.hidden = !visible; if (visible) { const me = brRoom?.players.find((player) => player.id === playerId); if (me) renderBrMap(me); focusFirst(brMapOverlay); } else focusFirst(screens[currentScreen]); }
 function toggleBrMap(visible: boolean): void { brGame?.setMapVisible(visible); showBrMap(visible); }
 function renderBrMap(player: BrRoomView["players"][number]): void {
-  const map = byId("br-map-canvas"); const toPercent = (value: number) => 50 + value / BR_MAP.radius * 48;
-  const roads=BR_ROADS.map((road)=>{const line=document.createElement("i");line.className="br-map-road";const startX=toPercent(road.from.x),startY=toPercent(road.from.z),endX=toPercent(road.to.x),endY=toPercent(road.to.z);line.style.left=`${startX}%`;line.style.top=`${startY}%`;line.style.width=`${Math.hypot(endX-startX,endY-startY)}%`;line.style.transform=`rotate(${Math.atan2(endY-startY,endX-startX)}rad)`;return line;});
+  const map = byId("br-map-canvas"); const toPercent = brMapPercent;
   const secondary=BR_SECONDARY_LOCATIONS.map((location)=>{const dot=document.createElement("i");dot.className="br-map-secondary";dot.style.left=`${toPercent(location.position.x)}%`;dot.style.top=`${toPercent(location.position.z)}%`;dot.title=location.name;return dot;});
-  map.replaceChildren(...roads,...secondary,...BR_POIS.map((poi) => { const label = document.createElement("span"); label.className = "br-map-poi"; label.textContent = poi.name; label.style.left = `${toPercent(poi.position.x)}%`; label.style.top = `${toPercent(poi.position.z)}%`; label.style.setProperty("--poi-color", poi.color); return label; }));
+  map.replaceChildren(createBrMapArt(),...secondary,...BR_POIS.map((poi) => { const label = document.createElement("span"); label.className = "br-map-poi"; label.textContent = poi.name; label.style.left = `${toPercent(poi.position.x)}%`; label.style.top = `${toPercent(poi.position.z)}%`; label.style.setProperty("--poi-color", poi.color); return label; }));
   if (brRoom) { const circle = document.createElement("i"); circle.className = "br-map-circle"; circle.style.left = `${toPercent(brRoom.storm.center.x)}%`; circle.style.top = `${toPercent(brRoom.storm.center.z)}%`; circle.style.width = `${brRoom.storm.radius / BR_MAP.radius * 96}%`; circle.style.height = circle.style.width; map.append(circle); }
   if (brRoom) { const next = document.createElement("i"); next.className = "br-map-circle next"; next.style.left = `${toPercent(brRoom.storm.nextCenter.x)}%`; next.style.top = `${toPercent(brRoom.storm.nextCenter.z)}%`; next.style.width = `${brRoom.storm.nextRadius / BR_MAP.radius * 96}%`; next.style.height = next.style.width; map.append(next); }
   if (brRoom?.ship) { const route = document.createElement("i"); route.className = "br-map-route"; const startX = toPercent(brRoom.ship.start.x); const startY = toPercent(brRoom.ship.start.z); const endX = toPercent(brRoom.ship.end.x); const endY = toPercent(brRoom.ship.end.z); route.style.left = `${startX}%`; route.style.top = `${startY}%`; route.style.width = `${Math.hypot(endX - startX, endY - startY)}%`; route.style.transform = `rotate(${Math.atan2(endY - startY, endX - startX)}rad)`; map.append(route); }
@@ -741,7 +754,7 @@ function revealModifier(modifier: ChaosModifier): void {
   void modifierReveal.offsetWidth;
   modifierReveal.classList.add("visible");
   game.audio.chaos();
-  window.setTimeout(() => modifierReveal.classList.remove("visible"), 2350);
+  clearTimeout(modifierRevealTimer);modifierRevealTimer=window.setTimeout(() => modifierReveal.classList.remove("visible"),2350);
 }
 
 function showResults(winnerId: string | null, result: MatchResult | null = room?.matchResult ?? null): void {
@@ -1013,7 +1026,7 @@ function navigateUi(action: "up" | "down" | "left" | "right" | "confirm" | "back
   const root = !brMapOverlay.hidden ? brMapOverlay : !shopOverlay.hidden ? shopOverlay : !passOverlay.hidden ? passOverlay : !settingsOverlay.hidden ? settingsOverlay : !pauseOverlay.hidden ? pauseOverlay : screens[currentScreen];
   const elements = [...root.querySelectorAll<HTMLElement>("button:not([disabled]):not([hidden]), input[type='range'], input[type='checkbox'], select")]
     .filter((element) => element.offsetParent !== null);
-  if (!settingsOpenButton.hidden) elements.push(settingsOpenButton);
+  if (!settingsOpenButton.hidden&&root===screens[currentScreen]) elements.push(settingsOpenButton);
   if (!elements.length) return;
   let index = elements.indexOf(document.activeElement as HTMLElement);
   if (index < 0) index = action === "up" || action === "left" ? 0 : -1;
@@ -1039,9 +1052,12 @@ function navigateUi(action: "up" | "down" | "left" | "right" | "confirm" | "back
 
 function focusFirst(root: HTMLElement): void {
   document.querySelectorAll(".gamepad-focus").forEach((element) => element.classList.remove("gamepad-focus"));
-  const first = root.querySelector<HTMLElement>("button:not([disabled]):not([hidden]), input[type='range'], input[type='checkbox'], select");
-  if (game.getInputMethod() === "gamepad" && first) { first.classList.add("gamepad-focus"); first.focus(); }
+  const first = focusableElements(root)[0];
+  if ((game.getInputMethod() === "gamepad"||root.classList.contains("overlay")) && first) { first.classList.toggle("gamepad-focus",game.getInputMethod()==="gamepad"); first.focus(); }
 }
+
+function focusableElements(root:HTMLElement):HTMLElement[]{return [...root.querySelectorAll<HTMLElement>("button:not([disabled]):not([hidden]), input:not([disabled]):not([hidden]), select:not([disabled]):not([hidden]), [tabindex]:not([tabindex='-1'])")].filter(element=>element.offsetParent!==null);}
+function activeOverlay():HTMLElement|null{return !brMapOverlay.hidden?brMapOverlay:!shopOverlay.hidden?shopOverlay:!passOverlay.hidden?passOverlay:!settingsOverlay.hidden?settingsOverlay:!pauseOverlay.hidden?pauseOverlay:null;}
 
 function setGameMode(mode: GameMode): void {
   if (!room || room.hostId !== playerId || room.phase !== "lobby" || room.gameMode === mode) return;
@@ -1050,12 +1066,19 @@ function setGameMode(mode: GameMode): void {
 }
 
 function showScreen(name: keyof typeof screens): void {
+  const previousFamily=document.body.dataset.gameFamily;
   currentScreen = name;
   game.audio.setMusicScene(name === "hud" || name === "brHud" ? "game" : "menu");
   for (const [key, screen] of Object.entries(screens)) screen.classList.toggle("active", key === name);
   const brScreen = name === "brLobby" || name === "brHud" || name === "brResults";
   document.body.dataset.gameFamily = brScreen ? "battle-royale" : "planetfall";
-  if (brScreen) { modifierReveal.classList.remove("visible"); countdown.textContent = ""; leaderboard.classList.remove("visible"); }
+  if(previousFamily&&previousFamily!==document.body.dataset.gameFamily)byId("toast-region").replaceChildren();
+  if(name!=="hud"){
+    contextPrompt.hidden=true;matchHint.classList.remove("visible");majorCallout.classList.remove("visible");modifierReveal.classList.remove("visible");
+    countdown.textContent="";clearInterval(countdownTimer);countdownTimer=0;countdownNumber=-1;
+  }
+  if(name!=="brHud")brContextPrompt.hidden=true;
+  if (brScreen) leaderboard.classList.remove("visible");
   settingsOpenButton.hidden = name === "hud" || name === "brHud";
   if (name === "hud" || name === "brHud") showFirstMatchControls();
 }
@@ -1065,8 +1088,11 @@ function setConnection(state: "online" | "offline" | "", text: string): void {
 }
 
 function toast(message: string): void {
-  const element = document.createElement("div"); element.className = "toast"; element.textContent = message;
-  byId("toast-region").append(element);
+  const region=byId("toast-region");const normalized=message.trim();if(!normalized)return;
+  const duplicate=[...region.children].find((node)=>node.textContent===normalized);
+  if(duplicate)return;
+  const element = document.createElement("div"); element.className = "toast"; element.textContent = normalized;
+  region.append(element);while(region.children.length>2)region.firstElementChild?.remove();
   setTimeout(() => element.remove(), 3200);
 }
 
@@ -1076,7 +1102,7 @@ function showMajorCallout(type: MatchCalloutType | "final-minute" | "final-thirt
     "first-raid": "FIRST RAID",
     "planet-down": "PLANET DOWN",
     "last-two": "LAST TWO",
-    overtime: "OVERTIME",
+    overtime: "OVERTIME · REPAIRS OFF · DOUBLE DAMAGE",
     "final-minute": "FINAL MINUTE",
     "final-thirty": "30 SECONDS"
   };
@@ -1085,11 +1111,11 @@ function showMajorCallout(type: MatchCalloutType | "final-minute" | "final-thirt
   void majorCallout.offsetWidth;
   majorCallout.classList.add("visible");
   game.audio.callout(type === "overtime" || type === "planet-down");
-  window.setTimeout(() => majorCallout.classList.remove("visible"), type === "final-thirty" ? 1150 : 1500);
+  clearTimeout(majorCalloutTimer);majorCalloutTimer=window.setTimeout(() => majorCallout.classList.remove("visible"), type === "final-thirty" ? 1150 : 1500);
 }
 
 function appendMatchEvent(event: MatchEvent): void {
-  if (!room) return;
+  if (!room||currentScreen!=="hud") return;
   const player = (id?: string) => room!.players.find((entry) => entry.id === id);
   const actor = player(event.actorId); const target = player(event.targetId);
   const actorName = actor?.name ?? "A pilot"; const targetName = target?.name ?? "a rival";
@@ -1108,6 +1134,7 @@ function appendMatchEvent(event: MatchEvent): void {
 }
 
 function showHint(id: string, text: string): void {
+  if(currentScreen!=="hud")return;
   const key = `planetfall:hint:${id}:v1`;
   if (localStorage.getItem(key)) return;
   localStorage.setItem(key, "seen");

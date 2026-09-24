@@ -13,8 +13,13 @@ export const BR_BALANCE = {
   shipDurationMs: 42_000,
   shipHeight: 185,
   freefallSpeed: 32,
-  chuteSpeed: 10,
-  autoDeployHeight: 42,
+  freefallHorizontalSpeed: 18,
+  // The chute is a traversal choice, not merely a landing brake. Automatic
+  // deployment can cross nearby districts, while an early deploy goes farther.
+  chuteSpeed: 6.5,
+  chuteHorizontalSpeed: 21,
+  airSteering: 5.2,
+  autoDeployHeight: 80,
   playerRadius: .45,
   playerHeight: 1.4,
   gravity: 24,

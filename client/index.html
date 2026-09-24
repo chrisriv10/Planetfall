@@ -83,7 +83,7 @@
           </nav>
           <div class="br-options-grid">
             <div><span>TEAMS</span><div id="br-team-mode" class="difficulty-selector"><button data-team="solo" class="selected">SOLOS</button><button data-team="duo">DUOS</button><button data-team="squad">SQUADS</button></div></div>
-            <div><label for="br-player-target">PLAYERS</label><select id="br-player-target"><option value="10">10</option><option value="20">20</option><option value="40">40</option></select></div>
+            <div><label for="br-player-target">PLAYERS</label><select id="br-player-target"><option value="10">10</option><option value="20">20</option><option value="40" selected>40</option></select></div>
             <label class="br-fill toggle-row" for="br-fill-bots"><span>FILL BOTS</span><input id="br-fill-bots" type="checkbox" checked /></label>
           </div>
           <div class="lobby-options"><span>BOT DIFFICULTY</span><div id="br-bot-difficulty" class="difficulty-selector"><button data-difficulty="easy">EASY</button><button data-difficulty="normal" class="selected">NORMAL</button><button data-difficulty="hard">HARD</button></div></div>
@@ -100,16 +100,16 @@
         <div id="br-minimap" class="br-minimap" aria-label="Mini map"><i class="br-mini-storm"></i><b class="br-mini-player"></b></div>
         <div class="br-vitals"><div><span>SHIELD</span><i><b id="br-shield-meter"></b></i><strong id="br-shield">0</strong></div><div><span>HP</span><i><b id="br-hp-meter"></b></i><strong id="br-hp">100</strong></div></div>
         <div id="br-inventory" class="br-inventory"></div>
-        <div id="br-context" class="context-prompt"><span id="br-context-copy">Click the arena to take control</span><i id="br-context-progress"></i></div>
+        <div id="br-context" class="context-prompt" hidden><span id="br-context-copy"></span><i id="br-context-progress"></i></div>
         <div id="br-crosshair" class="br-crosshair"><i></i><i></i><i></i><i></i><b></b></div><div id="br-damage-direction" class="br-damage-direction"></div>
-        <div id="br-kill-feed" class="br-kill-feed"></div>
+        <div id="br-kill-feed" class="br-kill-feed" role="log" aria-label="Combat events" aria-live="polite" aria-relevant="additions"></div>
         <div id="br-team-hud" class="br-team-hud"></div>
         <div id="br-pings" class="br-pings"></div>
-        <button id="br-map-button" class="icon-button br-map-button" type="button">M</button>
+        <button id="br-map-button" class="icon-button br-map-button" type="button" aria-label="Open tactical map">M</button>
       </section>
 
-      <section id="br-map-overlay" class="overlay br-map-overlay" hidden>
-        <div class="br-map-card glass"><div class="panel-kicker">ORBITAL ISLE</div><h2>TACTICAL MAP</h2><div id="br-map-canvas" class="br-map-canvas"></div><p>YOU · TEAM · SAFE ZONE</p><button id="br-map-close" class="button button-primary">Close Map</button></div>
+      <section id="br-map-overlay" class="overlay br-map-overlay" role="dialog" aria-modal="true" aria-labelledby="br-map-title" hidden>
+        <div class="br-map-card glass"><div class="panel-kicker">ORBITAL ISLE</div><h2 id="br-map-title">TACTICAL MAP</h2><div id="br-map-canvas" class="br-map-canvas"></div><p>YOU · TEAM · SAFE ZONE</p><button id="br-map-close" class="button button-primary">Close Map</button></div>
       </section>
 
       <section id="br-results-screen" class="screen" aria-labelledby="br-results-title">
@@ -129,9 +129,9 @@
         <div id="modifier-chip" class="modifier-chip" hidden><i></i><span>LOW GRAVITY</span></div>
         <div id="crosshair" class="crosshair"><i></i><i></i></div>
         <div id="trajectory" class="trajectory-label">ROCKET · 8 SCRAP</div>
-        <div id="context-prompt" class="context-prompt" data-kind="idle"><span id="context-copy">Click the arena to take control</span><i id="context-progress"></i></div>
+        <div id="context-prompt" class="context-prompt" data-kind="idle" hidden><span id="context-copy"></span><i id="context-progress"></i></div>
         <div id="edge-indicators" class="edge-indicators" aria-hidden="true"></div>
-        <div id="event-feed" class="event-feed" aria-live="polite"></div>
+        <div id="event-feed" class="event-feed" role="log" aria-label="Match events" aria-live="polite" aria-relevant="additions"></div>
         <div id="match-hint" class="match-hint" aria-live="polite"></div>
         <div class="weapon-panel">
           <span>CANNON WEAPON <kbd id="weapon-key">Q</kbd></span>
@@ -145,7 +145,7 @@
 
       <button id="settings-open" class="icon-button settings-open" aria-label="Settings" title="Settings">⚙</button>
 
-      <section id="pause-overlay" class="overlay" aria-labelledby="pause-title" hidden>
+      <section id="pause-overlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="pause-title" hidden>
         <div class="overlay-card pause-card glass">
           <div class="panel-kicker">MATCH STILL RUNNING</div>
           <h2 id="pause-title">Paused locally</h2>
@@ -156,7 +156,7 @@
         </div>
       </section>
 
-      <section id="settings-overlay" class="overlay" aria-labelledby="settings-title" hidden>
+      <section id="settings-overlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
         <div class="overlay-card settings-card glass">
           <div class="panel-kicker">PILOT CONSOLE</div>
           <h2 id="settings-title">Settings</h2>
@@ -204,7 +204,7 @@
         </div>
       </section>
 
-      <section id="shop-overlay" class="overlay" aria-labelledby="shop-title" hidden>
+      <section id="shop-overlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="shop-title" hidden>
         <div class="overlay-card shop-card glass">
           <div class="shop-heading"><div><div class="panel-kicker">SESSION COSMETICS</div><h2 id="shop-title">Shop</h2></div><strong><span id="shop-balance">0</span> FALLBUCKS</strong></div>
           <p id="shop-note" class="shop-note" hidden>JOIN A ROOM TO EARN AND SPEND FALLBUCKS</p>
@@ -214,7 +214,7 @@
         </div>
       </section>
 
-      <section id="pass-overlay" class="overlay" aria-labelledby="pass-title" hidden>
+      <section id="pass-overlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="pass-title" hidden>
         <div class="overlay-card pass-card glass">
           <div class="pass-heading">
             <div><div class="panel-kicker">SESSION REWARDS</div><h2 id="pass-title">Planet Pass</h2></div>

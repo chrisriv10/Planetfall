@@ -170,6 +170,7 @@ describe("shared gameplay math", () => {
   });
 
   it("builds Classic and all five focused Chaos rule sets", () => {
+    expect(BALANCE.scrapSpawnMs).toBe(5000);
     expect(createMatchRules()).toEqual({
       gravity: BALANCE.gravity, jumpSpeed: BALANCE.jumpSpeed,
       scrapSpawnMs: BALANCE.scrapSpawnMs, scrapMaxPerPlanet: BALANCE.scrapMaxPerPlanet,

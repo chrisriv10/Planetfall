@@ -1,5 +1,5 @@
 import RAPIER from "@dimforge/rapier3d-compat";
-import { BR_BALANCE, BR_ISLAND_OUTLINE, BR_MAP_BLOCKS, brBlocksForPhysicsSector, brHasStandingClearance, brMantleTopAt, brPhysicsSector, type BrCollisionResult, type BrMapBlock, type Vec3 } from "@planetfall/shared";
+import { BR_BALANCE, BR_ISLAND_OUTLINE, BR_MAP_BLOCKS, brBlocksForPhysicsSector, brFlatDeckCollision, brHasStandingClearance, brMantleTopAt, brPhysicsSector, isInsideBrIsland, type BrCollisionResult, type BrMapBlock, type Vec3 } from "@planetfall/shared";
 
 await RAPIER.init();
 
@@ -22,10 +22,19 @@ export class BrPhysicsWorld {
   teleport(_id:string,feet:Vec3):void {this.sector(feet).collider.setTranslation({x:feet.x,y:feet.y+centerY(false),z:feet.z});}
 
   move(id:string,feet:Vec3,desiredMovement:Vec3,jumping:boolean,crouched=false):BrCollisionResult {
-    const sector=this.sector(feet);const actualCrouch=crouched||!brHasStandingClearance(feet);if(sector.crouched!==actualCrouch){sector.crouched=actualCrouch;sector.collider.setHalfHeight(actualCrouch?CROUCHED_HALF_HEIGHT:STANDING_HALF_HEIGHT);}sector.collider.setTranslation({x:feet.x,y:feet.y+centerY(actualCrouch),z:feet.z});
+    const flat=brFlatDeckCollision(feet,desiredMovement,jumping);if(flat)return{...flat,crouched};
+    const sector=this.sector(feet);
+    // Standing pilots already have a valid full-height capsule. The old path
+    // rescanned nearby map blocks for head clearance on every server tick,
+    // for every one of forty pilots. Only a capsule that is actually crouched
+    // needs the clearance query before expanding again.
+    const actualCrouch=crouched||(sector.crouched&&!brHasStandingClearance(feet));
+    if(sector.crouched!==actualCrouch){sector.crouched=actualCrouch;sector.collider.setHalfHeight(actualCrouch?CROUCHED_HALF_HEIGHT:STANDING_HALF_HEIGHT);}sector.collider.setTranslation({x:feet.x,y:feet.y+centerY(actualCrouch),z:feet.z});
     if(jumping)sector.controller.disableSnapToGround();else sector.controller.enableSnapToGround(.18);sector.controller.computeColliderMovement(sector.collider,desiredMovement,undefined,undefined,(collider)=>collider.handle!==sector.collider.handle);const movement=sector.controller.computedMovement();
     if(jumping&&Math.hypot(movement.x,movement.z)<Math.hypot(desiredMovement.x,desiredMovement.z)*.45){const mantle=brMantleTopAt(feet,desiredMovement);if(mantle!==null)return{movement:{x:desiredMovement.x,y:mantle-feet.y+.03,z:desiredMovement.z},grounded:false,ceiling:false,crouched:false};}
-    const next={x:feet.x+movement.x,y:feet.y+movement.y,z:feet.z+movement.z};sector.collider.setTranslation({x:next.x,y:next.y+centerY(actualCrouch),z:next.z});return{movement:{x:movement.x,y:movement.y,z:movement.z},grounded:!jumping&&(sector.controller.computedGrounded()||downwardContact(desiredMovement,movement)),ceiling:desiredMovement.y>0&&movement.y<desiredMovement.y-.01,crouched:actualCrouch};
+    const next={x:feet.x+movement.x,y:feet.y+movement.y,z:feet.z+movement.z};
+    const inside=isInsideBrIsland(next);const movementY=!inside&&downwardContact(desiredMovement,movement)?desiredMovement.y:movement.y;next.y=feet.y+movementY;
+    sector.collider.setTranslation({x:next.x,y:next.y+centerY(actualCrouch),z:next.z});return{movement:{x:movement.x,y:movementY,z:movement.z},grounded:inside&&!jumping&&(sector.controller.computedGrounded()||downwardContact(desiredMovement,movement)),ceiling:desiredMovement.y>0&&movementY<desiredMovement.y-.01,crouched:actualCrouch};
   }
 
   remove(_id:string):void { /* The query capsule is shared because BR pilots do not collide with each other. */ }
@@ -35,7 +44,7 @@ export class BrPhysicsWorld {
 
   private sector(position:Vec3):MovementSector {
     const key=brPhysicsSector(position).key;let sector=this.sectors.get(key);if(sector)return sector;
-    const world=new RAPIER.World({x:0,y:0,z:0});addIsland(world);addBlocks(world,brBlocksForPhysicsSector(position));
+    const world=new RAPIER.World({x:0,y:0,z:0});addMovementDeck(world);addBlocks(world,brBlocksForPhysicsSector(position));
     const collider=world.createCollider(RAPIER.ColliderDesc.capsule(STANDING_HALF_HEIGHT,BR_BALANCE.playerRadius).setFriction(0));
     const controller=world.createCharacterController(.035);controller.enableAutostep(.52,.22,false);controller.enableSnapToGround(.18);controller.setSlideEnabled(true);controller.setMaxSlopeClimbAngle(Math.PI*.32);world.step();
     sector={world,collider,controller,crouched:false};this.sectors.set(key,sector);return sector;
@@ -44,6 +53,7 @@ export class BrPhysicsWorld {
 
 type MovementSector={world:RAPIER.World;collider:RAPIER.Collider;controller:RAPIER.KinematicCharacterController;crouched:boolean};
 function addIsland(world:RAPIER.World):void{const vertices=new Float32Array((BR_ISLAND_OUTLINE.length+1)*3);vertices.set([0,0,0]);BR_ISLAND_OUTLINE.forEach(([x,z],index)=>vertices.set([x,0,z],(index+1)*3));const indices=new Uint32Array(BR_ISLAND_OUTLINE.length*3);for(let index=0;index<BR_ISLAND_OUTLINE.length;index++)indices.set([0,(index+1)%BR_ISLAND_OUTLINE.length+1,index+1],index*3);world.createCollider(RAPIER.ColliderDesc.trimesh(vertices,indices));}
+function addMovementDeck(world:RAPIER.World):void{world.createCollider(RAPIER.ColliderDesc.cuboid(650,.5,650).setTranslation(0,-.5,0));}
 function addBlocks(world:RAPIER.World,blocks:readonly BrMapBlock[]):void{for(const block of blocks){const collider=RAPIER.ColliderDesc.cuboid(block.size.x/2,block.size.y/2,block.size.z/2).setTranslation(block.position.x,block.position.y,block.position.z);if(block.rotation)collider.setRotation(eulerQuaternion(block.rotation));world.createCollider(collider);}}
 
 function eulerQuaternion(rotation:Vec3):{x:number;y:number;z:number;w:number}{const cx=Math.cos(rotation.x/2),sx=Math.sin(rotation.x/2),cy=Math.cos(rotation.y/2),sy=Math.sin(rotation.y/2),cz=Math.cos(rotation.z/2),sz=Math.sin(rotation.z/2);return{x:sx*cy*cz-cx*sy*sz,y:cx*sy*cz+sx*cy*sz,z:cx*cy*sz-sx*sy*cz,w:cx*cy*cz+sx*sy*sz};}

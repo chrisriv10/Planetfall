@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  BR_BALANCE, BR_BOT_DIFFICULTY, BR_CRATE_SOCKETS, BR_ISLAND_OUTLINE, BR_LOOT_SOCKETS, BR_MAP, BR_MAP_BLOCKS, BR_NAV_NODES, BR_POIS, BR_ROADS, BR_SECONDARY_LOCATIONS, BR_STORM_PHASES, BR_STRUCTURES, BR_TERRAIN_PATCHES, BR_WEAPONS, applyBrDamage, brApproachPlanarVelocity, brHasStandingClearance, brMantleTopAt, brMuzzlePosition, brNextWaypoint, brPlayerHitDistance, brRarityDamage, brShipPath, isInsideBrIsland,
+  BR_BALANCE, BR_BOT_DIFFICULTY, BR_CRATE_SOCKETS, BR_ISLAND_OUTLINE, BR_LOOT_SOCKETS, BR_MAP, BR_MAP_BLOCKS, BR_NAV_NODES, BR_POIS, BR_ROADS, BR_SECONDARY_LOCATIONS, BR_STORM_PHASES, BR_STRUCTURES, BR_TERRAIN_PATCHES, BR_WEAPONS, applyBrDamage, brApproachPlanarVelocity, brDropVelocity, brFlatDeckCollision, brHasStandingClearance, brMantleTopAt, brMuzzlePosition, brNextWaypoint, brPlayerHitDistance, brRarityDamage, brRoadIntersectsFootprint, brShipPath, isInsideBrIsland,
   brBlocksNear, brPickupDisposition, createEmptyBrInventory, raySphereDistance, reloadBrItem, stepBrMovement, stormContains, type BrInventoryItem, type BrMotionState
 } from "./index.js";
 
@@ -118,6 +118,21 @@ describe("Battle Royale shared rules", () => {
     expect(BR_STRUCTURES.find(s=>s.id==="comet-hotel-1")?.archetype).toBe("hotel");
   });
 
+  it("keeps every secondary shell clear of roads and neighboring structures",()=>{
+    const secondaryIds=new Set(BR_SECONDARY_LOCATIONS.map((entry)=>entry.id));
+    const secondary=BR_STRUCTURES.filter((entry)=>secondaryIds.has(entry.districtId));
+    for(const structure of secondary)for(const road of BR_ROADS){
+      expect(brRoadIntersectsFootprint(road,structure.position,structure.size,.2),`${structure.id} overlaps ${road.id}`).toBe(false);
+    }
+    for(let first=0;first<BR_STRUCTURES.length;first++)for(let second=first+1;second<BR_STRUCTURES.length;second++){
+      const a=BR_STRUCTURES[first],b=BR_STRUCTURES[second];
+      if(!secondaryIds.has(a.districtId)&&!secondaryIds.has(b.districtId))continue;
+      const overlapsX=Math.abs(a.position.x-b.position.x)<(a.size.x+b.size.x)/2;
+      const overlapsZ=Math.abs(a.position.z-b.position.z)<(a.size.z+b.size.z)/2;
+      expect(overlapsX&&overlapsZ,`${a.id} overlaps ${b.id}`).toBe(false);
+    }
+  });
+
   it("builds one authored island with nine distinct connected districts and enterable structures", () => {
     expect(BR_POIS).toHaveLength(9);
     expect(BR_SECONDARY_LOCATIONS).toHaveLength(30);
@@ -157,6 +172,36 @@ describe("Battle Royale shared rules", () => {
     const expired=stepBrMovement({...base,lastGroundedAt:1000},{moveX:0,moveY:0,yaw:0,jump:true,sprint:false,crouch:false},.02,1000+BR_BALANCE.coyoteMs+1);expect(expired.velocity.y).toBeLessThan(0);
     const buffered=stepBrMovement({...base,position:{x:70,y:.04,z:70},velocity:{x:0,y:-2,z:0},lastGroundedAt:Number.NEGATIVE_INFINITY},{moveX:0,moveY:0,yaw:0,jump:true,sprint:false,crouch:false},.001,2000);
     const landed=stepBrMovement(buffered,{moveX:0,moveY:0,yaw:0,jump:false,sprint:false,crouch:false},.04,2040);expect(landed.velocity.y).toBe(BR_BALANCE.jumpSpeed);expect(landed.grounded).toBe(false);expect(landed.jumpBufferedUntil).toBe(0);
+  });
+
+  it("gives an auto-deployed chute useful cross-island travel with finite steering",()=>{
+    let motion:BrMotionState={position:{x:0,y:BR_BALANCE.autoDeployHeight,z:0},velocity:{x:0,y:-BR_BALANCE.chuteSpeed,z:0},yaw:0,grounded:false,crouched:false,deployment:"chute",downed:false,lastJumpSignal:false,lastCrouchSignal:false,slideEndsAt:0,traversalCooldownUntil:0,lastGroundedAt:Number.NEGATIVE_INFINITY,jumpBufferedUntil:0};
+    for(let step=0;step<50;step++)motion=stepBrMovement(motion,{moveX:0,moveY:1,yaw:0,jump:false,sprint:false,crouch:false},.1,step*100);
+    expect(-motion.position.z).toBeGreaterThan(65);
+    expect(Math.hypot(motion.velocity.x,motion.velocity.z)).toBeLessThanOrEqual(BR_BALANCE.chuteHorizontalSpeed+.001);
+    expect(Object.values(motion.position).every(Number.isFinite)).toBe(true);
+  });
+
+  it("lets automatic deployment traverse between neighbouring districts",()=>{
+    let motion:BrMotionState={position:{x:0,y:BR_BALANCE.shipHeight,z:0},velocity:{x:0,y:-5,z:0},yaw:Math.PI/2,grounded:false,crouched:false,deployment:"freefall",downed:false,lastJumpSignal:false,lastCrouchSignal:false,slideEndsAt:0,traversalCooldownUntil:0,lastGroundedAt:Number.NEGATIVE_INFINITY,jumpBufferedUntil:0};
+    for(let tick=0;tick<30*30&&motion.deployment!=="grounded";tick++)motion=stepBrMovement(motion,{moveX:0,moveY:1,yaw:Math.PI/2,jump:false,sprint:false,crouch:false},1/30,tick*1000/30);
+    expect(motion.deployment).toBe("grounded");
+    expect(motion.position.x).toBeGreaterThan(250);
+    expect(motion.position.x).toBeLessThan(470);
+  });
+
+  it("uses the flat-deck fast path only away from authored collision",()=>{
+    const open=brFlatDeckCollision({x:72,y:.04,z:72},{x:.4,y:-.1,z:0},false);
+    expect(open?.grounded).toBe(true);expect(open?.movement.x).toBe(.4);expect(open?.movement.y).toBeCloseTo(-.005);
+    const building=BR_STRUCTURES.find(structure=>!structure.enterable)!;
+    expect(brFlatDeckCollision({...building.position,y:.04},{x:.1,y:-.1,z:0},false)).toBeNull();
+  });
+
+  it("inherits finite forward Starliner momentum on drop",()=>{
+    const ship={start:{x:-620,y:195,z:0},end:{x:620,y:195,z:0},startedAt:1000,endsAt:43_000};
+    const velocity=brDropVelocity(ship,Math.PI/2);
+    expect(velocity.x).toBeGreaterThan(20);expect(velocity.y).toBe(-5);expect(Math.abs(velocity.z)).toBeLessThan(.001);
+    expect(Object.values(velocity).every(Number.isFinite)).toBe(true);
   });
 
   it("uses one deterministic movement step for sprint, jump, slide, and descent", () => {

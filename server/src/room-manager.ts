@@ -112,6 +112,14 @@ export class RoomManager {
     socket.on("br:room:ready", (payload) => { const c = this.currentBr(socket); if (c) c.room.setReady(c.playerId, payload?.ready); });
     socket.on("br:room:configure", (payload) => { const c = this.currentBr(socket); if (c) c.room.configure(c.playerId, payload ?? {}); });
     socket.on("br:match:start", () => { const c = this.currentBr(socket); if (c) c.room.start(c.playerId); });
+    socket.on("br:match:quick-start", () => {
+      const c = this.currentBr(socket); if (!c || c.room.hostId !== c.playerId || c.room.phase !== "lobby") return;
+      // Solo quick play is one authoritative transaction. This prevents a
+      // delayed configure/ready packet from starting the old small-room setup.
+      c.room.configure(c.playerId, { teamMode: "solo", targetPlayers: 40, fillBots: true, botDifficulty: "normal" });
+      c.room.setReady(c.playerId, true);
+      c.room.start(c.playerId);
+    });
     socket.on("br:player:input", (payload) => { const c = this.currentBr(socket); if (c) c.room.setInput(c.playerId, payload); });
     socket.on("br:player:jump", () => { const c = this.currentBr(socket); if (c) c.room.jumpFromShip(c.playerId); });
     socket.on("br:player:deploy", () => { const c = this.currentBr(socket); if (c) c.room.deployChute(c.playerId); });

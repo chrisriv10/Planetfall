@@ -120,7 +120,7 @@ export const BALANCE = {
   startingScrap: 20,
   scrapValue: 5,
   scrapPickupRadius: 2.05,
-  scrapSpawnMs: 6500,
+  scrapSpawnMs: 5000,
   scrapMaxPerPlanet: 6,
   cannonRange: 5,
   matchMs: 7 * 60 * 1000,

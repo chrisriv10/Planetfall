@@ -12,13 +12,13 @@ describe("BR roadside infrastructure", () => {
   it("adds a deterministic sparse set with a bounded instance budget", () => {
     const sites = buildRoadsideInfrastructure();
     expect(sites.length).toBeGreaterThanOrEqual(12);
-    expect(sites.length).toBeLessThanOrEqual(16);
+    expect(sites.length).toBeLessThanOrEqual(22);
     expect(buildRoadsideInfrastructure()).toEqual(sites);
     expect(new Set(sites.map(site => site.roadId)).size).toBe(sites.length);
     expect(sites.every(site => BR_SECONDARY_LOCATIONS.some(location => location.id === site.locationId))).toBe(true);
-    expect(sites.reduce((count, site) => count + site.parts.length, 0)).toBeLessThanOrEqual(360);
+    expect(sites.reduce((count,site)=>count+site.parts.length,0)).toBeLessThanOrEqual(520);
     const planted = sites.filter(site => ["city", "mall", "academy", "nexus"].includes(site.style));
-    expect(planted.length).toBeGreaterThanOrEqual(4);
+    expect(planted.length).toBeGreaterThanOrEqual(6);
     expect(planted.every(site => site.parts.some(part => part.geometry === "octahedron" && ["canopy", "energyCyan"].includes(part.finish)))).toBe(true);
     expect(planted.every(site => site.parts.filter(part => part.geometry === "octahedron").length >= 4)).toBe(true);
   });

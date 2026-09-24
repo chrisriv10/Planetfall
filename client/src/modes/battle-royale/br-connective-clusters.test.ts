@@ -14,15 +14,15 @@ const rectDistance = (x: number, z: number, p: { x: number; z: number }, size: {
 };
 
 describe("BR low-density connective pockets", () => {
-  it("builds 8–12 deterministic themed clusters without changing shared inputs", () => {
+  it("builds 12–16 deterministic themed clusters without changing shared inputs", () => {
     const before = JSON.stringify([BR_ROADS, BR_STRUCTURES, BR_MAP_BLOCKS, BR_TERRAIN_PATCHES]);
     const clusters = buildConnectiveClusters();
-    expect(clusters.length).toBeGreaterThanOrEqual(8);
-    expect(clusters.length).toBeLessThanOrEqual(12);
+    expect(clusters.length).toBeGreaterThanOrEqual(12);
+    expect(clusters.length).toBeLessThanOrEqual(16);
     expect(new Set(clusters.map(cluster => cluster.theme)).size).toBeGreaterThanOrEqual(3);
     expect(buildConnectiveClusters()).toEqual(clusters);
     expect(buildConnectiveClusters({ roads: [...BR_ROADS].reverse() })).toEqual(clusters);
-    expect(clusters.reduce((sum, cluster) => sum + cluster.parts.length, 0)).toBeLessThanOrEqual(140);
+    expect(clusters.reduce((sum,cluster)=>sum+cluster.parts.length,0)).toBeLessThanOrEqual(224);
     for (const cluster of clusters) {
       expect(cluster.radius).toBe(BR_CONNECTIVE_CLUSTER_RADIUS);
       expect(cluster.parts.length).toBeLessThanOrEqual(14);
@@ -47,7 +47,7 @@ describe("BR low-density connective pockets", () => {
       for (const patch of BR_TERRAIN_PATCHES) expect(rectDistance(x, z, patch.position, patch.size, patch.rotation)).toBeGreaterThanOrEqual(r + 3);
       for (const t of BR_TRAVERSAL) expect(Math.hypot(x - t.position.x, z - t.position.z)).toBeGreaterThanOrEqual(r + 10);
       for (const other of reservations) expect(Math.hypot(x - other.position.x, z - other.position.z)).toBeGreaterThanOrEqual(r + other.radius + 3);
-      for (const other of clusters.slice(index + 1)) expect(Math.hypot(x - other.center.x, z - other.center.z)).toBeGreaterThanOrEqual(65);
+      for(const other of clusters.slice(index+1))expect(Math.hypot(x-other.center.x,z-other.center.z)).toBeGreaterThanOrEqual(55);
     }
   });
 

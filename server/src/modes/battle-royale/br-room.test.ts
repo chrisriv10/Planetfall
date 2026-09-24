@@ -30,6 +30,38 @@ function waitForRoom(socket: TestSocket, predicate: (room: BrRoomView) => boolea
 }
 
 describe("Battle Royale room", () => {
+  it("defaults full Battle Royale rooms to the advertised 40 participants",async()=>{
+    const {url}=await setup();const host=await client(url);const joined=await createRoom(host,"Full default");
+    if(!joined.ok)throw new Error(joined.error);
+    expect(joined.room.targetPlayers).toBe(40);
+  });
+
+  it("starts solo quick play atomically with forty participants",async()=>{
+    const {url}=await setup();const host=await client(url);const joined=await createRoom(host,"Quick pilot");
+    if(!joined.ok)throw new Error(joined.error);
+    const countdown=waitForRoom(host,(room)=>room.phase==="countdown");
+    host.emit("br:match:quick-start");
+    const room=await countdown;
+    expect(room.targetPlayers).toBe(40);
+    expect(room.teamMode).toBe("solo");
+    expect(room.players).toHaveLength(40);
+    expect(room.players.filter((player)=>player.isBot)).toHaveLength(39);
+  });
+
+  it("preserves Starliner route momentum when a player jumps",async()=>{
+    const {server,url}=await setup();const host=await client(url);const joined=await createRoom(host,"Drop pilot");
+    if(!joined.ok)throw new Error(joined.error);
+    const room=server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom;
+    room.configure(joined.playerId,{targetPlayers:10,fillBots:true});room.setReady(joined.playerId,true);
+    const now=Date.now();room.start(joined.playerId,now);room.update(1/30,now+BR_BALANCE.countdownMs+1);
+    const ship=room.ship!;const routeX=ship.end.x-ship.start.x,routeZ=ship.end.z-ship.start.z;
+    expect(room.jumpFromShip(joined.playerId,now+BR_BALANCE.countdownMs+100)).toBe(true);
+    const player=room.players.get(joined.playerId)!;
+    expect(player.velocity.x*routeX+player.velocity.z*routeZ).toBeGreaterThan(0);
+    expect(Math.hypot(player.velocity.x,player.velocity.z)).toBeGreaterThan(12);
+    expect(player.velocity.y).toBe(-5);
+  });
+
   it("expires stale human movement input instead of authoritatively running forever", async () => {
     const {server,url}=await setup();const host=await client(url);const joined=await createRoom(host,"Stale input");if(!joined.ok)throw new Error(joined.error);
     const room=server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom;

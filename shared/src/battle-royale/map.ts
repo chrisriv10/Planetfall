@@ -106,6 +106,19 @@ export const BR_SECONDARY_LOCATIONS:readonly BrSecondaryLocation[]=[
   secondary("west-rim","WEST RIM",-340,280,"#8f8bd6","academy","astra-academy")
 ];
 
+export const BR_ROADS: readonly BrRoadSegment[] = [
+  { id:"ring-nw", from:{x:-278,y:.08,z:75}, to:{x:-175,y:.08,z:-135}, width:15, color:"#293b58" },
+  { id:"ring-sw", from:{x:-175,y:.08,z:-135}, to:{x:-326,y:.08,z:-258}, width:15, color:"#293b58" },
+  { id:"ring-s", from:{x:-326,y:.08,z:-258}, to:{x:188,y:.08,z:-156}, width:17, color:"#293b58" },
+  { id:"ring-se", from:{x:188,y:.08,z:-156}, to:{x:342,y:.08,z:-70}, width:15, color:"#293b58" },
+  { id:"ring-e", from:{x:342,y:.08,z:-70}, to:{x:262,y:.08,z:78}, width:15, color:"#293b58" },
+  { id:"ring-ne", from:{x:262,y:.08,z:78}, to:{x:125,y:.08,z:294}, width:15, color:"#293b58" },
+  { id:"ring-n", from:{x:125,y:.08,z:294}, to:{x:-93,y:.08,z:263}, width:15, color:"#293b58" },
+  { id:"ring-wn", from:{x:-93,y:.08,z:263}, to:{x:-278,y:.08,z:75}, width:15, color:"#293b58" },
+  ...([[-175,-135],[188,-156],[262,78],[-278,75],[-93,263],[125,294],[342,-70],[-326,-258]] as const).map(([x,z], index) => ({ id:`radial-${index}`, from:{x:0,y:.09,z:0}, to:{x,y:.09,z}, width:13, color:"#304766" })),
+  ...BR_SECONDARY_LOCATIONS.map((location,index)=>{const target=BR_POIS.find((poi)=>poi.id===location.connectTo)??BR_POIS[0];return{id:`service-${index}`,from:{...location.position,y:.1},to:{...target.position,y:.1},width:index%4===0?10:8,color:"#263b57"};})
+];
+
 const inferArchetype=(id:string,style:BrDistrictStyle,height:number):BrStructureArchetype=>id.includes("hangar")?"hangar":id.includes("hotel")?"hotel":id.includes("market")||id.includes("cafe")||id.includes("arcade")?"shop":id.includes("tower")||height>20?"tower":style==="farm"?"greenhouse":style==="academy"?"academy":style==="mall"?"mall":style==="dock"?"warehouse":style==="reactor"||style==="industrial"?"industrial":style==="wreck"?"utility":"office";
 const S = (id: string, districtId: string, x: number, z: number, w: number, d: number, h: number, color: string, style: BrDistrictStyle, floors: 1 | 2 | 3 = 1, entrance: BrStructure["entrance"] = "south", roofAccess = false, enterable=true, archetype?:BrStructureArchetype): BrStructure => ({
   id, districtId, position: { x, y: 0, z }, size: { x: w, y: h, z: d }, color, style, floors, entrance, roofAccess, enterable, archetype:archetype??inferArchetype(id,style,h)
@@ -186,11 +199,84 @@ const RESIDENTIAL_ARCHETYPES:Readonly<Record<string,readonly BrStructureArchetyp
   "academy-dorms":["apartment","academy","shop"],
   "comet-hotel":["hotel","shop","office"]
 };
+/** Exact 2D segment-vs-expanded-AABB check used while authoring secondary
+ * shells. Keeping it shared prevents a visible building from ever occupying
+ * the same corridor as its authoritative road. */
+export function brRoadIntersectsFootprint(road:BrRoadSegment,center:Vec3,size:Vec3,clearance=0):boolean {
+  const pad=road.width/2+clearance;
+  const bounds=[center.x-size.x/2-pad,center.x+size.x/2+pad,center.z-size.z/2-pad,center.z+size.z/2+pad] as const;
+  let minimum=0,maximum=1;
+  for(const [origin,delta,low,high] of [[road.from.x,road.to.x-road.from.x,bounds[0],bounds[1]],[road.from.z,road.to.z-road.from.z,bounds[2],bounds[3]]] as const){
+    if(Math.abs(delta)<1e-8){if(origin<low||origin>high)return false;continue;}
+    let near=(low-origin)/delta,far=(high-origin)/delta;if(near>far)[near,far]=[far,near];
+    minimum=Math.max(minimum,near);maximum=Math.min(maximum,far);if(minimum>maximum)return false;
+  }
+  return true;
+}
+
+type BrPlanFootprint={center:Vec3;size:Vec3};
+
+function footprintsOverlap(a:BrPlanFootprint,b:BrPlanFootprint,clearance=0):boolean {
+  return Math.abs(a.center.x-b.center.x)<(a.size.x+b.size.x)/2+clearance
+    &&Math.abs(a.center.z-b.center.z)<(a.size.z+b.size.z)/2+clearance;
+}
+
+/** External roof ramps are gameplay space, not decoration. Reserve their full
+ * approach while laying out secondary sites so a later shell cannot occupy the
+ * slope or its landing lane. */
+function roofAccessFootprint(position:Vec3,size:Vec3,entrance:BrStructure["entrance"],roofAccess:boolean):BrPlanFootprint|null {
+  if(!roofAccess)return null;
+  const length=Math.max(10,size.y*2.35);
+  const northSouth=entrance==="north"||entrance==="south";
+  const sign=entrance==="north"||entrance==="east"?1:-1;
+  return {
+    center:{
+      x:position.x+(northSouth?0:sign*(size.x/2+length/2)),
+      y:0,
+      z:position.z+(northSouth?sign*(size.z/2+length/2):0)
+    },
+    size:{x:northSouth?4.6:length+2,y:0,z:northSouth?length+2:4.6}
+  };
+}
+
+function secondaryPosition(location:BrSecondaryLocation,size:Vec3,occupied:readonly BrStructure[],slot:number,entrance:BrStructure["entrance"],roofAccess:boolean):Vec3 {
+  const target=BR_POIS.find(poi=>poi.id===location.connectTo)?.position??{x:0,y:0,z:0};
+  const heading=Math.atan2(location.position.z-target.z,location.position.x-target.x);
+  const preferred=[heading-Math.PI/2,heading+Math.PI/2,heading+Math.PI,heading-Math.PI/3,heading+Math.PI/3];
+  const angles=[...preferred,...Array.from({length:24},(_,index)=>heading+(index+slot*7)*Math.PI/12)];
+  // Keep a landscaped/utility pocket near the center of each secondary site;
+  // the structures occupy the outer ring and frame the location instead of
+  // swallowing its paths and space-tree dressing.
+  for(const radius of [30,34,38,42,46])for(const angle of angles){
+    const candidate={x:location.position.x+Math.cos(angle)*radius,y:0,z:location.position.z+Math.sin(angle)*radius};
+    const candidateBase={center:candidate,size};
+    const candidateAccess=roofAccessFootprint(candidate,size,entrance,roofAccess);
+    const corners=[[-1,-1],[-1,1],[1,-1],[1,1]] as const;
+    if(!corners.every(([sx,sz])=>pointInPolygon(candidate.x+sx*size.x/2,candidate.z+sz*size.z/2)))continue;
+    if(BR_ROADS.some(road=>brRoadIntersectsFootprint(road,candidate,size,1)))continue;
+    if(candidateAccess){
+      const accessCorners=[[-1,-1],[-1,1],[1,-1],[1,1]] as const;
+      if(!accessCorners.every(([sx,sz])=>pointInPolygon(candidateAccess.center.x+sx*candidateAccess.size.x/2,candidateAccess.center.z+sz*candidateAccess.size.z/2)))continue;
+      if(BR_ROADS.some(road=>brRoadIntersectsFootprint(road,candidateAccess.center,candidateAccess.size,.5)))continue;
+    }
+    if(occupied.some(structure=>{
+      const occupiedBase={center:structure.position,size:structure.size};
+      const occupiedAccess=roofAccessFootprint(structure.position,structure.size,structure.entrance,structure.roofAccess);
+      return footprintsOverlap(candidateBase,occupiedBase,2)
+        ||(occupiedAccess!==null&&footprintsOverlap(candidateBase,occupiedAccess,1))
+        ||(candidateAccess!==null&&footprintsOverlap(candidateAccess,occupiedBase,1))
+        ||(candidateAccess!==null&&occupiedAccess!==null&&footprintsOverlap(candidateAccess,occupiedAccess,1));
+    }))continue;
+    return candidate;
+  }
+  // The authored island has ample valid space; retain a deterministic fallback
+  // so malformed future content cannot introduce NaN positions.
+  return {...location.position};
+}
+const placedSecondary:BrStructure[]=[];
 const secondaryStructures=BR_SECONDARY_LOCATIONS.flatMap((location,index)=>{
-  const angle=(index%6)*Math.PI/3+.18;const cos=Math.cos(angle),sin=Math.sin(angle);
-  const offsets=[[-15,-9],[14,-7],[1,15]] as const;
-  return offsets.map(([localX,localZ],buildingIndex)=>{
-    const x=location.position.x+localX*cos-localZ*sin,z=location.position.z+localX*sin+localZ*cos;
+  return [0,1,2].map((buildingIndex)=>{
+    const id=`${location.id}-${buildingIndex+1}`;
     const width=buildingIndex===0?20+(index%3)*2:14+((index+buildingIndex)%4)*2;
     const depth=buildingIndex===2?16+(index%3)*2:18+((index+buildingIndex)%3)*2;
     const height=buildingIndex===0?8+(index%4)*3:5+((index+buildingIndex)%3)*2;
@@ -198,7 +284,11 @@ const secondaryStructures=BR_SECONDARY_LOCATIONS.flatMap((location,index)=>{
     const entrance=(["south","east","north","west"] as const)[(index+buildingIndex)%4];
     const enterable=buildingIndex===0&&index<8;
     const archetype=RESIDENTIAL_ARCHETYPES[location.id]?.[buildingIndex]??SECONDARY_ARCHETYPES[(index*3+buildingIndex)%SECONDARY_ARCHETYPES.length];
-    return S(`${location.id}-${buildingIndex+1}`,location.id,x,z,width,depth,height,location.color,location.style,floors,entrance,enterable&&height<18,enterable,archetype);
+    const size={x:width,y:height,z:depth};
+    const roofAccess=enterable&&height<18;
+    const position=secondaryPosition(location,size,[...PRIMARY_BR_STRUCTURES,...placedSecondary],buildingIndex,entrance,roofAccess);
+    const structure=S(id,location.id,position.x,position.z,width,depth,height,location.color,location.style,floors,entrance,roofAccess,enterable,archetype);
+    placedSecondary.push(structure);return structure;
   });
 });
 
@@ -219,19 +309,6 @@ export const BR_TERRAIN_PATCHES: readonly BrTerrainPatch[] = [
   {id:"coolant-west",position:{x:-68,y:.32,z:106},size:{x:24,y:.08,z:118},rotation:.28,color:"#164e6d",kind:"coolant"},
   {id:"coolant-east",position:{x:99,y:.32,z:123},size:{x:20,y:.08,z:128},rotation:-.24,color:"#17607c",kind:"coolant"},
   {id:"south-landing",position:{x:20,y:.31,z:-300},size:{x:150,y:.1,z:70},rotation:.06,color:"#2f4862",kind:"landing"}
-];
-
-export const BR_ROADS: readonly BrRoadSegment[] = [
-  { id:"ring-nw", from:{x:-278,y:.08,z:75}, to:{x:-175,y:.08,z:-135}, width:15, color:"#293b58" },
-  { id:"ring-sw", from:{x:-175,y:.08,z:-135}, to:{x:-326,y:.08,z:-258}, width:15, color:"#293b58" },
-  { id:"ring-s", from:{x:-326,y:.08,z:-258}, to:{x:188,y:.08,z:-156}, width:17, color:"#293b58" },
-  { id:"ring-se", from:{x:188,y:.08,z:-156}, to:{x:342,y:.08,z:-70}, width:15, color:"#293b58" },
-  { id:"ring-e", from:{x:342,y:.08,z:-70}, to:{x:262,y:.08,z:78}, width:15, color:"#293b58" },
-  { id:"ring-ne", from:{x:262,y:.08,z:78}, to:{x:125,y:.08,z:294}, width:15, color:"#293b58" },
-  { id:"ring-n", from:{x:125,y:.08,z:294}, to:{x:-93,y:.08,z:263}, width:15, color:"#293b58" },
-  { id:"ring-wn", from:{x:-93,y:.08,z:263}, to:{x:-278,y:.08,z:75}, width:15, color:"#293b58" },
-  ...([[-175,-135],[188,-156],[262,78],[-278,75],[-93,263],[125,294],[342,-70],[-326,-258]] as const).map(([x,z], index) => ({ id:`radial-${index}`, from:{x:0,y:.09,z:0}, to:{x,y:.09,z}, width:13, color:"#304766" })),
-  ...BR_SECONDARY_LOCATIONS.map((location,index)=>{const target=BR_POIS.find((poi)=>poi.id===location.connectTo)??BR_POIS[0];return{id:`service-${index}`,from:{...location.position,y:.1},to:{...target.position,y:.1},width:index%4===0?10:8,color:"#263b57"};})
 ];
 
 const navPositions: Record<string, Vec3> = Object.fromEntries([...BR_POIS,...BR_SECONDARY_LOCATIONS].map((entry)=>[entry.id,{...entry.position}]));
@@ -384,9 +461,12 @@ export function brPhysicsSector(position: Vec3): { key: string; center: Vec3 } {
 
 export function brBlocksForPhysicsSector(position: Vec3): readonly BrMapBlock[] {
   const { center } = brPhysicsSector(position);
-  // The overlap margin covers the largest authored shell plus multiple full-speed
-  // frames, so switching sectors cannot expose a collision seam.
-  return brBlocksNear(center, BR_PHYSICS_SECTOR_SIZE / 2 + 46);
+  // brBlocksNear already expands by each block's own half extent. The sector
+  // therefore only needs a few metres beyond its 50 m half-width to cover a
+  // full-speed frame and capsule radius. The previous extra 46 m duplicated
+  // most neighbouring-district colliders into every Rapier sector and made
+  // forty-player movement unnecessarily expensive.
+  return brBlocksNear(center, BR_PHYSICS_SECTOR_SIZE / 2 + 4);
 }
 
 function pointInPolygon(x:number,z:number): boolean {

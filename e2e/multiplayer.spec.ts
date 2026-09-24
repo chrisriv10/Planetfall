@@ -209,10 +209,18 @@ test("Battle Royale creates an isolated room and enters the Starliner drop", asy
   await page.getByRole("button", { name: "Create BR Room" }).click();
   await expect(page.locator("#br-lobby-screen")).toBeVisible();
   await expect(page.locator("#br-team-list")).toContainText("Star Pilot");
+  await expect(page.locator("#br-player-target")).toHaveValue("40");
+  // Keep this lifecycle/camera smoke test lightweight; dedicated scale tests
+  // exercise the full forty-participant server and quick-start path.
+  await page.locator("#br-player-target").selectOption("10");
   await page.locator("#br-ready-button").click();
   await page.locator("#br-start-button").click();
   await expect(page.locator("#br-hud")).toBeVisible();
   await expect(page.locator("#hud")).toBeHidden();
+  await page.locator("#br-map-button").click();
+  await expect(page.getByRole("img", { name: "Orbital Isle terrain, roads, building footprints and entrances" })).toBeVisible();
+  await expect(page.locator("#br-map-canvas .br-map-poi")).toHaveCount(9);
+  await page.locator("#br-map-close").click();
   await expect(page.locator("#modifier-reveal")).toBeHidden();
   await expect(page.locator("#modifier-chip")).not.toHaveClass(/visible/);
   await expect.poll(() => page.evaluate(() => (window as unknown as { __PLANETFALL_BR_DEBUG__?: () => { phase: string; players: unknown[]; crateCount: number } }).__PLANETFALL_BR_DEBUG__?.().phase), { timeout: 9000 }).toBe("ship");
