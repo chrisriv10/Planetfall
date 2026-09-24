@@ -1,14 +1,10 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import * as THREE from "three";
 import { createVoidStorm, updateVoidStorm } from "./br-presentation";
 import type { BrRoomView } from "@planetfall/shared";
 
-// Rendering transforms can be tested headlessly; only the procedural paint
-// canvas is stubbed, not Three geometry, bounds, visibility, or update logic.
-function stormFixture() {
-  vi.stubGlobal("document",{createElement:()=>({width:0,height:0,getContext:()=>({clearRect(){},fillRect(){},createLinearGradient:()=>({addColorStop(){}})})})});
-  return createVoidStorm();
-}
+// Baked data textures and rendering transforms work without a DOM or GPU.
+const stormFixture=createVoidStorm;
 function room(radius:number):Pick<BrRoomView,"storm"> {
   return {storm:{phaseIndex:1,center:{x:30,z:-20},radius,nextCenter:{x:30,z:-20},nextRadius:0,stage:"closing",stageEndsAt:1000,damagePerSecond:2}};
 }
@@ -17,21 +13,21 @@ function dispose(root:THREE.Group) {
   root.traverse(object=>{if(object instanceof THREE.Mesh||object instanceof THREE.Line||object instanceof THREE.Points){object.geometry.dispose();const material=object.material;if(material.map)textures.add(material.map);material.dispose();}});
   for(const texture of textures)texture.dispose();
 }
-afterEach(()=>vi.unstubAllGlobals());
-
 describe("BR storm renderer regression",()=>{
-  it("wraps each energy streak's gradient together with its rectangle",()=>{
-    const rectangles:Array<{top:number;gradientTop:number}>=[];
-    const context={
-      fillStyle:undefined as unknown,
-      clearRect(){},
-      fillRect(_x:number,top:number){if(typeof this.fillStyle==="object"&&this.fillStyle)rectangles.push({top,gradientTop:(this.fillStyle as {top:number}).top});},
-      createLinearGradient(_x:number,top:number){return {top,addColorStop(){}};}
-    };
-    vi.stubGlobal("document",{createElement:()=>({width:0,height:0,getContext:()=>context})});
+  it("drifts layered veils independently while sharing the baked pixels",()=>{
     const storm=createVoidStorm();
-    expect(rectangles.some(r=>r.top<0)).toBe(true);
-    for(const rectangle of rectangles)expect(rectangle.gradientTop).toBe(rectangle.top);
+    const layers=storm.children.filter(c=>c.userData.stormLayer) as THREE.Mesh<THREE.CylinderGeometry,THREE.MeshBasicMaterial>[];
+    const maps=layers.map(layer=>layer.material.map!);
+    expect(new Set(maps).size).toBe(3);
+    for(const map of maps)expect(map.source).toBe(maps[0].source);
+    updateVoidStorm(storm,room(25),1000);
+    const previous=maps.map(map=>map.offset.clone());
+    updateVoidStorm(storm,room(25),2000);
+    expect(maps[0].offset.x).toBeGreaterThan(previous[0].x);
+    expect(maps[1].offset.x).toBeLessThan(previous[1].x);
+    expect(maps[0].offset.y).toBeLessThan(previous[0].y);
+    expect(maps[1].offset.y).toBeGreaterThan(previous[1].y);
+    for(let i=0;i<layers.length;i++)expect(layers[i].material.map).toBe(maps[i]);
     dispose(storm);
   });
   it("starts the entire energy curtain at the deck, not halfway below it",()=>{
@@ -62,10 +58,36 @@ describe("BR storm renderer regression",()=>{
     expect(storm.children.filter(c=>c.userData.stormArc&&c.visible)).toHaveLength(4);
     const sparks=storm.children.find(c=>c.userData.stormSparks)! as THREE.Points;
     expect(sparks.geometry.drawRange.count).toBe(90);
+    const streaks=storm.children.find(c=>c.userData.stormStreaks)! as THREE.LineSegments;
+    expect(streaks.geometry.drawRange.count).toBe(20);
     updateVoidStorm(storm,room(0),300);expect(storm.visible).toBe(false);
     updateVoidStorm(storm,room(NaN),300);expect(storm.visible).toBe(false);
     updateVoidStorm(storm,room(500),400,"high");expect(storm.visible).toBe(true);
     expect(sparks.geometry.drawRange.count).toBe(360);
+    expect(streaks.geometry.drawRange.count).toBe(64);
+    dispose(storm);
+  });
+  it("keeps sparse vertical filaments on the authoritative circle without rebuilding their pool",()=>{
+    const storm=stormFixture();
+    const streaks=storm.children.find(c=>c.userData.stormStreaks)! as THREE.LineSegments<THREE.BufferGeometry,THREE.LineBasicMaterial>;
+    const position=streaks.geometry.getAttribute("position");
+    updateVoidStorm(storm,room(25),500,"high");
+    expect(streaks.geometry.getAttribute("position")).toBe(position);
+    expect(streaks.geometry.drawRange.count).toBeGreaterThanOrEqual(8);
+    expect(streaks.geometry.drawRange.count).toBeLessThanOrEqual(64);
+    expect(streaks.scale.x).toBe(25);expect(streaks.scale.z).toBe(25);
+    for(let index=0;index<position.count;index+=2){
+      expect(position.getY(index)).toBeGreaterThanOrEqual(0);
+      expect(position.getY(index+1)).toBeGreaterThan(position.getY(index));
+      expect(Math.hypot(position.getX(index),position.getZ(index))).toBeCloseTo(1.006,1);
+    }
+    const rotation=streaks.rotation.y;
+    updateVoidStorm(storm,room(1),1500,"low");
+    expect(streaks.geometry.getAttribute("position")).toBe(position);
+    expect(streaks.geometry.drawRange.count).toBe(8);
+    expect(streaks.rotation.y).toBeGreaterThan(rotation);
+    expect(streaks.material.opacity).toBeGreaterThan(.1);
+    expect(streaks.material.opacity).toBeLessThan(.18);
     dispose(storm);
   });
   it("reuses decoration pools while thinning final circles and restores opening detail",()=>{
@@ -119,6 +141,20 @@ describe("BR storm renderer regression",()=>{
     for(let i=0;i<positions.count;i++) {
       if(positions.getY(i)===-90)expect(colors.getX(i)).toBe(1);
       if(positions.getY(i)===90)expect(colors.getX(i)).toBeLessThan(.13);
+    }
+    dispose(storm);
+  });
+  it("keeps stronger wall structure separate from the restrained ground emission",()=>{
+    const storm=stormFixture();
+    const layer=storm.children.find(c=>c.userData.stormLayer)! as THREE.Mesh<THREE.CylinderGeometry,THREE.MeshBasicMaterial>;
+    const ground=storm.children.find(c=>c.userData.stormGround)! as THREE.Mesh<THREE.BufferGeometry,THREE.MeshBasicMaterial>;
+    const glow=storm.children.find(c=>c.userData.stormBoundaryGlow)! as THREE.Mesh<THREE.CylinderGeometry,THREE.MeshBasicMaterial>;
+    for(const now of [0,1000,2000,3000,4000]) {
+      updateVoidStorm(storm,room(25),now);
+      expect(layer.material.opacity).toBeGreaterThan(.52);
+      expect(layer.material.opacity).toBeLessThan(.58);
+      expect(ground.material.opacity).toBeLessThanOrEqual(.54);
+      expect(glow.material.opacity).toBeLessThanOrEqual(.255);
     }
     dispose(storm);
   });

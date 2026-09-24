@@ -4,3 +4,4 @@ export * from "./map.js";
 export * from "./math.js";
 export * from "./inventory.js";
 export * from "./movement.js";
+export * from "./spectator.js";

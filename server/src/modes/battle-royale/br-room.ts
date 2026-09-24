@@ -3,7 +3,7 @@ import type { Server, Socket } from "socket.io";
 import {
   BR_BALANCE, BR_BOT_DIFFICULTY, BR_CRATE_SOCKETS, BR_HEALS, BR_LOOT_SOCKETS, BR_MAP, BR_POIS, BR_RARITY_MULTIPLIER, BR_STARTING_AMMO, BR_STORM_PHASES, BR_WEAPONS,
   DEFAULT_COSMETICS, FREE_EMOTES, PLAYER_COLORS, PLANET_PASS_REWARDS, SESSION_PROGRESSION, SHOP_CATALOG, applyBrDamage, brAimDirection, brClamp, brDistance2d, brItemMagazine, brMuzzlePosition, brNormalize,
-  brBlocksNear, brNextWaypoint, brPickupDisposition, brPlayerHitDistance, brRarityDamage, brShipPath, createEmptyBrInventory, isBrHeal, isBrWeapon, isInsideBrIsland,
+  brBlocksNear, brNextWaypoint, brPickupDisposition, brPlayerHitDistance, brRarityDamage, brShipPath, brSpectatorPriority, createEmptyBrInventory, isBrHeal, isBrWeapon, isInsideBrIsland, preferBrSpectator,
   reloadBrItem, seededRandom, sessionLevelForXp, sessionXpInLevel, stepBrMovement, stormContains,
   type BotDifficulty, type BrCrateState, type BrInput, type BrInventoryItem, type BrItemId, type BrJoinResult, type BrLootState,
   type BrMatchResult, type BrPhase, type BrPlayerSnapshotState, type BrPlayerState, type BrProjectileState, type BrRarity, type BrRoomView,
@@ -205,7 +205,9 @@ export class BattleRoyaleRoom {
 
   selectSlot(playerId: string, slot: number): void {
     const player = this.players.get(playerId);
-    if (player && Number.isInteger(slot) && slot >= 0 && slot < BR_BALANCE.inventorySlots) { player.selectedSlot = slot; this.cancelTimedActions(player); }
+    if (!player || !Number.isInteger(slot) || slot < 0 || slot >= BR_BALANCE.inventorySlots || slot === player.selectedSlot) return;
+    player.selectedSlot = slot;
+    this.cancelTimedActions(player);
   }
 
   pickup(playerId: string, lootId: string, replaceSlot?: number): boolean {
@@ -273,7 +275,7 @@ export class BattleRoyaleRoom {
 
   reload(playerId: string, now = Date.now()): boolean {
     const player = this.players.get(playerId); const item = player?.inventory[player.selectedSlot];
-    if (!this.isActionPhase() || !player || !item || !isBrWeapon(item.itemId) || !player.alive || player.downed || player.deployment !== "grounded" || player.reloadEndsAt > now || player.useEndsAt > now) return false;
+    if (!this.isActionPhase() || !player || !item || !isBrWeapon(item.itemId) || !player.alive || player.downed || player.deployment !== "grounded" || player.reloadEndsAt > now || player.useEndsAt > now || player.reviveTargetId) return false;
     const weapon = BR_WEAPONS[item.itemId];
     if (!weapon.ammo || item.magazine >= weapon.magazine || player.ammo[weapon.ammo] <= 0) return false;
     player.reloadSlot = player.selectedSlot; player.reloadEndsAt = now + weapon.reloadMs; return true;
@@ -281,7 +283,7 @@ export class BattleRoyaleRoom {
 
   useItem(playerId: string, now = Date.now()): boolean {
     const player = this.players.get(playerId); const item = player?.inventory[player.selectedSlot];
-    if (!this.isActionPhase() || !player || !item || !isBrHeal(item.itemId) || !player.alive || player.downed || player.deployment !== "grounded" || player.useEndsAt > now) return false;
+    if (!this.isActionPhase() || !player || !item || !isBrHeal(item.itemId) || !player.alive || player.downed || player.deployment !== "grounded" || player.reloadEndsAt > now || player.useEndsAt > now || player.reviveTargetId) return false;
     const heal = BR_HEALS[item.itemId];
     if ((heal.hp > 0 && player.hp >= BR_BALANCE.hp) || (heal.shield > 0 && player.shield >= BR_BALANCE.shield)) return false;
     player.useSlot = player.selectedSlot; player.useEndsAt = now + heal.durationMs; return true;
@@ -290,13 +292,13 @@ export class BattleRoyaleRoom {
   setRevive(playerId: string, targetId: string, active: boolean, now = Date.now()): void {
     const player = this.players.get(playerId); const target = this.players.get(targetId);
     if (!active) { if (player) { player.reviveTargetId = null; player.reviveStartedAt = 0; } return; }
-    if (!this.isActionPhase() || !player || !target || !player.alive || player.downed || player.deployment !== "grounded" || !target.alive || !target.downed || player.teamId !== target.teamId || this.distance(player.position, target.position) > BR_BALANCE.reviveRange) return;
+    if (!this.isActionPhase() || !player || !target || !player.alive || player.downed || player.deployment !== "grounded" || player.reloadEndsAt > now || player.useEndsAt > now || !target.alive || !target.downed || player.teamId !== target.teamId || this.distance(player.position, target.position) > BR_BALANCE.reviveRange) return;
     if (player.reviveTargetId !== targetId) { player.reviveTargetId = targetId; player.reviveStartedAt = now; }
   }
 
   fire(playerId: string, origin: Vec3, rawDirection: Vec3, clientTime: number, now = Date.now()): boolean {
     const player = this.players.get(playerId); const item = player?.inventory[player.selectedSlot];
-    if (!this.isActionPhase() || !player || !item || !isBrWeapon(item.itemId) || !player.alive || player.downed || player.deployment !== "grounded" || player.reloadEndsAt > now || player.useEndsAt > now || !isFiniteVec3(origin) || !isFiniteVec3(rawDirection)) return false;
+    if (!this.isActionPhase() || !player || !item || !isBrWeapon(item.itemId) || !player.alive || player.downed || player.deployment !== "grounded" || player.reloadEndsAt > now || player.useEndsAt > now || player.reviveTargetId || !isFiniteVec3(origin) || !isFiniteVec3(rawDirection)) return false;
     const weapon = BR_WEAPONS[item.itemId];
     if (now - player.lastFireAt < weapon.fireIntervalMs || (weapon.ammo && item.magazine <= 0)) return false;
     if (this.distance(player.position, origin) > 2.2) return false;
@@ -366,7 +368,9 @@ export class BattleRoyaleRoom {
 
   cycleSpectator(playerId: string, direction: unknown): void {
     const player = this.players.get(playerId); if (!player || player.alive) return;
-    const candidates = [...this.players.values()].filter((entry) => entry.alive && (entry.teamId === player.teamId || ![...this.players.values()].some((mate) => mate.alive && mate.teamId === player.teamId)));
+    const livingTeammate=[...this.players.values()].some((mate)=>mate.alive&&mate.teamId===player.teamId);
+    const candidates = [...this.players.values()].filter((entry) => entry.alive && (entry.teamId === player.teamId || !livingTeammate))
+      .sort((a,b)=>brSpectatorPriority(a)-brSpectatorPriority(b));
     if (!candidates.length) { player.spectatorTargetId = null; return; }
     const current = candidates.findIndex((entry) => entry.id === player.spectatorTargetId);
     const step = direction === -1 ? -1 : 1;
@@ -472,6 +476,7 @@ export class BattleRoyaleRoom {
   private updatePlayer(player: BrPlayerRecord, dt: number, now: number): void {
     if (!player.alive || player.deployment === "attached" || player.deployment === "eliminated") return;
     if (player.downed && player.bleedoutEndsAt && now >= player.bleedoutEndsAt) { this.eliminate(player, undefined, undefined, now); return; }
+    if (!player.isBot && player.input && now - player.lastInputAt > BR_BALANCE.inputStaleMs) player.input = null;
     const input = player.input;
     player.pitch = input?.pitch ?? player.pitch;
     const motion = stepBrMovement(player, {
@@ -563,6 +568,7 @@ export class BattleRoyaleRoom {
     if (target.hp <= 0) {
       const teammateAlive = [...this.players.values()].some((player) => player.id !== target.id && player.teamId === target.teamId && player.alive && !player.downed);
       if (this.teamMode !== "solo" && teammateAlive) {
+        this.cancelTimedActions(target);
         target.downed = true; target.deployment = "downed"; target.downedHp = BR_BALANCE.downedHp; target.bleedoutEndsAt = now + BR_BALANCE.bleedoutMs; target.hp = 0; target.velocity = { x: 0, y: 0, z: 0 };
         this.io.to(this.code).emit("br:player:downed", { playerId: target.id, attackerId: attacker?.id }); this.killFeed(target, attacker, weaponId, true, now);
       } else this.eliminate(target, attacker, weaponId, now);
@@ -575,7 +581,8 @@ export class BattleRoyaleRoom {
     if (attacker && attacker.id !== target.id) attacker.kills++;
     for (let slot = 0; slot < target.inventory.length; slot++) if (target.inventory[slot]) this.dropItem(target, slot);
     const alive = [...this.players.values()].filter((player) => player.alive); target.placement = Math.max(1, new Set(alive.map((player) => player.teamId)).size + 1);
-    target.spectatorTargetId = alive.find((player) => player.teamId === target.teamId)?.id ?? alive[0]?.id ?? null;
+    const teammates=alive.filter(player=>player.teamId===target.teamId);
+    target.spectatorTargetId = preferBrSpectator(teammates.length?teammates:alive)?.id ?? null;
     this.io.to(this.code).emit("br:player:eliminated", { playerId: target.id, attackerId: attacker?.id, weaponId, placement: target.placement }); this.killFeed(target, attacker, weaponId, false, now);
     const eligibleTeammate = [...this.players.values()].some((player) => player.teamId === target.teamId && player.alive && !player.downed);
     if (!eligibleTeammate) for (const teammate of [...this.players.values()]) if (teammate.teamId === target.teamId && teammate.alive && teammate.downed) this.eliminate(teammate, undefined, weaponId, now);
@@ -761,14 +768,29 @@ export class BattleRoyaleRoom {
     const playersRemaining = living.length;
     const teamsRemaining = new Set(living.map((entry) => entry.teamId)).size;
     for (const player of recipients) {
-      const spectator = !player.alive ? this.players.get(player.spectatorTargetId ?? "") ?? all.find((entry) => entry.alive && entry.teamId === player.teamId) ?? all.find((entry) => entry.alive) : undefined;
+      let spectator:BrPlayerRecord|undefined;
+      if(!player.alive){
+        const existing=this.players.get(player.spectatorTargetId??"");
+        // The common path is allocation-free. Re-scan only after the target is
+        // gone or has fallen beneath the deck, not on every 15Hz snapshot.
+        if(existing?.alive&&brSpectatorPriority(existing)<3)spectator=existing;
+        else {
+          const livingTeammates=living.filter(entry=>entry.teamId===player.teamId);
+          spectator=preferBrSpectator(livingTeammates.length?livingTeammates:living)??undefined;
+        }
+      }
       if (spectator) player.spectatorTargetId = spectator.id;
       const anchor = spectator?.position ?? player.position;
       const relevantIds = new Set(this.playerGrid.nearby(anchor, BR_BALANCE.interest.players).map((entry) => entry.id));
       relevantIds.add(player.id); if (spectator) relevantIds.add(spectator.id);
       for (const teammate of all) if (teammate.teamId === player.teamId) relevantIds.add(teammate.id);
       const snapshot: BrSnapshot = { serverTime: now, phase: this.phase, localPlayer: clonePlayer(player), players: all.filter((entry) => relevantIds.has(entry.id)).map(networkState), projectiles: this.projectileGrid.nearby(anchor, BR_BALANCE.interest.projectiles).map((entry) => ({ ...entry, position: { ...entry.position }, velocity: { ...entry.velocity } })), loot: this.lootGrid.nearby(anchor,BR_BALANCE.interest.loot).map((entry)=>({...entry,position:{...entry.position}})), storm: { ...this.storm, center: { ...this.storm.center }, nextCenter: { ...this.storm.nextCenter } }, ship: this.ship ? { ...this.ship, position: { ...this.ship.position }, start: { ...this.ship.start }, end: { ...this.ship.end } } : null, playersRemaining, teamsRemaining, spectatorTargetId: spectator?.id ?? null };
-      snapshot.actions = { reloadEndsAt: player.reloadEndsAt, useEndsAt: player.useEndsAt };
+      snapshot.actions = {
+        reloadEndsAt: player.reloadEndsAt,
+        useEndsAt: player.useEndsAt,
+        reviveTargetId: player.reviveTargetId,
+        reviveStartedAt: player.reviveStartedAt
+      };
       this.io.to(player.socketId).emit("br:match:snapshot", snapshot);
     }
   }

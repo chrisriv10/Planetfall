@@ -13,7 +13,7 @@ const SHOT_STYLE: Record<Exclude<BrWeaponId,"energy-saber">,{width:number;length
 type Slot = {
   flash:THREE.Mesh<THREE.BufferGeometry,THREE.MeshBasicMaterial>;
   tracer:THREE.Line<THREE.BufferGeometry,THREE.LineBasicMaterial>;
-  started:number; life:number; trace:number; width:number; length:number;
+  started:number; life:number; trace:number; traceOpacity:number; width:number; length:number;
 };
 
 /** Bounded presentation only. No lights, timers, per-shot geometry or damage. */
@@ -35,7 +35,7 @@ export class BrShotEffects {
       const tracer=new THREE.Line(geometry,new THREE.LineBasicMaterial({transparent:true,blending:THREE.AdditiveBlending,depthWrite:false}));
       flash.visible=tracer.visible=false;
       this.root.add(flash,tracer);
-      this.slots.push({flash,tracer,started:0,life:0,trace:0,width:0,length:0});
+      this.slots.push({flash,tracer,started:0,life:0,trace:0,traceOpacity:0,width:0,length:0});
     }
   }
 
@@ -59,11 +59,13 @@ export class BrShotEffects {
       attribute.setXYZ(0,origin.x,origin.y,origin.z);
       attribute.setXYZ(1,origin.x+this.direction.x*traceLength!,origin.y+this.direction.y*traceLength!,origin.z+this.direction.z*traceLength!);
       attribute.needsUpdate=true;slot.tracer.geometry.computeBoundingSphere();
-      slot.tracer.material.color.setHex(color);slot.tracer.material.opacity=id==="rail-laser"?.9:.6;
+      slot.traceOpacity=id==="rail-laser"?.9:.6;
+      slot.tracer.material.color.setHex(color);slot.tracer.material.opacity=slot.traceOpacity;
     }
   }
 
   update(now:number):void {
+    if(this.disposed||!Number.isFinite(now))return;
     for(const slot of this.slots) {
       const age=Math.max(0,now-slot.started);
       if(slot.flash.visible){
@@ -73,7 +75,13 @@ export class BrShotEffects {
         const spread=1+progress*.5;
         slot.flash.scale.set(slot.width*spread,slot.width*spread,slot.length*.5*(1-progress*.4));
       }
-      if(slot.tracer.visible)slot.tracer.visible=age<slot.trace;
+      if(slot.tracer.visible) {
+        slot.tracer.visible=age<slot.trace;
+        // Hold a readable initial stroke, then let its energy decay instead
+        // of popping off. Reusing the slot restores its weapon's full value.
+        const fade=Math.min(1,Math.max(0,(age/slot.trace-.2)/.8));
+        slot.tracer.material.opacity=slot.traceOpacity*(1-fade*fade*(3-2*fade));
+      }
     }
   }
 

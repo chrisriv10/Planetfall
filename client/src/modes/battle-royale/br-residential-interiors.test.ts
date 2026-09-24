@@ -1,6 +1,6 @@
 import { describe,expect,it } from "vitest";
 import { BR_STRUCTURES, BR_LOOT_SOCKETS, BR_MAP_BLOCKS } from "@planetfall/shared";
-import { buildResidentialInterior, buildResidentialCeiling, buildResidentialLandingMarkers } from "./br-residential-interiors";
+import { buildResidentialInterior, buildResidentialCeiling, buildResidentialLandingMarkers, buildResidentialServiceWall, buildResidentialEntranceWall, buildResidentialRampSkins } from "./br-residential-interiors";
 
 describe("residential lounge dressing",()=>{
   it("mounts numbered landing markers on real back walls, clear of stairs and ceilings",()=>{
@@ -42,6 +42,66 @@ describe("residential lounge dressing",()=>{
     }
     expect(count).toBeGreaterThan(50);
     for(const s of BR_STRUCTURES.filter(s=>!s.enterable||!["apartment","hotel"].includes(s.archetype)))expect(buildResidentialCeiling(s)).toEqual([]);
+  });
+  it("layers the stair-side wall without entering door, stair, or loot space",()=>{
+    let count=0;
+    for(const s of BR_STRUCTURES){
+      const parts=buildResidentialServiceWall(s);
+      if(!s.enterable||!["apartment","hotel"].includes(s.archetype))expect(parts).toEqual([]);
+      for(const part of parts){
+        count++;
+        expect(part.position.x+part.scale.x/2).toBeLessThanOrEqual(s.position.x+s.size.x/2-.325);
+        expect(part.position.x-part.scale.x/2).toBeGreaterThan(s.position.x+s.size.x/2-.62);
+        expect(Math.abs(part.position.z-s.position.z)+part.scale.z/2).toBeLessThan(s.size.z/2-.4);
+        expect(part.position.y-part.scale.y/2).toBeGreaterThanOrEqual(.359);
+        expect(part.position.y+part.scale.y/2).toBeLessThan(s.size.y-.3);
+        if(s.entrance==="east")expect(Math.abs(part.position.z-s.position.z)-part.scale.z/2).toBeGreaterThan(2.8);
+        for(const loot of BR_LOOT_SOCKETS.filter(socket=>socket.structureId===s.id))expect(
+          Math.abs(part.position.x-loot.position.x)<part.scale.x/2+.6&&
+          Math.abs(part.position.y-loot.position.y)<part.scale.y/2+.6&&
+          Math.abs(part.position.z-loot.position.z)<part.scale.z/2+.6).toBe(false);
+      }
+    }
+    expect(count).toBeGreaterThan(100);
+  });
+  it("frames residential lobby walls without covering the real entrance",()=>{
+    let count=0;
+    for(const s of BR_STRUCTURES){
+      const parts=buildResidentialEntranceWall(s);
+      if(!s.enterable||!["apartment","hotel"].includes(s.archetype))expect(parts).toEqual([]);
+      const axis=s.entrance==="north"||s.entrance==="south"?"x":"z";
+      const normal=axis==="x"?"z":"x";
+      for(const part of parts){
+        count++;
+        expect(Math.abs(part.position[axis]-s.position[axis])-part.scale[axis]/2).toBeGreaterThanOrEqual(3.19);
+        expect(Math.abs(part.position[normal]-s.position[normal])+part.scale[normal]/2).toBeLessThan(s.size[normal]/2-.32);
+        expect(part.position.y-part.scale.y/2).toBeGreaterThan(.3);
+        expect(part.position.y+part.scale.y/2).toBeLessThan(4);
+      }
+    }
+    expect(count).toBeGreaterThan(50);
+  });
+  it("skins residential ramp undersides without reaching the walking surface",()=>{
+    let ramps=0;
+    for(const structure of BR_STRUCTURES.filter(s=>s.enterable&&["apartment","hotel"].includes(s.archetype))){
+      const parts=buildResidentialRampSkins(structure);
+      const sourceRamps=BR_MAP_BLOCKS.filter(block=>block.kind==="ramp"&&block.id.startsWith(`${structure.id}-stairs-`));
+      expect(parts).toHaveLength(sourceRamps.length*9);
+      ramps+=sourceRamps.length;
+      for(const part of parts){
+        expect(part.rotationX).toBeTypeOf("number");
+        expect(Object.values(part.position).every(Number.isFinite)).toBe(true);
+        expect(Object.values(part.scale).every(v=>Number.isFinite(v)&&v>0)).toBe(true);
+        const ramp=sourceRamps.find(candidate=>{
+          const angle=candidate.rotation!.x,dy=part.position.y-candidate.position.y,dz=part.position.z-candidate.position.z;
+          const localY=dy*Math.cos(angle)+dz*Math.sin(angle),localZ=-dy*Math.sin(angle)+dz*Math.cos(angle);
+          return Math.abs(part.position.x-candidate.position.x)+part.scale.x/2<candidate.size.x/2+.001
+            &&Math.abs(localZ)+part.scale.z/2<candidate.size.z/2+.001&&localY+part.scale.y/2<-candidate.size.y/2+.001;
+        });
+        expect(ramp).toBeDefined();
+      }
+    }
+    expect(ramps).toBeGreaterThan(0);
   });
   it("keeps furniture shallow, finite and supported on each real floor",()=>{
     let total=0;

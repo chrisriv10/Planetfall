@@ -127,6 +127,7 @@ export const BALANCE = {
   overtimeMs: 30 * 1000,
   reconnectGraceMs: 30 * 1000,
   inputRate: 20,
+  inputStaleMs: 500,
   serverRate: 30,
   snapshotRate: 15,
   interpolationMs: 100,

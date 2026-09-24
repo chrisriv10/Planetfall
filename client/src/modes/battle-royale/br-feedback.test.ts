@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { brActionTimer, brDamageBearing, brRecoilAfter, brSmoothFacing, brStormReadout } from "./br-feedback";
+import { brActionTimer, brDamageBearing, brFireRequestDue, brRecoilAfter, brSmoothFacing, brStormReadout } from "./br-feedback";
 
 describe("BR presentation correctness",()=>{
   it("shows a drop phase instead of a misleading expired storm countdown aboard the ship",()=>{
@@ -24,6 +24,15 @@ describe("BR presentation correctness",()=>{
     const sample=(fps:number)=>{let recoil=1;for(let i=0;i<fps;i++)recoil=brRecoilAfter(recoil,1/fps);return recoil;};
     expect(sample(30)).toBeCloseTo(sample(144),10);
     expect(sample(60)).toBeCloseTo(sample(144),10);
+  });
+  it("never advances held-fire prediction before the authoritative cooldown",()=>{
+    expect(brFireRequestDue(999,100,900)).toBe(false);
+    expect(brFireRequestDue(1000,100,900)).toBe(true);
+    expect(brFireRequestDue(1000,100,0)).toBe(false);
+    const requests:number[]=[];let last=0;
+    for(let now=1000;now<=3000;now+=1000/60)if(brFireRequestDue(now,last,155)){requests.push(now);last=now;}
+    expect(requests.length).toBeGreaterThanOrEqual(12);
+    for(let index=1;index<requests.length;index++)expect(requests[index]-requests[index-1]).toBeGreaterThanOrEqual(155);
   });
   it("converts server action deadlines without mixing clock origins",()=>{
     expect(brActionTimer(1_002_000,1_000_000,400,0,0,3000,false)).toEqual({startedAt:-600,endsAt:2400,confirmed:true});

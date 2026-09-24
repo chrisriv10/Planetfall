@@ -6,6 +6,7 @@ export const BR_BALANCE = {
   maxPlayers: 40,
   serverRate: 30,
   inputRate: 20,
+  inputStaleMs: 500,
   snapshotRate: 15,
   reconnectGraceMs: 30_000,
   countdownMs: 5_000,

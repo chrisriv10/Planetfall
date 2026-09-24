@@ -47,4 +47,30 @@ describe("BR shot presentation pool",()=>{
     for(const direction of [{x:0,y:0,z:0},{x:NaN,y:0,z:0}])effects.fire("pulse-rifle",origin,direction,10,0);
     expect(effects.root.children.every(c=>!c.visible)).toBe(true);effects.dispose();
   });
+  it("fades tracer energy within its existing lifetime and resets it when the slot is reused",()=>{
+    const effects=new BrShotEffects(1);
+    const tracer=effects.root.children[1] as THREE.Line<THREE.BufferGeometry,THREE.LineBasicMaterial>;
+    effects.fire("rail-laser",origin,{x:0,y:0,z:1},20,0);
+    effects.update(20);expect(tracer.material.opacity).toBeCloseTo(.9);
+    effects.update(75);expect(tracer.material.opacity).toBeCloseTo(.45);
+    expect(tracer.visible).toBe(true);
+    effects.update(125);expect(tracer.visible).toBe(false);expect(tracer.material.opacity).toBe(0);
+    effects.fire("nova-smg",origin,{x:0,y:0,z:1},12,130);
+    expect(tracer.visible).toBe(true);expect(tracer.material.opacity).toBeCloseTo(.6);
+    effects.update(175);expect(tracer.visible).toBe(false);
+    effects.dispose();
+  });
+  it("ignores invalid animation timestamps without corrupting active pooled effects",()=>{
+    const effects=new BrShotEffects(1);
+    effects.fire("pulse-rifle",origin,{x:0,y:0,z:1},20,0);
+    const flash=effects.root.children[0] as THREE.Mesh<THREE.BufferGeometry,THREE.MeshBasicMaterial>;
+    const tracer=effects.root.children[1] as THREE.Line<THREE.BufferGeometry,THREE.LineBasicMaterial>;
+    const scale=flash.scale.clone();
+    for(const time of [NaN,Infinity,-Infinity])effects.update(time);
+    expect(flash.visible).toBe(true);expect(tracer.visible).toBe(true);
+    expect(flash.scale).toEqual(scale);
+    expect(flash.material.opacity).toBe(.9);expect(tracer.material.opacity).toBe(.6);
+    effects.update(100);expect(flash.visible).toBe(false);expect(tracer.visible).toBe(false);
+    effects.dispose();
+  });
 });

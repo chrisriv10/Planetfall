@@ -30,6 +30,19 @@ function waitForRoom(socket: TestSocket, predicate: (room: BrRoomView) => boolea
 }
 
 describe("Battle Royale room", () => {
+  it("expires stale human movement input instead of authoritatively running forever", async () => {
+    const {server,url}=await setup();const host=await client(url);const joined=await createRoom(host,"Stale input");if(!joined.ok)throw new Error(joined.error);
+    const room=server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom;
+    room.configure(joined.playerId,{targetPlayers:10,fillBots:true});room.setReady(joined.playerId,true);
+    const now=Date.now();room.start(joined.playerId,now);room.phase="combat";
+    const player=room.players.get(joined.playerId)!;player.deployment="grounded";
+    room.setInput(player.id,{sequence:1,dt:.05,moveX:0,moveY:1,yaw:0,pitch:0,jump:false,sprint:true,crouch:false,fire:false,aim:false,reload:false});
+    player.lastInputAt=now;
+    room.update(1/30,now+BR_BALANCE.inputStaleMs);
+    expect(player.input?.moveY).toBe(1);
+    room.update(1/30,now+BR_BALANCE.inputStaleMs+1);
+    expect(player.input).toBeNull();
+  });
   it("preserves uncollected ammo and healing stack remainders", async () => {
     const { server, url } = await setup(); const host = await client(url); const joined = await createRoom(host,"Stack conservation");if(!joined.ok)throw new Error(joined.error);
     const room=server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom;
@@ -66,10 +79,31 @@ describe("Battle Royale room", () => {
     expect((await pending).reloadEndsAt).toBe(now+BR_WEAPONS["pulse-rifle"].reloadMs);
     room.selectSlot(player.id,1);expect(room.useItem(player.id,now+90)).toBe(true);
     pending=actions();room.update(.08,now+160);
-    expect(await pending).toEqual({reloadEndsAt:0,useEndsAt:player.useEndsAt});
+    expect(await pending).toEqual({reloadEndsAt:0,useEndsAt:player.useEndsAt,reviveTargetId:null,reviveStartedAt:0});
     room.selectSlot(player.id,0);pending=actions();room.update(.08,now+240);
-    expect(await pending).toEqual({reloadEndsAt:0,useEndsAt:0});
+    expect(await pending).toEqual({reloadEndsAt:0,useEndsAt:0,reviveTargetId:null,reviveStartedAt:0});
     expect(player.inventory[1]?.count).toBe(2);expect(player.hp).toBe(60);
+    const teammate=[...room.players.values()].find(entry=>entry.id!==player.id)!;
+    teammate.teamId=player.teamId;teammate.alive=true;teammate.downed=true;teammate.deployment="grounded";teammate.position={...player.position};
+    room.setRevive(player.id,teammate.id,true,now+300);pending=actions();room.update(.08,now+320);
+    expect(await pending).toMatchObject({reviveTargetId:teammate.id,reviveStartedAt:now+300});
+    room.setRevive(player.id,teammate.id,false,now+340);pending=actions();room.update(.08,now+360);
+    expect(await pending).toMatchObject({reviveTargetId:null,reviveStartedAt:0});
+  });
+  it("treats selecting the active slot as idempotent instead of cancelling timed actions", async () => {
+    const {server,url}=await setup();const host=await client(url);const joined=await createRoom(host,"Stable slot selection");if(!joined.ok)throw new Error(joined.error);
+    const room=server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom;
+    room.configure(joined.playerId,{targetPlayers:10,fillBots:true});room.setReady(joined.playerId,true);
+    const now=Date.now();room.start(joined.playerId,now);room.phase="combat";
+    const player=room.players.get(joined.playerId)!;player.deployment="grounded";player.position={x:100,y:0,z:12};
+    player.inventory[0]={instanceId:"same-slot-rifle",itemId:"pulse-rifle",rarity:"common",count:1,magazine:1};player.ammo.light=80;
+    player.inventory[1]={instanceId:"same-slot-heal",itemId:"med-patch",rarity:"common",count:1,magazine:0};player.hp=50;
+    expect(room.reload(player.id,now)).toBe(true);const reloadDeadline=player.reloadEndsAt;
+    room.selectSlot(player.id,0);expect(player.reloadEndsAt).toBe(reloadDeadline);expect(player.reloadSlot).toBe(0);
+    room.selectSlot(player.id,1);expect(player.reloadEndsAt).toBe(0);expect(player.reloadSlot).toBe(-1);
+    expect(room.useItem(player.id,now+10)).toBe(true);const useDeadline=player.useEndsAt;
+    room.selectSlot(player.id,1);expect(player.useEndsAt).toBe(useDeadline);expect(player.useSlot).toBe(1);
+    room.selectSlot(player.id,0);expect(player.useEndsAt).toBe(0);expect(player.useSlot).toBe(-1);
   });
   it("cancels timed actions when a pickup replaces or a drop removes their item", async () => {
     const { server, url } = await setup();const host=await client(url);const joined=await createRoom(host,"Item identity");if(!joined.ok)throw new Error(joined.error);
@@ -192,6 +226,102 @@ describe("Battle Royale room", () => {
     expect(target.downed).toBe(true);
   });
 
+  it("keeps revive, firing, reload and healing mutually exclusive", async () => {
+    const {server,url}=await setup();const host=await client(url);const joined=await createRoom(host,"Focused medic");if(!joined.ok)throw new Error(joined.error);
+    const room=server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom;room.configure(joined.playerId,{teamMode:"duo",targetPlayers:10,fillBots:true});room.setReady(joined.playerId,true);
+    const now=Date.now();room.start(joined.playerId,now);room.phase="combat";
+    const player=room.players.get(joined.playerId)!;const teammate=[...room.players.values()].find(entry=>entry.id!==player.id&&entry.teamId===player.teamId)!;
+    player.deployment="grounded";player.position={x:100,y:0,z:12};player.inventory[0]={instanceId:"revive-rifle",itemId:"pulse-rifle",rarity:"common",count:1,magazine:1};player.ammo.light=80;
+    teammate.alive=true;teammate.downed=true;teammate.deployment="downed";teammate.position={x:100,y:0,z:11};
+    room.setRevive(player.id,teammate.id,true,now+10);expect(player.reviveTargetId).toBe(teammate.id);
+    expect(room.fire(player.id,{x:100,y:.7,z:12},{x:0,y:0,z:-1},now+20,now+20)).toBe(false);
+    expect(room.reload(player.id,now+20)).toBe(false);
+    player.inventory[1]={instanceId:"revive-heal",itemId:"med-patch",rarity:"common",count:1,magazine:0};player.selectedSlot=1;player.hp=50;
+    expect(room.useItem(player.id,now+20)).toBe(false);
+    room.setRevive(player.id,teammate.id,false,now+30);expect(player.reviveTargetId).toBeNull();
+    expect(room.useItem(player.id,now+40)).toBe(true);
+    room.setRevive(player.id,teammate.id,true,now+50);expect(player.reviveTargetId).toBeNull();
+  });
+
+  it("rejects a heal request while a reload is active even with stale slot state", async () => {
+    const { server, url } = await setup();
+    const host = await client(url);
+    const joined = await createRoom(host, "Action guard");
+    if (!joined.ok) throw new Error(joined.error);
+    const room = server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom;
+    room.setReady(joined.playerId, true);
+    const now = Date.now();
+    room.start(joined.playerId, now);
+    room.phase = "combat";
+    const player = room.players.get(joined.playerId)!;
+    player.deployment = "grounded";
+    player.hp = 50;
+    player.inventory[0] = { instanceId: "guard-rifle", itemId: "pulse-rifle", rarity: "common", count: 1, magazine: 1 };
+    player.ammo.light = 80;
+    player.selectedSlot = 0;
+    expect(room.reload(player.id, now + 10)).toBe(true);
+
+    // A stale or malformed client slot must not overlap a second timed action.
+    player.inventory[1] = { instanceId: "guard-heal", itemId: "med-patch", rarity: "common", count: 1, magazine: 0 };
+    player.selectedSlot = 1;
+    expect(room.useItem(player.id, now + 20)).toBe(false);
+    expect(player.useEndsAt).toBe(0);
+  });
+
+  it("cancels timed heal and reload actions when a player becomes downed", async () => {
+    const { server, url } = await setup();
+    const host = await client(url);
+    const joined = await createRoom(host, "Downed actions");
+    if (!joined.ok) throw new Error(joined.error);
+    const room = server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom;
+    room.configure(joined.playerId, { teamMode: "duo", targetPlayers: 10, fillBots: true });
+    room.setReady(joined.playerId, true);
+    const now = Date.now();
+    room.start(joined.playerId, now);
+    room.phase = "combat";
+    const attacker = room.players.get(joined.playerId)!;
+    const target = [...room.players.values()].find((entry) => entry.teamId !== attacker.teamId)!;
+    const targetMate = [...room.players.values()].find((entry) => entry.id !== target.id && entry.teamId === target.teamId)!;
+    attacker.deployment = "grounded";
+    attacker.position = { x: 100, y: 0, z: 12 };
+    attacker.yaw = 0;
+    attacker.pitch = 0;
+    attacker.inventory[0] = { instanceId: "down-rifle", itemId: "pulse-rifle", rarity: "common", count: 1, magazine: 30 };
+    targetMate.alive = true;
+    targetMate.downed = false;
+
+    target.alive = true;
+    target.downed = false;
+    target.deployment = "grounded";
+    target.position = { x: 100, y: 0, z: 0 };
+    target.hp = 10;
+    target.shield = 0;
+    target.inventory[0] = { instanceId: "down-heal", itemId: "med-patch", rarity: "common", count: 1, magazine: 0 };
+    target.selectedSlot = 0;
+    expect(room.useItem(target.id, now + 10)).toBe(true);
+    expect(room.fire(attacker.id, { x: 100, y: .72, z: 11.52 }, { x: 0, y: 0, z: -1 }, now + 20, now + 20)).toBe(true);
+    expect(target.downed).toBe(true);
+    expect(target.useEndsAt).toBe(0);
+    room.update(1 / 30, now + 4_000);
+    expect(target.hp).toBe(0);
+    expect(target.inventory[0]?.count).toBe(1);
+
+    target.downed = false;
+    target.deployment = "grounded";
+    target.hp = 10;
+    target.downedHp = BR_BALANCE.downedHp;
+    target.bleedoutEndsAt = null;
+    target.inventory[0] = { instanceId: "down-reload", itemId: "pulse-rifle", rarity: "common", count: 1, magazine: 1 };
+    target.ammo.light = 60;
+    expect(room.reload(target.id, now + 5_000)).toBe(true);
+    expect(room.fire(attacker.id, { x: 100, y: .72, z: 11.52 }, { x: 0, y: 0, z: -1 }, now + 5_100, now + 5_100)).toBe(true);
+    expect(target.downed).toBe(true);
+    expect(target.reloadEndsAt).toBe(0);
+    room.update(1 / 30, now + 8_000);
+    expect(target.inventory[0]?.magazine).toBe(1);
+    expect(target.ammo.light).toBe(60);
+  });
+
   it("rejects malformed or out-of-phase gameplay commands", async () => {
     const { server, url } = await setup(); const host = await client(url); const joined = await createRoom(host, "Validator"); if (!joined.ok) throw new Error(joined.error);
     const room = server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom; const player = room.players.get(joined.playerId)!;
@@ -207,7 +337,13 @@ describe("Battle Royale room", () => {
   it("keeps eliminated spectators relevant and cycles living targets", async () => {
     const { server, url } = await setup(); const host = await client(url); const joined = await createRoom(host, "Watcher"); if (!joined.ok) throw new Error(joined.error);
     const room = server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom; room.configure(joined.playerId, { targetPlayers: 10, fillBots: true }); room.setReady(joined.playerId, true);
-    const start = Date.now(); room.start(joined.playerId, start); const player = room.players.get(joined.playerId)!; player.alive = false; player.deployment = "eliminated"; player.spectatorTargetId = [...room.players.values()].find((entry) => entry.alive)?.id ?? null;
+    const start = Date.now(); room.start(joined.playerId, start); const player = room.players.get(joined.playerId)!; player.alive = false; player.deployment = "eliminated";
+    const living=[...room.players.values()].filter(entry=>entry.alive);const falling=living[0],grounded=living[1];
+    falling.deployment="chute";falling.grounded=false;falling.position.y=-12;
+    grounded.deployment="grounded";grounded.grounded=true;grounded.position.y=.4;
+    player.spectatorTargetId = falling.id;
+    const snapshotPromise=new Promise<import("@planetfall/shared").BrSnapshot>((resolve,reject)=>{const timeout=setTimeout(()=>reject(new Error("spectator snapshot timeout")),2_000);host.once("br:match:snapshot",snapshot=>{clearTimeout(timeout);resolve(snapshot);});});
+    room.update(.08,start+80);expect((await snapshotPromise).spectatorTargetId).toBe(grounded.id);
     const previous = player.spectatorTargetId; room.cycleSpectator(player.id, 1); expect(player.spectatorTargetId).not.toBe(previous); expect(room.players.get(player.spectatorTargetId!)?.alive).toBe(true);
   });
 

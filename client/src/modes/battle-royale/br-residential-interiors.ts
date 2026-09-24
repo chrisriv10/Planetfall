@@ -1,6 +1,6 @@
 import { BR_LOOT_SOCKETS, BR_MAP_BLOCKS, type BrStructure, type Vec3 } from "@planetfall/shared";
 
-export type ResidentialPart = { finish: "frame" | "panel" | "glass" | "light" | "accent"; position: Vec3; scale: Vec3 };
+export type ResidentialPart = { finish: "frame" | "panel" | "glass" | "light" | "accent"; position: Vec3; scale: Vec3; rotationX?: number };
 export type ResidentialSign = { text: string; position: Vec3; width: number };
 
 /** Shallow landing markers on the south wall, never freestanding in the stair. */
@@ -49,6 +49,87 @@ export function buildResidentialCeiling(structure: BrStructure): ResidentialPart
       add("frame",side*width*.4,0,.22,depth*.82,.07,.06);
       add("light",side*width*.4,0,.065,depth*.75,.11,.015);
     }
+  }
+  return parts;
+}
+
+/** Thin service/display bays on the stair-side wall. These break up the former
+ * blank full-height panel while remaining behind the stair and combat lane. */
+export function buildResidentialServiceWall(structure: BrStructure): ResidentialPart[] {
+  if(!structure.enterable||!["apartment","hotel"].includes(structure.archetype))return [];
+  const parts:ResidentialPart[]=[];
+  const {x,z}=structure.position,width=structure.size.x,depth=structure.size.z;
+  const wallFace=x+width/2-.325;
+  const loot=BR_LOOT_SOCKETS.filter(socket=>socket.structureId===structure.id);
+  const floorHeight=structure.size.y/structure.floors;
+  for(let floor=0;floor<structure.floors;floor++){
+    const floorY=floor===0?.36:floor*floorHeight+.175;
+    const usableHeight=floorHeight-.75;
+    for(const side of [-1,1]){
+      const center=z+side*depth*.29,span=Math.min(4.2,depth*.31);
+      if(structure.entrance==="east"&&Math.abs(center-z)-span/2<2.8)continue;
+      if(loot.some(socket=>socket.position.y>floorY-.4&&socket.position.y<floorY+usableHeight+.4&&
+        socket.position.x>wallFace-1.1&&Math.abs(socket.position.z-center)<span/2+1))continue;
+      const add=(finish:ResidentialPart["finish"],dx:number,y:number,dz:number,sx:number,sy:number,sz:number)=>
+        parts.push({finish,position:{x:wallFace-dx,y:floorY+y,z:center+dz},scale:{x:sx,y:sy,z:sz}});
+      add("frame",.06,usableHeight/2,0,.12,usableHeight,span);
+      add("panel",.13,usableHeight/2,0,.045,usableHeight-.18,span-.18);
+      for(const end of [-1,1])add("frame",.17,usableHeight/2,end*(span/2-.17),.025,usableHeight-.32,.16);
+      add("glass",.18,usableHeight*.55,0,.025,Math.min(1.4,usableHeight*.34),span-.65);
+      add("accent",.2,usableHeight*.27,-span*.22,.018,.5,.11);
+      add("light",.2,usableHeight-.24,0,.018,.055,span-.5);
+    }
+  }
+  return parts;
+}
+
+/** Framed lobby panels on the solid halves of the entrance wall. The central
+ * 4.8m authoritative opening remains visually and physically unobstructed. */
+export function buildResidentialEntranceWall(structure: BrStructure): ResidentialPart[] {
+  if(!structure.enterable||!["apartment","hotel"].includes(structure.archetype))return [];
+  const parts:ResidentialPart[]=[];
+  const {x,z}=structure.position,width=structure.size.x,depth=structure.size.z;
+  const ns=structure.entrance==="north"||structure.entrance==="south";
+  const sign=structure.entrance==="north"||structure.entrance==="east"?1:-1;
+  const span=ns?width:depth,normal=(ns?depth:width)/2;
+  const bayWidth=(span-6.4)/2;
+  if(bayWidth<2)return parts;
+  const normalCoordinate=(ns?z:x)+sign*(normal-.41);
+  const add=(finish:ResidentialPart["finish"],lateral:number,y:number,breadth:number,height:number,thickness:number)=>{
+    parts.push({finish,position:{x:ns?x+lateral:normalCoordinate,y,z:ns?normalCoordinate:z+lateral},scale:{x:ns?breadth:thickness,y:height,z:ns?thickness:breadth}});
+  };
+  for(const side of [-1,1]){
+    const lateral=side*(3.2+bayWidth/2);
+    add("frame",lateral,2.15,bayWidth,3.55,.12);
+    add("panel",lateral,2.15,bayWidth-.18,3.35,.045);
+    add("glass",lateral,2.45,bayWidth-.55,1.45,.025);
+    add("accent",lateral-side*(bayWidth*.28),1.15,.09,.58,.018);
+    add("light",lateral,3.68,bayWidth-.42,.055,.018);
+  }
+  return parts;
+}
+
+/** Visual-only underside construction for the authored residential ramps. The
+ * walking surface and collision remain untouched; every piece stays beneath
+ * and inside the existing ramp envelope. */
+export function buildResidentialRampSkins(structure: BrStructure): ResidentialPart[] {
+  if(!structure.enterable||!["apartment","hotel"].includes(structure.archetype))return [];
+  const parts:ResidentialPart[]=[];
+  for(const ramp of BR_MAP_BLOCKS.filter(block=>block.kind==="ramp"&&block.id.startsWith(`${structure.id}-stairs-`))){
+    const angle=ramp.rotation?.x;
+    if(angle===undefined||!Number.isFinite(angle)||angle<=.05||angle>=1.1||ramp.size.x<1||ramp.size.z<5)continue;
+    const cos=Math.cos(angle),sin=Math.sin(angle),underside=-ramp.size.y/2,length=ramp.size.z-1.5;
+    const add=(finish:ResidentialPart["finish"],lx:number,ly:number,lz:number,sx:number,sy:number,sz:number)=>parts.push({
+      finish,rotationX:angle,
+      position:{x:ramp.position.x+lx,y:ramp.position.y+ly*cos-lz*sin,z:ramp.position.z+ly*sin+lz*cos},
+      scale:{x:sx,y:sy,z:sz}
+    });
+    for(const side of [-1,1]){
+      const edge=side*(ramp.size.x/2-.1);
+      add("frame",edge,underside-.08,0,.16,.14,length);
+      for(const along of [-.28,.28])add(side<0?"accent":"light",edge,underside-.155,along*length,.065,.018,1.2);
+    }
+    for(const along of [-.3,0,.3])add("panel",0,underside-.06,along*length,ramp.size.x-.42,.08,.13);
   }
   return parts;
 }

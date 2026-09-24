@@ -86,6 +86,15 @@ export function buildFacadeParts(structure: BrStructure): FacadePart[] {
       if (industrial) {
         for (let i = 0; i < 3; i++) add("frame", start + length * .18, 1.5 + i * .22, Math.min(2, length * .25), .09, .59, .16);
       }
+      if (tower && !cargo && !fuselage && height >= 18 && length > 3.2) {
+        // Shallow belt courses and paired edge fins break tall curtain-wall
+        // grids into readable stacked masses. They are mounted beyond the
+        // authoritative wall and stay split around the entrance interval.
+        for (const ratio of [.34, .68]) add("frame", (start + end) / 2, height * ratio,
+          Math.max(.7, length - .22), .24, .88, .5);
+        for (const side of [-1, 1]) add("metal", (start + end) / 2 + side * Math.max(0, length / 2 - .34),
+          height * .54, .28, height * .7, .86, .42);
+      }
       if (structure.style === "city" && length > 4) {
         // Low wall-mounted planted sills add pedestrian scale without creating
         // new apparent full-height cover or narrowing the authoritative door.

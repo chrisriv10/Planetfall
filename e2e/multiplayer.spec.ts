@@ -14,6 +14,8 @@ type DebugState = {
   repairs: { planetId: string; position: Point }[];
   trajectoryMarkerVisible: boolean;
   lobbyAvatarCount: number;
+  homeFamily: "planetfall" | "battle-royale";
+  homePreview: "planetfall" | "battle-royale" | "loading";
   matchStats: { playerId: string; damageDealt: number; stolenScrap: number; successfulShoves: number; sabotagesCompleted: number }[];
   gameMode: "classic" | "chaos" | null;
   activeModifier: string | null;
@@ -58,15 +60,16 @@ async function moveTo(
   done: (state: DebugState) => boolean = () => false,
 ): Promise<void> {
   await takeControl(page);
+  const settleReleasedInput = () => page.waitForTimeout(Math.ceil(1000 / BALANCE.inputRate) + 20);
   for (let step = 0; step < maxSteps; step++) {
     if (await page.locator("#results-screen").isVisible()) {
       throw new Error("match reached results before navigation completed");
     }
     const state = await debugState(page);
-    if (done(state)) return;
+    if (done(state)) { await settleReleasedInput(); return; }
     const target = targetFor(state);
     const remaining = pointDistance(state.localPosition, target);
-    if (remaining <= tolerance) return;
+    if (remaining <= tolerance) { await settleReleasedInput(); return; }
     const planet = [...state.planets].sort((a, b) => pointDistance(state.localPosition, a.position) - pointDistance(state.localPosition, b.position))[0];
     const turn = (() => {
       const normalize = (point: Point): Point => {
@@ -185,6 +188,11 @@ test("the home menu previews the Fallbucks shop", async ({ page }) => {
   await expect(page.locator("#shop-grid").getByRole("button", { name: "PLAY TO UNLOCK" }).first()).toBeDisabled();
   await page.getByRole("button", { name: "Done" }).click();
   await expect(page.locator("#home-screen")).toBeVisible();
+  expect((await debugState(page)).homePreview).toBe("planetfall");
+  await page.locator("#family-br").click();
+  await expect.poll(async () => (await debugState(page)).homePreview, { timeout: 15_000 }).toBe("battle-royale");
+  await page.locator("#family-planetfall").click();
+  expect((await debugState(page)).homePreview).toBe("planetfall");
   expect(browserErrors).toEqual([]);
 });
 
@@ -365,27 +373,43 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
   const guestBeforeShoveState = await debugState(guest);
   const guestBeforeShove = guestBeforeShoveState.localPosition;
   const guestAuthoritativeBeforeShove = guestBeforeShoveState.players.find((player) => player.id === guestPlayer.id)!.position;
-  await host.keyboard.press("e");
-  try {
-    await expect.poll(async () => {
-      const successful = (await debugState(host)).matchStats.find((stats) => stats.playerId === hostPlayer.id)?.successfulShoves ?? 0;
-      if (successful < 1) {
-        await moveTo(host, (state) => state.players.find((player) => player.id === guestPlayer.id)!.position, .7, 10);
-        await aimAt(host, (state) => state.players.find((player) => player.id === guestPlayer.id)!.position, "player");
-        await host.keyboard.press("e");
-        // The input is asynchronous. Observe the server stat after this attempt;
-        // returning the pre-input value can fail on the final successful retry.
-        await expect.poll(async () => (await debugState(host)).matchStats.find((stats) => stats.playerId === hostPlayer.id)?.successfulShoves ?? 0,
-          { timeout: 800, intervals: [100, 150, 250] }).toBeGreaterThanOrEqual(1).catch(() => undefined);
+  await host.evaluate(() => {
+    const testWindow = window as Window & { __planetfallToastLog?: string[]; __planetfallToastObserver?: MutationObserver };
+    testWindow.__planetfallToastObserver?.disconnect();
+    testWindow.__planetfallToastLog = [];
+    const region = document.querySelector("#toast-region");
+    if (!region) return;
+    testWindow.__planetfallToastObserver = new MutationObserver(() => {
+      for (const toast of region.querySelectorAll(".toast")) {
+        const message = toast.textContent?.trim();
+        if (message && !testWindow.__planetfallToastLog?.includes(message)) testWindow.__planetfallToastLog?.push(message);
       }
-      return (await debugState(host)).matchStats.find((stats) => stats.playerId === hostPlayer.id)?.successfulShoves ?? 0;
-    }, { timeout: 6000, intervals: [350, 500, 700] }).toBeGreaterThanOrEqual(1);
+    });
+    testWindow.__planetfallToastObserver.observe(region, { childList: true, subtree: true, characterData: true });
+  });
+  try {
+    let successfulShoves = 0;
+    for (let attempt = 0; attempt < 5 && successfulShoves < 1; attempt++) {
+      await moveTo(host, (state) => state.players.find((player) => player.id === guestPlayer.id)!.position, .7, 14);
+      await aimAt(host, (state) => state.players.find((player) => player.id === guestPlayer.id)!.position, "player");
+      // The defender continues to settle under prediction/interpolation. Never
+      // send a blind retry: the visible prompt is the same client-side range,
+      // planet and facing contract a real player receives before interacting.
+      const promptReady = await expect(host.locator("#context-prompt")).toContainText(/SHOVE NOVA/i, { timeout: 1200 })
+        .then(() => true, () => false);
+      if (!promptReady) continue;
+      await host.keyboard.press("e");
+      successfulShoves = await expect.poll(async () =>
+        (await debugState(host)).matchStats.find((stats) => stats.playerId === hostPlayer.id)?.successfulShoves ?? 0,
+      { timeout: 900, intervals: [100, 150, 250] }).toBeGreaterThanOrEqual(1).then(() => 1, () => 0);
+    }
+    expect(successfulShoves).toBeGreaterThanOrEqual(1);
   } catch (error) {
     const state = await debugState(host);
     const attacker = state.players.find((player) => player.id === hostPlayer.id)!;
     const target = state.players.find((player) => player.id === guestPlayer.id)!;
-    const denial = await host.locator(".toast").last().textContent().catch(() => null);
-    throw new Error(`shove was rejected: ${denial ?? "no server reason"}; predicted=${pointDistance(state.localPosition, target.position).toFixed(2)} authoritative=${pointDistance(attacker.position, target.position).toFixed(2)} surfaces=${attacker.surfacePlanetId}/${target.surfacePlanetId}`, { cause: error });
+    const denials = await host.evaluate(() => (window as Window & { __planetfallToastLog?: string[] }).__planetfallToastLog ?? []);
+    throw new Error(`shove was rejected: ${denials.join(" | ") || "no server reason"}; predicted=${pointDistance(state.localPosition, target.position).toFixed(2)} authoritative=${pointDistance(attacker.position, target.position).toFixed(2)} surfaces=${attacker.surfacePlanetId}/${target.surfacePlanetId}`, { cause: error });
   }
   await expect(host.locator("#event-feed")).toContainText("Chris shoved Nova");
   // The defender's presentation is frame-driven. Observe it in a foreground
@@ -427,13 +451,14 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
   await moveTo(guest, (state) => state.cannons.find((cannon) => cannon.planetId === guestPlanetId)!.position, 3.7);
   await aimAt(guest, (state) => state.planets.find((planet) => planet.id === hostPlanetId)!.position);
   const scrapBeforeFire = (await debugState(guest)).players.find((player) => player.id === guestPlayer.id)!.scrap;
+  const firstHitFeed = expect(host.locator("#event-feed")).toContainText("Nova hit Chris", { timeout: 5000 });
   await fireCannon(guest);
   // Feed entries expire after 6.2 seconds. Observe the first hit as it happens,
   // not after the second-shot navigation/retry sequence (which can outlast it).
   await Promise.all([
     expect.poll(async () => (await debugState(guest)).players.find((player) => player.id === guestPlayer.id)!.scrap, { timeout: 3000 }).toBeLessThan(scrapBeforeFire),
     expect.poll(async () => (await debugState(host)).planets.find((planet) => planet.id === hostPlanetId)!.integrity, { timeout: 5000 }).toBeLessThan(100),
-    expect(host.locator("#event-feed")).toContainText("Nova hit Chris")
+    firstHitFeed
   ]);
   await guest.waitForTimeout(BALANCE.weapons.rocket.cooldownMs + 100);
   const scrapAfterFirst = (await debugState(guest)).players.find((player) => player.id === guestPlayer.id)!.scrap;

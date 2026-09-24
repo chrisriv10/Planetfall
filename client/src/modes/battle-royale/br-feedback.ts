@@ -28,6 +28,14 @@ export function brActionTimer(deadline:number, serverTime:number, now:number, st
 
 export function brRecoilAfter(recoil:number,dt:number):number { return recoil*Math.exp(-18*Math.max(0,dt)); }
 
+/** Client anticipation may be later than authority, but must never schedule a
+ * request earlier than the authoritative weapon interval. Advancing the local
+ * clock on an early rejected request otherwise halves steady held-fire cadence. */
+export function brFireRequestDue(now:number,lastRequestAt:number,fireIntervalMs:number):boolean {
+  return Number.isFinite(now)&&Number.isFinite(lastRequestAt)&&Number.isFinite(fireIntervalMs)
+    &&fireIntervalMs>0&&now-lastRequestAt>=fireIntervalMs;
+}
+
 export function brSmoothFacing(current:number,target:number,dt:number):number {
   const delta=Math.atan2(Math.sin(target-current),Math.cos(target-current));
   return current+delta*(1-Math.exp(-10*Math.max(0,dt)));

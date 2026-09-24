@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { seededRandom, type BrRoomView } from "@planetfall/shared";
 import { brStormBandPositions, brStormCurtainRepeats, brStormDetail, brStormLayerSpacing, BR_STORM_BAND_SEGMENTS, BR_STORM_HEIGHT } from "./br-storm-shape";
 import { createStarlinerHull, createStarlinerWing } from "./br-starliner-hull";
+import { createBrStormTexture } from "./br-storm-texture";
 
 export function createBrBackdrop(): THREE.Group {
   const root = new THREE.Group();
@@ -90,6 +91,18 @@ export function createStarliner(): THREE.Group {
   for (const z of [-12,-4,4,12]) {const frame=new THREE.Mesh(roofFrame,dark);frame.position.set(0,1.1,z);ship.add(frame);}
   const topBridge = new THREE.Mesh(new THREE.BoxGeometry(10, 5, 14), white); topBridge.position.set(0, 1, -7); ship.add(topBridge);
   const bridgeGlass = new THREE.Mesh(new THREE.BoxGeometry(10.2, 1.5, 5), glass); bridgeGlass.position.set(0, 2.1, -12); ship.add(bridgeGlass);
+  // Break up the broad transport hull with a readable command spine and a
+  // recessed passenger-window rhythm. These pieces are deliberately shallow:
+  // they sell the ship's forty-pilot scale without turning it into noisy kitbash.
+  const spine = new THREE.Mesh(new THREE.BoxGeometry(3.4, 2.2, 24), dark); spine.name="starliner-command-spine";spine.position.set(0, 3.05, 3); ship.add(spine);
+  const spineCap = new THREE.Mesh(new THREE.BoxGeometry(5.4, .65, 20), blue); spineCap.position.set(0,4.45,3);ship.add(spineCap);
+  const windowGeometry=new THREE.BoxGeometry(.24,1.15,3.4);
+  for(const side of [-1,1])for(let deck=0;deck<6;deck++){
+    const window=new THREE.Mesh(windowGeometry,glass);window.name="starliner-passenger-window";
+    window.position.set(side*9.78,-3.7,-14+deck*5.5);ship.add(window);
+  }
+  const collarGeometry=new THREE.TorusGeometry(3.55,.34,7,18);
+  for(const x of [-14,14]){const collar=new THREE.Mesh(collarGeometry,dark);collar.name="starliner-engine-collar";collar.position.set(x,-8.5,18.3);ship.add(collar);}
   const centerEngine = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 4, 6, 14), dark); centerEngine.rotation.x = Math.PI / 2; centerEngine.position.set(0, -7, 28.5); ship.add(centerEngine);
   const nozzleRim=new THREE.Mesh(new THREE.TorusGeometry(3.35,.24,6,18),glow);nozzleRim.position.set(0,-7,31.6);ship.add(nozzleRim);
   const centerTrailMaterial=glow.clone();centerTrailMaterial.opacity=.32;
@@ -104,6 +117,11 @@ export function createStarliner(): THREE.Group {
   }
   for (let deck = 0; deck < 4; deck++) {
     const bayLight = new THREE.Mesh(new THREE.BoxGeometry(3.2, .16, .34), glow); bayLight.position.set(0, -14.28, -6 + deck * 5); ship.add(bayLight);
+  }
+  const beaconGeometry=new THREE.SphereGeometry(.34,8,6);
+  for(const side of [-1,1]){
+    const beacon=new THREE.Mesh(beaconGeometry,glow);beacon.name="starliner-navigation-beacon";beacon.position.set(side*21.4,-6.15,10);ship.add(beacon);
+    const wingRail=new THREE.Mesh(new THREE.BoxGeometry(9.5,.22,.34),glow);wingRail.position.set(side*16.8,-6.25,4);wingRail.rotation.y=side*.16;ship.add(wingRail);
   }
   for (const x of [-3.5, 3.5]) { const antenna = new THREE.Mesh(new THREE.CylinderGeometry(.16, .22, 6, 7), dark); antenna.position.set(x, 6, -4); ship.add(antenna); }
   ship.scale.setScalar(1.08);
@@ -126,13 +144,16 @@ export function updateStarliner(ship: THREE.Group, room: BrRoomView | null, now:
 
 export function createVoidStorm(): THREE.Group {
   const root = new THREE.Group(); root.name = "void-storm"; root.visible = false;
-  const curtain=createStormCurtain();
+  const curtain=createBrStormTexture();
   const curtainGeometry=createStormFadeGeometry(BR_STORM_HEIGHT,false);
   for (let index = 0; index < 3; index++) {
+    // Share the baked pixels, but let each veil drift independently.
+    const map=index===0?curtain:curtain.clone();
+    map.repeat.y=6+index*2;
     const material = new THREE.MeshBasicMaterial({
-      color: index % 2 ? 0x739fff : 0xb995ff,
+      color: index % 2 ? 0xaddfff : 0xdcc3ff,
       transparent: true, opacity: .3, side: THREE.DoubleSide,
-      depthWrite: false, blending: THREE.AdditiveBlending, map: curtain,
+      depthWrite: false, blending: THREE.AdditiveBlending, map,
       vertexColors: true, toneMapped: false, forceSinglePass: true
     });
     const layer = new THREE.Mesh(curtainGeometry, material); layer.position.y = BR_STORM_HEIGHT/2; layer.userData.stormLayer = true; layer.userData.index = index; root.add(layer);
@@ -140,7 +161,7 @@ export function createVoidStorm(): THREE.Group {
   // A low, continuous cyan-violet edge supplies depth at eye level, even when
   // the floor annulus is nearly edge-on. It fades fully out above the player.
   const boundaryGlow=new THREE.Mesh(createStormFadeGeometry(5,true),new THREE.MeshBasicMaterial({
-    color:0xb2bcff,transparent:true,opacity:.5,side:THREE.DoubleSide,
+    color:0x795de0,transparent:true,opacity:.24,side:THREE.DoubleSide,
     depthWrite:false,blending:THREE.AdditiveBlending,vertexColors:true,toneMapped:false,forceSinglePass:true
   }));
   boundaryGlow.position.y=2.5;boundaryGlow.userData.stormBoundaryGlow=true;root.add(boundaryGlow);
@@ -149,14 +170,36 @@ export function createVoidStorm(): THREE.Group {
   const indices:number[]=[];
   for(let i=0;i<BR_STORM_BAND_SEGMENTS;i++){const next=i+BR_STORM_BAND_SEGMENTS+1;indices.push(i,next,i+1,i+1,next,next+1);}
   bandGeometry.setIndex(indices);
-  const ground = new THREE.Mesh(bandGeometry, new THREE.MeshBasicMaterial({ color: 0xe0d6ff, transparent: true, opacity: .9, side:THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped:false, forceSinglePass:true }));
+  const ground = new THREE.Mesh(bandGeometry, new THREE.MeshBasicMaterial({ color: 0x9473f5, transparent: true, opacity: .5, side:THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped:false, forceSinglePass:true }));
   ground.userData.stormGround = true; root.add(ground);
   const sparkGeometry = new THREE.BufferGeometry();
   const sparkPositions = new Float32Array(360 * 3);
   const random = seededRandom(7302);
   for (let index = 0; index < 360; index++) { const angle = random() * Math.PI * 2; sparkPositions[index * 3] = Math.cos(angle); sparkPositions[index * 3 + 1] = random() * 170; sparkPositions[index * 3 + 2] = Math.sin(angle); }
   sparkGeometry.setAttribute("position", new THREE.BufferAttribute(sparkPositions, 3));
-  const sparks = new THREE.Points(sparkGeometry, new THREE.PointsMaterial({ color: 0xd5c3ff, size: .24, transparent: true, opacity: .6, blending: THREE.AdditiveBlending, depthWrite: false })); sparks.userData.stormSparks = true; root.add(sparks);
+  const sparks = new THREE.Points(sparkGeometry, new THREE.PointsMaterial({ color: 0xb6b2ff, size: .18, transparent: true, opacity: .38, blending: THREE.AdditiveBlending, depthWrite: false })); sparks.userData.stormSparks = true; root.add(sparks);
+  // Sparse filaments give the wall a vertical silhouette without increasing
+  // the opacity of the continuous veil. One pooled line mesh supports every
+  // quality preset and simply changes its draw range as the circle contracts.
+  const streakPositions=new Float32Array(32*2*3);
+  for(let index=0;index<32;index++){
+    const angle=index/32*Math.PI*2+(random()-.5)*.08;
+    const radius=1.006+(random()-.5)*.008;
+    const base=index*6;
+    streakPositions[base]=Math.cos(angle)*radius;
+    streakPositions[base+1]=random()*4;
+    streakPositions[base+2]=Math.sin(angle)*radius;
+    streakPositions[base+3]=Math.cos(angle)*radius;
+    streakPositions[base+4]=34+random()*116;
+    streakPositions[base+5]=Math.sin(angle)*radius;
+  }
+  const streakGeometry=new THREE.BufferGeometry();
+  streakGeometry.setAttribute("position",new THREE.BufferAttribute(streakPositions,3));
+  const streaks=new THREE.LineSegments(streakGeometry,new THREE.LineBasicMaterial({
+    color:0xb9eaff,transparent:true,opacity:.14,blending:THREE.AdditiveBlending,
+    depthWrite:false,toneMapped:false
+  }));
+  streaks.userData.stormStreaks=true;root.add(streaks);
   for (let arcIndex = 0; arcIndex < 12; arcIndex++) {
     const start = random() * Math.PI * 2, span = .1 + random() * .34, height = 6 + random() * 158;
     const points: THREE.Vector3[] = [];
@@ -187,12 +230,15 @@ export function updateVoidStorm(storm: THREE.Group, room: Pick<BrRoomView,"storm
       child.scale.set(radius+index*layerSpacing,1,radius+index*layerSpacing);
       child.rotation.y = (index % 2 ? 1 : -1) * now * (.000025 + index * .000012);
       const material = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
-      material.opacity = (closing ? .48 : .36) - index * .07 + Math.sin(now * .002 + index) * .025;
-      if(material.map){material.map.offset.y=now*.000025;material.map.repeat.x=curtainRepeats;}
+      material.opacity = ((closing ? .44 : .34) - index * .09 + Math.sin(now * .0012 + index) * .018)*1.25;
+      if(material.map){
+        material.map.offset.set(index*.271+now*(index%2?-.000009:.000012),index*.193+now*(index%2?.000015:-.000011));
+        material.map.repeat.x=curtainRepeats;
+      }
     } else if (child.userData.stormBoundaryGlow) {
       child.scale.set(radius,1,radius);
       const material=(child as THREE.Mesh).material as THREE.MeshBasicMaterial;
-      material.opacity=(closing ? .52 : .42)+Math.sin(now*.002)*.025;
+      material.opacity=(closing ? .24 : .19)+Math.sin(now*.002)*.015;
     } else if (child.userData.stormGround) {
       const geometry=(child as THREE.Mesh).geometry;
       if(child.userData.radius!==radius){
@@ -201,18 +247,24 @@ export function updateVoidStorm(storm: THREE.Group, room: Pick<BrRoomView,"storm
         geometry.computeBoundingSphere();child.userData.radius=radius;
       }
       const material = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
-      material.opacity = .85 + Math.sin(now * .006) * .1;
+      material.opacity = .48 + Math.sin(now * .003) * .06;
     } else if (child.userData.stormSparks) {
       child.scale.set(radius,1,radius);
       (child as THREE.Points).geometry.setDrawRange(0,detail.sparks);
       child.rotation.y = -now * .00013;
+    } else if (child.userData.stormStreaks) {
+      child.scale.set(radius,1,radius);
+      (child as THREE.LineSegments).geometry.setDrawRange(0,detail.streaks*2);
+      child.rotation.y=now*.000019;
+      const material=(child as THREE.LineSegments).material as THREE.LineBasicMaterial;
+      material.opacity=(closing?.14:.1)+Math.sin(now*.0017)*.018;
     } else if (child.userData.stormArc) {
       const index = Number(child.userData.index);
       child.visible=index<detail.arcs;
       child.scale.set(radius,1,radius);
       child.rotation.y = now * (index % 2 ? .000055 : -.000043) + index;
       const material = (child as THREE.Line).material as THREE.LineBasicMaterial;
-      material.opacity = .12 + Math.max(0, Math.sin(now * .004 + index * 1.7)) * .42;
+      material.opacity = .04 + Math.pow(Math.max(0, Math.sin(now * .002 + index * 1.7)),6) * .3;
     }
   }
 }
@@ -230,29 +282,6 @@ function createStormFadeGeometry(height:number,boundary:boolean):THREE.CylinderG
   }
   geometry.setAttribute("color",new THREE.BufferAttribute(colors,3));
   return geometry;
-}
-
-function createStormCurtain():THREE.CanvasTexture {
-  const canvas=document.createElement("canvas");canvas.width=256;canvas.height=256;
-  const context=canvas.getContext("2d")!;const random=seededRandom(48321);
-  context.clearRect(0,0,256,256);
-  // A quiet haze joins the streaks into a readable wall, without an opaque
-  // overlay. The repeating texture remains continuous at both vertical edges.
-  context.fillStyle="rgba(120,160,255,.22)";context.fillRect(0,0,256,256);
-  for(let i=0;i<44;i++) {
-    const x=random()*256,y=random()*256,width=1+random()*7,height=22+random()*150;
-    const alpha=.18+random()*.55;
-    for(let copy=0;copy<(y+height>256?2:1);copy++) {
-      const top=y-copy*256;
-      // A wrapped rectangle needs a wrapped gradient too. Reusing the original
-      // gradient made its copied pixels transparent and left a repeating seam.
-      const gradient=context.createLinearGradient(x,top,x,top+height);
-      gradient.addColorStop(0,"rgba(160,200,255,0)");gradient.addColorStop(.4,`rgba(185,215,255,${alpha})`);gradient.addColorStop(1,"rgba(160,200,255,0)");
-      context.fillStyle=gradient;context.fillRect(x,top,width,height);
-    }
-  }
-  const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
-  texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.repeat.set(10,2);return texture;
 }
 
 function createNebulaTexture(): THREE.CanvasTexture {

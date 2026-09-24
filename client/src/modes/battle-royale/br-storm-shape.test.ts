@@ -27,9 +27,9 @@ describe("BR storm presentation dimensions", () => {
     expect(positions[2]).toBeCloseTo(positions[BR_STORM_BAND_SEGMENTS*3+2]);
   });
   it("reduces decoration without removing the authoritative boundary on Low", () => {
-    expect(brStormDetail("low")).toEqual({layers:1,arcs:4,sparks:90});
+    expect(brStormDetail("low")).toEqual({layers:1,arcs:4,sparks:90,streaks:10});
     expect(brStormDetail("medium").layers).toBe(2);
-    expect(brStormDetail("high")).toEqual({layers:3,arcs:12,sparks:360});
+    expect(brStormDetail("high")).toEqual({layers:3,arcs:12,sparks:360,streaks:32});
   });
   it("thins decorative density as the circle closes without dropping the curtain", () => {
     for (const quality of ["low","medium","high"] as const) {

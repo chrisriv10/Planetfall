@@ -6,9 +6,9 @@ export function createBrReview(selectView:(id:string|null)=>void, quality:(value
   root.style.cssText="position:fixed;right:12px;bottom:88px;z-index:9999;max-width:300px;background:#0b1528e8;color:#d6eaf5;padding:9px;border:1px solid #57778b;border-radius:8px;font:11px system-ui;pointer-events:auto";
   const select=document.createElement("select");select.setAttribute("aria-label","BR review view");
   const options=[
-    ["","Gameplay camera"],["aerial","Island aerial"],["nova-street","Nova street"],["nova-storefront","Nova storefront"],["nova-roof","Nova rooftop"],
-    ["mall-interior","Mall interior"],["hotel-lobby","Hotel lounge"],["housing-lounge","Housing lounge"],["hotel-stairs","Hotel stairs"],["hotel-landing","Hotel upper landing"],["helios-interior","Helios interior"],["crash-interior","Crash fuselage interior"],
-    ["foundry-interior","Foundry interior"],["foundry-roof","Foundry roof access"],
+    ["","Gameplay camera"],["aerial","Island aerial"],["zero-plaza","Zero Point plaza"],["nova-street","Nova street"],["nova-storefront","Nova storefront"],["nova-roof","Nova rooftop"],
+    ["mall-interior","Mall interior"],["mall-directory","Mall directory"],["mall-ramp","Mall ramp"],["mall-ceiling","Mall ceiling edge"],["hotel-lobby","Hotel lounge"],["hotel-service-wall","Hotel service wall"],["housing-lounge","Housing lounge"],["hotel-stairs","Hotel stairs"],["hotel-landing","Hotel upper landing"],["helios-interior","Helios interior"],["crash-exterior","Crash fuselage exterior"],["crash-interior","Crash fuselage interior"],
+    ["foundry-interior","Foundry interior"],["foundry-roof","Foundry roof access"],["roadside-south","South roadside service bay"],["roadside-nova","Nova corridor grove"],["connective-academy","Academy connective pocket"],["maintenance-south","South maintenance strip"],["deck-transition","Deck transition field"],["sector-field","Orbital sector field"],["edge-south","South island perimeter"],
     ["storm-boundary","Storm boundary (art preview)"],["storm-final","Final circle (art preview)"],
     ...BR_POIS.map(p=>[p.id,p.name]),...BR_SECONDARY_LOCATIONS.map(p=>[p.id,p.name])
   ];
@@ -27,10 +27,10 @@ export function createBrReview(selectView:(id:string|null)=>void, quality:(value
   let frames=0,started=performance.now();
   return {
     root,
-    frame(now:number,stats:()=>{calls:number;triangles:number;textures:number;materials:number;instances:number}){
+    frame(now:number,stats:()=>{calls:number;triangles:number;textures:number;materials:number;instances:number;districts:number}){
       frames++;
       if(now-started<1500)return;
-      const s=stats();output.textContent=`${(frames*1000/(now-started)).toFixed(1)} FPS · ${s.calls} calls\n${s.triangles.toLocaleString()} triangles · ${s.textures} textures\n${s.materials} world materials · ${s.instances.toLocaleString()} enabled instances`;
+      const s=stats();output.textContent=`${(frames*1000/(now-started)).toFixed(1)} FPS · ${s.calls} calls\n${s.triangles.toLocaleString()} triangles · ${s.textures} textures\n${s.materials} world materials · ${s.instances.toLocaleString()} enabled instances\n${s.districts} active detail sectors`;
       frames=0;started=now;
     },
     dispose(){root.remove();document.body.classList.remove("br-review-clean");}

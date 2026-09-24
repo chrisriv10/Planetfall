@@ -366,6 +366,7 @@ createButton.disabled = false; soloButton.disabled = false; joinButton.disabled 
 
 function selectFamily(family: GameFamily): void {
   selectedFamily = family;
+  game.setHomeFamily(family);
   familyPlanetfallButton.classList.toggle("selected", family === "planetfall"); familyBrButton.classList.toggle("selected", family === "battle-royale");
   byId("home-intro").textContent = family === "planetfall" ? "Last planet standing wins." : "Drop onto Orbital Isle. Loot up. Be the last crew standing.";
   soloButton.innerHTML = family === "planetfall" ? '<span class="button-icon">▶</span> Play Solo' : '<span class="button-icon">▼</span> BR Solo + Bots';
@@ -565,7 +566,7 @@ function renderBrHud(state: import("./modes/battle-royale/br-game").BrHudState):
     node.style.top = `${Math.max(4, Math.min(96, 50 + (teammate.position.z - player.position.z) / span * 50))}%`;
     node.style.setProperty("--mate-color", teammate.color);
   }
-  byId("br-context-copy").textContent = state.prompt || (document.pointerLockElement === canvas ? "" : "CLICK THE ARENA TO TAKE CONTROL"); byId<HTMLElement>("br-context-progress").style.width = `${Math.max(state.reloadProgress, state.useProgress) * 100}%`;
+  byId("br-context-copy").textContent = state.prompt || (document.pointerLockElement === canvas ? "" : "CLICK THE ARENA TO TAKE CONTROL"); byId<HTMLElement>("br-context-progress").style.width = `${Math.max(state.reloadProgress, state.useProgress, state.reviveProgress) * 100}%`;
   const inventory = byId("br-inventory"); const nextInventoryMarkup = player.inventory.map((item, index) => {
     const color = item ? ({ common: "#b8c4dc", rare: "#54b8ff", epic: "#c565ff", legendary: "#ffc84f" }[item.rarity]) : "#56617f";
     const name = item ? isBrWeapon(item.itemId) ? BR_WEAPONS[item.itemId].name : item.itemId.replaceAll("-", " ").toUpperCase() : "EMPTY"; const ammo = item && isBrWeapon(item.itemId) ? item.itemId === "energy-saber" ? "∞" : `${item.magazine} / ${BR_WEAPONS[item.itemId].ammo ? player.ammo[BR_WEAPONS[item.itemId].ammo!] : 0}` : item ? `×${item.count}` : "";

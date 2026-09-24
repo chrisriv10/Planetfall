@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { createBrCanopyMaterial } from "./br-canopy-material";
 
 export type BrMaterialKey =
   | "structuralWhite"
@@ -70,6 +71,7 @@ export class BrMaterialLibrary {
     this.materials.set("concrete", this.standard(0x64727b, .78, .06));
     this.materials.set("sidewalk", this.standard(0xa9b7bc, .74, .1));
     this.materials.set("grass", this.standard(0x3d8c68, .92, .02));
+    this.materials.set("canopy", createBrCanopyMaterial(this.materials.get("grass") as THREE.MeshStandardMaterial));
     this.materials.set("soil", this.standard(0x654b3e, .96, 0));
     this.materials.set("hologram", this.basic(0x63efff, .56));
     this.materials.set("energyCyan", this.basic(0x60efff, .9));
@@ -89,6 +91,10 @@ export class BrMaterialLibrary {
     const material = this.materials.get(key);
     if (!material) throw new Error(`Unknown BR material: ${key}`);
     return material;
+  }
+
+  canopy(): THREE.Material {
+    return this.materials.get("canopy")!;
   }
 
   /** Ordered decal layers prevent long-distance depth fighting without raising

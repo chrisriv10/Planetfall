@@ -39,4 +39,14 @@ describe("Starliner authored visual shell",()=>{
     expect(size.x).toBeCloseTo(20);expect(size.y).toBeCloseTo(1.1);expect(size.z).toBeCloseTo(29);
     expect([...geometry.getAttribute("position").array].every(Number.isFinite)).toBe(true);geometry.dispose();
   });
+  it("layers command, passenger, engine, and navigation detail onto the transport shell",()=>{
+    const ship=createStarliner();
+    expect(ship.getObjectByName("starliner-command-spine")).toBeTruthy();
+    expect(ship.children.filter(child=>child.name==="starliner-passenger-window")).toHaveLength(12);
+    expect(ship.children.filter(child=>child.name==="starliner-engine-collar")).toHaveLength(2);
+    expect(ship.children.filter(child=>child.name==="starliner-navigation-beacon")).toHaveLength(2);
+    const geometries=new Set<THREE.BufferGeometry>(),materials=new Set<THREE.Material>();
+    ship.traverse(child=>{if(child instanceof THREE.Mesh){geometries.add(child.geometry);for(const material of Array.isArray(child.material)?child.material:[child.material])materials.add(material);}});
+    for(const geometry of geometries)geometry.dispose();for(const material of materials)material.dispose();
+  });
 });

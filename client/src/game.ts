@@ -39,6 +39,7 @@ import {
   sub,
   updateGroundedState,
   type PlanetState,
+  type GameFamily,
   type EmoteType,
   type MatchRules,
   type PlayerInput,
@@ -291,6 +292,10 @@ export class PlanetfallGame {
   private lastLocalBurst = 0;
   private lastFrame = performance.now();
   private demo = new THREE.Group();
+  private homeFamily: GameFamily = "planetfall";
+  private brHomeWorld: import("./modes/battle-royale/br-world").BrWorldRenderer | null = null;
+  private brHomeWorldPromise: Promise<void> | null = null;
+  private readonly brHomeCamera = new THREE.PerspectiveCamera();
   private lobbyStage = new THREE.Group();
   private lobbyPlayers = new Map<string, LobbyPlayerVisual>();
   private demoTime = 0;
@@ -382,7 +387,8 @@ export class PlanetfallGame {
 
   setMode(mode: "home" | "lobby" | "match" | "results"): void {
     this.mode = mode;
-    this.demo.visible = mode === "home";
+    this.demo.visible = mode === "home" && this.homeFamily === "planetfall";
+    if (this.brHomeWorld) this.brHomeWorld.root.visible = mode === "home" && this.homeFamily === "battle-royale";
     this.lobbyStage.visible = mode === "lobby";
     for (const planet of this.planets.values()) planet.group.visible = mode === "match" || mode === "results";
     for (const player of this.players.values()) player.group.visible = mode === "match" || mode === "results";
@@ -402,6 +408,25 @@ export class PlanetfallGame {
       this.localLaunchAssistUntil = 0;
       document.exitPointerLock?.();
     }
+  }
+
+  setHomeFamily(family: GameFamily): void {
+    this.homeFamily = family;
+    this.demo.visible = this.mode === "home" && family === "planetfall";
+    if (this.brHomeWorld) this.brHomeWorld.root.visible = this.mode === "home" && family === "battle-royale";
+    if (family !== "battle-royale" || this.brHomeWorld || this.brHomeWorldPromise) return;
+    this.brHomeWorldPromise = import("./modes/battle-royale/br-world").then(({ BrWorldRenderer }) => {
+      const world = new BrWorldRenderer("low");
+      world.root.name = "home-orbital-isle-preview";
+      world.root.scale.setScalar(.025);
+      // Keep the island clear of the left-hand home card while preserving an
+      // aerial angle that shows both the inhabited deck and engine underside.
+      world.root.position.set(innerWidth >= 1100 ? 12 : innerWidth >= 820 ? 9.5 : 7, 5, -8);
+      world.root.rotation.y = -.32;
+      world.root.visible = this.mode === "home" && this.homeFamily === "battle-royale";
+      this.scene.add(world.root);
+      this.brHomeWorld = world;
+    }).finally(() => { this.brHomeWorldPromise = null; });
   }
 
   setLocalId(id: string): void {
@@ -470,6 +495,8 @@ export class PlanetfallGame {
     repairs: { planetId: string; position: Vec3 }[];
     trajectoryMarkerVisible: boolean;
     lobbyAvatarCount: number;
+    homeFamily: GameFamily;
+    homePreview: "planetfall" | "battle-royale" | "loading";
     performance: { fps: number; drawCalls: number; triangles: number; particles: number; projectiles: number };
     mechanics: { speed: number; grounded: boolean; gravityPlanetId: string | null; altitude: number | null; correction: number; grappleTension: number; launchAssist: boolean; reconciliation: ReconciliationMetrics };
   } {
@@ -490,6 +517,8 @@ export class PlanetfallGame {
       repairs: this.room?.planets.map((planet) => ({ planetId: planet.id, position: repairPosition(planet) })) ?? [],
       trajectoryMarkerVisible: this.trajectoryMarker.visible,
       lobbyAvatarCount: this.lobbyPlayers.size,
+      homeFamily: this.homeFamily,
+      homePreview: this.homeFamily === "planetfall" ? "planetfall" : this.brHomeWorld?.root.visible ? "battle-royale" : "loading",
       performance: {
         fps: this.measuredFps, drawCalls: this.renderer.info.render.calls, triangles: this.renderer.info.render.triangles,
         particles: this.particles.length, projectiles: this.projectiles.size
@@ -1704,8 +1733,14 @@ export class PlanetfallGame {
   }
 
   private updateDemo(dt: number): void {
-    this.demo.rotation.y += dt * 0.055;
-    for (const child of this.demo.children) child.rotation.y += dt * 0.08;
+    if (this.homeFamily === "planetfall") {
+      this.demo.rotation.y += dt * 0.055;
+      for (const child of this.demo.children) child.rotation.y += dt * 0.08;
+    } else if (this.brHomeWorld) {
+      this.brHomeWorld.root.rotation.y = -.32 + Math.sin(this.demoTime * .08) * .055;
+      const previewX = innerWidth >= 1100 ? 12 : innerWidth >= 820 ? 9.5 : 7;
+      this.brHomeWorld.root.position.x += (previewX - this.brHomeWorld.root.position.x) * (1 - Math.exp(-dt * 5));
+    }
     const compact = innerWidth < 820;
     const homeComposition = this.mode === "home" && !compact;
     const target = compact
@@ -1716,6 +1751,12 @@ export class PlanetfallGame {
     const cameraPosition = compact ? new THREE.Vector3(0, 8, 36) : new THREE.Vector3(20, 10, 32);
     this.camera.position.lerp(cameraPosition, 0.025);
     this.camera.lookAt(target);
+    if (this.brHomeWorld?.root.visible) {
+      this.brHomeWorld.root.updateMatrixWorld(true);
+      this.brHomeCamera.position.copy(this.camera.position);
+      this.brHomeWorld.root.worldToLocal(this.brHomeCamera.position);
+      this.brHomeWorld.update(this.brHomeCamera, this.demoTime * 1000);
+    }
   }
 
   private processEmoteSelection(frame: InputFrame, state: PlayerState): void {
@@ -2058,6 +2099,12 @@ export class PlanetfallGame {
     }
 
     this.trajectory.visible = false;
+    const shoveTarget = this.nearbyPlayer();
+    if (shoveTarget) {
+      const cooldown = Math.max(0, (local.state.shoveCooldownUntil - Date.now()) / 1000);
+      this.onPrompt?.(cooldown > 0 ? `SHOVE READY IN ${cooldown.toFixed(1)}s` : `${this.label("interact")}  SHOVE ${shoveTarget.state.name.toUpperCase()}`, false, undefined, cooldown > 0 ? "cooldown" : "shove");
+      return;
+    }
     const enemyStructure = this.nearbyEnemyStructure();
     if (enemyStructure) {
       const now = Date.now();
@@ -2068,12 +2115,6 @@ export class PlanetfallGame {
       } else {
         this.onPrompt?.(`HOLD ${this.label("interact")}  JAM ${enemyStructure.structure === "cannon" ? "CANNON" : "REPAIR"}`, false, undefined, "sabotage");
       }
-      return;
-    }
-    const shoveTarget = this.nearbyPlayer();
-    if (shoveTarget) {
-      const cooldown = Math.max(0, (local.state.shoveCooldownUntil - Date.now()) / 1000);
-      this.onPrompt?.(cooldown > 0 ? `SHOVE READY IN ${cooldown.toFixed(1)}s` : `${this.label("interact")}  SHOVE ${shoveTarget.state.name.toUpperCase()}`, false, undefined, cooldown > 0 ? "cooldown" : "shove");
       return;
     }
     const launchPad = this.nearbyLaunchPad();
@@ -2142,17 +2183,17 @@ export class PlanetfallGame {
       this.cancelLaunchAim();
       return;
     }
-    const structure = this.nearbyEnemyStructure();
-    if (structure && structure.disabledUntil <= Date.now() && structure.immuneUntil <= Date.now()) {
-      this.activeSabotage = { planetId: structure.planet.state.id, structure: structure.structure, startedAt: performance.now() };
-      this.onInteract?.({ action: "sabotage", planetId: structure.planet.state.id, structure: structure.structure, active: true });
-      return;
-    }
     const shoveTarget = this.nearbyPlayer();
     if (shoveTarget) {
       const localPlayer = this.players.get(this.localId);
       if (localPlayer && localPlayer.state.shoveCooldownUntil <= Date.now()) localPlayer.shoveUntil = performance.now() + 280;
       this.onInteract?.({ action: "shove", targetPlayerId: shoveTarget.state.id, facing: plain(this.cameraForward) });
+      return;
+    }
+    const structure = this.nearbyEnemyStructure();
+    if (structure && structure.disabledUntil <= Date.now() && structure.immuneUntil <= Date.now()) {
+      this.activeSabotage = { planetId: structure.planet.state.id, structure: structure.structure, startedAt: performance.now() };
+      this.onInteract?.({ action: "sabotage", planetId: structure.planet.state.id, structure: structure.structure, active: true });
       return;
     }
     const local = this.players.get(this.localId);

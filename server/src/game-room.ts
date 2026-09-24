@@ -851,6 +851,14 @@ export class GameRoom {
     const altitude = distance(player.position, planet.position) - BALANCE.planetRadius;
     player.grounded = !activeLaunch && updateGroundedState(player.grounded, altitude, dot(player.velocity, outward));
     if (player.grounded) player.lastGroundedAt = now;
+    if (!player.isBot && player.input && now - player.lastInputAt > BALANCE.inputStaleMs) {
+      // Never let a dropped packet, backgrounded tab, or suspended client keep
+      // steering forever. Normal clients refresh at 20Hz; the timeout remains
+      // comfortably above the supported high-latency/jitter test envelope.
+      player.input = null;
+      player.jumpSignalActive = false;
+      player.jumpQueuedUntil = 0;
+    }
     const input = player.input;
     let tangentVelocity = projectOnPlane(player.velocity, outward);
     let desired: Vec3 = { x: 0, y: 0, z: 0 };
@@ -1084,7 +1092,8 @@ export class GameRoom {
     const before = planet.integrity;
     planet.integrity = Math.max(0, planet.integrity - amount);
     const dealt = before - planet.integrity;
-    if (dealt > 0 && !this.firstHitSent) { this.firstHitSent = true; this.emitCallout("first-hit", now); }
+    const firstHit = dealt > 0 && !this.firstHitSent;
+    if (firstHit) { this.firstHitSent = true; this.emitCallout("first-hit", now); }
     const attacker = this.stat(projectile.ownerId);
     attacker.damageDealt += dealt;
     const shotId = projectile.shotId ?? projectile.id;
@@ -1097,7 +1106,7 @@ export class GameRoom {
     this.io.to(this.code).emit("projectile:exploded", { id: projectile.id, position: projectile.position, weapon: projectile.weapon, planetId: planet.id });
     this.io.to(this.code).emit("planet:damaged", { planetId: planet.id, integrity: planet.integrity, amount, hit: projectile.position });
     const crossedStage = damageStage(before) !== planet.damageStage;
-    if (crossedStage || projectile.weapon === "asteroid") {
+    if (firstHit || crossedStage || projectile.weapon === "asteroid") {
       this.emitMatchEvent("damage", { actorId: projectile.ownerId, targetId: planet.ownerId, planetId: planet.id, amount: dealt, weapon: projectile.weapon });
     }
     for (const player of this.players.values()) {

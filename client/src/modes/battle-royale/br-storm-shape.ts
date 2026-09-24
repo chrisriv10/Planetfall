@@ -20,12 +20,17 @@ export function brStormBandPositions(radius: number, target: Float32Array = new 
 }
 
 export function brStormDetail(quality: "low" | "medium" | "high", radius = 650) {
-  const budget = quality === "low" ? {layers:1,arcs:4,sparks:90} : quality === "medium" ? {layers:2,arcs:8,sparks:180} : {layers:3,arcs:12,sparks:360};
+  const budget = quality === "low"
+    ? {layers:1,arcs:4,sparks:90,streaks:10}
+    : quality === "medium"
+      ? {layers:2,arcs:8,sparks:180,streaks:20}
+      : {layers:3,arcs:12,sparks:360,streaks:32};
   const circumference = Math.PI * 2 * (Number.isFinite(radius) ? Math.max(0, radius) : 0);
   // Preserve the continuous wall and ground boundary at every quality. Only
   // decorative sparks/arcs thin out as the same pool crowds a smaller circle.
   budget.arcs = Math.min(budget.arcs, Math.max(1, Math.ceil(circumference / 35)));
   budget.sparks = Math.min(budget.sparks, Math.max(12, Math.ceil(circumference / 3)));
+  budget.streaks = Math.min(budget.streaks, Math.max(4, Math.ceil(circumference / 11)));
   return budget;
 }
 

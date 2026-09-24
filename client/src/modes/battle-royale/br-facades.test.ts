@@ -77,6 +77,27 @@ describe("BR architectural skin", () => {
     const windows = (s: typeof tower) => buildFacadeParts(s).filter(p => p.finish === "glass");
     expect(windows(tower)[0].scale.y).toBeGreaterThan(windows(factory)[0].scale.y);
   });
+  it("breaks tall residential and tower facades into shallow stacked masses", () => {
+    const tall = BR_STRUCTURES.filter(s => ["tower", "hotel", "apartment"].includes(s.archetype) && s.size.y >= 18 && s.id !== "thruster-foundry");
+    expect(tall.length).toBeGreaterThan(0);
+    for (const structure of tall) {
+      const parts = buildFacadeParts(structure);
+      for (const face of ["north", "south", "east", "west"] as const) {
+        const axis = face === "north" || face === "south" ? "x" : "z";
+        const belts = parts.filter(p => p.face === face && p.finish === "frame" && p.scale.y === .24);
+        const fins = parts.filter(p => p.face === face && p.finish === "metal" && p.scale[axis] === .28 && p.scale.y > structure.size.y * .65);
+        expect(belts).toHaveLength(structure.enterable && face === structure.entrance ? 4 : 2);
+        expect(fins).toHaveLength(structure.enterable && face === structure.entrance ? 4 : 2);
+        for (const part of [...belts, ...fins]) {
+          const normal = axis === "x" ? "z" : "x";
+          const near = Math.abs(part.position[normal] - structure.position[normal]) - part.scale[normal] / 2;
+          expect(near).toBeGreaterThan(structure.size[normal] / 2 + .325);
+          if (structure.enterable && face === structure.entrance)
+            expect(Math.abs(part.position[axis] - structure.position[axis]) - part.scale[axis] / 2).toBeGreaterThanOrEqual(2.39);
+        }
+      }
+    }
+  });
   it("reduces distant glazing without bridging door openings", () => {
     for (const structure of BR_STRUCTURES) {
       const near = buildFacadeParts(structure).filter(p => p.finish === "glass" || p.finish === "lit");

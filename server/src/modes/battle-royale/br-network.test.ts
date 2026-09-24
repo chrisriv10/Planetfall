@@ -62,7 +62,7 @@ for (const [latency,jitter,inputLoss] of [[20,2,0],[60,20,0],[120,40,.03],[200,6
       expect(player.inventory[1]?.count).toBe(1);expect(player.hp).toBe(65);expect(target.shield).toBeLessThan(100);expect(target.hp).toBe(100);
       expect(room.loot.has("net-ammo")).toBe(false);
       expect(delivered.length).toBeGreaterThan(50);
-      expect(delivered.at(-1)?.actions).toEqual({reloadEndsAt:0,useEndsAt:0});
+      expect(delivered.at(-1)?.actions).toEqual({reloadEndsAt:0,useEndsAt:0,reviveTargetId:null,reviveStartedAt:0});
       expect(delivered.at(-1)?.localPlayer.inventory).toEqual(player.inventory);
       const acceptedSequence=player.lastInputSequence;
       room.setInput(player.id,{...player.input!,sequence:1,moveX:1});expect(player.lastInputSequence).toBe(acceptedSequence);

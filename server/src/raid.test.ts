@@ -171,6 +171,30 @@ describe("planet raids", () => {
     expect(room.shove(host.id, guest.id, now + BALANCE.shove.cooldownMs + 1)).toBe(false);
   });
 
+  it("expires stale human movement input instead of steering forever", async () => {
+    const { room, host, hostPlanet } = await duel();
+    const now = Date.now();
+    const surface = add(hostPlanet.position, { x: 0, y: BALANCE.planetRadius + .95, z: 0 });
+    place(host, surface, hostPlanet.id);
+    room.setInput(host.id, {
+      sequence: 1, dt: .05, moveX: 0, moveY: 1,
+      cameraForward: { x: 1, y: 0, z: 0 },
+      jump: false, burst: false, grapple: false
+    }, now);
+    room.update(.1, now + 20);
+    const movingSpeed = host.velocity.x;
+    expect(movingSpeed).toBeGreaterThan(0);
+
+    host.grappleAnchor = add(surface, { x: 2, y: 0, z: 0 });
+    host.grappleRestLength = 1;
+    room.update(.1, now + BALANCE.inputStaleMs + 1);
+
+    expect(host.input).toBeNull();
+    expect(host.jumpSignalActive).toBe(false);
+    expect(host.grappleAnchor).toBeNull();
+    expect(host.velocity.x).toBeLessThan(movingSpeed);
+  });
+
   it("allows only nearby invaders to channel sabotage and cancels when they move away", async () => {
     const { room, guest, hostPlanet, guestPlanet } = await duel();
     const now = Date.now();
@@ -380,6 +404,22 @@ describe("planet raids", () => {
     expect(events).toContain("destroyed");
   });
 
+  it("publishes the first ordinary rocket hit to the event feed", async () => {
+    const { room, hostSocket, host, hostPlanet, guestPlanet } = await duel();
+    const now = Date.now();
+    host.scrap = 100;
+    place(host, cannonPosition(hostPlanet), hostPlanet.id);
+    const damageEvent = new Promise<{ type: string; weapon?: string; amount?: number }>((resolve) => {
+      hostSocket.on("match:event", (event) => { if (event.type === "damage") resolve(event); });
+    });
+    room.fire(host.id, "rocket", normalize(sub(guestPlanet.position, cannonPosition(hostPlanet))), now);
+    expect(room.projectiles.size).toBe(1);
+    for (let step = 1; step <= 140 && room.projectiles.size; step++) {
+      room.update(1 / BALANCE.serverRate, now + step * (1000 / BALANCE.serverRate));
+    }
+    await expect(damageEvent).resolves.toMatchObject({ type: "damage", weapon: "rocket", amount: BALANCE.weapons.rocket.damage });
+  });
+
   it("keeps Classic as the default and lets only the lobby host select Chaos", async () => {
     const { room, host, guest } = await duel();
     room.phase = "lobby";
@@ -472,7 +512,7 @@ describe("planet raids", () => {
     host.gravityPlanetId = hostPlanet.id;
     host.grounded = true;
     host.lastInputAt = 0;
-    room.setInput(host.id, { sequence: 1, dt: .05, moveX: 0, moveY: 0, cameraForward: { x: 0, y: 0, z: 1 }, jump: true, burst: false, grapple: false });
+    room.setInput(host.id, { sequence: 1, dt: .05, moveX: 0, moveY: 0, cameraForward: { x: 0, y: 0, z: 1 }, jump: true, burst: false, grapple: false }, now);
     room.update(1 / BALANCE.serverRate, now + 40);
     expect(host.velocity.y).toBeGreaterThan(5);
     expect(host.grounded).toBe(false);
@@ -487,7 +527,7 @@ describe("planet raids", () => {
     host.grounded = false;
     host.lastGroundedAt = 0;
     host.lastInputAt = 0;
-    room.setInput(host.id, { sequence: 1, dt: .05, moveX: 0, moveY: 0, cameraForward: { x: 0, y: 0, z: 1 }, jump: true, burst: false, grapple: false });
+    room.setInput(host.id, { sequence: 1, dt: .05, moveX: 0, moveY: 0, cameraForward: { x: 0, y: 0, z: 1 }, jump: true, burst: false, grapple: false }, start);
     expect(host.jumpQueuedUntil).toBeGreaterThan(0);
     room.update(1 / BALANCE.serverRate, start + BALANCE.ground.jumpBufferMs + 1);
     expect(host.jumpQueuedUntil).toBe(0);
@@ -496,8 +536,8 @@ describe("planet raids", () => {
     host.gravityPlanetId = hostPlanet.id;
     host.grounded = true;
     host.lastInputAt = 0;
-    room.setInput(host.id, { sequence: 2, dt: .05, moveX: 0, moveY: 1, cameraForward: { x: 0, y: 0, z: 1 }, jump: false, burst: true, grapple: false });
     const burstAt = start + BALANCE.ground.jumpBufferMs + 50;
+    room.setInput(host.id, { sequence: 2, dt: .05, moveX: 0, moveY: 1, cameraForward: { x: 0, y: 0, z: 1 }, jump: false, burst: true, grapple: false }, burstAt);
     room.update(1 / BALANCE.serverRate, burstAt);
     expect(host.lastBurstAt).toBe(burstAt);
     for (let step = 1; step <= Math.ceil((BALANCE.burstCooldownMs + 500) / (1000 / BALANCE.serverRate)); step++) {
