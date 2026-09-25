@@ -48,6 +48,7 @@ import { buildBrLandingZoneMarkings, type BrLandingMarkingFinish } from "./br-la
 import { buildMallAtriumWalls } from "./br-mall-atrium-walls";
 import { buildConnectiveClusters, type ConnectiveClusterPart } from "./br-connective-clusters";
 import { buildBrCorridorGroves, type BrCorridorGrovePart } from "./br-corridor-groves";
+import { buildBrIslandDeckGeometry } from "./br-island-deck";
 
 export type BrPoiLabel = { sprite: THREE.Sprite; position: THREE.Vector3 };
 
@@ -209,17 +210,13 @@ export class BrWorldRenderer {
 
     const panelTexture = this.materials.createPanelTexture();
     const panelMaterial = this.materials.own(new THREE.MeshStandardMaterial({ map: panelTexture, color: 0x56738a, roughness: .74, metalness: .25, polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1 }));
-    const panelMatrices: MatrixSpec[] = [];
-    for (let x = -438; x <= 438; x += 44) {
-      for (let z = -430; z <= 430; z += 44) {
-        if (!this.insideIsland(x, z, 22)) continue;
-        // Nearly close the tile seams. The old .4 m gaps read as long blue
-        // collision cracks from normal player height even though the physics
-        // deck underneath was continuous.
-        panelMatrices.push({ position: position(x, .004, z), scale: position(43.96, .004, 43.96) });
-      }
-    }
-    this.addInstances(this.root, this.materials.unitBox, panelMaterial, panelMatrices, false);
+    // A single outline-triangulated skin keeps the tiled finish clipped to the
+    // actual island silhouette. The former center-tested square instances
+    // allowed their corners to extend beyond angled perimeter segments.
+    const deckSkin = new THREE.Mesh(this.geometry(buildBrIslandDeckGeometry()), panelMaterial);
+    deckSkin.name = "island-deck-skin";
+    deckSkin.receiveShadow = true;
+    this.root.add(deckSkin);
 
     for (const patch of BR_TERRAIN_PATCHES) {
       const key = patch.kind === "park" ? "grass" : patch.kind === "coolant" ? "glass" : patch.kind === "industrial" ? "concrete" : patch.kind === "landing" ? "paintedMetal" : "sidewalk";
