@@ -35,6 +35,14 @@ export function brCameraMode(deployment: string, downed: boolean, aiming: boolea
   return aiming ? "aiming" : "grounded";
 }
 
+/**
+ * Give an untouched ship camera a useful view of the island when the player
+ * jumps. Deliberate look input is preserved instead of being snapped away.
+ */
+export function brDropEntryPitch(currentPitch: number): number {
+  return currentPitch >= -.18 && currentPitch <= .18 ? -.3 : currentPitch;
+}
+
 /** Yaw controls the physical orbit. Pitch controls the aim ray, not boom position. */
 export function brCameraGeometry(feet: Vec3, yaw: number, pitch: number, mode: BrCameraMode, speed = 0): BrCameraGeometry {
   const base = PRESETS[mode];

@@ -12,7 +12,7 @@ export function brAimDirection(yaw: number, pitch: number): Vec3 {
 }
 export function brMuzzlePosition(position: Vec3, yaw: number, pitch: number): Vec3 {
   const aim = brAimDirection(yaw, pitch);
-  return { x: position.x + aim.x * .48, y: position.y + .72 + aim.y * .18, z: position.z + aim.z * .48 };
+  return { x: position.x + aim.x * .88, y: position.y + .72 + aim.y * .2, z: position.z + aim.z * .88 };
 }
 export function brMoveTowards(current: number, target: number, maxDelta: number): number {
   return Math.abs(target - current) <= maxDelta ? target : current + Math.sign(target - current) * maxDelta;

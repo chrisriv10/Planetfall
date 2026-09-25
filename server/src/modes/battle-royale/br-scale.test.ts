@@ -50,8 +50,10 @@ describe("Battle Royale 40-player lifecycle", () => {
   for (const teamMode of ["solo", "duo", "squad"] as const) {
     it(`completes a seeded 40-player ${teamMode} simulation without invalid state`, () => {
       const room = makeRoom(teamMode); const began = performance.now(); let now = 1_000;
+      let simulatedTicks = 0;
       try {
-        for (let tick = 0; tick < 12_000 && room.phase !== "results"; tick++) { now += 100; room.update(.1, now); if (tick % 300 === 0) assertFiniteRoom(room); }
+        for (let tick = 0; tick < 12_000 && room.phase !== "results"; tick++) { simulatedTicks++; now += 100; room.update(.1, now); if (tick % 300 === 0) assertFiniteRoom(room); }
+        console.info(`BR_SCALE ${teamMode} ticks=${simulatedTicks} simulatedSeconds=${simulatedTicks / 10}`);
         assertFiniteRoom(room); expect(room.players.size).toBe(40); expect(room.phase).toBe("results"); expect(room.matchResult).not.toBeNull(); expect(performance.now() - began).toBeLessThan(15_000);
       } finally {
         // Rapier worlds own WASM memory; JavaScript GC is not their lifecycle.

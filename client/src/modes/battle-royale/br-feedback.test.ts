@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { brActionTimer, brDamageBearing, brFireRequestDue, brRecoilAfter, brSmoothFacing, brStormReadout } from "./br-feedback";
+import { brActionTimer, brAstronautFacingRotation, brDamageBearing, brFireRequestDue, brPredictionCorrectionStrength, brRecoilAfter, brSmoothFacing, brStormReadout } from "./br-feedback";
 
 describe("BR presentation correctness",()=>{
   it("shows a drop phase instead of a misleading expired storm countdown aboard the ship",()=>{
@@ -13,6 +13,18 @@ describe("BR presentation correctness",()=>{
   it("turns through the short arc across the yaw wrap",()=>{
     expect(brSmoothFacing(Math.PI-.01,-Math.PI+.01,.05)).toBeGreaterThan(Math.PI-.01);
     expect(Math.abs(brSmoothFacing(Math.PI-.01,-Math.PI+.01,.05)-Math.PI)).toBeLessThan(.01);
+  });
+  it("converts gameplay yaw into the canonical astronaut's Three.js facing convention",()=>{
+    for(const yaw of [0,Math.PI/2,Math.PI,-Math.PI/2]){
+      // The shared astronaut faces local +Z and its BR child rig has a PI
+      // correction. Transform that model-forward vector through the outer
+      // rotation and compare it with BR's camera-relative movement forward.
+      const modelRotation=brAstronautFacingRotation(yaw)+Math.PI;
+      const modelForward={x:Math.sin(modelRotation),z:Math.cos(modelRotation)};
+      const movementForward={x:Math.sin(yaw),z:-Math.cos(yaw)};
+      expect(modelForward.x).toBeCloseTo(movementForward.x,10);
+      expect(modelForward.z).toBeCloseTo(movementForward.z,10);
+    }
   });
   it("points toward attackers, not along their damage impulse",()=>{
     expect(brDamageBearing({x:0,z:1},0)).toBeCloseTo(0);
@@ -41,5 +53,11 @@ describe("BR presentation correctness",()=>{
     expect(brActionTimer(0,1000,150,100,2100,2000,true).endsAt).toBe(0);
     expect(brActionTimer(0,1000,150,100,2100,2000,false).endsAt).toBe(2100);
     expect(brActionTimer(0,1500,600,100,2100,2000,false).endsAt).toBe(0);
+  });
+  it("filters tiny prediction noise while retaining bounded convergence",()=>{
+    expect(brPredictionCorrectionStrength(.05)).toBe(0);
+    expect(brPredictionCorrectionStrength(.2)).toBeLessThan(.1);
+    expect(brPredictionCorrectionStrength(.8)).toBeGreaterThan(.1);
+    expect(brPredictionCorrectionStrength(2)).toBeLessThan(.5);
   });
 });

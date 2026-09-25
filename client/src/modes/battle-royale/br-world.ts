@@ -34,6 +34,7 @@ import { buildWreckExterior } from "./br-wreck-exterior";
 import { buildFoundryEngines } from "./br-foundry";
 import { buildSecondaryDeckParts, secondaryDeckBaseFinish, type BrSecondaryDeckFinish } from "./br-secondary-decks";
 import { buildRoadsideInfrastructure, type RoadsideFinish } from "./br-roadside-infrastructure";
+import { buildBrVisibleRoadSpans } from "./br-road-surfaces";
 import { buildMaintenanceStrips } from "./br-maintenance-strips";
 import { buildMallDirectories } from "./br-mall-directories";
 import { buildMallWallBays } from "./br-mall-wall-bays";
@@ -46,6 +47,7 @@ import { buildBrSectorFields, type BrSectorFieldPart } from "./br-sector-fields"
 import { buildBrLandingZoneMarkings, type BrLandingMarkingFinish } from "./br-landing-zone-markings";
 import { buildMallAtriumWalls } from "./br-mall-atrium-walls";
 import { buildConnectiveClusters, type ConnectiveClusterPart } from "./br-connective-clusters";
+import { buildBrCorridorGroves, type BrCorridorGrovePart } from "./br-corridor-groves";
 
 export type BrPoiLabel = { sprite: THREE.Sprite; position: THREE.Vector3 };
 
@@ -140,7 +142,10 @@ export class BrWorldRenderer {
     // interior dressing are sector-activated. Keeping aerial views out of the
     // near-detail tier prevents the Starliner sequence from rendering the whole
     // settlement's interiors at once.
-    const maxDetailDistance = this.quality === "high" ? 340 : this.quality === "medium" ? 250 : 170;
+    // High keeps a full nearby neighborhood rather than activating most of the
+    // 1 km island at once. Distant shells still preserve skyline and landmark
+    // silhouettes; only facade/interior/prop layers use this tighter budget.
+    const maxDetailDistance = this.quality === "high" ? 240 : this.quality === "medium" ? 185 : 125;
     for (const detail of this.districtDetails) {
       const distance = camera.position.distanceTo(detail.center);
       const nextVisible = distance < maxDetailDistance * (detail.distanceScale ?? 1) + (detail.visible ? 36 : 0);
@@ -206,7 +211,10 @@ export class BrWorldRenderer {
     for (let x = -438; x <= 438; x += 44) {
       for (let z = -430; z <= 430; z += 44) {
         if (!this.insideIsland(x, z, 22)) continue;
-        panelMatrices.push({ position: position(x, .004, z), scale: position(43.6, .004, 43.6) });
+        // Nearly close the tile seams. The old .4 m gaps read as long blue
+        // collision cracks from normal player height even though the physics
+        // deck underneath was continuous.
+        panelMatrices.push({ position: position(x, .004, z), scale: position(43.96, .004, 43.96) });
       }
     }
     this.addInstances(this.root, this.materials.unitBox, panelMaterial, panelMatrices, false);
@@ -284,9 +292,14 @@ export class BrWorldRenderer {
       const length = Math.hypot(dx, dz);
       const angle = -Math.atan2(dz, dx);
       const pavedWidth = road.width;
-      const centerX = (road.from.x + road.to.x) / 2;
-      const centerZ = (road.from.z + road.to.z) / 2;
-      roads.push({ position: position(centerX, .024, centerZ), scale: position(length, .014, pavedWidth), rotationY: angle });
+      for (const span of buildBrVisibleRoadSpans(road)) {
+        const spanLength=Math.hypot(span.to.x-span.from.x,span.to.z-span.from.z);
+        roads.push({
+          position:position((span.from.x+span.to.x)/2,.035,(span.from.z+span.to.z)/2),
+          scale:position(spanLength,.012,pavedWidth),
+          rotationY:angle
+        });
+      }
       for (const side of [-1, 1]) {
         const curbOffset = side * pavedWidth * .49;
         const lightOffset = side * pavedWidth * .43;
@@ -295,8 +308,8 @@ export class BrWorldRenderer {
           const t=(index+.5)/sections;
           const px=road.from.x+dx*t+Math.sin(angle)*curbOffset,pz=road.from.z+dz*t+Math.cos(angle)*curbOffset;
           if(!brRoadDetailClear(road,px,pz))continue;
-          curbs.push({position:position(px,.045,pz),scale:position(length/sections-.15,.07,.38),rotationY:angle});
-          if(index%4===0)edgeLights.push({position:position(road.from.x+dx*t+Math.sin(angle)*lightOffset,.044,road.from.z+dz*t+Math.cos(angle)*lightOffset),scale:position(1.7,.016,.065),rotationY:angle});
+          curbs.push({position:position(px,.074,pz),scale:position(length/sections-.15,.07,.38),rotationY:angle});
+          if(index%4===0)edgeLights.push({position:position(road.from.x+dx*t+Math.sin(angle)*lightOffset,.072,road.from.z+dz*t+Math.cos(angle)*lightOffset),scale:position(1.7,.016,.065),rotationY:angle});
         }
       }
       const dashCount = Math.max(2, Math.floor(length / 12));
@@ -304,7 +317,7 @@ export class BrWorldRenderer {
         const t = (index + .5) / dashCount;
         if(!brRoadDetailClear(road,road.from.x+dx*t,road.from.z+dz*t))continue;
         dashMatrices.push({
-          position: position(road.from.x + dx * t, .042, road.from.z + dz * t),
+          position: position(road.from.x + dx * t, .048, road.from.z + dz * t),
           scale: position(3.2, .012, .18), rotationY: angle
         });
       }
@@ -314,7 +327,7 @@ export class BrWorldRenderer {
             const t = THREE.MathUtils.clamp(endT + stripe * (2.25 / length), .04, .96);
             if(!brRoadDetailClear(road,road.from.x+dx*t,road.from.z+dz*t))continue;
             crossings.push({
-              position: position(road.from.x + dx * t, .048, road.from.z + dz * t),
+              position: position(road.from.x + dx * t, .052, road.from.z + dz * t),
               scale: position(pavedWidth * .58, .025, .72), rotationY: angle + Math.PI / 2
             });
           }
@@ -327,6 +340,7 @@ export class BrWorldRenderer {
         for (const side of [-1, 1]) {
           const x = road.from.x + dx * t + nx * road.width * .62 * side;
           const z = road.from.z + dz * t + nz * road.width * .62 * side;
+          if(!brRoadDetailClear(road,x,z))continue;
           lampPosts.push({ position: position(x, 2.25, z), scale: position(.22, 4.5, .22) });
           lampBulbs.push({ position: position(x, 4.62, z), scale: position(.42, .18, .42) });
         }
@@ -918,7 +932,9 @@ export class BrWorldRenderer {
         this.geometry(new THREE.CylinderGeometry(38,40,.026,18)),
         this.secondaryDeckMaterial(secondaryDeckBaseFinish(location.style))
       );
-      pad.position.set(location.position.x,.019,location.position.z);pad.receiveShadow=true;group.add(pad);
+      // Neighborhood pads live below the continuous paved road layer. Their
+      // old top face was only 1 mm above the road, causing obvious z-fighting.
+      pad.position.set(location.position.x,.011,location.position.z);pad.receiveShadow=true;group.add(pad);
       const title=this.materials.createSign(location.name,{border:location.color,subtitle:this.poiSubtitle(location)});title.name="secondary-title";title.position.set(location.position.x,8.5,location.position.z);title.scale.set(13,3.8,1);group.add(title);this.secondaryLabels.push(title);
       const greenLocation=location.style==="farm"||location.style==="academy"||location.style==="city";
       if(greenLocation){
@@ -1222,6 +1238,19 @@ export class BrWorldRenderer {
       [92, 78, "HELIOS  →   FARMS  ↑"]
     ] as const;
     for (const [x, z, text] of wayfinding) { const sign = this.materials.createSign(text, { border: "#70f5ff" }); sign.position.set(x, 5.2, z); sign.scale.set(17, 4.2, 1); this.root.add(sign); }
+    const grove = new THREE.Group(); grove.name = "corridor-space-tree-groves";
+    const groveBatches = new Map<string, BrCorridorGrovePart[]>();
+    for (const part of buildBrCorridorGroves()) {
+      const key = `${part.geometry}:${part.finish}`;
+      const batch = groveBatches.get(key) ?? []; batch.push(part); groveBatches.set(key, batch);
+    }
+    for (const [key, parts] of groveBatches) {
+      const [geometryKey, finish] = key.split(":") as [BrCorridorGrovePart["geometry"], BrCorridorGrovePart["finish"]];
+      const geometry = geometryKey === "cylinder" ? this.materials.unitCylinder : geometryKey === "octahedron" ? this.materials.unitOctahedron : this.materials.unitBox;
+      const material = finish === "canopy" ? this.materials.canopy() : finish === "sidewalk" ? this.materials.surface("sidewalk", 4) : this.materials.get(finish);
+      this.addInstances(grove, geometry, material, parts.map(part => ({ position: position(part.position.x, part.position.y, part.position.z), scale: position(part.scale.x, part.scale.y, part.scale.z), rotationY: part.rotationY })), false);
+    }
+    this.root.add(grove);
   }
 
   private buildSectorFields(): void {

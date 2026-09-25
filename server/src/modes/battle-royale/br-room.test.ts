@@ -418,4 +418,13 @@ describe("Battle Royale room", () => {
     room.returnToLobby(host.id); expect(room.phase).toBe("results"); expect(room.returnVotes.has(host.id)).toBe(true);
     room.returnToLobby(guestPlayer.id); expect(room.phase).toBe("lobby"); expect([...room.players.values()].every((player) => !player.isBot)).toBe(true); expect(room.players.size).toBe(2); expect({ crowns: host.crowns, fallbucks: host.fallbucks, xp: host.sessionTotalXp }).toEqual(hostSession);
   });
+
+  it("gives stalled bots a bounded physical recovery steer",async()=>{
+    const {server,url}=await setup();const host=await client(url);const joined=await createRoom(host,"Recovery");if(!joined.ok)throw new Error(joined.error);
+    const room=server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom;room.configure(joined.playerId,{targetPlayers:10,fillBots:true});room.setReady(joined.playerId,true);
+    const now=Date.now();room.start(joined.playerId,now);room.phase="combat";
+    const bot=[...room.players.values()].find(player=>player.isBot)!;bot.deployment="grounded";bot.grounded=true;bot.position={x:100,y:0,z:100};bot.botProgressPosition={...bot.position};bot.botProgressAt=now-2_000;bot.nextBotDecisionAt=0;bot.input={sequence:1,dt:.05,moveX:0,moveY:1,yaw:0,pitch:0,jump:false,sprint:true,crouch:false,fire:false,aim:false,reload:false};
+    room.update(1/30,now);
+    expect(bot.botRecoveryUntil).toBeGreaterThan(now);expect(Math.abs(bot.input?.moveX??0)).toBeGreaterThan(.5);expect(bot.input?.jump).toBe(true);
+  });
 });

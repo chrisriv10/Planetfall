@@ -40,3 +40,22 @@ export function brSmoothFacing(current:number,target:number,dt:number):number {
   const delta=Math.atan2(Math.sin(target-current),Math.cos(target-current));
   return current+delta*(1-Math.exp(-10*Math.max(0,dt)));
 }
+
+/** BR yaw increases clockwise when viewed from above, while Three.js object
+ * rotation around +Y increases in the opposite direction. The canonical
+ * astronaut's local forward is corrected by PI on its child rig, so its outer
+ * presentation group must use the negated gameplay yaw. Keeping this
+ * conversion explicit prevents the astronaut from facing sideways/backward as
+ * the camera turns away from the world -Z axis. */
+export function brAstronautFacingRotation(gameplayYaw:number):number {
+  return Number.isFinite(gameplayYaw)?-gameplayYaw:0;
+}
+
+/** Ignore sub-pixel prediction noise and keep ordinary corrections small.
+ * Large errors still converge decisively without producing 20 Hz foot jitter. */
+export function brPredictionCorrectionStrength(error:number):number {
+  if(!Number.isFinite(error)||error<=.07)return 0;
+  if(error<=.35)return .045;
+  if(error<=1.25)return .14;
+  return .35;
+}

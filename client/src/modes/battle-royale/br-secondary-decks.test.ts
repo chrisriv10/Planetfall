@@ -43,8 +43,10 @@ describe("BR secondary neighborhood decks", () => {
     for (const location of BR_SECONDARY_LOCATIONS) {
       const first = buildSecondaryDeckParts(location, destinationFor(location.id));
       expect(buildSecondaryDeckParts(location, destinationFor(location.id))).toEqual(first);
-      expect(first.every((part) => part.position.y >= .04 && part.position.y <= .052 && part.scale.y <= .014)).toBe(true);
-      expect(first.every((part) => part.position.y-part.scale.y/2 > .032)).toBe(true);
+      expect(first.every((part) => part.position.y >= .014 && part.position.y <= .024 && part.scale.y <= .014)).toBe(true);
+      // The neighborhood finish stays above the island shell while sitting
+      // below the road surface, so neither surface z-fights at intersections.
+      expect(first.every((part) => part.position.y - part.scale.y / 2 > .006)).toBe(true);
     }
   });
 });

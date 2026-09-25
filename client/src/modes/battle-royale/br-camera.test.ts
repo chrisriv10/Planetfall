@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { brCameraGeometry, brCameraMode } from "./br-camera";
+import { brCameraGeometry, brCameraMode, brDropEntryPitch } from "./br-camera";
 
 describe("Battle Royale camera rig", () => {
   it("keeps physical camera orbit independent from aim pitch", () => {
@@ -27,5 +27,12 @@ describe("Battle Royale camera rig", () => {
     expect(brCameraMode("chute", false, false, false)).toBe("chute");
     expect(brCameraMode("grounded", true, false, false)).toBe("downed");
     expect(brCameraMode("grounded", false, false, true)).toBe("spectator");
+  });
+
+  it("tips an untouched ship view toward the island without overriding deliberate input", () => {
+    expect(brDropEntryPitch(-.08)).toBe(-.3);
+    expect(brDropEntryPitch(.12)).toBe(-.3);
+    expect(brDropEntryPitch(-.42)).toBe(-.42);
+    expect(brDropEntryPitch(.45)).toBe(.45);
   });
 });

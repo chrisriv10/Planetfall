@@ -5,34 +5,36 @@ export const BR_BALANCE = {
   minPlayers: 2,
   maxPlayers: 40,
   serverRate: 30,
-  inputRate: 20,
+  inputRate: 30,
   inputStaleMs: 500,
-  snapshotRate: 15,
+  snapshotRate: 20,
   reconnectGraceMs: 30_000,
   countdownMs: 5_000,
-  shipDurationMs: 42_000,
-  shipHeight: 185,
+  shipDurationMs: 36_000,
+  shipHeight: 190,
   freefallSpeed: 32,
-  freefallHorizontalSpeed: 18,
+  freefallHorizontalSpeed: 21.5,
   // The chute is a traversal choice, not merely a landing brake. Automatic
   // deployment can cross nearby districts, while an early deploy goes farther.
   chuteSpeed: 6.5,
-  chuteHorizontalSpeed: 21,
-  airSteering: 5.2,
-  autoDeployHeight: 80,
+  chuteHorizontalSpeed: 25,
+  airSteering: 6.5,
+  autoDeployHeight: 95,
   playerRadius: .45,
   playerHeight: 1.4,
   gravity: 24,
-  walkSpeed: 7,
-  sprintSpeed: 10.5,
+  walkSpeed: 7.4,
+  sprintSpeed: 11.2,
   crouchSpeed: 3.5,
-  acceleration: 34,
-  airControl: .32,
-  jumpSpeed: 8.5,
+  acceleration: 42,
+  braking: 50,
+  reversalAcceleration: 56,
+  airControl: .38,
+  jumpSpeed: 8.8,
   coyoteMs: 130,
   jumpBufferMs: 140,
-  slideInitialSpeed: 12.5,
-  slideDurationMs: 850,
+  slideInitialSpeed: 13.4,
+  slideDurationMs: 900,
   mantleHeight: 1.8,
   mantleRange: 1.1,
   hp: 100,
@@ -43,11 +45,13 @@ export const BR_BALANCE = {
   reviveHp: 30,
   reviveRange: 2.2,
   inventorySlots: 5,
-  pickupRange: 2.2,
+  pickupRange: 2.7,
   maxRewindMs: 250,
   friendlyFire: false,
   interest: { cellSize: 50, players: 220, projectiles: 250, loot: 100 },
-  matchTimeoutMs: 18 * 60_000,
+  // An emergency result should arrive inside the intended compact BR cadence,
+  // even when a final pair of bot teams keeps disengaging around cover.
+  matchTimeoutMs: 8 * 60_000,
   fallBoundaryY: -35
 } as const;
 
@@ -94,12 +98,12 @@ export const BR_HEALS: Record<BrHealId, { name: string; durationMs: number; hp: 
 };
 
 export const BR_STORM_PHASES = [
-  { waitMs: 120_000, closeMs: 90_000, radius: 330, damage: 1 },
-  { waitMs: 75_000, closeMs: 75_000, radius: 235, damage: 2 },
-  { waitMs: 60_000, closeMs: 60_000, radius: 160, damage: 3 },
-  { waitMs: 45_000, closeMs: 50_000, radius: 95, damage: 5 },
-  { waitMs: 30_000, closeMs: 40_000, radius: 45, damage: 8 },
-  { waitMs: 15_000, closeMs: 30_000, radius: 9, damage: 10 }
+  { waitMs: 70_000, closeMs: 55_000, radius: 330, damage: 1 },
+  { waitMs: 45_000, closeMs: 45_000, radius: 235, damage: 2 },
+  { waitMs: 35_000, closeMs: 38_000, radius: 160, damage: 3 },
+  { waitMs: 25_000, closeMs: 32_000, radius: 95, damage: 5 },
+  { waitMs: 18_000, closeMs: 25_000, radius: 45, damage: 8 },
+  { waitMs: 8_000, closeMs: 18_000, radius: 9, damage: 10 }
 ] as const;
 
 export const BR_STARTING_AMMO = { light: 90, heavy: 20, plasma: 12 } as const;

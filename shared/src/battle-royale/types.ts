@@ -100,6 +100,8 @@ export interface BrLootState {
   count: number;
   magazine?: number;
   position: Vec3;
+  /** Supporting surface for presentation only; authoritative pickup remains at position. */
+  surfaceY?: number;
 }
 
 export interface BrCrateState { id: string; position: Vec3; opened: boolean; }

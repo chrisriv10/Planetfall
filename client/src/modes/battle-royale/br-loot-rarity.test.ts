@@ -42,9 +42,9 @@ describe("BR loot rarity presentation", () => {
       expect(a.ring.position.y).toBe(ringY); expect(a.beam.position.y).toBe(beamY);
       a.traverse(object => expect([...object.position, ...object.scale, object.rotation.y].every(Number.isFinite)).toBe(true));
     }
-    expect(minimum).toBeGreaterThanOrEqual(BR_LOOT_FLOAT.lift - BR_LOOT_FLOAT.amplitude);
-    expect(maximum).toBeLessThanOrEqual(BR_LOOT_FLOAT.lift + BR_LOOT_FLOAT.amplitude);
-    expect(maximum - minimum).toBeGreaterThan(.23);
+    expect(minimum).toBeGreaterThanOrEqual(-.58+BR_LOOT_FLOAT.lift - BR_LOOT_FLOAT.amplitude);
+    expect(maximum).toBeLessThanOrEqual(-.58+BR_LOOT_FLOAT.lift + BR_LOOT_FLOAT.amplitude);
+    expect(maximum - minimum).toBeGreaterThan(.19);
     expect(a.itemPivot.rotation.y).not.toBe(other.itemPivot.rotation.y);
     expect(a.ring.position.y + a.position.y).toBeCloseTo(9.024); // Roof support, not world ground.
     pool.dispose();

@@ -74,7 +74,9 @@ export function brFlatDeckCollision(feet:Vec3,desiredMovement:Vec3,jumping:boole
 export function brDropVelocity(ship:Pick<BrShipState,"start"|"end"|"startedAt"|"endsAt">,yaw:number):Vec3 {
   const routeSeconds=Math.max(.001,(ship.endsAt-ship.startedAt)/1000);
   const shipX=(ship.end.x-ship.start.x)/routeSeconds,shipZ=(ship.end.z-ship.start.z)/routeSeconds;
-  return {x:shipX*.72+Math.sin(yaw)*4,y:-5,z:shipZ*.72-Math.cos(yaw)*4};
+  // Preserve most of the transport's momentum so the jump timing has a clear,
+  // readable effect on reachable landing sites. Steering then blends in fast.
+  return {x:shipX*.84+Math.sin(yaw)*6,y:-5,z:shipZ*.84-Math.cos(yaw)*6};
 }
 
 /** Moves a planar velocity toward its target without diagonal acceleration gain or overshoot. */
@@ -125,12 +127,16 @@ export function stepBrMovement(current: BrMotionState, input: BrMotionInput, raw
     state.lastCrouchSignal = crouchSignal;
     const sliding=state.slideEndsAt>now;
     const speed = state.downed ? 1.8 : state.crouched || input.crouch || sliding ? BR_BALANCE.crouchSpeed : input.sprint ? BR_BALANCE.sprintSpeed : BR_BALANCE.walkSpeed;
-    const acceleration = state.grounded ? BR_BALANCE.acceleration : BR_BALANCE.acceleration * BR_BALANCE.airControl;
+    const currentPlanar=Math.hypot(state.velocity.x,state.velocity.z);
     const desiredX = desired.x * speed * Math.min(1, magnitude); const desiredZ = desired.z * speed * Math.min(1, magnitude);
     if (sliding) {
-      const damping = Math.max(0, 1 - dt * 1.45); state.velocity.x *= damping; state.velocity.z *= damping;
+      const damping = Math.max(0, 1 - dt * 1.25); state.velocity.x *= damping; state.velocity.z *= damping;
       state.velocity.x += desiredX * dt * .18; state.velocity.z += desiredZ * dt * .18;
     } else {
+      const desiredPlanar=Math.hypot(desiredX,desiredZ);
+      const dot=state.velocity.x*desiredX+state.velocity.z*desiredZ;
+      const groundAcceleration=desiredPlanar<.01&&currentPlanar>.01?BR_BALANCE.braking:dot<-.01?BR_BALANCE.reversalAcceleration:BR_BALANCE.acceleration;
+      const acceleration=state.grounded?groundAcceleration:BR_BALANCE.acceleration*BR_BALANCE.airControl;
       const approached=brApproachPlanarVelocity(state.velocity,{x:desiredX,y:state.velocity.y,z:desiredZ},acceleration*dt);
       state.velocity.x=approached.x;state.velocity.z=approached.z;
     }

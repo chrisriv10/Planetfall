@@ -6,7 +6,7 @@ import type { GraphicsQuality } from "../../settings";
 export const BR_LOOT_RARITY_COLORS: Readonly<Record<BrRarity, number>> = Object.freeze({
   common: 0xb8c4dc, rare: 0x54b8ff, epic: 0xc565ff, legendary: 0xffc84f,
 });
-export const BR_LOOT_FLOAT = Object.freeze({ lift: .28, amplitude: .12, speed: .002 });
+export const BR_LOOT_FLOAT = Object.freeze({ lift: .42, amplitude: .1, speed: .002 });
 const BEAM_HEIGHT: Record<BrRarity, number> = { common: 1.05, rare: 1.4, epic: 1.7, legendary: 2 };
 type FieldMesh = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
 type FieldMaterials = { ring: THREE.MeshBasicMaterial; aura: THREE.MeshBasicMaterial; beam: THREE.MeshBasicMaterial };
@@ -50,6 +50,7 @@ export class BrLootRarityVisual extends THREE.Group {
   readonly beam: FieldMesh;
   private released = false;
   private readonly phase: number;
+  private readonly itemBaseY:number;
 
   constructor(model: THREE.Object3D, id: string, surfaceOffsetY: number,
     geometries: readonly [THREE.BufferGeometry, THREE.BufferGeometry, THREE.BufferGeometry],
@@ -58,6 +59,7 @@ export class BrLootRarityVisual extends THREE.Group {
     let hash = 2166136261;
     for (let i = 0; i < id.length; i++) hash = Math.imul(hash ^ id.charCodeAt(i), 16777619);
     this.phase = (hash >>> 0) / 4294967296 * Math.PI * 2;
+    this.itemBaseY=surfaceOffsetY+BR_LOOT_FLOAT.lift;
     this.itemPivot.name = "loot-item-pivot"; this.itemPivot.add(model);
     this.ring = new THREE.Mesh(geometries[0], materials.ring);
     this.aura = new THREE.Mesh(geometries[1], materials.aura);
@@ -76,7 +78,7 @@ export class BrLootRarityVisual extends THREE.Group {
   update(now: number, quality: GraphicsQuality, distance: number): void {
     if (this.released || !Number.isFinite(now)) return;
     const wave = Math.sin(now * BR_LOOT_FLOAT.speed + this.phase);
-    this.itemPivot.position.y = BR_LOOT_FLOAT.lift + wave * BR_LOOT_FLOAT.amplitude;
+    this.itemPivot.position.y = this.itemBaseY + wave * BR_LOOT_FLOAT.amplitude;
     this.itemPivot.rotation.y = now * .00055 + this.phase;
     this.ring.rotation.y = this.phase; // Stationary base; only its item floats/spins.
     this.aura.scale.setScalar(1 + wave * .045);

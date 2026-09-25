@@ -311,7 +311,24 @@ export const BR_TERRAIN_PATCHES: readonly BrTerrainPatch[] = [
   {id:"south-landing",position:{x:20,y:.31,z:-300},size:{x:150,y:.1,z:70},rotation:.06,color:"#2f4862",kind:"landing"}
 ];
 
-const navPositions: Record<string, Vec3> = Object.fromEntries([...BR_POIS,...BR_SECONDARY_LOCATIONS].map((entry)=>[entry.id,{...entry.position}]));
+const navPointClear=(point:Vec3):boolean=>isInsideBrIsland(point,5)&&BR_STRUCTURES.every((structure)=>
+  Math.abs(point.x-structure.position.x)>structure.size.x/2+2.2||Math.abs(point.z-structure.position.z)>structure.size.z/2+2.2
+);
+
+/** Place navigation goals beside structures instead of at authored landmark centers. */
+function safeNavPoint(id:string,origin:Vec3):Vec3 {
+  if(navPointClear(origin))return {...origin};
+  let seed=0;for(let index=0;index<id.length;index++)seed=(Math.imul(seed,31)+id.charCodeAt(index))|0;
+  const offset=((seed>>>0)%16)/16*Math.PI*2;
+  for(let radius=10;radius<=64;radius+=4)for(let index=0;index<16;index++){
+    const angle=offset+index/16*Math.PI*2;
+    const candidate={x:origin.x+Math.cos(angle)*radius,y:Math.max(.3,origin.y),z:origin.z+Math.sin(angle)*radius};
+    if(navPointClear(candidate))return candidate;
+  }
+  return {...origin};
+}
+
+const navPositions: Record<string, Vec3> = Object.fromEntries([...BR_POIS,...BR_SECONDARY_LOCATIONS].map((entry)=>[entry.id,safeNavPoint(entry.id,entry.position)]));
 const navLinks: Array<[string,string]> = [
   ["zero-point","nova-plaza"],["zero-point","dockyard-7"],["zero-point","helios-reactor"],["zero-point","astra-academy"],
   ["zero-point","void-mall"],["zero-point","orbital-farms"],["zero-point","crash-site"],["zero-point","thruster-works"],

@@ -36,6 +36,10 @@ interface BrPlayerRecord extends BrPlayerState {
   eliminatedAt: number | null;
   nextBotDecisionAt: number;
   botGoal: Vec3 | null;
+  botProgressPosition: Vec3;
+  botProgressAt: number;
+  botRecoveryUntil: number;
+  botRecoverySign: -1 | 1;
   shipJumpAt: number;
   lastEmoteAt: number;
   saberCombo: number;
@@ -67,7 +71,9 @@ function clonePlayer(player: BrPlayerRecord): BrPlayerState {
     lastJumpSignal: _lastJumpSignal, lastCrouchSignal: _lastCrouchSignal, lastFireAt: _lastFireAt, reloadEndsAt: _reloadEndsAt, reloadSlot: _reloadSlot,
     useEndsAt: _useEndsAt, useSlot: _useSlot, reviveTargetId: _reviveTargetId, reviveStartedAt: _reviveStartedAt,
     slideEndsAt: _slideEndsAt, matchStartedAt: _matchStartedAt, eliminatedAt: _eliminatedAt, nextBotDecisionAt: _nextBotDecisionAt,
-    botGoal: _botGoal, shipJumpAt: _shipJumpAt, lastEmoteAt: _lastEmoteAt, saberCombo: _saberCombo,
+    botGoal: _botGoal, botProgressPosition: _botProgressPosition, botProgressAt: _botProgressAt,
+    botRecoveryUntil: _botRecoveryUntil, botRecoverySign: _botRecoverySign, shipJumpAt: _shipJumpAt,
+    lastEmoteAt: _lastEmoteAt, saberCombo: _saberCombo,
     saberComboAt: _saberComboAt, stormDamageRemainder: _stormDamageRemainder, traversalCooldownUntil: _traversalCooldownUntil,
     lastGroundedAt: _lastGroundedAt, jumpBufferedUntil: _jumpBufferedUntil,
     spectatorTargetId: _spectatorTargetId, lastPingAt: _lastPingAt, history: _history, ...state } = player;
@@ -112,6 +118,7 @@ export class BattleRoyaleRoom {
   private playerGrid = new SpatialGrid<BrPlayerRecord>(BR_BALANCE.interest.cellSize);
   private lootGrid = new SpatialGrid<BrLootState>(BR_BALANCE.interest.cellSize);
   private projectileGrid = new SpatialGrid<BrProjectileState>(BR_BALANCE.interest.cellSize);
+  private lootGridDirty = true;
   private physics = new BrPhysicsWorld();
 
   constructor(code: string, private io: GameServer, seed = Math.floor(Math.random() * 0x7fffffff)) {
@@ -246,7 +253,7 @@ export class BattleRoyaleRoom {
       this.io.to(this.code).emit("br:loot:spawned", [{ ...loot }]);
       return true;
     }
-    this.loot.delete(lootId); this.io.to(this.code).emit("br:loot:removed", { ids: [lootId] }); return true;
+    this.loot.delete(lootId); this.lootGridDirty = true; this.io.to(this.code).emit("br:loot:removed", { ids: [lootId] }); return true;
   }
 
   drop(playerId: string, slot: number): boolean {
@@ -260,8 +267,8 @@ export class BattleRoyaleRoom {
     const item = player.inventory[slot];
     if (!item) return;
     if (slot === player.selectedSlot || slot === player.useSlot || slot === player.reloadSlot) this.cancelTimedActions(player);
-    const loot: BrLootState = { id: id("loot"), itemId: item.itemId, rarity: item.rarity, count: item.count, magazine: item.magazine, position: { x: player.position.x + Math.sin(player.yaw) * 1.2, y: player.position.y + .5, z: player.position.z - Math.cos(player.yaw) * 1.2 } };
-    this.loot.set(loot.id, loot); player.inventory[slot] = null; this.io.to(this.code).emit("br:loot:spawned", [loot]);
+    const loot: BrLootState = { id: id("loot"), itemId: item.itemId, rarity: item.rarity, count: item.count, magazine: item.magazine, position: { x: player.position.x + Math.sin(player.yaw) * 1.2, y: player.position.y + .5, z: player.position.z - Math.cos(player.yaw) * 1.2 },surfaceY:player.position.y };
+    this.loot.set(loot.id, loot); this.lootGridDirty = true; player.inventory[slot] = null; this.io.to(this.code).emit("br:loot:spawned", [loot]);
   }
 
   openCrate(playerId: string, crateId: string): boolean {
@@ -270,9 +277,10 @@ export class BattleRoyaleRoom {
     crate.opened = true; const random = seededRandom(this.seed ^ this.hash(crate.id)); const drops: BrLootState[] = [];
     for (let index = 0; index < 3; index++) {
       const itemId = ITEM_IDS[Math.floor(random() * ITEM_IDS.length)]; const rarityRoll = random(); const rarity: BrRarity = rarityRoll > .9 ? "legendary" : rarityRoll > .55 ? "epic" : "rare";
-      const angle = index / 3 * Math.PI * 2; const drop: BrLootState = { id: id("crate-loot"), itemId, rarity, count: isBrHeal(itemId) ? 2 : 1, magazine: brItemMagazine(itemId), position: { x: crate.position.x + Math.cos(angle) * 1.6, y: crate.position.y + .45, z: crate.position.z + Math.sin(angle) * 1.6 } };
+      const angle = index / 3 * Math.PI * 2; const drop: BrLootState = { id: id("crate-loot"), itemId, rarity, count: isBrHeal(itemId) ? 2 : 1, magazine: brItemMagazine(itemId), position: { x: crate.position.x + Math.cos(angle) * 1.6, y: crate.position.y + .45, z: crate.position.z + Math.sin(angle) * 1.6 },surfaceY:crate.position.y-.62 };
       this.loot.set(drop.id, drop); drops.push(drop);
     }
+    this.lootGridDirty = true;
     this.io.to(this.code).emit("br:crate:opened", { crateId, playerId, drops }); return true;
   }
 
@@ -354,7 +362,7 @@ export class BattleRoyaleRoom {
     this.returnVotes.add(playerId);
     const humans = [...this.players.values()].filter((player) => !player.isBot && player.connected);
     if (!humans.every((player) => this.returnVotes.has(player.id))) { this.emitRoom(); return; }
-    this.phase = "lobby"; this.matchResult = null; this.ship = null; this.countdownEndsAt = null; this.loot.clear(); this.crates.clear(); this.projectiles.clear();
+    this.phase = "lobby"; this.matchResult = null; this.ship = null; this.countdownEndsAt = null; this.loot.clear(); this.lootGridDirty = true; this.crates.clear(); this.projectiles.clear();
     this.returnVotes.clear();
     for (const [id, player] of this.players) if (player.isBot) { this.physics.remove(id); this.players.delete(id); }
     for (const player of this.players.values()) { player.ready = player.isBot; player.input = null; }
@@ -390,7 +398,9 @@ export class BattleRoyaleRoom {
       this.updateProjectiles(dt, now);
       if (this.phase === "combat") this.updateStorm(dt, now);
       this.updateChannels(now);
-      this.playerGrid.rebuild(this.players.values()); this.lootGrid.rebuild(this.loot.values()); this.projectileGrid.rebuild(this.projectiles.values());
+      this.playerGrid.rebuild(this.players.values());
+      if (this.lootGridDirty) { this.lootGrid.rebuild(this.loot.values()); this.lootGridDirty = false; }
+      this.projectileGrid.rebuild(this.projectiles.values());
       this.checkWinner(now);
     }
     this.snapshotAccumulator += dt;
@@ -424,6 +434,7 @@ export class BattleRoyaleRoom {
       crowns: 0, fallbucks: 0, sessionLevel: 1, sessionXp: 0, sessionTotalXp: 0, unlockedPassRewards: ["default"], ownedCosmetics: [], equippedCosmetics: { ...DEFAULT_COSMETICS },
       socketId: null, sessionToken: isBot ? "" : token(), disconnectedAt: null, input: null, lastInputAt: 0, lastJumpSignal: false, lastCrouchSignal: false, lastFireAt: 0, reloadEndsAt: 0, reloadSlot: -1,
       useEndsAt: 0, useSlot: -1, reviveTargetId: null, reviveStartedAt: 0, slideEndsAt: 0, matchStartedAt: 0, eliminatedAt: null, nextBotDecisionAt: 0, botGoal: null,
+      botProgressPosition: { x: 0, y: BR_BALANCE.shipHeight, z: 0 }, botProgressAt: 0, botRecoveryUntil: 0, botRecoverySign: 1,
       shipJumpAt: 0, lastEmoteAt: 0, saberCombo: 0, saberComboAt: 0, stormDamageRemainder: 0, traversalCooldownUntil: 0,
       lastGroundedAt: Number.NEGATIVE_INFINITY, jumpBufferedUntil: 0, spectatorTargetId: null, lastPingAt: 0, history: []
     };
@@ -453,7 +464,9 @@ export class BattleRoyaleRoom {
       player.alive = true; player.downed = false; player.deployment = "attached"; player.hp = BR_BALANCE.hp; player.shield = 0; player.downedHp = BR_BALANCE.downedHp; player.bleedoutEndsAt = null; player.crouched = false;
       player.position = { x: 0, y: BR_BALANCE.shipHeight, z: 0 }; player.velocity = { x: 0, y: 0, z: 0 }; player.grounded = false; player.inventory = createEmptyBrInventory(); player.ammo = { ...BR_STARTING_AMMO };
       player.selectedSlot = 0; player.lastInputSequence = 0; player.input = null; player.kills = 0; player.damageDealt = 0; player.revives = 0; player.placement = null; player.eliminatedAt = null; player.matchStartedAt = now;
-      player.shipJumpAt = now + 7000 + seededRandom(this.seed ^ this.hash(player.id))() * 27_000; player.history = []; player.traversalCooldownUntil = 0; player.slideEndsAt = 0; player.lastGroundedAt = Number.NEGATIVE_INFINITY; player.jumpBufferedUntil = 0; player.spectatorTargetId = null; player.lastPingAt = 0; this.cancelTimedActions(player);
+      player.shipJumpAt = now + 7000 + seededRandom(this.seed ^ this.hash(player.id))() * 27_000; player.history = []; player.traversalCooldownUntil = 0; player.slideEndsAt = 0; player.lastGroundedAt = Number.NEGATIVE_INFINITY; player.jumpBufferedUntil = 0; player.spectatorTargetId = null; player.lastPingAt = 0;
+      player.botGoal = null; player.botProgressPosition = { ...player.position }; player.botProgressAt = now; player.botRecoveryUntil = 0;
+      player.botRecoverySign = this.hash(player.id) % 2 === 0 ? 1 : -1; this.cancelTimedActions(player);
     }
   }
 
@@ -650,11 +663,11 @@ export class BattleRoyaleRoom {
     const random = seededRandom(this.seed);
     for (const [index,socket] of BR_LOOT_SOCKETS.entries()) {
       const rarityRoll = random(); const rarity: BrRarity = rarityRoll > .965 ? "legendary" : rarityRoll > .82 ? "epic" : rarityRoll > .48 ? "rare" : "common";
-      const itemId = ITEM_IDS[Math.floor(random() * ITEM_IDS.length)]; const loot: BrLootState = { id: id("loot"), itemId, rarity, count: isBrHeal(itemId) ? 1 + Math.floor(random() * 2) : 1, magazine: brItemMagazine(itemId), position: { x: socket.position.x + (random() - .5) * 1.4, y: socket.position.y, z: socket.position.z + (random() - .5) * 1.4 } };
+      const itemId = ITEM_IDS[Math.floor(random() * ITEM_IDS.length)]; const loot: BrLootState = { id: id("loot"), itemId, rarity, count: isBrHeal(itemId) ? 1 + Math.floor(random() * 2) : 1, magazine: brItemMagazine(itemId), position: { x: socket.position.x + (random() - .5) * 1.4, y: socket.position.y, z: socket.position.z + (random() - .5) * 1.4 },surfaceY:socket.position.y-(socket.kind==="roof"?.65:.58) };
       this.loot.set(loot.id, loot);
-      if (index%2===0 && random() > .28) { const ammoType = random() > .68 ? "plasma" : random() > .45 ? "heavy" : "light"; const ammo: BrLootState = { id: id("ammo"), ammoType, rarity: "common", count: ammoType === "light" ? 30 : ammoType === "heavy" ? 10 : 6, position: { x: loot.position.x + 1.15, y:socket.position.y, z: loot.position.z - .95 } }; this.loot.set(ammo.id, ammo); }
+      if (index%2===0 && random() > .28) { const ammoType = random() > .68 ? "plasma" : random() > .45 ? "heavy" : "light"; const ammo: BrLootState = { id: id("ammo"), ammoType, rarity: "common", count: ammoType === "light" ? 30 : ammoType === "heavy" ? 10 : 6, position: { x: loot.position.x + 1.15, y:socket.position.y, z: loot.position.z - .95 },surfaceY:loot.surfaceY }; this.loot.set(ammo.id, ammo); }
     }
-    this.lootGrid.rebuild(this.loot.values());
+    this.lootGrid.rebuild(this.loot.values()); this.lootGridDirty = false;
     const crates = BR_CRATE_SOCKETS.map((position, index) => ({ id: `crate-${this.seed}-${index}`, position: { ...position }, opened: false }));
     for (const crate of crates) this.crates.set(crate.id, crate);
     this.io.to(this.code).emit("br:crate:spawned", crates);
@@ -669,11 +682,25 @@ export class BattleRoyaleRoom {
       }
       if (now < bot.nextBotDecisionAt) continue;
       bot.nextBotDecisionAt = now + profile.reactionMs;
+      const progress = Math.hypot(bot.position.x - bot.botProgressPosition.x, bot.position.z - bot.botProgressPosition.z);
+      if (progress > 1.25 || !bot.input || Math.hypot(bot.input.moveX, bot.input.moveY) < .25) {
+        bot.botProgressPosition = { ...bot.position }; bot.botProgressAt = now;
+      } else if (now - bot.botProgressAt > 1_500 && bot.botRecoveryUntil <= now) {
+        bot.botRecoveryUntil = now + 900; bot.botRecoverySign = bot.botRecoverySign === 1 ? -1 : 1;
+        bot.botGoal = null; bot.botProgressAt = now;
+      }
+      if (now < bot.botRecoveryUntil) {
+        const recoveryYaw = bot.yaw + bot.botRecoverySign * Math.PI * .58; bot.yaw = recoveryYaw;
+        bot.input = { sequence: ++bot.lastInputSequence, dt: .05, moveX: bot.botRecoverySign * .72, moveY: .42, yaw: recoveryYaw, pitch: 0, jump: true, sprint: false, crouch: false, fire: false, aim: false, reload: false };
+        continue;
+      }
       const random = seededRandom(this.seed ^ this.hash(`${bot.id}:${Math.floor(now / profile.reactionMs)}`));
       const nearbyLoot = this.nearestTo(bot.position,this.lootGrid.nearby(bot.position, profile.lootRadius).filter(loot=>brPickupDisposition(bot.inventory,bot.ammo,loot)==="collect"));
       const nearbyCrate = this.nearestTo(bot.position,[...this.crates.values()].filter((crate) => !crate.opened && this.distance(bot.position, crate.position) <= profile.lootRadius));
       const safeTarget = !stormContains(this.storm, bot.position) ? { x: this.storm.center.x, y: BR_BALANCE.playerHeight, z: this.storm.center.z } : null;
-      const nearestEnemy = this.nearestTo(bot.position,this.playerGrid.nearby(bot.position, 70).filter((target) => this.canDamage(bot, target)));
+      // A wider awareness radius keeps bot-filled matches active without
+      // granting vision through cover: line of sight is still authoritative.
+      const nearestEnemy = this.nearestTo(bot.position, this.playerGrid.nearby(bot.position, 96).filter((target) => this.canDamage(bot, target)));
       const enemy=nearestEnemy&&this.hasLineOfSight(bot,nearestEnemy)?nearestEnemy:undefined;
       const teammate=this.teamMode!=="solo"?this.nearestTo(bot.position,[...this.players.values()].filter((target)=>target.id!==bot.id&&target.teamId===bot.teamId&&target.alive&&!target.downed)):undefined;
       const downedTeammate = this.nearestTo(bot.position,[...this.players.values()].filter((target) => target.downed && target.teamId === bot.teamId));

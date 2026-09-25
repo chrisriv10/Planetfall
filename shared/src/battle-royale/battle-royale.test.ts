@@ -165,6 +165,16 @@ describe("Battle Royale shared rules", () => {
     for(const target of BR_POIS.slice(1))expect(isInsideBrIsland(brNextWaypoint(BR_POIS[0].position,target.position))).toBe(true);
   });
 
+  it("keeps bot navigation goals outside authored building footprints",()=>{
+    for(const node of BR_NAV_NODES){
+      expect(isInsideBrIsland(node.position,5),node.id).toBe(true);
+      for(const structure of BR_STRUCTURES){
+        const overlaps=Math.abs(node.position.x-structure.position.x)<=structure.size.x/2+2&&Math.abs(node.position.z-structure.position.z)<=structure.size.z/2+2;
+        expect(overlaps,`${node.id} is trapped inside ${structure.id}`).toBe(false);
+      }
+    }
+  });
+
   it("buffers and coyote-accepts exactly one jump inside bounded windows",()=>{
     const base:BrMotionState={position:{x:70,y:.4,z:70},velocity:{x:0,y:-1,z:0},yaw:0,grounded:false,crouched:false,deployment:"grounded",downed:false,lastJumpSignal:false,lastCrouchSignal:false,slideEndsAt:0,traversalCooldownUntil:0,lastGroundedAt:1000,jumpBufferedUntil:0};
     const coyote=stepBrMovement(base,{moveX:0,moveY:0,yaw:0,jump:true,sprint:false,crouch:false},.02,1100);expect(coyote.velocity.y).toBeGreaterThan(0);expect(coyote.jumpBufferedUntil).toBe(0);
@@ -183,11 +193,32 @@ describe("Battle Royale shared rules", () => {
   });
 
   it("lets automatic deployment traverse between neighbouring districts",()=>{
-    let motion:BrMotionState={position:{x:0,y:BR_BALANCE.shipHeight,z:0},velocity:{x:0,y:-5,z:0},yaw:Math.PI/2,grounded:false,crouched:false,deployment:"freefall",downed:false,lastJumpSignal:false,lastCrouchSignal:false,slideEndsAt:0,traversalCooldownUntil:0,lastGroundedAt:Number.NEGATIVE_INFINITY,jumpBufferedUntil:0};
+    let motion:BrMotionState={position:{x:-400,y:BR_BALANCE.shipHeight,z:0},velocity:{x:0,y:-5,z:0},yaw:Math.PI/2,grounded:false,crouched:false,deployment:"freefall",downed:false,lastJumpSignal:false,lastCrouchSignal:false,slideEndsAt:0,traversalCooldownUntil:0,lastGroundedAt:Number.NEGATIVE_INFINITY,jumpBufferedUntil:0};
     for(let tick=0;tick<30*30&&motion.deployment!=="grounded";tick++)motion=stepBrMovement(motion,{moveX:0,moveY:1,yaw:Math.PI/2,jump:false,sprint:false,crouch:false},1/30,tick*1000/30);
     expect(motion.deployment).toBe("grounded");
-    expect(motion.position.x).toBeGreaterThan(250);
-    expect(motion.position.x).toBeLessThan(470);
+    expect(motion.position.x).toBeGreaterThan(-50);
+    expect(motion.position.x).toBeLessThan(220);
+  });
+
+  it("makes early Ion Wing deployment meaningfully extend landing range",()=>{
+    const simulate=(early:boolean)=>{
+      let motion:BrMotionState={position:{x:0,y:BR_BALANCE.shipHeight,z:0},velocity:{x:0,y:-5,z:0},yaw:Math.PI/2,grounded:false,crouched:false,deployment:early?"chute":"freefall",downed:false,lastJumpSignal:false,lastCrouchSignal:false,slideEndsAt:0,traversalCooldownUntil:0,lastGroundedAt:Number.NEGATIVE_INFINITY,jumpBufferedUntil:0};
+      for(let tick=0;tick<60*45&&motion.position.y>0;tick++){
+        motion=stepBrMovement(motion,{moveX:0,moveY:1,yaw:Math.PI/2,jump:false,sprint:false,crouch:false},1/60,tick*1000/60);
+      }
+      return motion.position.x;
+    };
+    const early=simulate(true),late=simulate(false);
+    expect(early).toBeGreaterThan(620);
+    expect(early-late).toBeGreaterThan(180);
+  });
+
+  it("brakes and reverses ground motion without overshooting",()=>{
+    const moving:BrMotionState={position:{x:80,y:0,z:80},velocity:{x:0,y:0,z:-BR_BALANCE.walkSpeed},yaw:0,grounded:true,crouched:false,deployment:"grounded",downed:false,lastJumpSignal:false,lastCrouchSignal:false,slideEndsAt:0,traversalCooldownUntil:0,lastGroundedAt:0,jumpBufferedUntil:0};
+    const stopped=stepBrMovement(moving,{moveX:0,moveY:0,yaw:0,jump:false,sprint:false,crouch:false},.1,100);
+    expect(stopped.velocity.z).toBeLessThanOrEqual(0);expect(Math.abs(stopped.velocity.z)).toBeLessThan(BR_BALANCE.walkSpeed-4.5);
+    const reversed=stepBrMovement(moving,{moveX:0,moveY:-1,yaw:0,jump:false,sprint:false,crouch:false},.1,100);
+    expect(reversed.velocity.z).toBeLessThanOrEqual(0);expect(Math.abs(reversed.velocity.z)).toBeLessThan(BR_BALANCE.walkSpeed);
   });
 
   it("uses the flat-deck fast path only away from authored collision",()=>{
@@ -238,7 +269,7 @@ describe("Battle Royale shared rules", () => {
   });
 
   it("shares finite camera aim, muzzle, body, and head hit math", () => {
-    const muzzle=brMuzzlePosition({ x: 2, y: 3, z: 4 }, 0, 0);expect(muzzle.x).toBeCloseTo(2);expect(muzzle.y).toBeCloseTo(3.72);expect(muzzle.z).toBeCloseTo(3.52);
+    const muzzle=brMuzzlePosition({ x: 2, y: 3, z: 4 }, 0, 0);expect(muzzle.x).toBeCloseTo(2);expect(muzzle.y).toBeCloseTo(3.72);expect(muzzle.z).toBeCloseTo(3.12);
     const origin = { x: 0, y: 1.13, z: 5 }; const direction = { x: 0, y: 0, z: -1 }; const feet = { x: 0, y: 0, z: 0 };
     expect(brPlayerHitDistance(origin, direction, feet)?.headshot).toBe(true);
     expect(brPlayerHitDistance({ x: 0, y: .5, z: 5 }, direction, feet)?.headshot).toBe(false);

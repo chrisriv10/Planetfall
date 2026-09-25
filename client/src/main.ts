@@ -234,7 +234,7 @@ socket.on("br:weapon:fired", (payload) => brGame?.weaponFired(payload));
 socket.on("br:player:damaged", (payload) => brGame?.damaged(payload));
 socket.on("br:player:downed", ({ playerId: targetId }) => appendBrFeed(`${brName(targetId)} was knocked`, "#ffd84d"));
 socket.on("br:player:revived", ({ playerId: targetId, reviverId }) => appendBrFeed(`${brName(reviverId)} revived ${brName(targetId)}`, "#63ef8b"));
-socket.on("br:player:eliminated", ({ playerId: targetId, attackerId, weaponId }) => { brGame?.eliminated(targetId); appendBrFeed(`${attackerId ? brName(attackerId) : "THE VOID"} eliminated ${brName(targetId)}${weaponId ? ` with ${BR_WEAPONS[weaponId].name}` : ""}`, "#ff6b8a"); });
+socket.on("br:player:eliminated", ({ playerId: targetId, attackerId, weaponId, placement }) => { brGame?.eliminated(targetId,placement); appendBrFeed(`${attackerId ? brName(attackerId) : "THE VOID"} eliminated ${brName(targetId)}${weaponId ? ` with ${BR_WEAPONS[weaponId].name}` : ""}`, "#ff6b8a"); });
 socket.on("br:kill-feed", () => undefined);
 socket.on("br:ping", ({ playerId: sourceId, position }) => { const source = brRoom?.players.find((player) => player.id === sourceId); brGame?.showPing(source?.name ?? "Pilot", position, source?.color ?? "#70f5ff"); });
 socket.on("br:emote", ({ playerId: sourceId, emote, startedAt }) => { brGame?.playEmote(sourceId, emote, startedAt); showLobbyEmote(sourceId, emote, "battle-royale"); });
@@ -376,6 +376,7 @@ byId("br-map-close").addEventListener("click", () => toggleBrMap(false));
 byId("br-return-lobby").addEventListener("click", () => socket.emit("br:match:return"));
 byId("br-shop-results").addEventListener("click", openShop);
 byId("br-leave").addEventListener("click", () => location.reload());
+byId("br-elimination-quit").addEventListener("click", () => location.reload());
 familyPlanetfallButton.disabled = false; familyBrButton.disabled = false;
 createButton.disabled = false; soloButton.disabled = false; joinButton.disabled = false; settingsOpenButton.disabled = false; shopHomeButton.disabled = false;
 
@@ -563,6 +564,13 @@ function configureBr(payload: { teamMode?: BrTeamMode; targetPlayers?: 10 | 20 |
 
 function renderBrHud(state: import("./modes/battle-royale/br-game").BrHudState): void {
   const { player } = state;
+  const hud=byId("br-hud");const eliminated=!player.alive&&state.phase==="combat";hud.classList.toggle("eliminated",eliminated);
+  const eliminationSummary=byId("br-elimination-summary");eliminationSummary.hidden=!eliminated;
+  if(eliminated){
+    byId("br-elimination-placement").textContent=`${ordinal(player.placement??Math.min(40,state.playersRemaining+1))} PLACE`;
+    byId("br-elimination-kills").textContent=String(player.kills);byId("br-elimination-damage").textContent=String(Math.round(player.damageDealt));byId("br-elimination-revives").textContent=String(player.revives);
+    const target=state.spectatorTarget;byId("br-spectating-name").textContent=target?`SPECTATING ${target.name.toUpperCase()} · ${target.kills} ELIMS`:"SPECTATING NEXT PILOT";byId("br-spectating-name").style.color=target?.color??"#70f5ff";
+  }
   byId("br-players-remaining").textContent = `${state.playersRemaining} PLAYERS`; byId("br-teams-remaining").textContent = `${state.teamsRemaining} TEAMS`; byId("br-elims").textContent = `${player.kills} ELIMS`;
   byId("br-hp").textContent = String(Math.ceil(player.hp)); byId("br-shield").textContent = String(Math.ceil(player.shield)); byId<HTMLElement>("br-hp-meter").style.width = `${player.hp}%`; byId<HTMLElement>("br-shield-meter").style.width = `${player.shield}%`;
   const stormReadout=brStormReadout(state.phase,state.storm,Date.now());byId("br-storm-timer").textContent=stormReadout.time;byId("br-storm-copy").textContent=stormReadout.label;
@@ -578,10 +586,12 @@ function renderBrHud(state: import("./modes/battle-royale/br-game").BrHudState):
     node.style.top = `${Math.max(4, Math.min(96, 50 + (teammate.position.z - player.position.z) / span * 50))}%`;
     node.style.setProperty("--mate-color", teammate.color);
   }
-  const needsMouseCapture=(brGame?.getInputMethod()??game.getInputMethod())==="keyboard"&&document.pointerLockElement!==canvas;
-  const contextText=state.prompt || (needsMouseCapture ? "CLICK TO AIM & CONTROL CAMERA" : "");
+  // Pointer capture still happens on a canvas click, but it is a browser
+  // implementation detail—not a persistent gameplay objective. Showing it
+  // through freefall, landing and combat obscured real interaction prompts.
+  const contextText=state.prompt;
   const contextAmount=contextText ? Math.max(state.reloadProgress,state.useProgress,state.reviveProgress) : 0;
-  brContextCopy.textContent=contextText;brContextPrompt.hidden=!contextText;brContextProgress.style.width=`${contextAmount*100}%`;
+  brContextPrompt.dataset.kind="action";brContextCopy.textContent=contextText;brContextPrompt.hidden=!contextText;brContextProgress.style.width=`${contextAmount*100}%`;
   const inventory = byId("br-inventory"); const nextInventoryMarkup = player.inventory.map((item, index) => {
     const color = item ? ({ common: "#b8c4dc", rare: "#54b8ff", epic: "#c565ff", legendary: "#ffc84f" }[item.rarity]) : "#56617f";
     const name = item ? isBrWeapon(item.itemId) ? BR_WEAPONS[item.itemId].name : item.itemId.replaceAll("-", " ").toUpperCase() : "EMPTY"; const ammo = item && isBrWeapon(item.itemId) ? item.itemId === "energy-saber" ? "∞" : `${item.magazine} / ${BR_WEAPONS[item.itemId].ammo ? player.ammo[BR_WEAPONS[item.itemId].ammo!] : 0}` : item ? `×${item.count}` : "";
