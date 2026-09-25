@@ -11,7 +11,7 @@ function player(position = cannonPosition(ownPlanet)): PlayerState {
     connected: true, ready: true, alive: true, scrap: 20, position,
     velocity: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, lastInputSequence: 0,
     surfacePlanetId: ownPlanet.id, gravityPlanetId: ownPlanet.id, launchCooldownUntil: 0, shoveCooldownUntil: 0, crowns: 0,
-    fallbucks: 0, ownedCosmetics: [], equippedCosmetics: { suit: "default", trail: "default", victory: "default" }, overchargeUntil: 0, launchBoostUntil: 0
+    fallbucks: 0, ownedCosmetics: [], equippedCosmetics: { suit: "default", trail: "default", victory: "default", planet: "default" }, overchargeUntil: 0, launchBoostUntil: 0
   };
 }
 

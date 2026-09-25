@@ -54,6 +54,7 @@ import {
 } from "@planetfall/shared";
 import { GameAudio } from "./audio";
 import { createAstronautVisual } from "./astronaut";
+import { createVerityPlanetVisual, updateVerityPlanetVisual, type VerityPlanetVisual } from "./planet-cosmetics";
 import { GameInput, inputLabel, type InputAction, type InputFrame, type InputMethod } from "./input";
 import { ReconciliationTracker, interpolationAlpha, shouldAcceptSnapshot, type ReconciliationMetrics } from "./reconciliation";
 import { QUALITY_PRESETS, defaultSettings, shakeMultiplier, type QualityPreset, type UserSettings } from "./settings";
@@ -61,6 +62,7 @@ import { QUALITY_PRESETS, defaultSettings, shakeMultiplier, type QualityPreset, 
 type PlanetVisual = {
   group: THREE.Group;
   shell: THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
+  verity: VerityPlanetVisual;
   atmosphere: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>;
   surfacePatches: THREE.Group;
   cracks: THREE.Group;
@@ -843,6 +845,14 @@ export class PlanetfallGame {
     visual.cracks.add(crater);
     visual.shell.material.emissive.setHex(0xff5738);
     setTimeout(() => visual.shell.material.emissive.setHex(0x000000), 130);
+    if (visual.verity.group.visible) {
+      visual.verity.shell.material.emissive.setHex(0xff7a20);
+      visual.verity.shell.material.emissiveIntensity = .8;
+      setTimeout(() => {
+        visual.verity.shell.material.emissive.setHex(0xffbe16);
+        visual.verity.shell.material.emissiveIntensity = .22;
+      }, 130);
+    }
     this.spawnBurst(worldHit, [0xff794c, 0xffcf57, 0x4b2947], integrity <= 25 ? 20 : 12, integrity <= 25 ? 6 : 4);
     this.spawnPulse(worldHit, 0xff704c, integrity <= 50 ? 1.7 : 1.05);
     this.recentDamage.set(planetId, performance.now() + 3200);
@@ -866,6 +876,7 @@ export class PlanetfallGame {
     flashShell.position.copy(center); this.scene.add(flashShell);
     this.particles.push({ mesh: flashShell, velocity: new THREE.Vector3(), life: .48, maxLife: .48, growth: 1.2, spin: 1.8 });
     visual.shell.visible = false;
+    visual.verity.group.visible = false;
     visual.cannon.visible = false;
     visual.repair.visible = false;
     visual.launchPad.visible = false;
@@ -874,7 +885,7 @@ export class PlanetfallGame {
     for (let i = 0; i < 18; i++) {
       const mesh = new THREE.Mesh(
         new THREE.DodecahedronGeometry(Math.random() * 1.4 + 0.55, 0),
-        new THREE.MeshStandardMaterial({ color: i % 3 === 0 ? 0xff794c : visual.shell.material.color, roughness: 0.9, flatShading: true })
+        new THREE.MeshStandardMaterial({ color: i % 3 === 0 ? 0xff794c : this.planetUsesVerity(visual) ? 0xffd52e : visual.shell.material.color, roughness: 0.9, flatShading: true })
       );
       mesh.position.copy(center).add(new THREE.Vector3().randomDirection().multiplyScalar(Math.random() * 3.4));
       this.scene.add(mesh);
@@ -905,7 +916,8 @@ export class PlanetfallGame {
     this.onIndicators?.([]);
     for (const planet of this.planets.values()) {
       for (const child of [...planet.cracks.children]) if (!child.userData.stageMark) { planet.cracks.remove(child); this.disposeObject(child); }
-      planet.shell.visible = true; planet.cannon.visible = true; planet.repair.visible = true; planet.launchPad.visible = true; planet.props.visible = true; planet.surfacePatches.visible = true;
+      planet.cannon.visible = true; planet.repair.visible = true; planet.launchPad.visible = true;
+      this.applyPlanetCosmetic(planet);
       planet.launchHighlight.visible = false;
       planet.label.visible = true;
       planet.group.scale.setScalar(1); planet.shell.material.emissive.setHex(0x000000); planet.destroyedAt = 0;
@@ -1116,7 +1128,7 @@ export class PlanetfallGame {
     const b = this.makePlanet({ id: "demo-b", ownerId: "", position: { x: -12, y: 3, z: -18 }, integrity: 58, alive: true, palette: 3, damageStage: 2, cannonDisabledUntil: 0, repairDisabledUntil: 0, cannonSabotageImmuneUntil: 0, repairSabotageImmuneUntil: 0, shieldUntil: 0, shieldCooldownUntil: 0 });
     b.group.scale.setScalar(0.7);
     this.demo.add(a.group, b.group);
-    const astronaut = this.makePlayer({ id: "demo", name: "", isBot: false, color: "#ffdc4f", planetId: "", connected: true, ready: true, alive: true, scrap: 0, position: { x: 13, y: 9.5, z: -4 }, velocity: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, lastInputSequence: 0, surfacePlanetId: "demo-a", gravityPlanetId: "demo-a", launchCooldownUntil: 0, shoveCooldownUntil: 0, crowns: 0, fallbucks: 0, ownedCosmetics: [], equippedCosmetics: { suit: "default", trail: "default", victory: "default" }, overchargeUntil: 0, launchBoostUntil: 0, grappleTargetPlayerId: null, sessionLevel: 1, sessionXp: 0, sessionTotalXp: 0, unlockedPassRewards: ["default"] });
+    const astronaut = this.makePlayer({ id: "demo", name: "", isBot: false, color: "#ffdc4f", planetId: "", connected: true, ready: true, alive: true, scrap: 0, position: { x: 13, y: 9.5, z: -4 }, velocity: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, lastInputSequence: 0, surfacePlanetId: "demo-a", gravityPlanetId: "demo-a", launchCooldownUntil: 0, shoveCooldownUntil: 0, crowns: 0, fallbucks: 0, ownedCosmetics: [], equippedCosmetics: { suit: "default", trail: "default", victory: "default", planet: "default" }, overchargeUntil: 0, launchBoostUntil: 0, grappleTargetPlayerId: null, sessionLevel: 1, sessionXp: 0, sessionTotalXp: 0, unlockedPassRewards: ["default"] });
     astronaut.group.position.set(13, 9.4, -4);
     astronaut.group.scale.setScalar(1.2);
     this.demo.add(astronaut.group);
@@ -1147,6 +1159,9 @@ export class PlanetfallGame {
     );
     shell.castShadow = false; shell.receiveShadow = false;
     group.add(shell);
+    const verity = createVerityPlanetVisual(BALANCE.planetRadius);
+    verity.group.visible = false;
+    group.add(verity.group);
     const atmosphere = new THREE.Mesh(
       new THREE.SphereGeometry(BALANCE.planetRadius * 1.075, 24, 16),
       new THREE.ShaderMaterial({
@@ -1351,7 +1366,7 @@ export class PlanetfallGame {
       fragment.visible = false; fragment.userData.damageLevel = 1 + i % 3; damageDebris.add(fragment);
     }
     return {
-      group, shell, atmosphere, surfacePatches, cracks, props, damageDebris, cannon, barrel: barrelRig, muzzle, cannonAccent,
+      group, shell, verity, atmosphere, surfacePatches, cracks, props, damageDebris, cannon, barrel: barrelRig, muzzle, cannonAccent,
       repair, repairCore: core, repairRings, launchPad, launchRing, launchArms, launchHighlight, cannonJam, repairJam,
       structureLabels: { cannon: cannonLabel, repair: repairLabel, launch: launchLabel },
       label, labelCanvas, labelContext, labelTexture, labelKey: "",
@@ -1474,15 +1489,15 @@ export class PlanetfallGame {
       visual.group.position.copy(vec(state.position));
       visual.body?.setTranslation(state.position, true);
       visual.shell.material.color.copy(visual.baseColor).lerp(damagedPlanetColor, state.damageStage * 0.13);
+      visual.verity.shell.material.color.setHex(0xffd52e).lerp(damagedPlanetColor, state.damageStage * .08);
       for (const mark of visual.cracks.children) if (mark.userData.stageMark) mark.visible = state.damageStage >= mark.userData.stageMark;
       visual.props.children.forEach((prop, index) => { prop.visible = state.alive && (state.damageStage < 2 || index % (state.damageStage === 2 ? 4 : 2) !== 0); });
       visual.damageDebris.children.forEach((fragment) => { fragment.visible = state.alive && state.damageStage >= fragment.userData.damageLevel; });
       visual.props.rotation.z = state.damageStage >= 3 ? Math.sin(this.demoTime * 2 + state.palette) * 0.007 : 0;
-      visual.props.visible = state.alive;
-      visual.surfacePatches.visible = state.alive;
+      this.applyPlanetCosmetic(visual);
       this.updatePlanetLabel(visual);
-      if (!state.alive) { visual.shell.visible = false; visual.cannon.visible = false; visual.repair.visible = false; visual.launchPad.visible = false; visual.launchHighlight.visible = false; visual.label.visible = false; }
-      else { visual.shell.visible = true; visual.cannon.visible = true; visual.repair.visible = true; visual.launchPad.visible = true; }
+      if (!state.alive) { visual.cannon.visible = false; visual.repair.visible = false; visual.launchPad.visible = false; visual.launchHighlight.visible = false; visual.label.visible = false; }
+      else { visual.cannon.visible = true; visual.repair.visible = true; visual.launchPad.visible = true; }
     }
     for (const [id, visual] of this.planets) {
       if (states.some((state) => state.id === id)) continue;
@@ -1491,6 +1506,20 @@ export class PlanetfallGame {
       this.disposeObject(visual.group);
       this.planets.delete(id);
     }
+  }
+
+  private planetUsesVerity(visual: PlanetVisual): boolean {
+    return this.room?.players.find((player) => player.id === visual.state.ownerId)?.equippedCosmetics.planet === "verity";
+  }
+
+  private applyPlanetCosmetic(visual: PlanetVisual): void {
+    const active = visual.state.alive && this.planetUsesVerity(visual);
+    visual.verity.group.visible = active;
+    visual.shell.visible = visual.state.alive && !active;
+    visual.props.visible = visual.state.alive && !active;
+    visual.surfacePatches.visible = visual.state.alive && !active;
+    const atmosphereColor = visual.atmosphere.material.uniforms.glowColor.value as THREE.Color;
+    atmosphereColor.set(active ? 0xffc928 : PLANET_PALETTES[visual.state.palette % PLANET_PALETTES.length].accent);
   }
 
   private syncPlayers(states: PlayerState[]): void {
@@ -2400,6 +2429,7 @@ export class PlanetfallGame {
     }
     for (const visual of this.planets.values()) {
       this.updatePlanetLabel(visual);
+      if (visual.verity.group.visible) updateVerityPlanetVisual(visual.verity, this.camera);
       const cameraDistance = this.camera.position.distanceTo(visual.group.position);
       visual.label.visible = visual.state.alive && this.mode === "match" && cameraDistance > 16;
       visual.structureLabels.cannon.visible = this.shouldShowStructureLabel(visual, visual.structureLabels.cannon);

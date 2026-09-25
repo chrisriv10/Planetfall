@@ -346,6 +346,7 @@ export class BattleRoyaleRoom {
     if (this.phase !== "lobby" && this.phase !== "results") return { ok: false, error: "Shop is only available between matches." };
     const player = this.players.get(playerId); const item = SHOP_CATALOG.find((entry) => entry.id === itemId && !entry.passLevel);
     if (!player || !item) return { ok: false, error: "Item not found." };
+    if (item.category === "planet") return { ok: false, error: "Planet cosmetics are only available in Planetfall." };
     if (player.ownedCosmetics.includes(item.id)) return { ok: false, error: "Already owned." };
     if (player.fallbucks < item.price) return { ok: false, error: "Not enough Fallbucks." };
     player.fallbucks -= item.price; player.ownedCosmetics.push(item.id); this.emitRoom(); return { ok: true };
@@ -354,7 +355,7 @@ export class BattleRoyaleRoom {
   equipShopItem(playerId: string, itemId: string): { ok: boolean; error?: string } {
     if (this.phase !== "lobby" && this.phase !== "results") return { ok: false, error: "Shop is only available between matches." };
     const player = this.players.get(playerId); const item = SHOP_CATALOG.find((entry) => entry.id === itemId);
-    if (!player || !item || item.category === "emote" || !player.ownedCosmetics.includes(item.id)) return { ok: false, error: "You do not own that item." };
+    if (!player || !item || item.category === "emote" || item.category === "planet" || !player.ownedCosmetics.includes(item.id)) return { ok: false, error: "You do not own that item." };
     player.equippedCosmetics[item.category] = item.id; this.emitRoom(); return { ok: true };
   }
 

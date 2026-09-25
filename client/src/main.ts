@@ -866,12 +866,15 @@ function renderShop(): void {
   const categories: { id: CosmeticCategory; label: string }[] = [
     { id: "suit", label: "SUITS" }, { id: "trail", label: "TRAILS" }, { id: "emote", label: "EMOTES" }, { id: "victory", label: "VICTORY" }
   ];
+  if (currentFamily === "planetfall") categories.push({ id: "planet", label: "PLANETS" });
+  if (!categories.some((category) => category.id === shopCategory)) shopCategory = "suit";
   shopCategories.replaceChildren(...categories.map(({ id, label }) => {
     const button = document.createElement("button"); button.textContent = label; button.classList.toggle("selected", shopCategory === id);
     button.addEventListener("click", () => { shopCategory = id; renderShop(); }); return button;
   }));
   shopGrid.replaceChildren(...SHOP_CATALOG.filter((item) => item.category === shopCategory && !item.passLevel).map((item) => {
     const card = document.createElement("article"); card.className = "shop-item";
+    card.classList.toggle("planet-item", item.category === "planet");
     card.style.setProperty("--item-color", item.color ?? (item.category === "emote" ? "#ff8bd9" : "#70f5ff"));
     const owned = me?.ownedCosmetics.includes(item.id) ?? false;
     const equipped = Boolean(me && item.category !== "emote" && me.equippedCosmetics[item.category] === item.id);

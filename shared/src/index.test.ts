@@ -197,11 +197,12 @@ describe("shared gameplay math", () => {
     expect(BALANCE.weapons.cluster.fragmentCount).toBe(5);
     expect(BALANCE.weapons.cluster.damage * BALANCE.weapons.cluster.fragmentCount).toBeLessThanOrEqual(BALANCE.weapons.asteroid.damage);
     expect(BALANCE.weapons["gravity-bomb"].damage).toBeLessThan(BALANCE.weapons.rocket.damage);
-    expect(SHOP_CATALOG.filter((item) => !item.passLevel)).toHaveLength(14);
+    expect(SHOP_CATALOG.filter((item) => !item.passLevel)).toHaveLength(15);
     expect(SHOP_CATALOG.filter((item) => item.passLevel)).toHaveLength(4);
     expect(new Set(SHOP_CATALOG.map((item) => item.id)).size).toBe(SHOP_CATALOG.length);
     expect(SHOP_CATALOG.filter((item) => !item.passLevel).every((item) => item.price >= 100 && item.price <= 300)).toBe(true);
     expect(SHOP_CATALOG.filter((item) => item.passLevel).every((item) => item.price === 0)).toBe(true);
+    expect(SHOP_CATALOG.find((item) => item.id === "verity")).toMatchObject({ category: "planet", price: 300, color: "#ffd84d" });
     expect(FREE_EMOTES).toEqual(["wave", "point", "celebrate"]);
   });
 

@@ -820,6 +820,19 @@ describe("planet raids", () => {
     expect(room.playEmote(host.id, "wave", { x: 1, y: 0, z: 0 }, now + BALANCE.emoteCooldownMs * 3 + 3)).toBe(false);
   });
 
+  it("authoritatively purchases and equips the Verity Classic planet cosmetic", async () => {
+    const { room, host } = await duel();
+    room.phase = "lobby";
+    host.fallbucks = 300;
+    const scrapBefore = host.scrap;
+    expect(room.buyShopItem(host.id, "verity")).toEqual({ ok: true });
+    expect(host.fallbucks).toBe(0);
+    expect(host.scrap).toBe(scrapBefore);
+    expect(host.ownedCosmetics).toContain("verity");
+    expect(room.equipShopItem(host.id, "verity")).toEqual({ ok: true });
+    expect(host.equippedCosmetics.planet).toBe("verity");
+  });
+
   it("authoritatively validates player grapple range, facing, reciprocal tug, and release", async () => {
     const { room, host, guest, hostPlanet } = await duel();
     const now = Date.now();

@@ -11,12 +11,13 @@ export type ChaosModifier = "low-gravity" | "scrap-rush" | "fragile-worlds" | "l
 export type BotDifficulty = "easy" | "normal" | "hard";
 export type EmoteType = "wave" | "laugh" | "point" | "panic" | "taunt" | "celebrate";
 export type ScrapUtility = "shield" | "overcharge" | "launch-boost";
-export type CosmeticCategory = "suit" | "trail" | "emote" | "victory";
+export type CosmeticCategory = "suit" | "trail" | "emote" | "victory" | "planet";
 
 export interface EquippedCosmetics {
   suit: string;
   trail: string;
   victory: string;
+  planet: string;
 }
 
 export interface ShopItem {
@@ -39,7 +40,7 @@ export interface PlanetPassReward {
 }
 
 export const FREE_EMOTES: readonly EmoteType[] = ["wave", "point", "celebrate"];
-export const DEFAULT_COSMETICS: EquippedCosmetics = { suit: "default", trail: "default", victory: "default" };
+export const DEFAULT_COSMETICS: EquippedCosmetics = { suit: "default", trail: "default", victory: "default", planet: "default" };
 export const SHOP_CATALOG: readonly ShopItem[] = [
   { id: "solar-gold", name: "Solar Gold", category: "suit", price: 100, color: "#ffd84d" },
   { id: "ice-blue", name: "Ice Blue", category: "suit", price: 100, color: "#70f5ff" },
@@ -55,6 +56,7 @@ export const SHOP_CATALOG: readonly ShopItem[] = [
   { id: "hero", name: "Hero", category: "victory", price: 100 },
   { id: "spin", name: "Spin", category: "victory", price: 200 },
   { id: "double-pump", name: "Double Fist Pump", category: "victory", price: 200 },
+  { id: "verity", name: "Verity", category: "planet", price: 300, color: "#ffd84d" },
   { id: "ion-blue", name: "Ion Blue", category: "trail", price: 0, color: "#55dfff", passLevel: 3 },
   { id: "solar-visor", name: "Solar Visor", category: "suit", price: 0, color: "#ffe66b", passLevel: 5 },
   { id: "warp-spark", name: "Warp Spark", category: "trail", price: 0, color: "#ff79e6", passLevel: 7 },

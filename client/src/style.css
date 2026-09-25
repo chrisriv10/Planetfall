@@ -192,12 +192,15 @@ body[data-game-mode="chaos"] .mode-option.selected { color: #ff8aad; border-colo
 .shop-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; }
 .shop-heading strong { color:var(--yellow); font-size:.8rem; }
 .shop-note { margin:8px 0 2px; padding:8px 11px; border:1px solid rgba(112,245,255,.2); border-radius:7px 12px 7px 12px; color:#9eadd4; background:rgba(5,9,35,.48); font-size:.66rem; font-weight:900; letter-spacing:.07em; text-align:center; }
-.shop-categories { display:flex; gap:6px; margin:14px 0; }
+.shop-categories { display:flex; flex-wrap:wrap; gap:6px; margin:14px 0; }
 .shop-categories button { border:1px solid rgba(255,255,255,.12); border-radius:10px; background:rgba(10,14,46,.65); color:#96a5ce; padding:8px 12px; font-weight:900; cursor:pointer; }
 .shop-categories button.selected { color:#08102a; background:var(--yellow); }
 .shop-grid { display:grid; grid-template-columns:repeat(4,minmax(125px,1fr)); gap:10px; margin-bottom:16px; }
 .shop-item { display:grid; gap:7px; min-height:132px; padding:13px; border:1px solid rgba(255,255,255,.13); border-radius:16px 8px 16px 8px; background:linear-gradient(145deg,rgba(28,34,85,.92),rgba(8,12,40,.92)); color:#fff; text-align:left; }
 .shop-item i { display:block; width:36px; height:36px; border-radius:50%; background:var(--item-color,#70f5ff); box-shadow:0 0 18px var(--item-color,#70f5ff); }
+.shop-item.planet-item i { position:relative; background:radial-gradient(circle at 35% 28%,#ffe884,#ffd52e 60%,#eaaa12); box-shadow:0 0 18px #ffd52e55; }
+.shop-item.planet-item i::before { content:""; position:absolute; top:10px; left:10px; width:4px; height:6px; border-radius:50%; background:#32230e; box-shadow:12px 0 #32230e; }
+.shop-item.planet-item i::after { content:""; position:absolute; top:16px; left:10px; width:16px; height:10px; border:2px solid #32230e; border-top:0; border-radius:0 0 12px 12px; }
 .shop-item small { color:var(--yellow); }
 .shop-item button { align-self:end; border:0; border-radius:8px; padding:7px; background:var(--cyan); color:#071026; font-weight:1000; cursor:pointer; }
 .shop-item button[disabled] { background:#485276; color:#9ba7c7; cursor:default; }
