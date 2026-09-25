@@ -12,6 +12,7 @@ import {
 } from "@planetfall/shared";
 import { SpatialGrid } from "./spatial-grid.js";
 import { BrPhysicsWorld } from "./br-physics.js";
+import { generateBrLoot } from "./br-loot-generation.js";
 
 type GameSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 type GameServer = Server<ClientToServerEvents, ServerToClientEvents>;
@@ -515,6 +516,7 @@ export class BattleRoyaleRoom {
   private fireHitscan(player: BrPlayerRecord, item: BrInventoryItem, origin: Vec3, direction: Vec3, clientTime: number, now: number): void {
     const weapon = BR_WEAPONS[item.itemId as BrWeaponId]; const random = seededRandom(this.seed ^ this.hash(`${player.id}:${now}`));
     const targets = [...this.players.values()].filter((target) => this.canDamage(player, target));
+    const confirmed=new Map<string,{target:BrPlayerRecord;amount:number;headshot:boolean}>();
     for (let pellet = 0; pellet < weapon.pellets; pellet++) {
       const shotDirection = brNormalize({ x: direction.x + (random() - .5) * weapon.spread, y: direction.y + (random() - .5) * weapon.spread, z: direction.z + (random() - .5) * weapon.spread });
       let hit: BrPlayerRecord | null = null; let distance = weapon.range; let headshot = false;
@@ -524,8 +526,9 @@ export class BattleRoyaleRoom {
         const result = brPlayerHitDistance(origin, shotDirection, historical.position, target.crouched, target.downed);
         if (result !== null && result.distance < distance && result.distance < obstruction) { hit = target; distance = result.distance; headshot = result.headshot; }
       }
-      if (hit) this.damage(hit, brRarityDamage(item.itemId as BrWeaponId, item.rarity) * (headshot ? weapon.headshotMultiplier : 1), player, item.itemId as BrWeaponId, now);
+      if(hit){const amount=brRarityDamage(item.itemId as BrWeaponId,item.rarity)*(headshot?weapon.headshotMultiplier:1);const existing=confirmed.get(hit.id);if(existing){existing.amount+=amount;existing.headshot||=headshot;}else confirmed.set(hit.id,{target:hit,amount,headshot});}
     }
+    for(const hit of confirmed.values())this.damage(hit.target,hit.amount,player,item.itemId as BrWeaponId,now,false,hit.headshot);
   }
 
   private fireMelee(player: BrPlayerRecord, weaponId: BrWeaponId, direction: Vec3, now: number): void {
@@ -574,13 +577,13 @@ export class BattleRoyaleRoom {
     }
   }
 
-  private damage(target: BrPlayerRecord, amount: number, attacker: BrPlayerRecord | undefined, weaponId: BrWeaponId | undefined, now: number, storm = false): void {
+  private damage(target: BrPlayerRecord, amount: number, attacker: BrPlayerRecord | undefined, weaponId: BrWeaponId | undefined, now: number, storm = false, headshot = false): void {
     if (!target.alive || amount <= 0 || (attacker && !this.canDamage(attacker, target))) return;
     if (amount >= 5) { target.useEndsAt = 0; target.useSlot = -1; target.reviveTargetId = null; target.reviveStartedAt = 0; }
     if (target.downed) { target.downedHp = Math.max(0, target.downedHp - amount); if (target.downedHp <= 0) this.eliminate(target, attacker, weaponId, now); return; }
     const result = applyBrDamage(target.hp, target.shield, amount, storm); target.hp = result.hp; target.shield = result.shield;
     if (attacker && attacker.id !== target.id) attacker.damageDealt += result.hpDamage + result.shieldDamage;
-    this.io.to(this.code).emit("br:player:damaged", { playerId: target.id, attackerId: attacker?.id, amount: result.hpDamage + result.shieldDamage, hp: target.hp, shield: target.shield, direction: attacker ? brNormalize({ x: target.position.x - attacker.position.x, y: 0, z: target.position.z - attacker.position.z }) : { x: 0, y: 1, z: 0 }, shieldBroken: result.shieldBroken });
+    this.io.to(this.code).emit("br:player:damaged", { playerId: target.id, attackerId: attacker?.id, amount: result.hpDamage + result.shieldDamage, hpDamage:result.hpDamage,shieldDamage:result.shieldDamage, hp: target.hp, shield: target.shield, direction: attacker ? brNormalize({ x: target.position.x - attacker.position.x, y: 0, z: target.position.z - attacker.position.z }) : { x: 0, y: 1, z: 0 }, shieldBroken: result.shieldBroken,headshot });
     if (target.hp <= 0) {
       const teammateAlive = [...this.players.values()].some((player) => player.id !== target.id && player.teamId === target.teamId && player.alive && !player.downed);
       if (this.teamMode !== "solo" && teammateAlive) {
@@ -660,13 +663,7 @@ export class BattleRoyaleRoom {
   private initialStorm(): BrStormState { return { phaseIndex: 0, center: { x: 0, z: 0 }, radius: BR_MAP.radius, nextCenter: { x: 0, z: 0 }, nextRadius: BR_STORM_PHASES[0].radius, stage: "waiting", stageEndsAt: null, damagePerSecond: BR_STORM_PHASES[0].damage }; }
 
   private spawnLoot(): void {
-    const random = seededRandom(this.seed);
-    for (const [index,socket] of BR_LOOT_SOCKETS.entries()) {
-      const rarityRoll = random(); const rarity: BrRarity = rarityRoll > .965 ? "legendary" : rarityRoll > .82 ? "epic" : rarityRoll > .48 ? "rare" : "common";
-      const itemId = ITEM_IDS[Math.floor(random() * ITEM_IDS.length)]; const loot: BrLootState = { id: id("loot"), itemId, rarity, count: isBrHeal(itemId) ? 1 + Math.floor(random() * 2) : 1, magazine: brItemMagazine(itemId), position: { x: socket.position.x + (random() - .5) * 1.4, y: socket.position.y, z: socket.position.z + (random() - .5) * 1.4 },surfaceY:socket.position.y-(socket.kind==="roof"?.65:.58) };
-      this.loot.set(loot.id, loot);
-      if (index%2===0 && random() > .28) { const ammoType = random() > .68 ? "plasma" : random() > .45 ? "heavy" : "light"; const ammo: BrLootState = { id: id("ammo"), ammoType, rarity: "common", count: ammoType === "light" ? 30 : ammoType === "heavy" ? 10 : 6, position: { x: loot.position.x + 1.15, y:socket.position.y, z: loot.position.z - .95 },surfaceY:loot.surfaceY }; this.loot.set(ammo.id, ammo); }
-    }
+    for (const loot of generateBrLoot(BR_LOOT_SOCKETS,this.seed,(kind)=>id(kind))) this.loot.set(loot.id,loot);
     this.lootGrid.rebuild(this.loot.values()); this.lootGridDirty = false;
     const crates = BR_CRATE_SOCKETS.map((position, index) => ({ id: `crate-${this.seed}-${index}`, position: { ...position }, opened: false }));
     for (const crate of crates) this.crates.set(crate.id, crate);

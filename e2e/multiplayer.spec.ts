@@ -245,6 +245,29 @@ test("Battle Royale creates an isolated room and enters the Starliner drop", asy
   expect(browserErrors).toEqual([]);
 });
 
+test("Battle Royale Solo requires confirmation and respects quick-play settings",async({page})=>{
+  test.setTimeout(90_000);
+  await page.goto("/");
+  await page.getByLabel("Name").fill("Intentional Pilot");
+  await page.locator("#family-br").click();
+  await page.locator("#play-solo").click();
+  await expect(page.locator("#br-quick-play")).toBeVisible();
+  await expect(page.locator("#br-hud")).toBeHidden();
+  await page.locator("#br-quick-cancel").click();
+  await expect(page.locator("#br-quick-play")).toBeHidden();
+  await expect(page.locator("#home-screen")).toBeVisible();
+  await page.locator("#play-solo").click();
+  await page.locator("#br-quick-players").selectOption("10");
+  await page.locator("#br-quick-difficulty").selectOption("easy");
+  await page.locator("#br-quick-start").click();
+  await expect(page.locator("#br-hud")).toBeVisible({timeout:15_000});
+  await expect.poll(()=>page.locator("#br-players-remaining").textContent(),{timeout:12_000}).toBe("10 PLAYERS");
+  await expect(page.locator("#br-team-hud")).toBeHidden();
+  await expect(page.locator("#br-minimap .br-mini-teammate")).toHaveCount(0);
+  await page.locator("#br-map-button").click();
+  await expect(page.locator("#br-map-canvas .br-map-player.teammate")).toHaveCount(0);
+});
+
 test("the cannon guide marks its predicted planet impact", async ({ page }) => {
   const browserErrors = collectBrowserErrors(page);
   await page.goto("/");

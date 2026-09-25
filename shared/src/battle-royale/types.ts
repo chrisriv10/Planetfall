@@ -218,7 +218,7 @@ export interface BrClientToServerEvents {
   "br:room:ready": (payload: { ready: boolean }) => void;
   "br:room:configure": (payload: { teamMode?: BrTeamMode; targetPlayers?: 10 | 20 | 40; fillBots?: boolean; botDifficulty?: BotDifficulty }) => void;
   "br:match:start": () => void;
-  "br:match:quick-start": () => void;
+  "br:match:quick-start": (payload?: { targetPlayers?: 10 | 20 | 40; botDifficulty?: BotDifficulty }) => void;
   "br:player:input": (payload: BrInput) => void;
   "br:player:jump": () => void;
   "br:player:deploy": () => void;
@@ -248,7 +248,7 @@ export interface BrServerToClientEvents {
   "br:crate:spawned": (crates: BrCrateState[]) => void;
   "br:crate:opened": (payload: { crateId: string; playerId: string; drops: BrLootState[] }) => void;
   "br:weapon:fired": (payload: { playerId: string; weaponId: BrWeaponId; origin: Vec3; direction: Vec3; projectile?: BrProjectileState }) => void;
-  "br:player:damaged": (payload: { playerId: string; attackerId?: string; amount: number; hp: number; shield: number; direction: Vec3; shieldBroken: boolean }) => void;
+  "br:player:damaged": (payload: { playerId: string; attackerId?: string; amount: number; hpDamage: number; shieldDamage: number; hp: number; shield: number; direction: Vec3; shieldBroken: boolean; headshot: boolean }) => void;
   "br:player:downed": (payload: { playerId: string; attackerId?: string }) => void;
   "br:player:revived": (payload: { playerId: string; reviverId: string }) => void;
   "br:player:eliminated": (payload: { playerId: string; attackerId?: string; weaponId?: BrWeaponId; placement: number }) => void;

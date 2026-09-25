@@ -426,6 +426,14 @@ export const BR_MAP_BLOCKS: readonly BrMapBlock[] = [...BR_STRUCTURES.flatMap(st
 export const BR_LOOT_SOCKETS: readonly BrLootSocket[] = BR_STRUCTURES.filter((structure)=>structure.enterable).flatMap((structure,index)=>{
   const inward=structure.entrance==="north"?{x:0,z:-structure.size.z*.23}:structure.entrance==="south"?{x:0,z:structure.size.z*.23}:structure.entrance==="east"?{x:-structure.size.x*.23,z:0}:{x:structure.size.x*.23,z:0};
   const sockets:BrLootSocket[]=[{id:`${structure.id}-interior`,districtId:structure.districtId,structureId:structure.id,position:{x:structure.position.x+inward.x,y:.58,z:structure.position.z+inward.z},kind:"interior"}];
+  // A legitimate landing building must offer a second decision without forcing
+  // a room-by-room scavenger hunt. Keep the socket on the opposite side of the
+  // central traversal lane rather than sprinkling pickups outside at random.
+  if(structure.size.x>=10&&structure.size.z>=9){
+    const side=index%2?-1:1;
+    const lateral=Math.abs(inward.x)>.01?{x:0,z:structure.size.z*.22*side}:{x:structure.size.x*.22*side,z:0};
+    sockets.push({id:`${structure.id}-interior-secondary`,districtId:structure.districtId,structureId:structure.id,position:{x:structure.position.x-inward.x*.3+lateral.x,y:.58,z:structure.position.z-inward.z*.3+lateral.z},kind:"interior"});
+  }
   if(structure.roofAccess||index%3===0)sockets.push({id:`${structure.id}-roof-loot`,districtId:structure.districtId,structureId:structure.id,position:{x:structure.position.x-structure.size.x*.18,y:structure.size.y+.65,z:structure.position.z+structure.size.z*.17},kind:"roof"});
   return sockets;
 });

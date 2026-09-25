@@ -221,8 +221,10 @@ describe("Battle Royale room", () => {
     const target = room.players.get(joined.playerId)!; const teammate = [...room.players.values()].find((player) => player.id !== target.id && player.teamId === target.teamId)!; const shooter = [...room.players.values()].find((player) => player.teamId !== target.teamId)!;
     shooter.deployment = "grounded"; shooter.position = { x: 100, y: 0, z: 12 }; shooter.inventory[0] = { instanceId: "pulse", itemId: "pulse-rifle", rarity: "common", count: 1, magazine: BR_WEAPONS["pulse-rifle"].magazine };
     target.deployment = "grounded"; target.position = { x: 100, y: 0, z: 0 }; target.shield = 10;
+    const damageEvent=new Promise<Parameters<ServerToClientEvents["br:player:damaged"]>[0]>((resolve,reject)=>{const timeout=setTimeout(()=>reject(new Error("damage event timeout")),2_000);host.once("br:player:damaged",payload=>{clearTimeout(timeout);resolve(payload);});});
     expect(room.fire(shooter.id, { x: 100, y: .7, z: 12 }, { x: 0, y: 0, z: -1 }, start, start + 1000)).toBe(true);
     expect(shooter.inventory[0]!.magazine).toBe(BR_WEAPONS["pulse-rifle"].magazine - 1); expect(target.shield).toBe(0); expect(target.hp).toBe(88);
+    await expect(damageEvent).resolves.toMatchObject({playerId:target.id,attackerId:shooter.id,amount:22,shieldDamage:10,hpDamage:12,headshot:false});
     shooter.inventory[0] = { instanceId: "rail", itemId: "rail-laser", rarity: "common", count: 1, magazine: 3 }; target.hp = 40; target.shield = 0;
     expect(room.fire(shooter.id, { x: 100, y: .7, z: 12 }, { x: 0, y: 0, z: -1 }, start, start + 2400)).toBe(true); expect(target.downed).toBe(true);
     teammate.deployment = "grounded"; teammate.position = { ...target.position }; room.setRevive(teammate.id, target.id, true, start + 2500); room.update(1 / 30, start + 2500 + BR_BALANCE.reviveMs + 1);

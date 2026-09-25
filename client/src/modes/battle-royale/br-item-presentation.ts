@@ -1,4 +1,14 @@
-import type { BrLootState, BrWeaponId } from "@planetfall/shared";
+import { isBrHeal, isBrWeapon, type BrLootState, type BrWeaponId } from "@planetfall/shared";
+
+export type BrLootCategory = "weapon" | "ammo" | "health" | "shield" | "unknown";
+
+/** Shape carries category; the surrounding field/marker color carries rarity. */
+export function brLootCategory(state: Pick<BrLootState, "itemId" | "ammoType">): BrLootCategory {
+  if (state.itemId && isBrWeapon(state.itemId)) return "weapon";
+  if (state.ammoType) return "ammo";
+  if (state.itemId && isBrHeal(state.itemId)) return state.itemId.startsWith("shield") ? "shield" : "health";
+  return "unknown";
+}
 
 export type BrPresentationTransform = Readonly<{
   position: readonly [number,number,number];

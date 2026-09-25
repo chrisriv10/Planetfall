@@ -98,12 +98,12 @@ export const BR_HEALS: Record<BrHealId, { name: string; durationMs: number; hp: 
 };
 
 export const BR_STORM_PHASES = [
-  { waitMs: 70_000, closeMs: 55_000, radius: 330, damage: 1 },
-  { waitMs: 45_000, closeMs: 45_000, radius: 235, damage: 2 },
-  { waitMs: 35_000, closeMs: 38_000, radius: 160, damage: 3 },
-  { waitMs: 25_000, closeMs: 32_000, radius: 95, damage: 5 },
-  { waitMs: 18_000, closeMs: 25_000, radius: 45, damage: 8 },
-  { waitMs: 8_000, closeMs: 18_000, radius: 9, damage: 10 }
+  { waitMs: 55_000, closeMs: 48_000, radius: 330, damage: 1 },
+  { waitMs: 40_000, closeMs: 40_000, radius: 235, damage: 2 },
+  { waitMs: 30_000, closeMs: 35_000, radius: 160, damage: 3 },
+  { waitMs: 22_000, closeMs: 30_000, radius: 95, damage: 5 },
+  { waitMs: 15_000, closeMs: 23_000, radius: 45, damage: 8 },
+  { waitMs: 7_000, closeMs: 18_000, radius: 9, damage: 10 }
 ] as const;
 
 export const BR_STARTING_AMMO = { light: 90, heavy: 20, plasma: 12 } as const;

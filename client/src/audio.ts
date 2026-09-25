@@ -102,6 +102,24 @@ export class GameAudio {
     this.tone(heavy ? 190 : 310, heavy ? 0.2 : 0.12, "triangle", heavy ? 0.045 : 0.03, heavy ? 95 : 220);
     setTimeout(() => this.tone(heavy ? 150 : 280, 0.1, "square", heavy ? 0.035 : 0.022, heavy ? 80 : 210), heavy ? 170 : 130);
   }
+  brWeapon(weapon: string): void {
+    if (weapon === "pulse-rifle") { this.tone(210,.055,"square",.026,410); this.noise(.035,.018,1500); }
+    else if (weapon === "nova-smg") { this.tone(310,.035,"sawtooth",.018,210); this.noise(.025,.014,2200); }
+    else if (weapon === "photon-shotgun") { this.duckMusic(120,.18);this.noise(.13,.085,720);this.tone(115,.15,"square",.055,58); }
+    else if (weapon === "rail-laser") { this.tone(1080,.11,"sine",.04,1820);setTimeout(()=>this.tone(170,.18,"sawtooth",.046,72),42); }
+    else if (weapon === "plasma-launcher") { this.tone(125,.22,"sine",.055,420);this.noise(.08,.035,520); }
+    else if (weapon === "arc-blaster") { this.tone(760,.08,"square",.028,280);setTimeout(()=>this.tone(1120,.055,"triangle",.018,650),28); }
+    else if (weapon === "energy-saber") { this.noise(.09,.036,1300);this.tone(240,.16,"sawtooth",.035,480); }
+  }
+  hitConfirm(kind:"shield"|"hp"|"break"|"headshot"):void {
+    const start=kind==="headshot"?980:kind==="break"?760:kind==="shield"?610:430;
+    this.tone(start,kind==="break"?.13:.065,kind==="hp"?"square":"triangle",.025,kind==="break"?1260:start*1.18);
+    if(kind==="break")this.noise(.09,.026,1800);
+  }
+  footstep(sprinting=false):void { this.noise(.035,sprinting?.02:.013,sprinting?330:260);this.tone(sprinting?92:115,.035,"sine",.009,70); }
+  slide():void { this.noise(.17,.03,540); }
+  mantle():void { this.noise(.07,.023,420);this.tone(145,.08,"triangle",.016,95); }
+  wings():void { this.tone(280,.28,"sine",.04,840);this.noise(.16,.025,1600); }
   critical(): void { this.tone(160, .16, "triangle", .035, 105); setTimeout(() => this.tone(130, .18, "triangle", .03, 82), 190); }
   rocket(): void { this.noise(0.18, 0.14, 600); this.tone(95, 0.18, "sawtooth", 0.07, 45); }
   asteroid(): void { this.duckMusic(520, .62); this.noise(0.28, 0.19, 320); this.tone(64, 0.3, "square", 0.08, 38); }

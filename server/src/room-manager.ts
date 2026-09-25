@@ -112,11 +112,13 @@ export class RoomManager {
     socket.on("br:room:ready", (payload) => { const c = this.currentBr(socket); if (c) c.room.setReady(c.playerId, payload?.ready); });
     socket.on("br:room:configure", (payload) => { const c = this.currentBr(socket); if (c) c.room.configure(c.playerId, payload ?? {}); });
     socket.on("br:match:start", () => { const c = this.currentBr(socket); if (c) c.room.start(c.playerId); });
-    socket.on("br:match:quick-start", () => {
+    socket.on("br:match:quick-start", (payload) => {
       const c = this.currentBr(socket); if (!c || c.room.hostId !== c.playerId || c.room.phase !== "lobby") return;
       // Solo quick play is one authoritative transaction. This prevents a
       // delayed configure/ready packet from starting the old small-room setup.
-      c.room.configure(c.playerId, { teamMode: "solo", targetPlayers: 40, fillBots: true, botDifficulty: "normal" });
+      const targetPlayers=[10,20,40].includes(Number(payload?.targetPlayers))?payload!.targetPlayers:40;
+      const botDifficulty=["easy","normal","hard"].includes(String(payload?.botDifficulty))?payload!.botDifficulty:"normal";
+      c.room.configure(c.playerId, { teamMode: "solo", targetPlayers, fillBots: true, botDifficulty });
       c.room.setReady(c.playerId, true);
       c.room.start(c.playerId);
     });

@@ -1,6 +1,6 @@
 import { describe,expect,it } from "vitest";
 import { BR_WEAPONS,type BrWeaponId } from "@planetfall/shared";
-import { brHeldWeaponTransform,brLootSurfaceOffset,brLootWeaponTransform } from "./br-item-presentation";
+import { brHeldWeaponTransform,brLootCategory,brLootSurfaceOffset,brLootWeaponTransform } from "./br-item-presentation";
 
 describe("BR item presentation transforms",()=>{
   it("defines finite held and loot transforms for every weapon",()=>{
@@ -15,5 +15,12 @@ describe("BR item presentation transforms",()=>{
     expect(brLootSurfaceOffset({position:{x:0,y:.58,z:0},surfaceY:0})).toBeCloseTo(-.555);
     expect(brLootSurfaceOffset({position:{x:0,y:18.65,z:0},surfaceY:18})).toBeCloseTo(-.625);
     expect(brLootSurfaceOffset({position:{x:0,y:.58,z:0}})).toBeCloseTo(-.555);
+  });
+  it("assigns stable shape categories without coupling rarity to the item model",()=>{
+    expect(brLootCategory({itemId:"pulse-rifle"})).toBe("weapon");
+    expect(brLootCategory({ammoType:"light"})).toBe("ammo");
+    expect(brLootCategory({itemId:"shield-cell"})).toBe("shield");
+    expect(brLootCategory({itemId:"med-kit"})).toBe("health");
+    expect(brLootCategory({})).toBe("unknown");
   });
 });

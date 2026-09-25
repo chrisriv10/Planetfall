@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { BR_ROADS, BR_STRUCTURES } from "@planetfall/shared";
-import { buildBrCorridorGroves } from "./br-corridor-groves";
+import { BR_CORRIDOR_GROVE_MAX, BR_CORRIDOR_TREES_PER_GROVE, buildBrCorridorGroves } from "./br-corridor-groves";
 
 describe("BR corridor groves", () => {
   it("is deterministic, bounded, and keeps trunks out of roads and buildings", () => {
     const first = buildBrCorridorGroves();
     expect(buildBrCorridorGroves()).toEqual(first);
     const trunks = first.filter(part => part.geometry === "cylinder");
-    expect(trunks.length).toBeGreaterThanOrEqual(12);
-    expect(trunks.length).toBeLessThanOrEqual(42);
+    expect(trunks.length).toBeGreaterThanOrEqual(16);
+    expect(trunks.length).toBeLessThanOrEqual(BR_CORRIDOR_GROVE_MAX * BR_CORRIDOR_TREES_PER_GROVE);
     for (const trunk of trunks) {
       expect(BR_STRUCTURES.every(structure => Math.abs(trunk.position.x - structure.position.x) > structure.size.x / 2
         || Math.abs(trunk.position.z - structure.position.z) > structure.size.z / 2)).toBe(true);

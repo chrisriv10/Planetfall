@@ -192,6 +192,13 @@ describe("Battle Royale shared rules", () => {
     expect(Object.values(motion.position).every(Number.isFinite)).toBe(true);
   });
 
+  it("keeps the full storm cadence compact without removing a readable first loot window",()=>{
+    const totalMs=BR_STORM_PHASES.reduce((sum,phase)=>sum+phase.waitMs+phase.closeMs,0);
+    expect(BR_STORM_PHASES[0].waitMs).toBeGreaterThanOrEqual(50_000);
+    expect(totalMs).toBeLessThanOrEqual(365_000);
+    expect(BR_STORM_PHASES.every((phase,index)=>index===0||phase.waitMs<=BR_STORM_PHASES[index-1].waitMs)).toBe(true);
+  });
+
   it("lets automatic deployment traverse between neighbouring districts",()=>{
     let motion:BrMotionState={position:{x:-400,y:BR_BALANCE.shipHeight,z:0},velocity:{x:0,y:-5,z:0},yaw:Math.PI/2,grounded:false,crouched:false,deployment:"freefall",downed:false,lastJumpSignal:false,lastCrouchSignal:false,slideEndsAt:0,traversalCooldownUntil:0,lastGroundedAt:Number.NEGATIVE_INFINITY,jumpBufferedUntil:0};
     for(let tick=0;tick<30*30&&motion.deployment!=="grounded";tick++)motion=stepBrMovement(motion,{moveX:0,moveY:1,yaw:Math.PI/2,jump:false,sprint:false,crouch:false},1/30,tick*1000/30);

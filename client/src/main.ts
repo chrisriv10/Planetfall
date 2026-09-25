@@ -5,6 +5,7 @@ import { inputLabel, type InputMethod } from "./input";
 import { SETTINGS_STORAGE_KEY, parseStoredSettings, type UserSettings } from "./settings";
 import { brStormReadout } from "./modes/battle-royale/br-feedback";
 import { brMapPercent, createBrMapArt, updateBrMinimapArt } from "./modes/battle-royale/br-map-art";
+import { brPresentedTeammates, brTeammateStatus } from "./modes/battle-royale/br-team-presentation";
 
 const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const canvas = byId<HTMLCanvasElement>("game-canvas");
@@ -78,6 +79,11 @@ const brPlayerTarget = byId<HTMLSelectElement>("br-player-target");
 const brFillBots = byId<HTMLInputElement>("br-fill-bots");
 const brTeamList = byId("br-team-list");
 const brMapOverlay = byId<HTMLElement>("br-map-overlay");
+const brQuickPlay = byId<HTMLElement>("br-quick-play");
+const brQuickPlayers = byId<HTMLSelectElement>("br-quick-players");
+const brQuickDifficulty = byId<HTMLSelectElement>("br-quick-difficulty");
+const brQuickStart = byId<HTMLButtonElement>("br-quick-start");
+const brQuickCancel = byId<HTMLButtonElement>("br-quick-cancel");
 let shopCategory: CosmeticCategory = "suit";
 createButton.disabled = true; soloButton.disabled = true; joinButton.disabled = true; settingsOpenButton.disabled = true; shopHomeButton.disabled = true;
 nameInput.value = nameInput.value || localStorage.getItem("planetfall:name") || "";
@@ -301,8 +307,10 @@ familyPlanetfallButton.addEventListener("click", () => selectFamily("planetfall"
 familyBrButton.addEventListener("click", () => selectFamily("battle-royale"));
 
 createButton.addEventListener("click", () => joinOrCreate("create"));
-soloButton.addEventListener("click", () => joinOrCreate("solo"));
+soloButton.addEventListener("click", () => selectedFamily === "battle-royale" ? openBrQuickPlay() : joinOrCreate("solo"));
 joinButton.addEventListener("click", () => joinOrCreate("join"));
+brQuickStart.addEventListener("click", () => { closeBrQuickPlay(); joinOrCreate("solo"); });
+brQuickCancel.addEventListener("click", closeBrQuickPlay);
 codeInput.addEventListener("input", () => { codeInput.value = codeInput.value.toUpperCase().replace(/[^A-Z2-9]/g, "").slice(0, 6); });
 codeInput.addEventListener("keydown", (event) => { if (event.key === "Enter") joinOrCreate("join"); });
 nameInput.addEventListener("keydown", (event) => { if (event.key === "Enter") joinOrCreate(codeInput.value ? "join" : "create"); });
@@ -333,6 +341,7 @@ byId("pass-results").addEventListener("click", openPass);
 byId("pass-close").addEventListener("click", closePass);
 byId("settings-lobby").addEventListener("click", () => openSettings("screen"));
 addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !brQuickPlay.hidden) { event.preventDefault(); closeBrQuickPlay(); return; }
   if(event.key!=="Tab")return;
   const overlay=activeOverlay();
   if(overlay){
@@ -390,6 +399,18 @@ function selectFamily(family: GameFamily): void {
   renderInputUi(game.getInputMethod());
 }
 
+function openBrQuickPlay(): void {
+  if (joining) return;
+  if (!nameInput.value.trim()) return toast("Choose a pilot name first.");
+  brQuickPlay.hidden = false;
+  game.audio.unlock(); game.audio.click(); focusFirst(brQuickPlay);
+}
+
+function closeBrQuickPlay(): void {
+  if (brQuickPlay.hidden) return;
+  brQuickPlay.hidden = true; game.audio.click(); focusFirst(screens.home);
+}
+
 async function copyRoomCode(code?: string): Promise<void> {
   if (!code) return;
   try { await navigator.clipboard.writeText(code); toast("Room code copied!"); } catch { toast(`Room code: ${code}`); }
@@ -414,7 +435,7 @@ function joinOrCreate(kind: "create" | "join" | "solo"): void {
       sessionStorage.setItem(`planetfall:br:${currentCode}`, result.sessionToken);
       void applyBrRoom(result.room);
       if (kind === "solo") {
-        socket.emit("br:match:quick-start");
+        socket.emit("br:match:quick-start", { targetPlayers: Number(brQuickPlayers.value) as 10 | 20 | 40, botDifficulty: brQuickDifficulty.value as BotDifficulty });
       }
     };
     if (kind === "join") socket.emit("br:room:join", { code, name, sessionToken: sessionStorage.getItem(`planetfall:br:${code}`) ?? undefined }, doneBr);
@@ -575,7 +596,8 @@ function renderBrHud(state: import("./modes/battle-royale/br-game").BrHudState):
   byId("br-hp").textContent = String(Math.ceil(player.hp)); byId("br-shield").textContent = String(Math.ceil(player.shield)); byId<HTMLElement>("br-hp-meter").style.width = `${player.hp}%`; byId<HTMLElement>("br-shield-meter").style.width = `${player.shield}%`;
   const stormReadout=brStormReadout(state.phase,state.storm,Date.now());byId("br-storm-timer").textContent=stormReadout.time;byId("br-storm-copy").textContent=stormReadout.label;
   const mini = byId("br-minimap"); const miniStorm = mini.querySelector<HTMLElement>(".br-mini-storm")!; const span = 110; updateBrMinimapArt(mini,player.position.x,player.position.z,span); miniStorm.style.left = `${50 + (state.storm.center.x - player.position.x) / span * 50}%`; miniStorm.style.top = `${50 + (state.storm.center.z - player.position.z) / span * 50}%`; miniStorm.style.width = `${state.storm.radius / span * 100}%`; miniStorm.style.height = miniStorm.style.width;
-  const teamMembers = state.players.filter((entry) => entry.teamId === player.teamId && entry.id !== player.id);
+  const teamMembers = brPresentedTeammates(state.teamMode, player, state.players);
+  byId("br-map-legend").textContent=state.teamMode==="solo"?"YOU · SAFE ZONE":"YOU · TEAM · SAFE ZONE";
   const teammates = teamMembers.filter((entry) => entry.alive);
   const activeMiniIds = new Set(teammates.map((entry) => entry.id));
   for (const [id, node] of brMiniTeammates) if (!activeMiniIds.has(id)) { node.remove(); brMiniTeammates.delete(id); }
@@ -589,7 +611,9 @@ function renderBrHud(state: import("./modes/battle-royale/br-game").BrHudState):
   // Pointer capture still happens on a canvas click, but it is a browser
   // implementation detail—not a persistent gameplay objective. Showing it
   // through freefall, landing and combat obscured real interaction prompts.
-  const contextText=state.prompt;
+  // The elimination panel already owns spectator instructions and exit. Keep
+  // the transient action strip from duplicating those controls underneath it.
+  const contextText=eliminated?"":state.prompt;
   const contextAmount=contextText ? Math.max(state.reloadProgress,state.useProgress,state.reviveProgress) : 0;
   brContextPrompt.dataset.kind="action";brContextCopy.textContent=contextText;brContextPrompt.hidden=!contextText;brContextProgress.style.width=`${contextAmount*100}%`;
   const inventory = byId("br-inventory"); const nextInventoryMarkup = player.inventory.map((item, index) => {
@@ -599,8 +623,8 @@ function renderBrHud(state: import("./modes/battle-royale/br-game").BrHudState):
     return `<div class="br-slot${index === player.selectedSlot ? " selected" : ""}" data-item="${icon}" style="--slot-color:${color}"><i aria-hidden="true"></i><b>${index + 1} · ${name}</b><small>${ammo}</small></div>`;
   }).join("");
   if (nextInventoryMarkup !== brInventoryMarkup) { brInventoryMarkup = nextInventoryMarkup; inventory.innerHTML = nextInventoryMarkup; }
-  const nextTeammateMarkup = teamMembers.map((mate) => `<div class="br-teammate" style="--mate-color:${mate.color}"><b>${escapeHtml(mate.name)}</b><span>${mate.downed ? "DOWN" : mate.alive ? `${Math.ceil(mate.hp)} HP` : "OUT"}</span><small>${Math.ceil(mate.shield)} SHIELD</small></div>`).join("");
-  if (nextTeammateMarkup !== brTeammateMarkup) { brTeammateMarkup = nextTeammateMarkup; byId("br-team-hud").innerHTML = nextTeammateMarkup; }
+  const nextTeammateMarkup = teamMembers.map((mate) => { const status=brTeammateStatus(mate);return `<div class="br-teammate ${status}" style="--mate-color:${mate.color}"><i></i><b>${escapeHtml(mate.name)}</b><span>${status.toUpperCase()}</span><label>HP<em style="--value:${Math.max(0,mate.hp)}%"></em></label><label>SHIELD<em style="--value:${Math.max(0,mate.shield)}%"></em></label></div>`; }).join("");
+  if (nextTeammateMarkup !== brTeammateMarkup) { brTeammateMarkup = nextTeammateMarkup; const teamHud=byId("br-team-hud");teamHud.innerHTML=nextTeammateMarkup;teamHud.hidden=state.teamMode==="solo"||teamMembers.length===0; }
   const now = performance.now(); if (!brMapOverlay.hidden && now - lastBrMapRenderAt > 120) { lastBrMapRenderAt = now; renderBrMap(player); }
 }
 
@@ -630,7 +654,7 @@ function renderBrMap(player: BrRoomView["players"][number]): void {
   if (brRoom) { const next = document.createElement("i"); next.className = "br-map-circle next"; next.style.left = `${toPercent(brRoom.storm.nextCenter.x)}%`; next.style.top = `${toPercent(brRoom.storm.nextCenter.z)}%`; next.style.width = `${brRoom.storm.nextRadius / BR_MAP.radius * 96}%`; next.style.height = next.style.width; map.append(next); }
   if (brRoom?.ship) { const route = document.createElement("i"); route.className = "br-map-route"; const startX = toPercent(brRoom.ship.start.x); const startY = toPercent(brRoom.ship.start.z); const endX = toPercent(brRoom.ship.end.x); const endY = toPercent(brRoom.ship.end.z); route.style.left = `${startX}%`; route.style.top = `${startY}%`; route.style.width = `${Math.hypot(endX - startX, endY - startY)}%`; route.style.transform = `rotate(${Math.atan2(endY - startY, endX - startX)}rad)`; map.append(route); }
   const marker = document.createElement("i"); marker.className = "br-map-player"; marker.style.left = `${toPercent(player.position.x)}%`; marker.style.top = `${toPercent(player.position.z)}%`; map.append(marker);
-  for (const teammate of brRoom?.players.filter((entry) => entry.id !== player.id && entry.teamId === player.teamId && entry.alive) ?? []) { const dot = document.createElement("i"); dot.className = "br-map-player teammate"; dot.style.left = `${toPercent(teammate.position.x)}%`; dot.style.top = `${toPercent(teammate.position.z)}%`; dot.style.setProperty("--teammate-color", teammate.color); map.append(dot); }
+  for (const teammate of brRoom ? brPresentedTeammates(brRoom.teamMode, player, brRoom.players).filter((entry)=>entry.alive) : []) { const dot = document.createElement("i"); dot.className = "br-map-player teammate"; dot.style.left = `${toPercent(teammate.position.x)}%`; dot.style.top = `${toPercent(teammate.position.z)}%`; dot.style.setProperty("--teammate-color", teammate.color); map.append(dot); }
 }
 
 function renderLobby(): void {
@@ -1067,7 +1091,7 @@ function focusFirst(root: HTMLElement): void {
 }
 
 function focusableElements(root:HTMLElement):HTMLElement[]{return [...root.querySelectorAll<HTMLElement>("button:not([disabled]):not([hidden]), input:not([disabled]):not([hidden]), select:not([disabled]):not([hidden]), [tabindex]:not([tabindex='-1'])")].filter(element=>element.offsetParent!==null);}
-function activeOverlay():HTMLElement|null{return !brMapOverlay.hidden?brMapOverlay:!shopOverlay.hidden?shopOverlay:!passOverlay.hidden?passOverlay:!settingsOverlay.hidden?settingsOverlay:!pauseOverlay.hidden?pauseOverlay:null;}
+function activeOverlay():HTMLElement|null{return !brQuickPlay.hidden?brQuickPlay:!brMapOverlay.hidden?brMapOverlay:!shopOverlay.hidden?shopOverlay:!passOverlay.hidden?passOverlay:!settingsOverlay.hidden?settingsOverlay:!pauseOverlay.hidden?pauseOverlay:null;}
 
 function setGameMode(mode: GameMode): void {
   if (!room || room.hostId !== playerId || room.phase !== "lobby" || room.gameMode === mode) return;

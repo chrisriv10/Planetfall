@@ -1,5 +1,5 @@
 import { describe,expect,it } from "vitest";
-import { BR_MAP_BLOCKS, BR_STRUCTURES } from "@planetfall/shared";
+import { BR_BALANCE, BR_MAP_BLOCKS, BR_STRUCTURES } from "@planetfall/shared";
 import { BrPhysicsWorld } from "./br-physics.js";
 
 describe("Battle Royale Rapier world",()=>{
@@ -63,4 +63,33 @@ describe("Battle Royale Rapier world",()=>{
   it("holds a grounded capsule at a stable contact offset without flickering",()=>{const physics=new BrPhysicsWorld();let feet={x:72,y:.08,z:72};for(let step=0;step<90;step++){const result=physics.move("stable",feet,{x:.035,y:-.018,z:0},false);feet={x:feet.x+result.movement.x,y:feet.y+result.movement.y,z:feet.z+result.movement.z};expect(result.grounded).toBe(true);expect(Number.isFinite(feet.x+feet.y+feet.z)).toBe(true);}expect(feet.y).toBeGreaterThanOrEqual(.02);expect(feet.y).toBeLessThan(.06);physics.dispose();});
 
   it("crosses movement-sector seams and resizes the crouch capsule without losing contact",()=>{const physics=new BrPhysicsWorld();let feet={x:99.7,y:.04,z:-250};const first=physics.move("sector",feet,{x:.6,y:-.02,z:0},false,true);feet={x:feet.x+first.movement.x,y:feet.y+first.movement.y,z:feet.z+first.movement.z};const second=physics.move("sector",feet,{x:.6,y:-.02,z:0},false,false);expect(first.crouched).toBe(true);expect(second.crouched).toBe(false);expect(first.grounded&&second.grounded).toBe(true);expect(feet.x+second.movement.x).toBeGreaterThan(100.7);physics.dispose();});
+
+  it.each([{label:"sprint",step:1.15},{label:"slide",step:1.55}])("sweeps maximum $label movement into thin walls",({step})=>{
+    const physics=new BrPhysicsWorld();
+    try{
+      const structure=BR_STRUCTURES.find(entry=>entry.enterable)!;
+      const wallX=structure.position.x-structure.size.x/2;
+      let feet={x:wallX-2.2,y:.04,z:structure.position.z};
+      for(let tick=0;tick<5;tick++){
+        const result=physics.move("fast-wall",feet,{x:step,y:-.03,z:0},false,tick%2===1);
+        feet={x:feet.x+result.movement.x,y:feet.y+result.movement.y,z:feet.z+result.movement.z};
+      }
+      expect(feet.x).toBeLessThanOrEqual(wallX-BR_BALANCE.playerRadius+.05);
+    }finally{physics.dispose();}
+  });
+
+  it("blocks a high-delta diagonal corner approach without tunneling",()=>{
+    const physics=new BrPhysicsWorld();
+    try{
+      const structure=BR_STRUCTURES.find(entry=>entry.enterable)!;
+      const minX=structure.position.x-structure.size.x/2,minZ=structure.position.z-structure.size.z/2;
+      let feet={x:minX-1.8,y:.04,z:minZ-1.8};
+      for(let tick=0;tick<4;tick++){
+        const result=physics.move("corner",feet,{x:1.25,y:-.04,z:1.25},false);
+        feet={x:feet.x+result.movement.x,y:feet.y+result.movement.y,z:feet.z+result.movement.z};
+      }
+      const penetrated=feet.x>minX-BR_BALANCE.playerRadius*.8&&feet.z>minZ-BR_BALANCE.playerRadius*.8;
+      expect(penetrated).toBe(false);
+    }finally{physics.dispose();}
+  });
 });

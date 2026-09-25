@@ -37,6 +37,21 @@
         </div>
       </section>
 
+      <section id="br-quick-play" class="overlay" role="dialog" aria-modal="true" aria-labelledby="br-quick-title" hidden>
+        <div class="overlay-card br-quick-card glass">
+          <div class="panel-kicker">BATTLE ROYALE · PRIVATE BOT MATCH</div>
+          <h2 id="br-quick-title">Deploy to Orbital Isle?</h2>
+          <p class="br-quick-copy">Confirm your solo deployment before the Starliner launches.</p>
+          <div class="br-quick-summary">
+            <div><span>MODE</span><b>SOLO</b></div>
+            <label for="br-quick-players"><span>PLAYERS</span><select id="br-quick-players"><option value="10">10</option><option value="20">20</option><option value="40" selected>40</option></select></label>
+            <label for="br-quick-difficulty"><span>BOTS</span><select id="br-quick-difficulty"><option value="easy">EASY</option><option value="normal" selected>NORMAL</option><option value="hard">HARD</option></select></label>
+            <div><span>MAP</span><b>ORBITAL ISLE</b></div>
+          </div>
+          <div class="result-actions"><button id="br-quick-start" class="button button-primary" type="button">Start Match</button><button id="br-quick-cancel" class="button button-secondary" type="button">Cancel</button></div>
+        </div>
+      </section>
+
       <section id="lobby-screen" class="screen" aria-labelledby="lobby-title">
         <div class="lobby-card glass">
           <div class="lobby-heading">
@@ -103,7 +118,7 @@
         <div id="br-context" class="context-prompt" hidden><span id="br-context-copy"></span><i id="br-context-progress"></i></div>
         <div id="br-crosshair" class="br-crosshair"><i></i><i></i><i></i><i></i><b></b></div><div id="br-damage-direction" class="br-damage-direction"></div>
         <div id="br-kill-feed" class="br-kill-feed" role="log" aria-label="Combat events" aria-live="polite" aria-relevant="additions"></div>
-        <div id="br-team-hud" class="br-team-hud"></div>
+        <div id="br-team-hud" class="br-team-hud" hidden></div>
         <div id="br-pings" class="br-pings"></div>
         <aside id="br-elimination-summary" class="br-elimination-summary" hidden aria-live="polite">
           <span>ELIMINATED</span><strong id="br-elimination-placement">10TH PLACE</strong>
@@ -115,7 +130,7 @@
       </section>
 
       <section id="br-map-overlay" class="overlay br-map-overlay" role="dialog" aria-modal="true" aria-labelledby="br-map-title" hidden>
-        <div class="br-map-card glass"><div class="panel-kicker">ORBITAL ISLE</div><h2 id="br-map-title">TACTICAL MAP</h2><div id="br-map-canvas" class="br-map-canvas"></div><p>YOU · TEAM · SAFE ZONE</p><button id="br-map-close" class="button button-primary">Close Map</button></div>
+        <div class="br-map-card glass"><div class="panel-kicker">ORBITAL ISLE</div><h2 id="br-map-title">TACTICAL MAP</h2><div id="br-map-canvas" class="br-map-canvas"></div><p id="br-map-legend">YOU · SAFE ZONE</p><button id="br-map-close" class="button button-primary">Close Map</button></div>
       </section>
 
       <section id="br-results-screen" class="screen" aria-labelledby="br-results-title">

@@ -85,6 +85,7 @@ export class BrWorldRenderer {
   private maintenanceDetail: THREE.Group | null = null;
   private deckTransitionDetail: THREE.Group | null = null;
   private sectorFieldDetail: THREE.Group | null = null;
+  private corridorGroveDetail: THREE.Group | null = null;
   private quality: GraphicsQuality;
   private disposed = false;
 
@@ -116,6 +117,7 @@ export class BrWorldRenderer {
     if (this.deckTransitionDetail) this.deckTransitionDetail.visible = quality !== "low";
     if (this.sectorFieldDetail) this.sectorFieldDetail.visible = quality !== "low";
     if (this.connectiveClusterDetail) this.connectiveClusterDetail.visible = quality !== "low";
+    if (this.corridorGroveDetail) this.corridorGroveDetail.visible = quality !== "low";
     this.root.traverse((object) => {
       if (object instanceof THREE.Mesh || object instanceof THREE.InstancedMesh) {
         object.castShadow = quality === "high" && object.userData.cameraCollision === true;
@@ -1239,6 +1241,8 @@ export class BrWorldRenderer {
     ] as const;
     for (const [x, z, text] of wayfinding) { const sign = this.materials.createSign(text, { border: "#70f5ff" }); sign.position.set(x, 5.2, z); sign.scale.set(17, 4.2, 1); this.root.add(sign); }
     const grove = new THREE.Group(); grove.name = "corridor-space-tree-groves";
+    grove.visible = this.quality !== "low";
+    this.corridorGroveDetail = grove;
     const groveBatches = new Map<string, BrCorridorGrovePart[]>();
     for (const part of buildBrCorridorGroves()) {
       const key = `${part.geometry}:${part.finish}`;

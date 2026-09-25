@@ -18,7 +18,7 @@ function orbitalRing(): THREE.BufferGeometry {
     const offset = positions.length / 3;
     for (let step = 0; step <= 12; step++) {
       const angle = arc * Math.PI * 2 / 3 + .12 + step / 12 * (Math.PI * 2 / 3 - .24);
-      for (const radius of [.68, .715]) positions.push(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
+      for (const radius of [.66, .72]) positions.push(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
       if (step < 12) { const i = offset + step * 2; indices.push(i, i + 2, i + 1, i + 1, i + 2, i + 3); }
     }
   }
@@ -82,6 +82,10 @@ export class BrLootRarityVisual extends THREE.Group {
     this.itemPivot.rotation.y = now * .00055 + this.phase;
     this.ring.rotation.y = this.phase; // Stationary base; only its item floats/spins.
     this.aura.scale.setScalar(1 + wave * .045);
+    // The broken orbital reticle stays compact near the item, then broadens
+    // slightly at medium distance while its inner opening preserves the model.
+    const ringScale = Number.isFinite(distance) ? 1 + Math.max(0, Math.min(1, (distance - 12) / 42)) * .28 : 1;
+    this.ring.scale.setScalar(ringScale);
     const validDistance = Number.isFinite(distance) && distance >= 0;
     this.aura.visible = validDistance && quality !== "low" && distance < (quality === "high" ? 45 : 30);
     this.beam.visible = validDistance && quality !== "low" && distance < (quality === "high" ? 48 : 28);
