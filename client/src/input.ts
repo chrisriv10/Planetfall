@@ -123,7 +123,7 @@ export class GameInput {
       if (!event.repeat && action) this.pendingPressed.add(action);
       if (!event.repeat && /^Digit[1-5]$/.test(event.code)) this.pendingDirectSlot = Number(event.code.slice(-1)) - 1;
       if (!event.repeat) this.markMethod("keyboard");
-      if (event.code === "Space") event.preventDefault();
+      if (event.code === "Space" || event.code.startsWith("Arrow")) event.preventDefault();
     });
     addEventListener("keyup", (event) => {
       this.keys.delete(event.code);

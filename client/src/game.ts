@@ -54,6 +54,7 @@ import {
 } from "@planetfall/shared";
 import { GameAudio } from "./audio";
 import { createAstronautVisual } from "./astronaut";
+import { classicSpectatorCycleDirection, classicSpectatorPrompt } from "./classic-spectator";
 import { createVerityPlanetVisual, updateVerityPlanetVisual, type VerityPlanetVisual } from "./planet-cosmetics";
 import { GameInput, inputLabel, type InputAction, type InputFrame, type InputMethod } from "./input";
 import { ReconciliationTracker, interpolationAlpha, shouldAcceptSnapshot, type ReconciliationMetrics } from "./reconciliation";
@@ -1670,8 +1671,13 @@ export class PlanetfallGame {
 
     const local = this.players.get(this.localId);
     if (!local?.state.alive) {
-      if (frame.previousTarget.pressed || frame.menuX < 0) this.spectatorIndex -= 1;
-      if (frame.nextTarget.pressed || frame.menuX > 0 || frame.repair.pressed) this.spectatorIndex += 1;
+      this.spectatorIndex += classicSpectatorCycleDirection({
+        previousPressed: frame.previousTarget.pressed,
+        nextPressed: frame.nextTarget.pressed,
+        repairPressed: frame.repair.pressed,
+        menuX: frame.menuX,
+        menuY: frame.menuY
+      });
       this.applyLook(frame, dt);
       return;
     }
@@ -1837,7 +1843,12 @@ export class PlanetfallGame {
   private updateMatch(dt: number, now: number): void {
     const local = this.players.get(this.localId);
     if (!local || !this.room) return;
-    if (!local.state.alive) { this.updateSpectator(dt); return; }
+    if (!local.state.alive) {
+      this.updateRemotePlayerPresentation(dt);
+      this.updatePlayerTethers();
+      this.updateSpectator(dt);
+      return;
+    }
     this.predictLocal(dt, now);
     local.group.position.copy(this.localPosition);
     const planet = (this.localGravityPlanetId ? this.planets.get(this.localGravityPlanetId) : undefined)
@@ -1877,6 +1888,12 @@ export class PlanetfallGame {
     const targetFov = 58 + flightAmount * 8;
     if (Math.abs(this.camera.fov - targetFov) > 0.02) { this.camera.fov += (targetFov - this.camera.fov) * (1 - Math.exp(-dt * 5)); this.camera.updateProjectionMatrix(); }
 
+    this.updateRemotePlayerPresentation(dt);
+    this.updatePlayerTethers();
+    this.updateContext();
+  }
+
+  private updateRemotePlayerPresentation(dt: number): void {
     for (const [id, player] of this.players) {
       if (id === this.localId) continue;
       const airborne = !player.state.surfacePlanetId;
@@ -1897,8 +1914,6 @@ export class PlanetfallGame {
         this.orientPlayer(player.group, player.presentationUp, player.presentationForward, dt);
       }
     }
-    this.updatePlayerTethers();
-    this.updateContext();
   }
 
   private predictLocal(dt: number, now: number): void {
@@ -2369,17 +2384,32 @@ export class PlanetfallGame {
   }
 
   private updateSpectator(dt: number): void {
-    const targets = [...this.planets.values()].filter((p) => p.state.alive);
+    const targets = [...this.players.values()].filter((player) => player.state.alive && player.state.connected);
     if (!targets.length) return;
     const index = ((this.spectatorIndex % targets.length) + targets.length) % targets.length;
-    const target = targets[index].group.position;
-    this.yaw += this.lookYawDelta + dt * 0.06;
+    const target = targets[index];
+    const focus = target.group.position;
+    const gravityPlanet = (target.state.gravityPlanetId ? this.planets.get(target.state.gravityPlanetId) : undefined)
+      ?? (target.state.surfacePlanetId ? this.planets.get(target.state.surfacePlanetId) : undefined)
+      ?? this.nearestPlanet(focus, true);
+    const up = gravityPlanet
+      ? focus.clone().sub(gravityPlanet.group.position).normalize()
+      : target.presentationUp.clone().normalize();
+    const planarForward = this.cameraForward.clone().projectOnPlane(up);
+    if (planarForward.lengthSq() < .01) {
+      const reference = Math.abs(up.y) > .95 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 1, 0);
+      planarForward.crossVectors(reference, up);
+    }
+    planarForward.normalize().applyAxisAngle(up, this.lookYawDelta + dt * .06);
     this.lookYawDelta = 0;
-    const desired = target.clone().add(new THREE.Vector3(Math.cos(this.yaw) * 20, 10 + (this.pitch + .28) * 7, Math.sin(this.yaw) * 20));
-    this.camera.position.lerp(desired, 1 - Math.exp(-dt * 3));
-    this.camera.up.lerp(new THREE.Vector3(0, 1, 0), .05);
-    this.camera.lookAt(target);
-    this.onPrompt?.(`SPECTATING  ·  ${this.label("previousTarget")} ${this.label("nextTarget")} CYCLE`, false);
+    const right = new THREE.Vector3().crossVectors(planarForward, up).normalize();
+    this.cameraForward.copy(planarForward).applyAxisAngle(right, this.pitch).normalize();
+    const desired = focus.clone().addScaledVector(up, 4.2).addScaledVector(this.cameraForward, -8.8);
+    const cameraPosition = gravityPlanet ? this.preventCameraClip(desired, focus, gravityPlanet.group.position) : desired;
+    this.camera.position.lerp(cameraPosition, 1 - Math.exp(-dt * 7));
+    this.camera.up.lerp(up, 1 - Math.exp(-dt * 10)).normalize();
+    this.camera.lookAt(focus.clone().addScaledVector(up, 1));
+    this.onPrompt?.(classicSpectatorPrompt(target.state.name, this.input.method), false);
   }
 
   private updateEffects(dt: number): void {
