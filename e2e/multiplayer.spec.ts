@@ -257,6 +257,10 @@ test("Battle Royale Solo requires confirmation and respects quick-play settings"
   await page.locator("#play-solo").click();
   await expect(page.locator("#br-quick-play")).toBeVisible();
   await expect(page.locator("#br-hud")).toBeHidden();
+  // The hidden pre-snapshot HUD must agree with the advertised default so it
+  // never flashes a stale ten-player count while a 40-player room is joining.
+  await expect(page.locator("#br-players-remaining")).toHaveText("40 PLAYERS");
+  await expect(page.locator("#br-teams-remaining")).toHaveText("40 TEAMS");
   await page.locator("#br-quick-cancel").click();
   await expect(page.locator("#br-quick-play")).toBeHidden();
   await expect(page.locator("#home-screen")).toBeVisible();
