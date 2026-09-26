@@ -60,16 +60,26 @@ export function buildBrCorridorGroves(overrides: Partial<Inputs> = {}): BrCorrid
         const offset = road.width / 2 + 11;
         const center = { x: road.from.x + dx * t - dz / length * offset * side, y: 0, z: road.from.z + dz * t + dx / length * offset * side };
         if (!clear(center, inputs) || centers.some(previous => Math.hypot(center.x - previous.x, center.z - previous.z) < 32)) continue;
-        centers.push(center);
         const heading = Math.atan2(dz, dx);
+        const treePositions = Array.from({ length: BR_CORRIDOR_TREES_PER_GROVE }, (_, tree) => {
+          const along = (tree - 1.5) * 3.75;
+          const across = (tree % 2 ? 1 : -1) * 1.35;
+          return {
+            x: center.x + Math.cos(heading) * along - Math.sin(heading) * across,
+            y: 0,
+            z: center.z + Math.sin(heading) * along + Math.cos(heading) * across
+          };
+        });
+        // A center can be clear while one end of the composed grove clips a
+        // crossing road or a neighbouring facade. Validate the actual trunks
+        // before accepting the cluster so density never creates false cover.
+        if (treePositions.some(tree => !clear(tree, inputs))) continue;
+        centers.push(center);
         // Four distinct silhouettes create a readable grove rather than an
         // isolated decorative tree, while leaving the road and combat lane
         // deliberately open.
-        for (let tree = 0; tree < BR_CORRIDOR_TREES_PER_GROVE; tree++) {
-          const along = (tree - 1.5) * 3.75;
-          const across = (tree % 2 ? 1 : -1) * 1.35;
-          const x = center.x + Math.cos(heading) * along - Math.sin(heading) * across;
-          const z = center.z + Math.sin(heading) * along + Math.cos(heading) * across;
+        for (let tree = 0; tree < treePositions.length; tree++) {
+          const { x, z } = treePositions[tree];
           const height = 2.8 + ((centers.length + tree) % 3) * .65;
           parts.push({ geometry: "box", finish: "soil", position: { x, y: .08, z }, scale: { x: 2.3, y: .12, z: 2.3 }, rotationY: heading });
           parts.push({ geometry: "cylinder", finish: "soil", position: { x, y: height / 2, z }, scale: { x: .16, y: height, z: .16 }, rotationY: heading });

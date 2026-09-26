@@ -31,10 +31,11 @@ export function buildBrRooftopDetails(structure: BrStructure, roofLoot?: BrLootS
 
   // The access edge remains visually open so the authoritative ramp does not
   // appear to terminate at a rail or service curb.
-  if (!structure.roofAccess || structure.entrance !== "north") add({finish:"edge",shape:"box",position:{x,y,z:z+depth/2-.62},scale:{x:width-1.4,y:.09,z:.18}});
-  if (!structure.roofAccess || structure.entrance !== "south") add({finish:"edge",shape:"box",position:{x,y,z:z-depth/2+.62},scale:{x:width-1.4,y:.09,z:.18}});
-  if (!structure.roofAccess || structure.entrance !== "east") add({finish:"edge",shape:"box",position:{x:x+width/2-.62,y,z},scale:{x:.18,y:.09,z:depth-1.4}});
-  if (!structure.roofAccess || structure.entrance !== "west") add({finish:"edge",shape:"box",position:{x:x-width/2+.62,y,z},scale:{x:.18,y:.09,z:depth-1.4}});
+  const accessSide=structure.roofAccessSide??structure.entrance;
+  if (!structure.roofAccess || accessSide !== "north") add({finish:"edge",shape:"box",position:{x,y,z:z+depth/2-.62},scale:{x:width-1.4,y:.09,z:.18}});
+  if (!structure.roofAccess || accessSide !== "south") add({finish:"edge",shape:"box",position:{x,y,z:z-depth/2+.62},scale:{x:width-1.4,y:.09,z:.18}});
+  if (!structure.roofAccess || accessSide !== "east") add({finish:"edge",shape:"box",position:{x:x+width/2-.62,y,z},scale:{x:.18,y:.09,z:depth-1.4}});
+  if (!structure.roofAccess || accessSide !== "west") add({finish:"edge",shape:"box",position:{x:x-width/2+.62,y,z},scale:{x:.18,y:.09,z:depth-1.4}});
 
   const back = structure.entrance === "north" ? -1 : structure.entrance === "south" ? 1 : 0;
   const side = structure.entrance === "east" ? -1 : structure.entrance === "west" ? 1 : 0;

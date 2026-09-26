@@ -163,7 +163,7 @@ export function buildBrSectorFields(overrides: Partial<SectorFieldInputs> = {}):
     ...overrides
   };
   const roads = [...inputs.roads].filter(road => [road.from.x, road.from.z, road.to.x, road.to.z, road.width].every(Number.isFinite)
-      && road.width > 0 && distance(road.from, road.to) >= 135)
+      && road.width > 0 && distance(road.from, road.to) >= 82)
     .sort((a, b) => distance(b.from, b.to) - distance(a.from, a.to) || a.id.localeCompare(b.id));
   if (inputs.outline.length < 3 || inputs.outline.some(point => !point.every(Number.isFinite))) return [];
 
@@ -172,19 +172,22 @@ export function buildBrSectorFields(overrides: Partial<SectorFieldInputs> = {}):
     if (fields.length === 10) break;
     const dx = road.to.x - road.from.x, dz = road.to.z - road.from.z, length = Math.hypot(dx, dz);
     let placed = false;
-    for (const t of [.3, .7, .46, .54]) {
+    for (const t of [.3, .7, .46, .54, .2, .8]) {
       for (const side of [-1, 1]) {
-        const offset = road.width / 2 + BR_SECTOR_FIELD_RADIUS + 5;
-        const center = {
-          x: road.from.x + dx * t - dz / length * offset * side,
-          y: 0,
-          z: road.from.z + dz * t + dx / length * offset * side
-        };
-        if (!isClear(center, inputs, fields)) continue;
-        const style = nearestStyle(center);
-        fields.push({ roadId: road.id, center, style, parts: createParts(center, Math.atan2(dz, dx), style) });
-        placed = true;
-        break;
+        for(const extraOffset of [0,12,24,36]){
+          const offset = road.width / 2 + BR_SECTOR_FIELD_RADIUS + 5 + extraOffset;
+          const center = {
+            x: road.from.x + dx * t - dz / length * offset * side,
+            y: 0,
+            z: road.from.z + dz * t + dx / length * offset * side
+          };
+          if (!isClear(center, inputs, fields)) continue;
+          const style = nearestStyle(center);
+          fields.push({ roadId: road.id, center, style, parts: createParts(center, Math.atan2(dz, dx), style) });
+          placed = true;
+          break;
+        }
+        if(placed)break;
       }
       if (placed) break;
     }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  BR_BALANCE, BR_BOT_DIFFICULTY, BR_CRATE_SOCKETS, BR_ISLAND_OUTLINE, BR_LOOT_SOCKETS, BR_MAP, BR_MAP_BLOCKS, BR_NAV_NODES, BR_POIS, BR_ROADS, BR_SECONDARY_LOCATIONS, BR_STORM_PHASES, BR_STRUCTURES, BR_TERRAIN_PATCHES, BR_WEAPONS, applyBrDamage, brApproachPlanarVelocity, brDropVelocity, brFlatDeckCollision, brHasStandingClearance, brMantleTopAt, brMuzzlePosition, brNextWaypoint, brPlayerHitDistance, brRarityDamage, brRoadIntersectsFootprint, brShipPath, isInsideBrIsland,
+  BR_BALANCE, BR_BOT_DIFFICULTY, BR_CRATE_SOCKETS, BR_DISTRICT_PLANS, BR_ISLAND_OUTLINE, BR_LOOT_SOCKETS, BR_MAP, BR_MAP_BLOCKS, BR_NAV_NODES, BR_POIS, BR_ROADS, BR_SECONDARY_LOCATIONS, BR_STORM_PHASES, BR_STRUCTURES, BR_TERRAIN_PATCHES, BR_WEAPONS, applyBrDamage, brApproachPlanarVelocity, brDropVelocity, brFlatDeckCollision, brHasStandingClearance, brMantleTopAt, brMuzzlePosition, brNextWaypoint, brPlayerHitDistance, brRarityDamage, brRoadIntersectsFootprint, brShipPath, isInsideBrIsland,
   brBlocksNear, brPickupDisposition, createEmptyBrInventory, raySphereDistance, reloadBrItem, stepBrMovement, stormContains, type BrInventoryItem, type BrMotionState
 } from "./index.js";
 
@@ -93,10 +93,11 @@ describe("Battle Royale shared rules", () => {
   it("joins every roof ramp centerline to the deck and building edge in every orientation", () => {
     const directions=new Set<string>();
     for(const structure of BR_STRUCTURES.filter(s=>s.enterable&&s.roofAccess)){
-      directions.add(structure.entrance);
+      const accessSide=structure.roofAccessSide??structure.entrance;
+      directions.add(accessSide);
       const ramp=BR_MAP_BLOCKS.find(b=>b.id===`${structure.id}-roof-ramp`)!;
-      const ns=structure.entrance==="north"||structure.entrance==="south";
-      const sign=structure.entrance==="north"||structure.entrance==="east"?1:-1;
+      const ns=accessSide==="north"||accessSide==="south";
+      const sign=accessSide==="north"||accessSide==="east"?1:-1;
       const axis=ns?"z":"x",angle=ns?ramp.rotation!.x:ramp.rotation!.z;
       const along=-sign*ramp.size[axis]/2;
       const highY=ramp.position.y+(ns?-Math.sin(angle):Math.sin(angle))*along;
@@ -118,10 +119,10 @@ describe("Battle Royale shared rules", () => {
     expect(BR_STRUCTURES.find(s=>s.id==="comet-hotel-1")?.archetype).toBe("hotel");
   });
 
-  it("keeps every secondary shell clear of roads and neighboring structures",()=>{
+  it("keeps every structure shell clear of authored roads and neighboring secondary structures",()=>{
     const secondaryIds=new Set(BR_SECONDARY_LOCATIONS.map((entry)=>entry.id));
     const secondary=BR_STRUCTURES.filter((entry)=>secondaryIds.has(entry.districtId));
-    for(const structure of secondary)for(const road of BR_ROADS){
+    for(const structure of BR_STRUCTURES)for(const road of BR_ROADS){
       expect(brRoadIntersectsFootprint(road,structure.position,structure.size,.2),`${structure.id} overlaps ${road.id}`).toBe(false);
     }
     for(let first=0;first<BR_STRUCTURES.length;first++)for(let second=first+1;second<BR_STRUCTURES.length;second++){
@@ -166,11 +167,59 @@ describe("Battle Royale shared rules", () => {
   });
 
   it("keeps bot navigation goals outside authored building footprints",()=>{
+    const byId=new Map(BR_NAV_NODES.map(node=>[node.id,node]));
     for(const node of BR_NAV_NODES){
       expect(isInsideBrIsland(node.position,5),node.id).toBe(true);
       for(const structure of BR_STRUCTURES){
         const overlaps=Math.abs(node.position.x-structure.position.x)<=structure.size.x/2+2&&Math.abs(node.position.z-structure.position.z)<=structure.size.z/2+2;
         expect(overlaps,`${node.id} is trapped inside ${structure.id}`).toBe(false);
+      }
+      for(const neighborId of node.neighbors){
+        if(node.id>=neighborId)continue;
+        const neighbor=byId.get(neighborId)!;
+        const edge={id:`${node.id}-${neighbor.id}`,from:node.position,to:neighbor.position,width:0};
+        for(const structure of BR_STRUCTURES)expect(brRoadIntersectsFootprint(edge,structure.position,structure.size,1),`${edge.id} crosses ${structure.id}`).toBe(false);
+      }
+    }
+  });
+
+  it("keeps exterior roof access clear of roads and neighboring buildings",()=>{
+    const ramps=BR_MAP_BLOCKS.filter(block=>block.id.endsWith("-roof-ramp"));
+    expect(ramps.length).toBeGreaterThan(20);
+    for(const ramp of ramps){
+      for(const road of BR_ROADS)expect(brRoadIntersectsFootprint(road,ramp.position,ramp.size,.1),`${ramp.id} overlaps ${road.id}`).toBe(false);
+      const ownerId=ramp.id.slice(0,-"-roof-ramp".length);
+      for(const structure of BR_STRUCTURES){
+        if(structure.id===ownerId)continue;
+        const overlaps=Math.abs(ramp.position.x-structure.position.x)<(ramp.size.x+structure.size.x)/2+.2
+          &&Math.abs(ramp.position.z-structure.position.z)<(ramp.size.z+structure.size.z)/2+.2;
+        expect(overlaps,`${ramp.id} overlaps ${structure.id}`).toBe(false);
+      }
+    }
+  });
+
+  it("authors complete secondary districts with connected circulation and reserved open space",()=>{
+    expect(BR_DISTRICT_PLANS).toHaveLength(BR_SECONDARY_LOCATIONS.length);
+    const distanceToSegment=(point:{x:number;z:number},from:{x:number;z:number},to:{x:number;z:number})=>{
+      const dx=to.x-from.x,dz=to.z-from.z,denominator=dx*dx+dz*dz;
+      const amount=denominator<=1e-8?0:Math.max(0,Math.min(1,((point.x-from.x)*dx+(point.z-from.z)*dz)/denominator));
+      return Math.hypot(point.x-(from.x+dx*amount),point.z-(from.z+dz*amount));
+    };
+    const arterials=BR_ROADS.filter(road=>road.kind==="arterial");
+    const serviceRoads=BR_ROADS.filter(road=>road.kind==="service");
+    expect(Math.max(...serviceRoads.map(road=>Math.hypot(road.to.x-road.from.x,road.to.z-road.from.z)))).toBeLessThanOrEqual(125);
+    for(const plan of BR_DISTRICT_PLANS){
+      expect(plan.parcels).toHaveLength(3);
+      expect(new Set(plan.parcels.map(parcel=>parcel.role))).toEqual(new Set(["anchor","support","service"]));
+      expect(plan.streets.length).toBeGreaterThanOrEqual(2);
+      expect(plan.streets.some(street=>distanceToSegment(plan.origin,street.from,street.to)<.01)).toBe(true);
+      const service=BR_ROADS.find(road=>road.id===`service-${BR_SECONDARY_LOCATIONS.findIndex(location=>location.id===plan.id)}`)!;
+      expect(Math.min(...arterials.map(road=>distanceToSegment(service.to,road.from,road.to)))).toBeLessThan(.01);
+      for(const endpoint of plan.streets.flatMap(street=>[street.from,street.to]))expect(isInsideBrIsland(endpoint,3)).toBe(true);
+      for(const structure of BR_STRUCTURES.filter(entry=>entry.districtId===plan.id)){
+        const overlapsOpenZone=Math.abs(structure.position.x-plan.openZone.position.x)<structure.size.x/2+plan.openZone.radius
+          &&Math.abs(structure.position.z-plan.openZone.position.z)<structure.size.z/2+plan.openZone.radius;
+        expect(overlapsOpenZone,`${structure.id} occupies ${plan.openZone.purpose}`).toBe(false);
       }
     }
   });

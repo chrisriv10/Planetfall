@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import {
   BR_ISLAND_OUTLINE,
+  BR_DISTRICT_PLANS,
   BR_LOOT_SOCKETS,
   BR_MAP_BLOCKS,
   BR_POIS,
@@ -49,6 +50,7 @@ import { buildMallAtriumWalls } from "./br-mall-atrium-walls";
 import { buildConnectiveClusters, type ConnectiveClusterPart } from "./br-connective-clusters";
 import { buildBrCorridorGroves, type BrCorridorGrovePart } from "./br-corridor-groves";
 import { buildBrIslandDeckGeometry } from "./br-island-deck";
+import { buildBrDistrictDressing, type BrDistrictDressingPart } from "./br-district-dressing";
 
 export type BrPoiLabel = { sprite: THREE.Sprite; position: THREE.Vector3 };
 
@@ -935,6 +937,19 @@ export class BrWorldRenderer {
       // old top face was only 1 mm above the road, causing obvious z-fighting.
       pad.position.set(location.position.x,.011,location.position.z);pad.receiveShadow=true;group.add(pad);
       const title=this.materials.createSign(location.name,{border:location.color,subtitle:this.poiSubtitle(location)});title.name="secondary-title";title.position.set(location.position.x,8.5,location.position.z);title.scale.set(13,3.8,1);group.add(title);this.secondaryLabels.push(title);
+      const plan=BR_DISTRICT_PLANS.find(entry=>entry.id===location.id);
+      if(plan){
+        const clusters=buildBrDistrictDressing(plan,{quality:this.quality,isClear:(center,radius)=>this.districtDressingClear(center.x,center.z,radius)});
+        const batches=new Map<string,BrDistrictDressingPart[]>();
+        for(const part of clusters.flatMap(cluster=>cluster.parts)){
+          const key=`${part.geometry}:${part.finish}`;const batch=batches.get(key)??[];batch.push(part);batches.set(key,batch);
+        }
+        for(const [key,batch] of batches){
+          const [geometryKey,finish]=key.split(":") as [BrDistrictDressingPart["geometry"],BrDistrictDressingPart["finish"]];
+          const geometry=geometryKey==="cylinder"?this.materials.unitCylinder:geometryKey==="octahedron"?this.materials.unitOctahedron:geometryKey==="chamferedBox"?this.materials.unitChamferedBox:this.materials.unitBox;
+          this.addInstances(group,geometry,this.materials.get(finish),batch.map(part=>({position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z),rotationY:part.rotationY})),false);
+        }
+      }
       const greenLocation=location.style==="farm"||location.style==="academy"||location.style==="city";
       if(greenLocation){
         const destination=BR_POIS.find(poi=>poi.id===location.connectTo)?.position??location.position;
@@ -1638,6 +1653,16 @@ export class BrWorldRenderer {
       if(Math.hypot(x-rx,z-rz)<road.width*.8+margin)return true;
     }
     return false;
+  }
+
+  private districtDressingClear(x:number,z:number,radius:number):boolean {
+    if(!this.insideIsland(x,z,radius+3)||this.isReservedForGameplay(x,z,radius))return false;
+    for(const block of BR_MAP_BLOCKS){
+      if(Math.abs(x-block.position.x)<block.size.x/2+radius&&Math.abs(z-block.position.z)<block.size.z/2+radius)return false;
+    }
+    for(const socket of BR_LOOT_SOCKETS)if(Math.hypot(x-socket.position.x,z-socket.position.z)<radius+2.5)return false;
+    for(const traversal of BR_TRAVERSAL)if(Math.hypot(x-traversal.position.x,z-traversal.position.z)<radius+5)return false;
+    return true;
   }
 
   private insideIsland(x: number, z: number, margin = 0): boolean {

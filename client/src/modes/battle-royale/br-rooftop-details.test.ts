@@ -22,7 +22,7 @@ describe("BR low-profile rooftop detail",()=>{
   it("leaves an accessible roof's ramp-arrival edge open",()=>{
     for(const structure of BR_STRUCTURES.filter(entry=>entry.roofAccess)){
       const parts=buildBrRooftopDetails(structure,BR_LOOT_SOCKETS.find(socket=>socket.structureId===structure.id&&socket.kind==="roof"));
-      const edge=structure.entrance;
+      const edge=structure.roofAccessSide??structure.entrance;
       for(const part of parts.filter(item=>item.finish==="edge")){
         if(edge==="north")expect(part.position.z).not.toBeGreaterThan(structure.position.z+structure.size.z*.4);
         if(edge==="south")expect(part.position.z).not.toBeLessThan(structure.position.z-structure.size.z*.4);

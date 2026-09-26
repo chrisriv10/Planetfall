@@ -30,8 +30,9 @@ describe("Battle Royale Rapier world",()=>{
     try {
       const structure=BR_STRUCTURES.find(s=>s.id===id)!;
       const ramp=BR_MAP_BLOCKS.find(b=>b.id===`${structure.id}-roof-ramp`)!;
-      const ns=structure.entrance==="north"||structure.entrance==="south";
-      const sign=structure.entrance==="north"||structure.entrance==="east"?1:-1;
+      const accessSide=structure.roofAccessSide??structure.entrance;
+      const ns=accessSide==="north"||accessSide==="south";
+      const sign=accessSide==="north"||accessSide==="east"?1:-1;
       const run=Math.max(10,structure.size.y*2.35);
       let feet={x:ramp.position.x+(ns?0:sign*(run/2+1)),y:.04,z:ramp.position.z+(ns?sign*(run/2+1):0)};
       // Character-controller slope projection shortens horizontal movement;

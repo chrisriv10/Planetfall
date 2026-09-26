@@ -133,7 +133,10 @@ export function buildRoadsideInfrastructure(overrides: Partial<RoadsideInputs> =
   const roads = inputs.roads.filter(road => finitePoint(road.from) && finitePoint(road.to) && Number.isFinite(road.width) && road.width > 0);
   const locations = inputs.locations.filter(location => finitePoint(location.position));
   if (!locations.length) return [];
-  const ordered = [...roads].filter(road => distance(road.from, road.to) >= 120)
+  // The rebuilt network uses shorter authored approach segments in addition to
+  // long arterials. Include those medium corridors, while the full clearance
+  // pass below still prevents bays from occupying intersections or local lanes.
+  const ordered = [...roads].filter(road => distance(road.from, road.to) >= 82)
     .sort((a, b) => distance(b.from, b.to) - distance(a.from, a.to) || a.id.localeCompare(b.id));
   const sites: RoadsideSite[] = [];
   for (const road of ordered) {
@@ -141,7 +144,7 @@ export function buildRoadsideInfrastructure(overrides: Partial<RoadsideInputs> =
     const dx = road.to.x - road.from.x, dz = road.to.z - road.from.z, length = Math.hypot(dx, dz);
     const preferredSide = [...road.id].reduce((sum, letter) => sum + letter.charCodeAt(0), 0) % 2 ? 1 : -1;
     let placed = false;
-    for (const t of [.5, .35, .65]) {
+    for (const t of [.5, .35, .65, .24, .76]) {
       for (const side of [preferredSide, -preferredSide]) {
         const offset = road.width / 2 + SITE_RADIUS + 2.5;
         const center = { x: road.from.x + dx * t - dz / length * offset * side, y: 0, z: road.from.z + dz * t + dx / length * offset * side };

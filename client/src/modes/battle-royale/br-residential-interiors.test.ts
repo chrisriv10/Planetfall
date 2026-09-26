@@ -140,8 +140,7 @@ describe("residential lounge dressing",()=>{
     const homes=BR_STRUCTURES.find(s=>s.id==="central-heights-1")!;
     expect(buildResidentialInterior(hotel).signs.some(s=>s.text==="CHECK IN")).toBe(true);
     expect(buildResidentialInterior({...homes,entrance:"north"}).signs.some(s=>s.text==="PARCELS")).toBe(true);
-    const west=BR_STRUCTURES.find(s=>s.id==="horizon-homes-1")!;
-    expect(buildResidentialInterior(west).signs.some(s=>s.text==="PARCELS")).toBe(false);
+    expect(buildResidentialInterior({...homes,entrance:"west"}).signs.some(s=>s.text==="PARCELS")).toBe(false);
   });
   it("keeps wayfinding clear of corner columns and below ceilings",()=>{
     for(const s of BR_STRUCTURES)for(const sign of buildResidentialInterior(s).signs) {
