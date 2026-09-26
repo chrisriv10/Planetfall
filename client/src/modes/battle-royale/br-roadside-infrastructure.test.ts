@@ -10,13 +10,18 @@ const segmentDistance = (x: number, z: number, road: (typeof BR_ROADS)[number]) 
 
 describe("BR roadside infrastructure", () => {
   it("adds a deterministic sparse set with a bounded instance budget", () => {
+    const inputsBefore = JSON.stringify([BR_ROADS, BR_SECONDARY_LOCATIONS, BR_STRUCTURES]);
     const sites = buildRoadsideInfrastructure();
     expect(sites.length).toBeGreaterThanOrEqual(12);
     expect(sites.length).toBeLessThanOrEqual(22);
     expect(buildRoadsideInfrastructure()).toEqual(sites);
+    expect(JSON.stringify([BR_ROADS, BR_SECONDARY_LOCATIONS, BR_STRUCTURES])).toBe(inputsBefore);
     expect(new Set(sites.map(site => site.roadId)).size).toBe(sites.length);
     expect(sites.every(site => BR_SECONDARY_LOCATIONS.some(location => location.id === site.locationId))).toBe(true);
-    expect(sites.reduce((count,site)=>count+site.parts.length,0)).toBeLessThanOrEqual(520);
+    // Seven open-frame pieces plus four low furniture pieces per existing
+    // pocket; no new sites/material families. Worst case: 22 transit kits.
+    expect(sites.every(site => site.parts.length >= 26 && site.parts.length <= 31)).toBe(true);
+    expect(sites.reduce((count,site)=>count+site.parts.length,0)).toBeLessThanOrEqual(682);
     const planted = sites.filter(site => ["city", "mall", "academy", "nexus"].includes(site.style));
     expect(planted.length).toBeGreaterThanOrEqual(6);
     expect(planted.every(site => site.parts.some(part => part.geometry === "octahedron" && ["canopy", "energyCyan"].includes(part.finish)))).toBe(true);
@@ -35,9 +40,12 @@ describe("BR roadside infrastructure", () => {
       }
       expect(site.parts.every(part => Number.isFinite(part.position.x) && Number.isFinite(part.position.y)
         && Number.isFinite(part.position.z) && Number.isFinite(part.rotationY))).toBe(true);
+      expect(site.parts.every(part => [part.scale.x, part.scale.y, part.scale.z].every(value => Number.isFinite(value) && value > 0))).toBe(true);
       expect(site.parts.every(part => part.surface ? part.scale.y <= .012 && part.position.y <= .055 : true)).toBe(true);
-      expect(site.parts.filter(part => part.geometry === "box" && part.position.y > .4 && part.finish !== "structuralDark")
-        .every(part => part.scale.x <= .58)).toBe(true);
+      // Broad horizontal pieces are permitted only for low seats or open
+      // overhead blades; eye-level opaque boxes cannot become false walls.
+      expect(site.parts.filter(part => part.geometry === "box" && !part.surface && part.scale.x > .58)
+        .every(part => part.scale.y <= .14 && (part.position.y <= .5 || part.position.y - part.scale.y / 2 >= 2.7))).toBe(true);
       expect(site.parts.every(part => {
         const radius = part.geometry === "box" ? Math.hypot(part.scale.x, part.scale.z) / 2 : Math.max(part.scale.x, part.scale.z);
         // Long flush bay markings intentionally reach 40cm beyond the nominal
@@ -46,6 +54,33 @@ describe("BR roadside infrastructure", () => {
         return Math.hypot(part.position.x - site.center.x, part.position.z - site.center.z) + radius <= 4.45;
       })).toBe(true);
       expect(BR_ISLAND_OUTLINE.length).toBeGreaterThan(3);
+    }
+  });
+
+  it("adds an open frame and low district-appropriate furnishing to every pocket", () => {
+    for (const site of buildRoadsideInfrastructure()) {
+      const posts = site.parts.filter(part => part.finish === "structuralDark" && part.scale.y === 2.8);
+      expect(posts).toHaveLength(2);
+      expect(posts.every(part => part.scale.x === .12 && part.scale.z === .12)).toBe(true);
+      const blades = site.parts.filter(part => part.finish === "brushedMetal" && part.position.y === 2.92);
+      expect(blades).toHaveLength(3);
+      expect(blades.every(part => part.scale.x === .72 && part.scale.z === 1.25)).toBe(true);
+      // Local-frame gaps are invariant under world rotation: 1.1m centers,
+      // .72m blades, leaving .38m of open sky between each pair.
+      for (let i = 1; i < blades.length; i++) {
+        expect(Math.hypot(blades[i].position.x - blades[i - 1].position.x,
+          blades[i].position.z - blades[i - 1].position.z) - .72).toBeCloseTo(.38);
+      }
+      const transit = ["city", "mall", "academy", "nexus"].includes(site.style);
+      if (transit) {
+        expect(site.parts.filter(part => part.finish === "brushedMetal" && part.position.y === .5)).toHaveLength(2);
+      } else {
+        expect(site.parts.filter(part => part.finish === "windowLit" && part.position.y === .889)).toHaveLength(1);
+      }
+      const accent = site.style === "wreck" ? "warningRed" : site.style === "farm" ? "grass"
+        : ["city", "mall", "academy"].includes(site.style) ? "energyPurple"
+        : site.style === "nexus" ? "energyCyan" : "industrialOrange";
+      expect(site.parts.some(part => part.position.y === 2.81 && part.finish === accent)).toBe(true);
     }
   });
 

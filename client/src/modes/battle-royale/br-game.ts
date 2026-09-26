@@ -264,12 +264,18 @@ export class BattleRoyaleGame {
       "crash-interior": [[-304, 2.7, -258], [-341, 4, -258]],
       "foundry-interior": [[342, 2.7, -81], [350, 5, -61]],
       "foundry-roof": [[342, 24.7, -60], [352, 28, -73]],
-      "roadside-south": [[27, 2.8, -220], [18, 2.5, -207]],
+      // Frames the deterministic radial-1 pocket from its road-facing side.
+      // The previous coordinates were over 100m from every generated bay and
+      // reviewed an unrelated blank facade instead of the authored kit.
+      "roadside-south": [[94, 2.8, -149], [105.5, 1.55, -138.5]],
       "roadside-nova": [[-153, 3.4, -246], [-143.2, 2.2, -237]],
       "connective-academy": [[-223, 2.6, 181], [-209.4, .25, 192.5]],
       "maintenance-south": [[45, 2.3, -195], [37, .2, -204]],
       "deck-transition": [[-195, 2.6, -244], [-208.7, .1, -256.6]],
-      "sector-field": [[185, 3.2, -13], [163.4, .1, -2.3]],
+      // Ground-level inspection of the deterministic eastern sector field.
+      // Keep this tied to the generated field center rather than an unrelated
+      // empty deck area so density reviews assess the authored treatment.
+      "sector-field": [[178, 3.2, 52], [156.3, .1, 70.6]],
       "edge-south": [[0, 12, -550], [0, -13, -455]],
       "storm-boundary": [[-184, 2.7, -40], [-184, 7, -10]],
       "storm-final": [[-184, 2.7, -96], [-184, 7, -60]],

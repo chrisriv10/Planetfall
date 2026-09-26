@@ -96,6 +96,13 @@ const gamepadButtonMap: Partial<Record<number, InputAction>> = {
 
 const emptyButton = (): ButtonState => ({ held: false, pressed: false, released: false });
 
+export function nativeControlOwnsKeyboardCode(code: string, target: EventTarget | null): boolean {
+  if (code !== "Enter") return false;
+  const element = target as { tagName?: string; isContentEditable?: boolean } | null;
+  const tag = element?.tagName?.toUpperCase();
+  return element?.isContentEditable === true || tag === "BUTTON" || tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || tag === "A";
+}
+
 export class GameInput {
   method: InputMethod = "keyboard";
   onMethodChange?: (method: InputMethod) => void;
@@ -118,9 +125,10 @@ export class GameInput {
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     addEventListener("keydown", (event) => {
-      this.keys.add(event.code);
+      const nativeControlOwnsKey = nativeControlOwnsKeyboardCode(event.code, event.target);
+      if (!nativeControlOwnsKey) this.keys.add(event.code);
       const action = keyboardMap[event.code];
-      if (!event.repeat && action) this.pendingPressed.add(action);
+      if (!nativeControlOwnsKey && !event.repeat && action) this.pendingPressed.add(action);
       if (!event.repeat && /^Digit[1-5]$/.test(event.code)) this.pendingDirectSlot = Number(event.code.slice(-1)) - 1;
       if (!event.repeat) this.markMethod("keyboard");
       if (event.code === "Space" || event.code.startsWith("Arrow")) event.preventDefault();

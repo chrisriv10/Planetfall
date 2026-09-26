@@ -16,8 +16,11 @@ export const BR_BALANCE = {
   freefallHorizontalSpeed: 21.5,
   // The chute is a traversal choice, not merely a landing brake. Automatic
   // deployment can cross nearby districts, while an early deploy goes farther.
-  chuteSpeed: 6.5,
-  chuteHorizontalSpeed: 25,
+  // Descend decisively enough that automatic deployment does not turn the
+  // final 95m into a long passive float. The matching horizontal increase
+  // preserves essentially the same late/early-deploy travel envelope.
+  chuteSpeed: 7.25,
+  chuteHorizontalSpeed: 27.5,
   airSteering: 6.5,
   autoDeployHeight: 95,
   playerRadius: .45,

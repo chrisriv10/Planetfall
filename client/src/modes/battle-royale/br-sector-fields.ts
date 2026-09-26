@@ -118,17 +118,18 @@ function createParts(center: Vec3, angle: number, style: BrDistrictStyle): BrSec
     : style === "dock" || style === "industrial" || style === "reactor"
       ? "industrialOrange"
       : style === "wreck" ? "warningRed" : "energyCyan";
-  const add = (finish: BrSectorFieldFinish, localX: number, localZ: number, width: number, depth: number, layer: 2 | 3) => {
+  const add = (finish: BrSectorFieldFinish, localX: number, localZ: number, width: number, depth: number, layer: 2 | 3,
+    y = layer === 2 ? .018 : .033, height = .008) => {
     parts.push({
       finish,
       layer,
       rotationY: -angle,
       position: {
         x: center.x + Math.cos(angle) * localX - Math.sin(angle) * localZ,
-        y: layer === 2 ? .018 : .033,
+        y,
         z: center.z + Math.sin(angle) * localX + Math.cos(angle) * localZ
       },
-      scale: { x: width, y: .008, z: depth }
+      scale: { x: width, y: height, z: depth }
     });
   };
 
@@ -142,13 +143,34 @@ function createParts(center: Vec3, angle: number, style: BrDistrictStyle): BrSec
   add("structuralDark", 0, 0, .22, 16.2, 3);
   for (const offset of [-4.8, 4.8]) add(accent, offset, 0, .34, 7.2, 3);
   for (const offset of [-1, 0, 1]) add("sidewalk", 0, offset * 3.1, 1.25, .18, 3);
+
+  // Four slim corner beacons give the flush armor field a readable extent at
+  // eye height. No signboards, opaque back panels, or chunky collision-like bases.
+  for (const x of [-13, 13]) for (const z of [-9, 9]) {
+    add("structuralDark", x, z, .12, .12, 3, 1.23, 2.4);
+    add(accent, x, z, .2, .2, 3, 2.55, .24);
+  }
+  // One edge-mounted open service gantry, not a shelter spanning the pad.
+  // Narrow posts flank the six-metre cross lane; the only crossing member
+  // sits above 3.7m. Unit-box pieces stay inside the original 19m reservation.
+  for (const z of [-3.8, 3.8]) add("brushedMetal", 12.7, z, .14, .14, 3, 1.93, 3.8);
+  add("structuralDark", 12.7, 0, .16, 8, 3, 3.9, .14);
+  add(accent, 12.6, 0, .045, 2, 3, 3.79, .04);
+
+  // Two ankle-low diagnostics reinforce the service/staging purpose without
+  // equipment crates or cover-sized consoles, well outside the central lanes.
+  for (const z of [-9, 9]) {
+    add("brushedMetal", -9, z, .8, .46, 3, .14, .12);
+    add(accent, -9, z, .5, .12, 3, .212, .025);
+  }
   return parts;
 }
 
 /**
- * Large-scale, flush orbital deck composition for long empty road corridors.
+ * Flush orbital deck composition with sparse open edge fixtures (30 boxes).
  * These fields are visual-only and deliberately avoid every gameplay route,
  * collider, authored terrain treatment, traversal device and existing kit.
+ * All instances remain non-colliding; no lights or per-frame work are required.
  */
 export function buildBrSectorFields(overrides: Partial<SectorFieldInputs> = {}): BrSectorField[] {
   const inputs: SectorFieldInputs = {

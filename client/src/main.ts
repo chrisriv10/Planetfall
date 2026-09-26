@@ -309,8 +309,16 @@ familyBrButton.addEventListener("click", () => selectFamily("battle-royale"));
 createButton.addEventListener("click", () => joinOrCreate("create"));
 soloButton.addEventListener("click", () => selectedFamily === "battle-royale" ? openBrQuickPlay() : joinOrCreate("solo"));
 joinButton.addEventListener("click", () => joinOrCreate("join"));
-brQuickStart.addEventListener("click", () => { closeBrQuickPlay(); joinOrCreate("solo"); });
-brQuickCancel.addEventListener("click", closeBrQuickPlay);
+brQuickStart.addEventListener("click", () => {
+  // The confirm control can be activated while gamepad focus is still the
+  // active UI method. Restoring focus to the first home card here lets the
+  // same Enter/A key-up activate PLANETFALL underneath the closing dialog.
+  // Keep focus parked on the disappearing confirmation control and pin the
+  // requested family for the synchronous room-create decision.
+  closeBrQuickPlay(false);
+  joinOrCreate("solo", "battle-royale");
+});
+brQuickCancel.addEventListener("click", () => closeBrQuickPlay());
 codeInput.addEventListener("input", () => { codeInput.value = codeInput.value.toUpperCase().replace(/[^A-Z2-9]/g, "").slice(0, 6); });
 codeInput.addEventListener("keydown", (event) => { if (event.key === "Enter") joinOrCreate("join"); });
 nameInput.addEventListener("keydown", (event) => { if (event.key === "Enter") joinOrCreate(codeInput.value ? "join" : "create"); });
@@ -406,9 +414,10 @@ function openBrQuickPlay(): void {
   game.audio.unlock(); game.audio.click(); focusFirst(brQuickPlay);
 }
 
-function closeBrQuickPlay(): void {
+function closeBrQuickPlay(restoreFocus = true): void {
   if (brQuickPlay.hidden) return;
-  brQuickPlay.hidden = true; game.audio.click(); focusFirst(screens.home);
+  brQuickPlay.hidden = true; game.audio.click();
+  if (restoreFocus) focusFirst(screens.home);
 }
 
 async function copyRoomCode(code?: string): Promise<void> {
@@ -416,10 +425,16 @@ async function copyRoomCode(code?: string): Promise<void> {
   try { await navigator.clipboard.writeText(code); toast("Room code copied!"); } catch { toast(`Room code: ${code}`); }
 }
 
-function joinOrCreate(kind: "create" | "join" | "solo"): void {
+function joinOrCreate(kind: "create" | "join" | "solo", family = selectedFamily): void {
   if (joining) return;
   const name = nameInput.value.trim();
   const code = codeInput.value.trim().toUpperCase();
+  // Quick-play room creation is asynchronous. Capture the confirmed choices
+  // now instead of reading a hidden/re-focused dialog after the server reply.
+  const brQuickConfig = family === "battle-royale" && kind === "solo" ? {
+    targetPlayers: Number(brQuickPlayers.value) as 10 | 20 | 40,
+    botDifficulty: brQuickDifficulty.value as BotDifficulty
+  } : null;
   if (!name) return toast("Choose a pilot name first.");
   if (kind === "join" && code.length !== 6) return toast("Enter the six-character room code.");
   game.audio.unlock(); game.audio.click();
@@ -427,16 +442,14 @@ function joinOrCreate(kind: "create" | "join" | "solo"): void {
   currentName = name;
   joining = true;
   createButton.disabled = true; soloButton.disabled = true; joinButton.disabled = true;
-  if (selectedFamily === "battle-royale") {
+  if (family === "battle-royale") {
     const doneBr = (result: BrJoinResult) => {
       joining = false; createButton.disabled = false; soloButton.disabled = false; joinButton.disabled = false;
       if (!result.ok) return toast(result.error);
       currentFamily = "battle-royale"; playerId = result.playerId; currentCode = result.room.code; brRoom = result.room;
       sessionStorage.setItem(`planetfall:br:${currentCode}`, result.sessionToken);
       void applyBrRoom(result.room);
-      if (kind === "solo") {
-        socket.emit("br:match:quick-start", { targetPlayers: Number(brQuickPlayers.value) as 10 | 20 | 40, botDifficulty: brQuickDifficulty.value as BotDifficulty });
-      }
+      if (brQuickConfig) socket.emit("br:match:quick-start", brQuickConfig);
     };
     if (kind === "join") socket.emit("br:room:join", { code, name, sessionToken: sessionStorage.getItem(`planetfall:br:${code}`) ?? undefined }, doneBr);
     else socket.emit("br:room:create", { name }, doneBr);

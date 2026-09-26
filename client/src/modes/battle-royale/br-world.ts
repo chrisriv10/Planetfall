@@ -89,6 +89,7 @@ export class BrWorldRenderer {
   private deckTransitionDetail: THREE.Group | null = null;
   private sectorFieldDetail: THREE.Group | null = null;
   private corridorGroveDetail: THREE.Group | null = null;
+  private roadsideDetail: THREE.Group | null = null;
   private quality: GraphicsQuality;
   private disposed = false;
 
@@ -121,6 +122,7 @@ export class BrWorldRenderer {
     if (this.sectorFieldDetail) this.sectorFieldDetail.visible = quality !== "low";
     if (this.connectiveClusterDetail) this.connectiveClusterDetail.visible = quality !== "low";
     if (this.corridorGroveDetail) this.corridorGroveDetail.visible = quality !== "low";
+    if (this.roadsideDetail) this.roadsideDetail.visible = quality !== "low";
     this.root.traverse((object) => {
       if (object instanceof THREE.Mesh || object instanceof THREE.InstancedMesh) {
         object.castShadow = quality === "high" && object.userData.cameraCollision === true;
@@ -1425,6 +1427,10 @@ export class BrWorldRenderer {
   }
 
   private buildRoadsideInfrastructure(): void {
+    const group = new THREE.Group();
+    group.name = "roadside-service-pockets";
+    group.visible = this.quality !== "low";
+    this.roadsideDetail = group;
     const batches = new Map<string, MatrixSpec[]>();
     for (const site of this.roadsideSites) {
       for (const part of site.parts) {
@@ -1445,8 +1451,9 @@ export class BrWorldRenderer {
       const material = finish === "canopy" ? this.materials.canopy()
         : geometryKey === "octahedron" && finish === "energyCyan" ? this.materials.accent(0x72dfe8, .18)
         : surface === "true" ? this.materials.surface(finish, 6) : this.materials.get(finish);
-      this.addInstances(this.root, geometry, material, parts, false);
+      this.addInstances(group, geometry, material, parts, false);
     }
+    this.root.add(group);
   }
 
   private buildConnectiveClusters(): void {

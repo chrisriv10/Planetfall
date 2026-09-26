@@ -267,12 +267,21 @@ test("Battle Royale Solo requires confirmation and respects quick-play settings"
   await page.locator("#play-solo").click();
   await page.locator("#br-quick-players").selectOption("10");
   await page.locator("#br-quick-difficulty").selectOption("easy");
+  await expect(page.locator("#br-quick-players")).toHaveValue("10");
+  await expect(page.locator("#br-quick-difficulty")).toHaveValue("easy");
   await page.locator("#br-quick-start").press("Enter");
+  // Closing the confirmation must not hand the same keyboard/gamepad gesture
+  // to the Planetfall family card underneath it.
+  await expect(page.locator("#family-br")).toHaveClass(/selected/);
+  await expect(page.locator("#family-planetfall")).not.toHaveClass(/selected/);
   await expect(page.locator("#br-hud")).toBeVisible({timeout:15_000});
   await expect.poll(()=>page.locator("#br-players-remaining").textContent(),{timeout:12_000}).toBe("10 PLAYERS");
   await expect(page.locator("#br-team-hud")).toBeHidden();
   await expect(page.locator("#br-minimap .br-mini-teammate")).toHaveCount(0);
-  await page.locator("#br-map-button").click();
+  // Keyboard activation avoids Chromium's software-rendered pointer action
+  // being retried after the modal appears and immediately covers its trigger.
+  await page.locator("#br-map-button").press("Enter");
+  await expect(page.locator("#br-map-overlay")).toBeVisible();
   await expect(page.locator("#br-map-canvas .br-map-player.teammate")).toHaveCount(0);
 });
 

@@ -101,8 +101,19 @@ function partsForSite(center: Vec3, angle: number, style: BrDistrictStyle): Road
   add("windowLit", -2.1, 2.32, 1.015, .38, .06, .04);
   add("windowLit", -2.18, 2.14, 1.015, .22, .045, .04);
   add(accent, -2.1, 2.95, 1.1, .24, .08, .24);
+  // An open-backed cantilever frame makes the shoulder pocket legible at
+  // walking height. Two slim rear posts leave the entire road-facing edge
+  // open; separated overhead blades are not a solid roof or cover panel.
+  for (const x of [-1.35, 1.65]) add("structuralDark", x, 1.4, 1.25, .12, 2.8, .12);
+  add("structuralDark", .15, 2.8, 1.25, 3.3, .14, .16);
+  for (const x of [-.95, .15, 1.25]) add("brushedMetal", x, 2.92, .85, .72, .08, 1.25);
+  // Narrow identification stripe, not a luminous wall or broad floating sign.
+  add(accent, .15, 2.81, 1.15, 2.7, .045, .035);
   if (transit) {
-    // Small waiting-position inlays, not benches or opaque shelter panels.
+    // Low backless seat: separated slats and slim feet, not a solid cover box.
+    for (const z of [1.05, 1.3]) add("brushedMetal", .1, .5, z, 1.65, .08, .18);
+    for (const x of [-.52, .72]) add("structuralDark", x, .23, 1.18, .1, .46, .38);
+    // Small waiting-position inlays preserve the open approach.
     for (const x of [-.7, .3, 1.3]) add("sidewalk", x, .055, .85, .5, .012, .1, true);
     // One deliberately stylized tree turns the bay into a recognizable rest
     // pocket without filling the road corridor. Its complete crown remains
@@ -118,6 +129,12 @@ function partsForSite(center: Vec3, angle: number, style: BrDistrictStyle): Road
     add(foliage, 1.83, 3.2, -.88, .54, .68, .54, false, "octahedron");
     add(accent, 1.15, .18, -.82, 1.65, .035, .08, false);
   } else {
+    // A compact waist-low diagnostic console gives utility/farm stops a
+    // service purpose without resembling a crate, barricade, or enclosed booth.
+    add("structuralDark", 1.55, .39, 1.2, .12, .78, .14);
+    add("brushedMetal", 1.55, .83, 1.2, .5, .1, .36);
+    add("windowLit", 1.55, .889, 1.2, .35, .018, .22);
+    add(accent, 1.55, .04, 1.2, .4, .025, .3);
     // Flush service grate lends utility/farm corridors a different ground kit.
     for (let rib = 0; rib < 5; rib++) add("brushedMetal", .5 + rib * .25, .055, .3, .1, .012, 1.1, true);
   }
@@ -127,7 +144,8 @@ function partsForSite(center: Vec3, angle: number, style: BrDistrictStyle): Road
 /** At most twenty-two sparse roadside rest/service pockets. Sorts copies, accepts authored geometry as
  * exclusion input, and never modifies road/collider/navigation data. All parts
  * use cached primitive geometry; surface parts use materials.surface(finish, 6).
- * Keep every generated instance cameraCollision=false and apply visual LOD. */
+ * At most 31 parts per pocket; the open frame has no enclosing panels or roof
+ * collider. Keep every instance cameraCollision=false and apply visual LOD. */
 export function buildRoadsideInfrastructure(overrides: Partial<RoadsideInputs> = {}): RoadsideSite[] {
   const inputs = { ...defaults, ...overrides };
   const roads = inputs.roads.filter(road => finitePoint(road.from) && finitePoint(road.to) && Number.isFinite(road.width) && road.width > 0);

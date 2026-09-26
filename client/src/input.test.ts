@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EdgeTracker, curveStick, inputLabel, radialDeadzone, responseCurve } from "./input";
+import { EdgeTracker, curveStick, inputLabel, nativeControlOwnsKeyboardCode, radialDeadzone, responseCurve } from "./input";
 
 describe("controller input math", () => {
   it("applies a radial deadzone and rescales the remaining range", () => {
@@ -33,5 +33,13 @@ describe("controller input math", () => {
   it("uses input-aware emote prompts", () => {
     expect(inputLabel("emote", "keyboard")).toBe("V");
     expect(inputLabel("emote", "gamepad")).toBe("D↑");
+  });
+
+  it("lets native controls own Enter without leaking a second game confirm", () => {
+    expect(nativeControlOwnsKeyboardCode("Enter", { tagName: "BUTTON" } as unknown as EventTarget)).toBe(true);
+    expect(nativeControlOwnsKeyboardCode("Enter", { tagName: "input" } as unknown as EventTarget)).toBe(true);
+    expect(nativeControlOwnsKeyboardCode("Enter", { isContentEditable: true } as unknown as EventTarget)).toBe(true);
+    expect(nativeControlOwnsKeyboardCode("Enter", { tagName: "CANVAS" } as unknown as EventTarget)).toBe(false);
+    expect(nativeControlOwnsKeyboardCode("Space", { tagName: "BUTTON" } as unknown as EventTarget)).toBe(false);
   });
 });

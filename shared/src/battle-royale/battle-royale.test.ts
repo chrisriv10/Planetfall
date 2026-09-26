@@ -256,6 +256,18 @@ describe("Battle Royale shared rules", () => {
     expect(motion.position.x).toBeLessThan(220);
   });
 
+  it("lands an automatic deployment promptly without giving up glide range",()=>{
+    let motion:BrMotionState={position:{x:0,y:BR_BALANCE.shipHeight,z:0},velocity:{x:0,y:-5,z:0},yaw:0,grounded:false,crouched:false,deployment:"freefall",downed:false,lastJumpSignal:false,lastCrouchSignal:false,slideEndsAt:0,traversalCooldownUntil:0,lastGroundedAt:Number.NEGATIVE_INFINITY,jumpBufferedUntil:0};
+    let elapsedMs=0;
+    while(motion.deployment!=="grounded"&&elapsedMs<25_000){
+      motion=stepBrMovement(motion,{moveX:0,moveY:1,yaw:0,jump:false,sprint:false,crouch:false},1/60,elapsedMs);
+      elapsedMs+=1000/60;
+    }
+    expect(motion.deployment).toBe("grounded");
+    expect(elapsedMs).toBeLessThan(18_000);
+    expect(-motion.position.z).toBeGreaterThan(340);
+  });
+
   it("makes early Ion Wing deployment meaningfully extend landing range",()=>{
     const simulate=(early:boolean)=>{
       let motion:BrMotionState={position:{x:0,y:BR_BALANCE.shipHeight,z:0},velocity:{x:0,y:-5,z:0},yaw:Math.PI/2,grounded:false,crouched:false,deployment:early?"chute":"freefall",downed:false,lastJumpSignal:false,lastCrouchSignal:false,slideEndsAt:0,traversalCooldownUntil:0,lastGroundedAt:Number.NEGATIVE_INFINITY,jumpBufferedUntil:0};

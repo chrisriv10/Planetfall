@@ -28,7 +28,10 @@ describe("BR broad orbital sector fields", () => {
     const fields = buildBrSectorFields();
     expect(fields.length).toBeGreaterThanOrEqual(3);
     expect(fields.length).toBeLessThanOrEqual(10);
-    expect(fields.reduce((total, field) => total + field.parts.length, 0)).toBeLessThanOrEqual(140);
+    // Original fourteen flush parts plus sixteen sparse edge-fixture boxes;
+    // still at most ten sites, using the same shared geometry/finish batches.
+    expect(fields.every(field => field.parts.length === 30)).toBe(true);
+    expect(fields.reduce((total, field) => total + field.parts.length, 0)).toBeLessThanOrEqual(300);
     expect(buildBrSectorFields()).toEqual(fields);
     expect(buildBrSectorFields({ roads: [...BR_ROADS].reverse() })).toEqual(fields);
     expect(new Set(fields.map(field => field.roadId)).size).toBe(fields.length);
@@ -52,12 +55,13 @@ describe("BR broad orbital sector fields", () => {
     }
   });
 
-  it("uses only flush finite non-cover parts whose corners remain inside the island", () => {
+  it("uses finite non-cover parts whose corners remain inside the existing island footprint", () => {
     for (const field of buildBrSectorFields()) for (const part of field.parts) {
       expect(Object.values(part.position).every(Number.isFinite)).toBe(true);
       expect(Object.values(part.scale).every(value => Number.isFinite(value) && value > 0)).toBe(true);
       expect(Number.isFinite(part.rotationY)).toBe(true);
-      expect(part.position.y + part.scale.y / 2).toBeLessThan(.05);
+      if (part.scale.y === .008) expect(part.position.y + part.scale.y / 2).toBeLessThan(.05);
+      else expect(part.position.y + part.scale.y / 2).toBeLessThanOrEqual(3.97);
       expect(part.position.y - part.scale.y / 2).toBeGreaterThan(0);
       const cos = Math.cos(part.rotationY), sin = Math.sin(part.rotationY);
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
@@ -71,6 +75,43 @@ describe("BR broad orbital sector fields", () => {
         }
         expect(inside).toBe(true);
       }
+    }
+  });
+
+  it("retains the flush kit while making its raised perimeter slender, open and center-clear", () => {
+    for (const field of buildBrSectorFields()) {
+      const flush = field.parts.filter(part => part.scale.y === .008);
+      const raised = field.parts.filter(part => part.scale.y !== .008);
+      expect(flush).toHaveLength(14);
+      expect(raised).toHaveLength(16);
+      expect(raised.filter(part => part.scale.y === 2.4)).toHaveLength(4); // Beacons.
+      expect(raised.filter(part => part.scale.y === 3.8)).toHaveLength(2); // Open gantry posts.
+      expect(raised.filter(part => part.position.y === .14)).toHaveLength(2); // Low diagnostics.
+      for (const part of raised) {
+        const bottom = part.position.y - part.scale.y / 2;
+        const top = part.position.y + part.scale.y / 2;
+        const dx = part.position.x - field.center.x, dz = part.position.z - field.center.z;
+        const x = dx * Math.cos(part.rotationY) - dz * Math.sin(part.rotationY);
+        const z = dx * Math.sin(part.rotationY) + dz * Math.cos(part.rotationY);
+        const nearX = Math.max(0, Math.abs(x) - part.scale.x / 2);
+        const nearZ = Math.max(0, Math.abs(z) - part.scale.z / 2);
+        // Nine-metre center stays empty at all heights; the full six-metre
+        // cross stays clear below the overhead service member's 3.7m soffit.
+        expect(Math.hypot(nearX, nearZ)).toBeGreaterThanOrEqual(9);
+        expect(bottom >= 3.7 || (nearX >= 3 && nearZ >= 3)).toBe(true);
+        if (bottom < 2.7 && top > .3) {
+          expect(part.scale.x).toBeLessThanOrEqual(.2);
+          expect(part.scale.z).toBeLessThanOrEqual(.2);
+        }
+        if (part.scale.x > .2 || part.scale.z > .2) {
+          expect(top <= .3 || bottom >= 3.7).toBe(true);
+          expect(part.scale.y).toBeLessThanOrEqual(.14);
+        }
+      }
+      const accent = field.style === "city" || field.style === "mall" || field.style === "academy" ? "energyPurple"
+        : ["dock", "industrial", "reactor"].includes(field.style) ? "industrialOrange"
+        : field.style === "wreck" ? "warningRed" : "energyCyan";
+      expect(raised.filter(part => part.position.y === 2.55).every(part => part.finish === accent)).toBe(true);
     }
   });
 
