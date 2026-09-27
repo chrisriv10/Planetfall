@@ -1,4 +1,4 @@
-import type { BrPhase, BrRoomView } from "@planetfall/shared";
+import type { BrDeploymentState, BrPhase, BrRoomView } from "@planetfall/shared";
 
 /** Do not present an expired storm countdown while pilots are still dropping. */
 export function brStormReadout(phase:BrPhase,storm:Pick<BrRoomView["storm"],"stage"|"stageEndsAt">,now:number) {
@@ -58,4 +58,21 @@ export function brPredictionCorrectionStrength(error:number):number {
   if(error<=.35)return .045;
   if(error<=1.25)return .14;
   return .35;
+}
+
+export interface BrLandingFeedback {
+  impact: number;
+  initialDrop: boolean;
+}
+
+/** Convert the single-frame deterministic landing signal into one bounded
+ * presentation cue. The cooldown prevents prediction/contact jitter from
+ * retriggering audio, while the previous deployment distinguishes the first
+ * Ion-Wing touchdown from an ordinary jump landing. */
+export function brLandingFeedback(previousDeployment:BrDeploymentState,landed:boolean,verticalSpeed:number,now:number,lastAt:number):BrLandingFeedback|null {
+  if(!landed||!Number.isFinite(now)||now-lastAt<180)return null;
+  return {
+    impact:Math.min(18,Math.max(3,Math.abs(Number.isFinite(verticalSpeed)?verticalSpeed:0))),
+    initialDrop:previousDeployment==="freefall"||previousDeployment==="chute"
+  };
 }

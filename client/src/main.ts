@@ -572,9 +572,8 @@ async function applyBrRoom(nextRoom: BrRoomView): Promise<void> {
   // The BR module is loaded asynchronously. Prime the visible count strip
   // from the authoritative room view before revealing the HUD so a configured
   // 10/20-player quick match never flashes the markup's 40-player default.
-  const livingPlayers = nextRoom.players.filter((player) => player.alive);
-  byId("br-players-remaining").textContent = `${livingPlayers.length} PLAYERS`;
-  byId("br-teams-remaining").textContent = `${new Set(livingPlayers.map((player) => player.teamId)).size} TEAMS`;
+  byId("br-players-remaining").textContent = `${nextRoom.playersRemaining} PLAYERS`;
+  byId("br-teams-remaining").textContent = `${nextRoom.teamsRemaining} TEAMS`;
   const stormReadout = brStormReadout(nextRoom.phase, nextRoom.storm, Date.now());
   byId("br-storm-copy").textContent = stormReadout.label;
   byId("br-storm-timer").textContent = stormReadout.time;
@@ -586,6 +585,13 @@ async function applyBrRoom(nextRoom: BrRoomView): Promise<void> {
     byId<HTMLElement>("br-shield-meter").style.width = `${Math.max(0, Math.min(100, localPlayer.shield))}%`;
     brInventoryMarkup = brInventoryMarkupFor(localPlayer);
     byId("br-inventory").innerHTML = brInventoryMarkup;
+    const mini = byId("br-minimap");
+    const span = 110;
+    updateBrMinimapArt(mini, localPlayer.position.x, localPlayer.position.z, span);
+    const miniStorm = mini.querySelector<HTMLElement>(".br-mini-storm")!;
+    miniStorm.style.left = `${50 + (nextRoom.storm.center.x - localPlayer.position.x) / span * 50}%`;
+    miniStorm.style.top = `${50 + (nextRoom.storm.center.z - localPlayer.position.z) / span * 50}%`;
+    miniStorm.style.width = miniStorm.style.height = `${nextRoom.storm.radius / span * 100}%`;
   }
   showScreen("brHud");
   const instance = await ensureBrGame(nextRoom); instance.setRoom(nextRoom);

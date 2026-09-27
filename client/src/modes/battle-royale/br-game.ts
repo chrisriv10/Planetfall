@@ -15,7 +15,7 @@ import { createBrBackdrop, createStarliner, createVoidStorm, updateStarliner, up
 import { BrWorldRenderer, type BrPoiLabel } from "./br-world";
 import { buildBrWeaponModel } from "./br-weapons";
 import { BrShotEffects } from "./br-shot-effects";
-import { brActionTimer, brAstronautFacingRotation, brDamageBearing, brFireRequestDue, brPredictionCorrectionStrength, brRecoilAfter, brSmoothFacing } from "./br-feedback";
+import { brActionTimer, brAstronautFacingRotation, brDamageBearing, brFireRequestDue, brLandingFeedback, brPredictionCorrectionStrength, brRecoilAfter, brSmoothFacing } from "./br-feedback";
 import { createBrReview } from "./br-review";
 import { shouldKeepStarlinerInDropView } from "./br-starliner-visibility";
 import { BrLootLod } from "./br-loot-lod";
@@ -172,6 +172,7 @@ export class BattleRoyaleGame {
   private readonly farPlayerScale = new THREE.Vector3(1,1,1);
   private readonly farPlayerPosition = new THREE.Vector3();
   private damageIndicatorUntil = 0;
+  private lastLandingFeedbackAt = Number.NEGATIVE_INFINITY;
   private lastFootstepAt=0;
   private review: ReturnType<typeof createBrReview> | null = null;
 
@@ -221,7 +222,7 @@ export class BattleRoyaleGame {
     for (const ping of this.pings) { this.scene.remove(ping.group); this.disposeObject(ping.group); }
     this.players.clear(); this.loot.clear(); this.crates.clear(); this.projectiles.clear(); this.pings = []; this.localState = null; this.predictedMotion = null; this.spectatorTargetId = null; this.pendingSelectedSlot=null;this.pendingSpectatorTarget=null;this.cameraInitialized=false;this.cameraBoom=6.15;this.serverClockOffsetMs=0;this.dropPredictionStartedAt=0;
     this.reloadEndsAt = 0; this.useEndsAt = 0; this.activeReviveTargetId=null;this.confirmedReviveTargetId=null;this.reviveConfirmedDuringHold=false;this.lastReviveRequestAt=0;this.reviveStartedAt=0;this.lastFireRequestAt = 0;this.lastAnticipatedFireAt=0;
-    this.reloadConfirmed = false; this.useConfirmed = false; this.hitMarkerFeedback.clear();this.damageNumbers.clearNumbers();this.damageIndicatorUntil=0;document.getElementById("br-damage-direction")?.classList.remove("visible");
+    this.reloadConfirmed = false; this.useConfirmed = false; this.hitMarkerFeedback.clear();this.damageNumbers.clearNumbers();this.damageIndicatorUntil=0;this.lastLandingFeedbackAt=Number.NEGATIVE_INFINITY;document.getElementById("br-damage-direction")?.classList.remove("visible");
     this.physics.reset(); this.reconciliationTracker.reset(); this.visitedPois.clear(); this.currentPoiId = "";this.clearPoiTitle(); document.body.classList.remove("br-in-void");
   }
   dispose(): void { if (this.disposed) return; this.deactivate(); this.reset(); this.shotEffects.dispose();this.lootRarity.dispose();this.damageNumbers.dispose(); this.canvas.removeEventListener("click",this.handleCanvasClick); removeEventListener("resize",this.handleResize); this.unsubscribeInputMethod(); this.scene.remove(this.island,this.stormWall,this.backdrop,this.starliner,this.sun,this.sunTarget,this.farPlayerBodies,this.farPlayerHelmets,this.damageNumbers); this.world.dispose(); this.disposeObject(this.stormWall); this.disposeObject(this.backdrop); this.disposeObject(this.starliner); for(const geometry of this.crateSharedGeometries)geometry.dispose();for(const material of this.crateSharedMaterials)material.dispose();this.farPlayerBodyGeometry.dispose();this.farPlayerHelmetGeometry.dispose();this.farPlayerBodyMaterial.dispose();this.farPlayerHelmetMaterial.dispose();this.physics.dispose(); this.disposed=true; }
@@ -917,7 +918,18 @@ export class BattleRoyaleGame {
   private predictLocal(frame: InputFrame, dt: number, now: number): void {
     const local = this.localState; if (!local?.alive) return;
     if (!this.predictedMotion) this.predictedMotion = this.motionFromPlayer(local);
-    this.predictedMotion = stepBrMovement(this.predictedMotion, { moveX: frame.moveX, moveY: frame.moveY, yaw: this.yaw, jump: frame.jump.held, sprint: frame.burst.held, crouch: frame.crouch.held }, dt, now, (position,desired,options)=>this.physics.move(position,desired,options.jumping,options.crouched));
+    const previousDeployment=this.predictedMotion.deployment;
+    const previousVerticalSpeed=this.predictedMotion.velocity.y;
+    const nextMotion = stepBrMovement(this.predictedMotion, { moveX: frame.moveX, moveY: frame.moveY, yaw: this.yaw, jump: frame.jump.held, sprint: frame.burst.held, crouch: frame.crouch.held }, dt, now, (position,desired,options)=>this.physics.move(position,desired,options.jumping,options.crouched));
+    this.predictedMotion=nextMotion;
+    const landing=brLandingFeedback(previousDeployment,nextMotion.landed,previousVerticalSpeed,now,this.lastLandingFeedbackAt);
+    if(landing){
+      this.lastLandingFeedbackAt=now;this.audio.land(landing.impact);
+      if(landing.initialDrop){
+        this.playEnergyBurst(new THREE.Vector3(this.predictedMotion.position.x,this.predictedMotion.position.y+.03,this.predictedMotion.position.z),0x70f5ff,.72);
+        this.input.vibrate(90,.22);
+      }
+    }
   }
 
   private reconcilePrediction(authoritative: BrPlayerState): void {

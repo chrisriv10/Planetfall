@@ -1,5 +1,5 @@
 import {
-  BR_ISLAND_OUTLINE, BR_MAP_BLOCKS, BR_ROADS, BR_STRUCTURES,
+  BR_ISLAND_OUTLINE, BR_MAP_BLOCKS, BR_ROADS, BR_STRUCTURES, BR_TRAVERSAL,
   type BrMapBlock, type BrRoadSegment, type BrStructure, type Vec3
 } from "@planetfall/shared";
 
@@ -19,6 +19,7 @@ type Inputs = {
   structures: readonly BrStructure[];
   blocks: readonly BrMapBlock[];
   outline: readonly (readonly [number, number])[];
+  traversal: readonly { position: Vec3 }[];
 };
 
 const distanceToSegment = (point: Vec3, road: BrRoadSegment): number => {
@@ -45,10 +46,30 @@ const clear = (point: Vec3, inputs: Inputs): boolean => inside(point, inputs.out
   ) > 6)
   && inputs.blocks.every(block => Math.hypot(point.x - block.position.x, point.z - block.position.z) > Math.hypot(block.size.x, block.size.z) / 2 + 4);
 
+/** Containing circles protect the entire rotated planter/crown/strip, not just
+ * trunks. A rejected candidate is omitted rather than shrinking its clearance. */
+function partClear(part: BrCorridorGrovePart, inputs: Inputs): boolean {
+  const point = part.position;
+  const radius = part.geometry === "box" ? Math.hypot(part.scale.x, part.scale.z) / 2 : Math.max(part.scale.x, part.scale.z);
+  if (!inside(point, inputs.outline)) return false;
+  for (let i = 0, j = inputs.outline.length - 1; i < inputs.outline.length; j = i++) {
+    const [x, z] = inputs.outline[i], [px, pz] = inputs.outline[j];
+    if (distanceToSegment(point, { from: { x, y: 0, z }, to: { x: px, y: 0, z: pz }, width: 0, id: "edge", color: "" }) < radius + 1) return false;
+  }
+  if (inputs.roads.some(road => distanceToSegment(point, road) < road.width / 2 + radius + 2)) return false;
+  if (inputs.structures.some(structure => Math.hypot(
+    Math.max(0, Math.abs(point.x - structure.position.x) - structure.size.x / 2),
+    Math.max(0, Math.abs(point.z - structure.position.z) - structure.size.z / 2)
+  ) < radius + 2)) return false;
+  if (inputs.blocks.some(block => Math.hypot(point.x - block.position.x, point.z - block.position.z)
+    < Math.hypot(block.size.x, block.size.y, block.size.z) / 2 + radius + 1)) return false;
+  return inputs.traversal.every(item => Math.hypot(point.x - item.position.x, point.z - item.position.z) >= radius + 6);
+}
+
 /** Sparse, visual-only planting pockets that frame long rotations. They stay
  * outside roads and gameplay geometry, and deliberately leave broad sightlines. */
 export function buildBrCorridorGroves(overrides: Partial<Inputs> = {}): BrCorridorGrovePart[] {
-  const inputs: Inputs = { roads: BR_ROADS, structures: BR_STRUCTURES, blocks: BR_MAP_BLOCKS, outline: BR_ISLAND_OUTLINE, ...overrides };
+  const inputs: Inputs = { roads: BR_ROADS, structures: BR_STRUCTURES, blocks: BR_MAP_BLOCKS, outline: BR_ISLAND_OUTLINE, traversal: BR_TRAVERSAL, ...overrides };
   const parts: BrCorridorGrovePart[] = [];
   const centers: Vec3[] = [];
   for (const road of inputs.roads.filter(entry => Math.hypot(entry.to.x - entry.from.x, entry.to.z - entry.from.z) > 145)) {
@@ -74,18 +95,38 @@ export function buildBrCorridorGroves(overrides: Partial<Inputs> = {}): BrCorrid
         // crossing road or a neighbouring facade. Validate the actual trunks
         // before accepting the cluster so density never creates false cover.
         if (treePositions.some(tree => !clear(tree, inputs))) continue;
-        centers.push(center);
+        const kit: BrCorridorGrovePart[] = [];
+        const add = (geometry: BrCorridorGrovePart["geometry"], finish: BrCorridorGrovePart["finish"],
+          anchor: Vec3, along: number, across: number, y: number, width: number, height: number, depth: number) => {
+          kit.push({ geometry, finish, rotationY: -heading, position: {
+            x: anchor.x + Math.cos(heading) * along - Math.sin(heading) * across,
+            y, z: anchor.z + Math.sin(heading) * along + Math.cos(heading) * across
+          }, scale: { x: width, y: height, z: depth } });
+        };
         // Four distinct silhouettes create a readable grove rather than an
         // isolated decorative tree, while leaving the road and combat lane
         // deliberately open.
         for (let tree = 0; tree < treePositions.length; tree++) {
           const { x, z } = treePositions[tree];
-          const height = 2.8 + ((centers.length + tree) % 3) * .65;
-          parts.push({ geometry: "box", finish: "soil", position: { x, y: .08, z }, scale: { x: 2.3, y: .12, z: 2.3 }, rotationY: heading });
-          parts.push({ geometry: "cylinder", finish: "soil", position: { x, y: height / 2, z }, scale: { x: .16, y: height, z: .16 }, rotationY: heading });
-          parts.push({ geometry: "octahedron", finish: "canopy", position: { x, y: height + 1.05, z }, scale: { x: 1.05 + (tree % 3) * .18, y: 1.25 + (tree % 2) * .45, z: 1.05 + ((tree + 1) % 3) * .12 }, rotationY: heading + tree * .31 });
+          const height = 2.8 + ((centers.length + 1 + tree) % 3) * .65;
+          const anchor = { x, y: 0, z };
+          add("box", "soil", anchor, 0, 0, .08, 2.3, .12, 2.3);
+          add("cylinder", "soil", anchor, 0, 0, height / 2, .16, height, .16);
+          add("octahedron", "canopy", anchor, 0, 0, height + 1.05,
+            1.05 + (tree % 3) * .18, 1.25 + (tree % 2) * .45, 1.05 + ((tree + 1) % 3) * .12);
+          kit[kit.length - 1].rotationY += tree * .31;
+          // Two low irrigation rails frame each soil cell without surrounding
+          // it with a wall. The open ends and gaps preserve the grove's rhythm.
+          for (const across of [-1.18, 1.18]) add("box", "brushedMetal", anchor, 0, across, .16, 2.5, .1, .09);
+          // Only two of the four trees receive a subordinate crown. Keep their
+          // silhouettes airy and reuse the existing camera-fading canopy finish.
+          if (tree % 2) add("octahedron", "canopy", anchor, .58, .12, height + 1.8, .6, .72, .54);
         }
-        parts.push({ geometry: "box", finish: "sidewalk", position: { x: center.x, y: .02, z: center.z }, scale: { x: 14.5, y: .01, z: .18 }, rotationY: heading });
+        // A broken alignment strip follows the same road heading as the trees.
+        // Three.js rotates local X toward -Z, hence rotationY=-heading above.
+        for (const along of [-4.6, 0, 4.6]) add("box", "sidewalk", center, along, 0, .02, 4.2, .01, .18);
+        if (kit.some(part => !partClear(part, inputs))) continue;
+        centers.push(center); parts.push(...kit);
         break;
       }
     }

@@ -281,6 +281,7 @@ test("Battle Royale Solo requires confirmation and respects quick-play settings"
   expect(await page.locator("#br-shield-meter").getAttribute("style")).toContain("width: 0%");
   expect(["PREPARING", "DROP PHASE"]).toContain(await page.locator("#br-storm-copy").textContent());
   expect(await page.locator("#br-inventory .br-slot").count()).toBe(5);
+  expect(await page.locator("#br-minimap .br-map-art").count()).toBe(1);
   await expect.poll(()=>page.locator("#br-players-remaining").textContent(),{timeout:12_000}).toBe("10 PLAYERS");
   await expect(page.locator("#br-team-hud")).toBeHidden();
   await expect(page.locator("#br-minimap .br-mini-teammate")).toHaveCount(0);

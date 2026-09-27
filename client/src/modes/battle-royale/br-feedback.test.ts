@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { brActionTimer, brAstronautFacingRotation, brDamageBearing, brFireRequestDue, brPredictionCorrectionStrength, brRecoilAfter, brSmoothFacing, brStormReadout } from "./br-feedback";
+import { brActionTimer, brAstronautFacingRotation, brDamageBearing, brFireRequestDue, brLandingFeedback, brPredictionCorrectionStrength, brRecoilAfter, brSmoothFacing, brStormReadout } from "./br-feedback";
 
 describe("BR presentation correctness",()=>{
   it("shows a drop phase instead of a misleading expired storm countdown aboard the ship",()=>{
@@ -59,5 +59,11 @@ describe("BR presentation correctness",()=>{
     expect(brPredictionCorrectionStrength(.2)).toBeLessThan(.1);
     expect(brPredictionCorrectionStrength(.8)).toBeGreaterThan(.1);
     expect(brPredictionCorrectionStrength(2)).toBeLessThan(.5);
+  });
+  it("emits one bounded landing cue and distinguishes the initial drop",()=>{
+    expect(brLandingFeedback("chute",true,-27,1000,0)).toEqual({impact:18,initialDrop:true});
+    expect(brLandingFeedback("grounded",true,-7,1300,1000)).toEqual({impact:7,initialDrop:false});
+    expect(brLandingFeedback("grounded",true,-7,1100,1000)).toBeNull();
+    expect(brLandingFeedback("freefall",false,-20,1400,1000)).toBeNull();
   });
 });
