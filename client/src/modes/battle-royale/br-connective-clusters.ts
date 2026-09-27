@@ -92,10 +92,19 @@ function createParts(center: Vec3, angle: number, theme: ConnectiveClusterTheme)
   if (theme === "landscape") {
     for (const x of [-3.2, 3.2]) {
       add("soil", x, .028, 0, 2.2, .014, 3.8, true);
+      // Open-ended irrigation rails make each planted strip read as an
+      // intentional orbital garden, not loose shrubs scattered on bare deck.
+      // All opaque planter mass stays below the existing ankle-height limit.
+      for (const side of [-1, 1]) add("brushedMetal", x + side * 1.15, .14, 0, .1, .18, 3.8);
       for (const z of [-1.1, 0, 1.1]) {
         // Radius-one octahedra: scale is the actual leaf extent, not diameter.
         add("grass", x, .3, z, .42, .25, .55, false, "octahedron");
       }
+      // One slim irrigation/status stake per bed provides restrained vertical
+      // identity. No signboard, canopy, point light, or bulky utility cabinet.
+      // Stakes sit beyond the planted ends, leaving the wide center lane open.
+      add("brushedMetal", x, .69, -2.25, .055, 1.38, .055, false, "cylinder");
+      add("windowLit", x, 1.44, -2.25, .105, .1, .105, false, "cylinder");
     }
   } else if (theme === "cargo") {
     for (const x of [-2.8, 2.8]) {
@@ -123,7 +132,7 @@ function createParts(center: Vec3, angle: number, theme: ConnectiveClusterTheme)
   return parts;
 }
 
-/** Up to sixteen low-density pockets with 11–14 parts each. Geometry keys map directly to
+/** Up to sixteen low-density pockets with 11–20 parts each. Geometry keys map directly to
  * existing unitBox/unitCylinder/unitOctahedron (radius-one cylinders/octas).
  * Batch by geometry+finish+surface, using surface(finish,6) for flush parts and
  * get(finish) otherwise; cameraCollision=false. No textures, lights or updates.

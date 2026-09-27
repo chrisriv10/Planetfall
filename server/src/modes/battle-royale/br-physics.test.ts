@@ -25,7 +25,7 @@ describe("Battle Royale Rapier world",()=>{
       expect(feet.y).toBeGreaterThan(rise);
     } finally {physics.dispose();}
   });
-  it.each(["central-heights-1","relay-market-1","comet-hotel-1","horizon-homes-1"])("walks from deck to %s roof without jumping",(id)=>{
+  it.each(["zero-control","dock-office","astra-hall","farm-processing"])("walks from deck to %s roof without jumping",(id)=>{
     const physics=new BrPhysicsWorld();
     try {
       const structure=BR_STRUCTURES.find(s=>s.id===id)!;

@@ -1,7 +1,9 @@
 import {describe,expect,it} from "vitest";
 import * as THREE from "three";
-import {BR_POIS,BR_ROADS,BR_SECONDARY_LOCATIONS,BR_STRUCTURES} from "@planetfall/shared";
+import {readFileSync} from "node:fs";
+import {BR_SECONDARY_LOCATIONS} from "@planetfall/shared";
 import {buildBrParkDressing,buildBrParkPaths,type BrParkClearance} from "./br-park-dressing";
+import {buildBrAuthoredSecondaryDressing} from "./br-authored-secondary-dressing";
 
 const open:BrParkClearance={roads:[],structures:[],blocks:[],traversal:[],outline:[[-100,-100],[100,-100],[100,100],[-100,100]]};
 const park={...BR_SECONDARY_LOCATIONS.find(location=>location.id==="west-park")!,position:{x:0,y:0,z:0}};
@@ -34,23 +36,18 @@ describe("BR park dressing",()=>{
       }
     }
   });
-  it("finds safe West Park planting pockets without clipping neighboring buildings or roads",()=>{
+  it("retires generated West Park pockets in favor of its fixed authored garden",()=>{
     const location=BR_SECONDARY_LOCATIONS.find(value=>value.id==="west-park")!;
-    const target=BR_POIS.find(value=>value.id===location.connectTo)!.position;
-    const clusters=buildBrParkDressing(location,target);
-    expect(clusters.length).toBeGreaterThan(0);
-    for(const cluster of clusters) {
-      for(const road of BR_ROADS) {
-        const dx=road.to.x-road.from.x,dz=road.to.z-road.from.z,length=dx*dx+dz*dz;
-        const t=length>0?Math.max(0,Math.min(1,((cluster.center.x-road.from.x)*dx+(cluster.center.z-road.from.z)*dz)/length)):0;
-        expect(Math.hypot(cluster.center.x-road.from.x-t*dx,cluster.center.z-road.from.z-t*dz)).toBeGreaterThanOrEqual(road.width/2+cluster.radius+2);
-      }
-      for(const structure of BR_STRUCTURES) {
-        const dx=Math.max(0,Math.abs(cluster.center.x-structure.position.x)-structure.size.x/2);
-        const dz=Math.max(0,Math.abs(cluster.center.z-structure.position.z)-structure.size.z/2);
-        expect(Math.hypot(dx,dz)).toBeGreaterThanOrEqual(cluster.radius+4);
-      }
-    }
+    // The legacy helper remains unit-tested for its geometry primitives, but
+    // runtime map composition no longer calls it. West Park now uses one
+    // reviewed literal treatment instead of accepting candidate output.
+    const worldSource=readFileSync(new URL("./br-world.ts",import.meta.url),"utf8");
+    expect(worldSource).not.toContain("buildBrParkDressing");
+    expect(worldSource).not.toContain("buildBrParkPaths");
+    const authored=buildBrAuthoredSecondaryDressing(location)!;
+    expect(authored.center).toEqual({x:-435,y:0,z:165});
+    expect(authored.context).toContain("Park edge");
+    expect(authored.parts).toHaveLength(8);
   });
   it("omits clusters instead of decorating reserved or off-island space",()=>{
     expect(buildBrParkDressing(park,destination,{...open,outline:[[0,0],[1,0],[0,1]]})).toEqual([]);

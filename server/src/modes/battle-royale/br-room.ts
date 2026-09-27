@@ -199,6 +199,12 @@ export class BattleRoyaleRoom {
   jumpFromShip(playerId: string, now = Date.now()): boolean {
     const player = this.players.get(playerId);
     if (this.phase !== "ship" || !player || player.deployment !== "attached" || !this.ship) return false;
+    // Attached pilots do not run the ordinary movement step, but they still
+    // stream their route-aligned camera yaw. Use that latest validated input
+    // for both authority and drop momentum so the first post-jump snapshot
+    // agrees with the client's immediate prediction instead of correcting
+    // toward the stale pre-ship yaw.
+    if (!player.isBot && player.input) player.yaw = player.input.yaw;
     player.deployment = "freefall"; player.position = { ...this.ship.position };
     // Preserve most of the transport's momentum so leaving the Starliner is a
     // continuous motion instead of an abrupt stop. Camera-forward steering can

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { brActionTimer, brAstronautFacingRotation, brDamageBearing, brFireRequestDue, brLandingFeedback, brPredictionCorrectionStrength, brRecoilAfter, brSmoothFacing, brStormReadout } from "./br-feedback";
+import { BR_ASTRONAUT_FLOOR_OFFSET, brActionTimer, brAstronautFacingRotation, brAstronautRigHeight, brDamageBearing, brFireRequestDue, brLandingFeedback, brPredictionCorrectionStrength, brRecoilAfter, brSmoothFacing, brStormReadout } from "./br-feedback";
 
 describe("BR presentation correctness",()=>{
   it("shows a drop phase instead of a misleading expired storm countdown aboard the ship",()=>{
@@ -25,6 +25,13 @@ describe("BR presentation correctness",()=>{
       expect(modelForward.x).toBeCloseTo(movementForward.x,10);
       expect(modelForward.z).toBeCloseTo(movementForward.z,10);
     }
+  });
+  it("anchors the canonical astronaut's boots above the authoritative floor",()=>{
+    expect(BR_ASTRONAUT_FLOOR_OFFSET).toBeGreaterThanOrEqual(.24);
+    expect(brAstronautRigHeight(false,false,false)).toBe(BR_ASTRONAUT_FLOOR_OFFSET);
+    expect(brAstronautRigHeight(false,false,true)).toBeLessThan(BR_ASTRONAUT_FLOOR_OFFSET);
+    expect(brAstronautRigHeight(false,true,false)).toBeGreaterThan(BR_ASTRONAUT_FLOOR_OFFSET);
+    expect(Number.isFinite(brAstronautRigHeight(true,false,false))).toBe(true);
   });
   it("points toward attackers, not along their damage impulse",()=>{
     expect(brDamageBearing({x:0,z:1},0)).toBeCloseTo(0);

@@ -15,9 +15,9 @@ import { createBrBackdrop, createStarliner, createVoidStorm, updateStarliner, up
 import { BrWorldRenderer, type BrPoiLabel } from "./br-world";
 import { buildBrWeaponModel } from "./br-weapons";
 import { BrShotEffects } from "./br-shot-effects";
-import { brActionTimer, brAstronautFacingRotation, brDamageBearing, brFireRequestDue, brLandingFeedback, brPredictionCorrectionStrength, brRecoilAfter, brSmoothFacing } from "./br-feedback";
+import { BR_ASTRONAUT_FLOOR_OFFSET, brActionTimer, brAstronautFacingRotation, brAstronautRigHeight, brDamageBearing, brFireRequestDue, brLandingFeedback, brPredictionCorrectionStrength, brRecoilAfter, brSmoothFacing } from "./br-feedback";
 import { createBrReview } from "./br-review";
-import { shouldKeepStarlinerInDropView } from "./br-starliner-visibility";
+import { shouldHideStarlinerNearCamera, shouldKeepStarlinerInDropView } from "./br-starliner-visibility";
 import { BrLootLod } from "./br-loot-lod";
 import { BR_LOOT_RARITY_COLORS, BrLootRarityResources, BrLootRarityVisual } from "./br-loot-rarity";
 import { brReviveInput, brReviveRetryDue } from "./br-revive-input";
@@ -248,35 +248,29 @@ export class BattleRoyaleGame {
     // neighboring building. These never move the authoritative player.
     const reviews: Record<string, [number[], number[]]> = {
       "zero-plaza": [[0, 4.5, -42], [0, 15, 0]],
-      "nova-street": [[-184, 2.7, -109], [-184, 7, -151]],
-      "nova-storefront": [[-178, 2.7, -100], [-204, 3.2, -103]],
+      "nova-street": [[-175, 2.7, -112], [-175, 7, -165]],
+      "nova-storefront": [[-175, 2.7, -92], [-207, 3.2, -103]],
       "nova-roof": [[-209, 40, -137], [-171, 20, -125]],
       "mall-interior": [[-106, 2.7, 252], [-80, 5, 264]],
       "mall-directory": [[-115, 2.5, 253.5], [-124.7, 2.1, 253.5]],
       "mall-ramp": [[-86, 2.3, 251.5], [-75.7, 4.5, 263]],
       "mall-ceiling": [[-115, 2.4, 266], [-124, 8, 263]],
-      "hotel-stairs": [[-53, 2.2, -210.3], [-53, 7.3, -230]],
-      "hotel-lobby": [[-56, 2.2, -214], [-67, 2, -223]],
-      "hotel-service-wall": [[-61, 2.3, -219.6], [-47.7, 2.3, -219.6]],
-      "housing-lounge": [[-84, 2.2, -98], [-97, 2, -92]],
-      "hotel-landing": [[-53, 8.8, -229.6], [-54, 4, -214]],
+      "hotel-stairs": [[-86, 2.2, -236], [-88, 6.8, -245]],
+      "hotel-lobby": [[-87.5, 2.2, -236], [-104, 2.6, -236]],
+      "hotel-service-wall": [[-89, 2.3, -241], [-105.5, 2.5, -241]],
+      "housing-lounge": [[-57, 2.2, -42], [-43, 2.6, -42]],
+      "hotel-landing": [[-87.5, 8.8, -245], [-94, 4.2, -236]],
       "helios-interior": [[262, 2.7, 64], [262, 5, 88]],
       "crash-exterior": [[-312, 16, -290], [-326, 3.2, -258]],
       "crash-interior": [[-304, 2.7, -258], [-341, 4, -258]],
       "foundry-interior": [[342, 2.7, -81], [350, 5, -61]],
       "foundry-roof": [[342, 24.7, -60], [352, 28, -73]],
-      // Frames the deterministic radial-1 pocket from its road-facing side.
-      // The previous coordinates were over 100m from every generated bay and
-      // reviewed an unrelated blank facade instead of the authored kit.
-      "roadside-south": [[94, 2.8, -149], [105.5, 1.55, -138.5]],
-      "roadside-nova": [[-153, 3.4, -246], [-143.2, 2.2, -237]],
-      "connective-academy": [[-223, 2.6, 181], [-209.4, .25, 192.5]],
-      "maintenance-south": [[45, 2.3, -195], [37, .2, -204]],
-      "deck-transition": [[-195, 2.6, -244], [-208.7, .1, -256.6]],
-      // Ground-level inspection of the deterministic eastern sector field.
-      // Keep this tied to the generated field center rather than an unrelated
-      // empty deck area so density reviews assess the authored treatment.
-      "sector-field": [[178, 3.2, 52], [156.3, .1, 70.6]],
+      "roadside-south": [[15, 3.1, -380], [15, 2.2, -415]],
+      "roadside-nova": [[-76, 3.1, -178], [-76, 3, -214]],
+      "connective-academy": [[-265, 3.1, 280], [-265, 2.4, 235]],
+      "maintenance-south": [[190, 3.1, -360], [190, 2.3, -400]],
+      "deck-transition": [[-255, 3.2, 8], [-255, 2.2, -30]],
+      "sector-field": [[375, 3.2, 95], [405, 2.2, 105]],
       "edge-south": [[0, 12, -550], [0, -13, -455]],
       "storm-boundary": [[-184, 2.7, -40], [-184, 7, -10]],
       "storm-final": [[-184, 2.7, -96], [-184, 7, -60]],
@@ -622,7 +616,7 @@ export class BattleRoyaleGame {
       const airborne=deployment==="freefall"||deployment==="chute";
       const targetLean=downed?-1.12:deployment==="freefall"?.72:deployment==="chute"?-.14:crouched&&speed>5?.3:Math.min(.2,speed*.016);
       visual.rig.rotation.x = THREE.MathUtils.lerp(visual.rig.rotation.x, targetLean, Math.min(1, dt * 9));
-      visual.rig.position.y=THREE.MathUtils.lerp(visual.rig.position.y,downed?.28:airborne?.05:crouched?-.3:0,Math.min(1,dt*10));
+      visual.rig.position.y=THREE.MathUtils.lerp(visual.rig.position.y,brAstronautRigHeight(downed,airborne,crouched),Math.min(1,dt*10));
       const squash=grounded&&Math.abs(velocity.y)<.2?1+Math.sin(now*.01)*.008:1;
       visual.rig.scale.set(1 / Math.sqrt(squash), squash, 1 / Math.sqrt(squash));
       visual.wings.visible=deployment==="chute";
@@ -669,7 +663,7 @@ export class BattleRoyaleGame {
     // Once a player has jumped, the very large transport can cross the camera
     // boom and completely hide the island. Keep it in the wider aerial view,
     // but cull it while it is inside the player's immediate camera envelope.
-    if (this.starliner.position.distanceToSquared(this.camera.position) < 62 * 62) this.starliner.visible = false;
+    if (shouldHideStarlinerNearCamera(this.room?.phase,renderedDeployment,this.localState?.deployment,this.starliner.position.distanceTo(this.camera.position))) this.starliner.visible = false;
   }
 
   private updateCamera(dt: number): void {
@@ -770,6 +764,7 @@ export class BattleRoyaleGame {
     });
     const rig = astronaut.group;
     rig.rotation.y = Math.PI;
+    rig.position.y = BR_ASTRONAUT_FLOOR_OFFSET;
     group.add(rig);
     const body = astronaut.torso;
     const limbs = [astronaut.leftArm, astronaut.rightArm, astronaut.leftLeg, astronaut.rightLeg];

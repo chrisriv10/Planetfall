@@ -1,4 +1,9 @@
 import type { Vec3 } from "../index.js";
+import {
+  AUTHORED_BR_SECONDARY_STRUCTURE_BLUEPRINTS,
+  AUTHORED_BR_SERVICE_ROADS
+} from "./orbital-isle-authored.js";
+import { AUTHORED_BR_CONNECTIVE_COVER, AUTHORED_BR_SECONDARY_COVER, AUTHORED_BR_SPATIAL_PLANS, AUTHORED_BR_STRUCTURE_PLACEMENTS } from "./orbital-isle-spatial-plan.js";
 
 export type BrDistrictStyle = "nexus" | "city" | "dock" | "reactor" | "academy" | "mall" | "farm" | "wreck" | "industrial";
 
@@ -67,6 +72,15 @@ export interface BrRoadSegment { id: string; from: Vec3; to: Vec3; width: number
 export interface BrNavNode { id: string; position: Vec3; neighbors: string[]; }
 export interface BrLootSocket { id: string; districtId: string; structureId: string; position: Vec3; kind: "interior" | "roof"; }
 export interface BrTerrainPatch { id: string; position: Vec3; size: Vec3; rotation: number; color: string; kind: "park" | "plaza" | "industrial" | "coolant" | "landing"; }
+export interface BrTerrace {
+  id: string;
+  districtId: string;
+  position: Vec3;
+  size: { x: number; z: number };
+  height: number;
+  accessSide: BrStructure["entrance"];
+  color: string;
+}
 
 export const BR_MAP = { id: "orbital-isle", name: "ORBITAL ISLE", radius: 500, diameter: 1000 } as const;
 
@@ -114,7 +128,7 @@ export const BR_SECONDARY_LOCATIONS:readonly BrSecondaryLocation[]=[
   secondary("east-checkpoint","EAST CHECKPOINT",355,255,"#65b8ff","industrial","helios-reactor"),
   secondary("helios-relay","HELIOS RELAY",375,135,"#ffd84d","reactor","helios-reactor"),
   secondary("orbital-overlook","ORBITAL OVERLOOK",305,220,"#73c8e8","nexus","helios-reactor"),
-  secondary("farm-service","FARM SERVICE",235,370,"#63ef8b","farm","orbital-farms"),
+  secondary("farm-service","FARM SERVICE",280,330,"#63ef8b","farm","orbital-farms"),
   secondary("solar-field","SOLAR FIELD",75,415,"#63d99c","farm","orbital-farms"),
   secondary("north-gardens","NORTH GARDENS",-45,405,"#69d89a","farm","void-mall"),
   secondary("mall-annex","MALL ANNEX",-205,365,"#c565ff","mall","void-mall"),
@@ -127,7 +141,7 @@ export const BR_SECONDARY_LOCATIONS:readonly BrSecondaryLocation[]=[
   secondary("northwest-housing","NORTHWEST HOUSING",-250,365,"#b78bdc","city","void-mall"),
   secondary("west-salvage","WEST SALVAGE",-385,-205,"#cf6b61","wreck","crash-site"),
   secondary("east-rim","EAST RIM",405,105,"#68b8de","industrial","helios-reactor"),
-  secondary("west-rim","WEST RIM",-340,280,"#8f8bd6","academy","astra-academy")
+  secondary("west-rim","WEST RIM",-360,310,"#8f8bd6","academy","astra-academy")
 ];
 
 const BR_ARTERIAL_ROADS:readonly BrRoadSegment[]=[
@@ -162,132 +176,67 @@ const BR_ARTERIAL_ROADS:readonly BrRoadSegment[]=[
   { id:"radial-2", from:{x:70,y:.09,z:58}, to:{x:225,y:.09,z:224}, width:13, color:"#304766",kind:"arterial" },
   { id:"radial-3", from:{x:-70,y:.09,z:58}, to:{x:-190,y:.09,z:154}, width:13, color:"#304766",kind:"arterial" }
 ];
-const closestPointOnRoad=(point:Vec3,road:BrRoadSegment):Vec3=>{
-  const dx=road.to.x-road.from.x,dz=road.to.z-road.from.z;
-  const denominator=dx*dx+dz*dz;
-  const amount=denominator<=1e-8?0:Math.max(0,Math.min(1,((point.x-road.from.x)*dx+(point.z-road.from.z)*dz)/denominator));
-  return{x:road.from.x+dx*amount,y:.1,z:road.from.z+dz*amount};
-};
+
+const BR_PRIMARY_DISTRICT_ROADS:readonly BrRoadSegment[]=[
+
+  // Primary districts use continuous circulation rather than isolated access
+  // spurs. These authored loops follow the actual building blocks and join the
+  // island collectors at two or more points, so a road visibly enters, serves,
+  // and exits each POI. Landmark cores remain pedestrian spaces inside them.
+  { id:"zero-circulation-s", from:{x:-70,y:.1,z:-58}, to:{x:70,y:.1,z:-58}, width:11, color:"#304d69",kind:"arterial" },
+  { id:"zero-circulation-e", from:{x:70,y:.1,z:-58}, to:{x:70,y:.1,z:58}, width:11, color:"#304d69",kind:"arterial" },
+  { id:"zero-circulation-n", from:{x:70,y:.1,z:58}, to:{x:-70,y:.1,z:58}, width:11, color:"#304d69",kind:"arterial" },
+  { id:"zero-circulation-w", from:{x:-70,y:.1,z:58}, to:{x:-70,y:.1,z:-58}, width:11, color:"#304d69",kind:"arterial" },
+
+  { id:"nova-circulation-w", from:{x:-254,y:.1,z:-215}, to:{x:-254,y:.1,z:-48}, width:11, color:"#3b3558",kind:"arterial" },
+  { id:"nova-circulation-n", from:{x:-254,y:.1,z:-48}, to:{x:-92,y:.1,z:-48}, width:11, color:"#3b3558",kind:"arterial" },
+  { id:"nova-circulation-ne", from:{x:-92,y:.1,z:-48}, to:{x:-92,y:.1,z:-60}, width:11, color:"#3b3558",kind:"arterial" },
+  { id:"nova-street-a-west", from:{x:-254,y:.11,z:-135}, to:{x:-175,y:.11,z:-135}, width:12, color:"#44385e",kind:"arterial" },
+  { id:"nova-street-a-east", from:{x:-175,y:.11,z:-135}, to:{x:-92,y:.11,z:-135}, width:12, color:"#44385e",kind:"arterial" },
+  { id:"nova-street-b-south", from:{x:-175,y:.11,z:-215}, to:{x:-175,y:.11,z:-135}, width:12, color:"#44385e",kind:"arterial" },
+  { id:"nova-street-b-north", from:{x:-175,y:.11,z:-135}, to:{x:-175,y:.11,z:-48}, width:12, color:"#44385e",kind:"arterial" },
+
+  { id:"dock-circulation-w", from:{x:112,y:.1,z:-225}, to:{x:112,y:.1,z:-70}, width:12, color:"#443a32",kind:"arterial" },
+  { id:"dock-circulation-n", from:{x:112,y:.1,z:-70}, to:{x:275,y:.1,z:-70}, width:12, color:"#443a32",kind:"arterial" },
+  { id:"dock-circulation-e", from:{x:275,y:.1,z:-70}, to:{x:275,y:.1,z:-130}, width:12, color:"#443a32",kind:"arterial" },
+
+  { id:"helios-circulation-w", from:{x:185,y:.1,z:40}, to:{x:185,y:.1,z:155}, width:11, color:"#4c482e",kind:"arterial" },
+  { id:"helios-circulation-n", from:{x:185,y:.1,z:155}, to:{x:345,y:.1,z:155}, width:11, color:"#4c482e",kind:"arterial" },
+  { id:"helios-circulation-s", from:{x:345,y:.1,z:40}, to:{x:185,y:.1,z:40}, width:11, color:"#4c482e",kind:"arterial" },
+
+  { id:"astra-circulation-w", from:{x:-365,y:.1,z:25}, to:{x:-365,y:.1,z:150}, width:10, color:"#393650",kind:"arterial" },
+  { id:"astra-circulation-n", from:{x:-365,y:.1,z:150}, to:{x:-195,y:.1,z:150}, width:10, color:"#393650",kind:"arterial" },
+  { id:"astra-circulation-e", from:{x:-195,y:.1,z:150}, to:{x:-195,y:.1,z:25}, width:10, color:"#393650",kind:"arterial" },
+  { id:"astra-circulation-s", from:{x:-195,y:.1,z:25}, to:{x:-365,y:.1,z:25}, width:10, color:"#393650",kind:"arterial" },
+  { id:"astra-circulation-link", from:{x:-195,y:.1,z:150}, to:{x:-190,y:.1,z:154}, width:10, color:"#393650",kind:"arterial" },
+
+  { id:"mall-circulation-s", from:{x:-180,y:.1,z:190}, to:{x:-5,y:.1,z:190}, width:11, color:"#41314f",kind:"arterial" },
+  { id:"mall-circulation-e", from:{x:-5,y:.1,z:190}, to:{x:-5,y:.1,z:345}, width:11, color:"#41314f",kind:"arterial" },
+  { id:"mall-circulation-n", from:{x:-5,y:.1,z:345}, to:{x:-180,y:.1,z:345}, width:11, color:"#41314f",kind:"arterial" },
+  { id:"mall-circulation-w", from:{x:-180,y:.1,z:345}, to:{x:-180,y:.1,z:190}, width:11, color:"#41314f",kind:"arterial" },
+  { id:"mall-circulation-link", from:{x:-180,y:.1,z:190}, to:{x:-189.12,y:.1,z:190}, width:11, color:"#41314f",kind:"arterial" },
+
+  { id:"farm-circulation-w", from:{x:40,y:.1,z:220}, to:{x:40,y:.1,z:360}, width:9, color:"#304b43",kind:"arterial" },
+  { id:"farm-circulation-s", from:{x:40,y:.1,z:220}, to:{x:225,y:.1,z:220}, width:9, color:"#304b43",kind:"arterial" },
+  { id:"farm-circulation-n", from:{x:40,y:.1,z:360}, to:{x:225,y:.1,z:360}, width:9, color:"#304b43",kind:"arterial" },
+
+  { id:"crash-circulation-w", from:{x:-390,y:.1,z:-195}, to:{x:-390,y:.1,z:-245}, width:10, color:"#43343b",kind:"arterial" },
+  { id:"crash-circulation-w-drop", from:{x:-390,y:.1,z:-245}, to:{x:-365,y:.1,z:-325}, width:10, color:"#43343b",kind:"arterial" },
+  { id:"crash-circulation-n", from:{x:-390,y:.1,z:-195}, to:{x:-258,y:.1,z:-195}, width:10, color:"#43343b",kind:"arterial" },
+  { id:"crash-circulation-e", from:{x:-258,y:.1,z:-195}, to:{x:-258,y:.1,z:-325}, width:10, color:"#43343b",kind:"arterial" },
+  { id:"crash-circulation-s", from:{x:-258,y:.1,z:-325}, to:{x:-365,y:.1,z:-325}, width:10, color:"#43343b",kind:"arterial" },
+  { id:"crash-circulation-link", from:{x:-258,y:.1,z:-260}, to:{x:-254,y:.1,z:-260}, width:10, color:"#43343b",kind:"arterial" },
+
+  { id:"thruster-circulation-w", from:{x:270,y:.1,z:-130}, to:{x:270,y:.1,z:15}, width:11, color:"#303d50",kind:"arterial" },
+  { id:"thruster-circulation-n", from:{x:270,y:.1,z:15}, to:{x:430,y:.1,z:15}, width:11, color:"#303d50",kind:"arterial" },
+  { id:"thruster-circulation-link", from:{x:270,y:.1,z:-130}, to:{x:275,y:.1,z:-130}, width:11, color:"#303d50",kind:"arterial" }
+];
 const pointSegmentDistance=(point:Vec3,from:Vec3,to:Vec3):number=>{
   const dx=to.x-from.x,dz=to.z-from.z,denominator=dx*dx+dz*dz;
   const amount=denominator<=1e-8?0:Math.max(0,Math.min(1,((point.x-from.x)*dx+(point.z-from.z)*dz)/denominator));
   return Math.hypot(point.x-(from.x+dx*amount),point.z-(from.z+dz*amount));
 };
-
-const secondaryStructureSize=(locationIndex:number,buildingIndex:number):Vec3=>({
-  x:buildingIndex===0?20+(locationIndex%3)*2:14+((locationIndex+buildingIndex)%4)*2,
-  y:buildingIndex===0?8+(locationIndex%4)*3:5+((locationIndex+buildingIndex)%3)*2,
-  z:buildingIndex===2?16+(locationIndex%3)*2:18+((locationIndex+buildingIndex)%3)*2
-});
-
-const districtKind=(location:BrSecondaryLocation):BrDistrictPlanKind=>{
-  if(location.style==="farm")return "agricultural";
-  if(location.style==="wreck")return "salvage";
-  if(location.style==="dock"||location.style==="industrial"||location.style==="reactor")return "workyard";
-  if(location.style==="academy")return "campus";
-  if(location.style==="mall")return "commercial";
-  if(location.style==="nexus")return "civic";
-  return location.id.includes("market")||location.id.includes("hotel")?"commercial":"neighborhood";
-};
-
-const localToWorld=(origin:Vec3,forward:Vec3,right:Vec3,along:number,lateral:number,y=0):Vec3=>({
-  x:origin.x+forward.x*along+right.x*lateral,
-  y,
-  z:origin.z+forward.z*along+right.z*lateral
-});
-
-const faceToward=(from:Vec3,to:Vec3):BrStructure["entrance"]=>{
-  const dx=to.x-from.x,dz=to.z-from.z;
-  return Math.abs(dx)>Math.abs(dz)?dx>=0?"east":"west":dz>=0?"north":"south";
-};
-
-type BrLocalSiteTemplate={streetAlong:number;streetHalf:number;streetWidth:number;lateral:number;farAlong:number;openLateral:number;purpose:BrDistrictPlan["openZone"]["purpose"]};
-const SITE_TEMPLATES:Readonly<Record<BrDistrictPlanKind,BrLocalSiteTemplate>>={
-  neighborhood:{streetAlong:30,streetHalf:38,streetWidth:7,lateral:29,farAlong:54,openLateral:29,purpose:"courtyard"},
-  campus:{streetAlong:32,streetHalf:42,streetWidth:8,lateral:31,farAlong:58,openLateral:-31,purpose:"garden"},
-  commercial:{streetAlong:30,streetHalf:40,streetWidth:8,lateral:30,farAlong:56,openLateral:30,purpose:"courtyard"},
-  workyard:{streetAlong:35,streetHalf:46,streetWidth:9,lateral:35,farAlong:63,openLateral:-35,purpose:"yard"},
-  agricultural:{streetAlong:35,streetHalf:43,streetWidth:8,lateral:34,farAlong:64,openLateral:34,purpose:"garden"},
-  salvage:{streetAlong:34,streetHalf:44,streetWidth:8,lateral:34,farAlong:61,openLateral:-34,purpose:"salvage"},
-  civic:{streetAlong:31,streetHalf:40,streetWidth:8,lateral:31,farAlong:57,openLateral:-31,purpose:"courtyard"}
-};
-
-type PlannedFootprint={center:Vec3;size:Vec3};
-const plannedFootprintsOverlap=(a:PlannedFootprint,b:PlannedFootprint,clearance=0)=>Math.abs(a.center.x-b.center.x)<(a.size.x+b.size.x)/2+clearance
-  &&Math.abs(a.center.z-b.center.z)<(a.size.z+b.size.z)/2+clearance;
-const oppositeSide=(side:BrStructure["entrance"]):BrStructure["entrance"]=>side==="north"?"south":side==="south"?"north":side==="east"?"west":"east";
 const BR_ROOF_RAMP_WIDTH=3;
-const roofRampFootprint=(position:Vec3,size:Vec3,side:BrStructure["entrance"],offset=0):PlannedFootprint=>{
-  const length=Math.max(10,size.y*2.35),slopeLength=Math.hypot(length,size.y);
-  let x=position.x,z=position.z,footprintSize:Vec3;
-  if(side==="south"){z-=size.z/2+length/2;footprintSize={x:BR_ROOF_RAMP_WIDTH,y:.36,z:slopeLength};}
-  else if(side==="north"){z+=size.z/2+length/2;footprintSize={x:BR_ROOF_RAMP_WIDTH,y:.36,z:slopeLength};}
-  else if(side==="east"){x+=size.x/2+length/2;footprintSize={x:slopeLength,y:.36,z:BR_ROOF_RAMP_WIDTH};}
-  else{x-=size.x/2+length/2;footprintSize={x:slopeLength,y:.36,z:BR_ROOF_RAMP_WIDTH};}
-  if(side==="north"||side==="south")x+=offset;else z+=offset;
-  return{center:{x,y:0,z},size:footprintSize};
-};
-
-const secondaryRoofRampFootprint=(plan:BrDistrictPlan,index:number):PlannedFootprint|null=>{
-  if(index>=8)return null;
-  const parcel=plan.parcels[0],building=secondaryStructureSize(index,0);
-  if(building.y>=18)return null;
-  return roofRampFootprint(parcel.position,building,oppositeSide(parcel.entrance));
-};
-
-function createDistrictPlan(location:BrSecondaryLocation,index:number,alongShift:number,lateralScale:number,flipFar:boolean,lateralBias:number):BrDistrictPlan {
-  let target=BR_SERVICE_ROADS[index]?.to??BR_POIS.find(entry=>entry.id===location.connectTo)?.position??{x:0,y:0,z:0};
-  let dx=target.x-location.position.x,dz=target.z-location.position.z;
-  let length=Math.hypot(dx,dz);
-  if(length<1){target=BR_POIS.find(entry=>entry.id===location.connectTo)?.position??{x:0,y:0,z:0};dx=target.x-location.position.x;dz=target.z-location.position.z;length=Math.max(1,Math.hypot(dx,dz));}
-  const forward={x:dx/length,y:0,z:dz/length};
-  const right={x:-forward.z,y:0,z:forward.x};
-  const kind=districtKind(location),template=SITE_TEMPLATES[kind];
-  const compactRim=location.id.endsWith("-rim")||location.id==="east-checkpoint";
-  const streetAlong=compactRim?18:template.streetAlong;
-  const streetHalf=compactRim?30:template.streetHalf;
-  const farAlong=compactRim?34:template.farAlong;
-  const crossAlong=streetAlong+alongShift;
-  const crossCenter=localToWorld(location.position,forward,right,crossAlong,lateralBias,.1);
-  const nearAlong=streetAlong-23+alongShift;
-  const lateral=(compactRim?22:template.lateral)*lateralScale;
-  const defaultFarSide=index%2===0?-lateral:lateral;
-  const farSide=flipFar?-defaultFarSide:defaultFarSide;
-  const parcelSpecs=[
-    {along:nearAlong,lateral:-lateral,role:"anchor" as const},
-    {along:nearAlong,lateral:lateral,role:"support" as const},
-    {along:farAlong+alongShift,lateral:farSide,role:"service" as const}
-  ];
-  const parcels=parcelSpecs.map((spec,slot)=>{
-    const position=localToWorld(location.position,forward,right,spec.along,spec.lateral+lateralBias);
-    const frontage=localToWorld(location.position,forward,right,spec.along,lateralBias);
-    return{id:`${location.id}-parcel-${slot+1}`,position,entrance:faceToward(position,frontage),role:spec.role};
-  });
-  const streetColor=kind==="workyard"||kind==="salvage"?"#26364d":"#304761";
-  const streets:BrRoadSegment[]=[
-    {
-      id:`local-${location.id}-approach`,
-      from:{...location.position,y:.1},
-      to:crossCenter,
-      width:template.streetWidth,
-      color:streetColor,
-      kind:"local"
-    },
-    {
-      id:`local-${location.id}`,
-      from:localToWorld(crossCenter,forward,right,0,-streetHalf,.1),
-      to:localToWorld(crossCenter,forward,right,0,streetHalf,.1),
-      width:template.streetWidth,
-      color:streetColor,
-      kind:"local",
-      intentionalTerminus:true
-    }
-  ];
-  return {
-    id:location.id,origin:{...location.position},elevation:0,kind,approach:forward,streets,parcels,
-    openZone:{position:localToWorld(location.position,forward,right,farAlong+alongShift,-farSide+lateralBias),radius:compactRim?10:kind==="workyard"?15:12,purpose:template.purpose}
-  };
-}
 
 const inferArchetype=(id:string,style:BrDistrictStyle,height:number):BrStructureArchetype=>id.includes("hangar")?"hangar":id.includes("hotel")?"hotel":id.includes("market")||id.includes("cafe")||id.includes("arcade")?"shop":id.includes("tower")||height>20?"tower":style==="farm"?"greenhouse":style==="academy"?"academy":style==="mall"?"mall":style==="dock"?"warehouse":style==="reactor"||style==="industrial"?"industrial":style==="wreck"?"utility":"office";
 const S = (id: string, districtId: string, x: number, z: number, w: number, d: number, h: number, color: string, style: BrDistrictStyle, floors: 1 | 2 | 3 = 1, entrance: BrStructure["entrance"] = "south", roofAccess = false, enterable=true, archetype?:BrStructureArchetype,roofAccessSide?:BrStructure["roofAccessSide"],roofAccessOffset?:number): BrStructure => ({
@@ -296,28 +245,28 @@ const S = (id: string, districtId: string, x: number, z: number, w: number, d: n
 
 /** 62 authored structures with different footprints and district identities. */
 const PRIMARY_BR_STRUCTURES: readonly BrStructure[] = [
-  S("zero-spire","zero-point",0,0,28,28,36,"#70f5ff","nexus",3,"south",true),
+  S("zero-spire","zero-point",0,0,28,28,36,"#70f5ff","nexus",3,"south",false),
   S("zero-control","zero-point",-38,-9,30,20,8,"#4ed3ff","nexus",2,"east",true,true,undefined,"north"),
-  S("zero-relay","zero-point",38,12,24,18,7,"#72a7ff","nexus",2,"west",true,true,undefined,"north"),
+  S("zero-relay","zero-point",38,12,24,18,7,"#72a7ff","nexus",2,"west",false),
   S("zero-archive","zero-point",2,43,34,18,6,"#4c86c8","nexus",1,"south"),
-  S("nova-tower-a","nova-plaza",-196,-153,27,28,34,"#ff6bba","city",3,"east",true,true,undefined,"west"),
-  S("nova-tower-b","nova-plaza",-152,-153,25,26,27,"#ff8bd0","city",3,"west",true,true,undefined,"north",12.75),
-  S("nova-cafe","nova-plaza",-207,-105,31,20,6,"#ba4f9a","city",1,"east"),
-  S("nova-studio","nova-plaza",-158,-102,34,22,9,"#c65fb1","city",2,"south",true),
-  S("nova-kiosk","nova-plaza",-174,-133,14,12,4,"#ffc2e8","city",1,"north"),
-  S("dock-hangar","dockyard-7",190,-174,52,34,11,"#d97b37","dock",2,"south",true,true,undefined,"north"),
+  S("nova-tower-a","nova-plaza",-210,-172,27,28,34,"#ff6bba","city",3,"east",false),
+  S("nova-tower-b","nova-plaza",-140,-172,25,26,27,"#ff8bd0","city",3,"west",false),
+  S("nova-cafe","nova-plaza",-220,-104,31,20,6,"#ba4f9a","city",1,"south"),
+  S("nova-studio","nova-plaza",-138,-103,34,22,9,"#c65fb1","city",2,"south",true,true,undefined,"north"),
+  S("nova-kiosk","nova-plaza",-190,-105,14,12,4,"#ffc2e8","city",1,"south"),
+  S("dock-hangar","dockyard-7",190,-174,52,34,11,"#d97b37","dock",2,"south",false),
   S("dock-office","dockyard-7",150,-130,26,20,8,"#ffb347","dock",2,"east",true),
   S("dock-warehouse","dockyard-7",230,-129,38,24,7,"#bd6f38","dock",1,"west"),
   S("dock-customs","dockyard-7",191,-105,25,18,5,"#f2a65a","dock",1,"north"),
-  S("helios-core","helios-reactor",262,78,34,34,42,"#ffd84d","reactor",3,"south",true),
+  S("helios-core","helios-reactor",262,78,34,34,42,"#ffd84d","reactor",3,"south",false),
   S("helios-turbine-a","helios-reactor",218,74,24,30,9,"#dc8c2d","reactor",2,"east"),
   S("helios-turbine-b","helios-reactor",306,74,24,30,9,"#dc8c2d","reactor",2,"west"),
-  S("helios-control","helios-reactor",261,124,38,20,7,"#f7b43d","reactor",1,"north",true),
+  S("helios-control","helios-reactor",261,124,38,20,7,"#f7b43d","reactor",1,"north",true,true,undefined,"east"),
   S("astra-hall","astra-academy",-278,75,48,24,9,"#a88cff","academy",2,"south",true),
   S("astra-lab","astra-academy",-323,52,30,26,7,"#7e70ce","academy",2,"east"),
   S("astra-library","astra-academy",-233,52,30,26,7,"#927bdf","academy",2,"west"),
-  S("astra-observatory","astra-academy",-278,119,28,24,26,"#beb1ff","academy",3,"north",true,true,undefined,"east"),
-  S("void-anchor","void-mall",-93,263,64,34,18,"#c565ff","mall",2,"south",true,true,undefined,"south",-24),
+  S("astra-observatory","astra-academy",-278,119,28,24,26,"#beb1ff","academy",3,"north",false),
+  S("void-anchor","void-mall",-93,263,64,34,18,"#c565ff","mall",2,"south",false),
   S("void-west","void-mall",-142,260,28,54,8,"#8340b8","mall",2,"east"),
   S("void-east","void-mall",-44,260,28,54,8,"#9c50ca","mall",2,"west"),
   S("void-cinema","void-mall",-93,309,46,24,7,"#71369d","mall",1,"north"),
@@ -328,8 +277,8 @@ const PRIMARY_BR_STRUCTURES: readonly BrStructure[] = [
   S("crash-fuselage","crash-site",-326,-258,58,18,9,"#ff795f","wreck",1,"east"),
   S("crash-cargo","crash-site",-286,-226,27,22,6,"#a94c51","wreck",1,"west"),
   S("crash-shelter","crash-site",-367,-224,30,25,6,"#bd5860","wreck",1,"east"),
-  S("crash-engine","crash-site",-350,-294,24,22,8,"#e2654e","wreck",2,"north",true,true,undefined,"south"),
-  S("thruster-foundry","thruster-works",342,-70,46,32,22,"#65b8ff","industrial",2,"south",true,true,undefined,"east"),
+  S("crash-engine","crash-site",-350,-294,24,22,8,"#e2654e","wreck",2,"north",true,true,undefined,"east"),
+  S("thruster-foundry","thruster-works",342,-70,46,32,22,"#65b8ff","industrial",2,"south",false),
   S("thruster-pump-a","thruster-works",297,-98,27,25,8,"#3f78bd","industrial",2,"east"),
   S("thruster-pump-b","thruster-works",387,-98,27,25,8,"#3f78bd","industrial",2,"west"),
   S("thruster-control","thruster-works",342,-22,34,23,7,"#579edf","industrial",1,"north",true),
@@ -337,96 +286,40 @@ const PRIMARY_BR_STRUCTURES: readonly BrStructure[] = [
   S("mid-transit-west","zero-point",-92,-22,31,18,5,"#3c557c","nexus",1,"east"),
   S("mid-transit-east","zero-point",95,24,31,18,5,"#3c557c","nexus",1,"west"),
   S("south-relay","dockyard-7",35,-255,28,22,7,"#47608a","dock",2,"north",true),
-  S("zero-gallery","zero-point",-48,35,25,19,7,"#3b9fca","nexus",2,"east",true),
-  S("zero-works","zero-point",51,-31,29,20,8,"#28799e","nexus",2,"west",true),
-  S("nova-arcade","nova-plaza",-225,-72,27,22,9,"#d45bac","city",2,"south",true),
-  S("nova-hotel","nova-plaza",-128,-187,24,26,24,"#f078c2","city",3,"west",true),
-  S("nova-market","nova-plaza",-123,-112,29,20,7,"#a83f88","city",1,"north"),
-  S("dock-freight-a","dockyard-7",247,-188,29,23,8,"#c56c32","dock",2,"west",true,true,undefined,"north"),
+  S("zero-gallery","zero-point",-48,35,25,19,7,"#3b9fca","nexus",2,"east",false),
+  S("zero-works","zero-point",48,-31,29,20,8,"#28799e","nexus",2,"west",false),
+  S("nova-arcade","nova-plaza",-232,-73,27,22,9,"#d45bac","city",2,"south",false),
+  S("nova-hotel","nova-plaza",-128,-190,24,26,24,"#f078c2","city",3,"west",false),
+  S("nova-market","nova-plaza",-117,-106,29,20,7,"#a83f88","city",1,"south"),
+  S("dock-freight-a","dockyard-7",247,-188,29,23,8,"#c56c32","dock",2,"west",false),
   S("dock-freight-b","dockyard-7",136,-190,31,22,7,"#e0924b","dock",1,"east"),
-  S("dock-tower","dockyard-7",224,-90,20,18,19,"#f3a253","dock",3,"south",true,true,undefined,"north"),
-  S("helios-annex","helios-reactor",315,126,28,22,9,"#c98a2e","reactor",2,"west",true,true,undefined,"north"),
+  S("dock-tower","dockyard-7",224,-90,20,18,19,"#f3a253","dock",3,"south",false),
+  S("helios-annex","helios-reactor",315,126,28,22,9,"#c98a2e","reactor",2,"west",false),
   S("helios-storage","helios-reactor",211,126,29,22,7,"#a86d26","reactor",1,"east"),
-  S("astra-student-hall","astra-academy",-338,105,29,24,10,"#8073c8","academy",2,"east",true),
-  S("astra-workshop","astra-academy",-218,105,30,22,8,"#9684de","academy",2,"west",true),
-  S("void-food-court","void-mall",-151,320,34,22,8,"#8840b5","mall",2,"east",true,true,undefined,"north"),
-  S("void-market","void-mall",-35,319,34,22,8,"#a953d0","mall",2,"west",true,true,undefined,"north"),
-  S("void-station","void-mall",-92,214,36,20,9,"#6f369a","mall",2,"north",true,true,undefined,"east"),
+  S("astra-student-hall","astra-academy",-338,105,29,24,10,"#8073c8","academy",2,"east",false),
+  S("astra-workshop","astra-academy",-218,105,30,22,8,"#9684de","academy",2,"west",false),
+  S("void-food-court","void-mall",-151,320,34,22,8,"#8840b5","mall",2,"east",true,true,undefined,"south"),
+  S("void-market","void-mall",-35,319,34,22,8,"#a953d0","mall",2,"west",false),
+  S("void-station","void-mall",-92,214,36,20,9,"#6f369a","mall",2,"north",false),
   S("farm-greenhouse-c","orbital-farms",193,328,36,27,8,"#58ca87","farm",1,"west"),
-  S("farm-silo","orbital-farms",66,263,22,22,16,"#47b77a","farm",3,"east",true),
-  S("crash-medbay","crash-site",-378,-270,28,22,8,"#b94d55","wreck",2,"east",true),
+  S("farm-silo","orbital-farms",66,263,22,22,16,"#47b77a","farm",3,"east",false),
+  S("crash-medbay","crash-site",-330,-215,28,22,8,"#b94d55","wreck",2,"east",false),
   S("crash-salvage","crash-site",-282,-301,29,23,7,"#99404b","wreck",1,"west"),
-  S("thruster-assembly","thruster-works",400,-15,31,24,10,"#4f8bd0","industrial",2,"west",true),
-  S("thruster-cooling","thruster-works",290,-28,31,24,9,"#477cb8","industrial",2,"east",true,true,undefined,"north")
+  S("thruster-assembly","thruster-works",400,-15,31,24,10,"#4f8bd0","industrial",2,"west",false),
+  S("thruster-cooling","thruster-works",300,-28,31,24,9,"#477cb8","industrial",2,"east",false)
 ];
 
-/** Authored, style-specific site plans for connective districts. Each site is
- * selected as one coherent frontage/cross-street composition; individual
- * buildings are never scattered by a radial search. */
-const plannedDistrictFootprints:PlannedFootprint[]=[];
-const plannedDistrictStreets:BrRoadSegment[]=[];
-const primaryDistrictFootprints:readonly PlannedFootprint[]=PRIMARY_BR_STRUCTURES.map(structure=>({center:structure.position,size:structure.size}));
-const primaryAccessFootprints:readonly PlannedFootprint[]=PRIMARY_BR_STRUCTURES.filter(structure=>structure.roofAccess)
-  .map(structure=>roofRampFootprint(structure.position,structure.size,structure.roofAccessSide??structure.entrance,structure.roofAccessOffset));
-/** Secondary sites join the nearest unobstructed arterial instead of drawing
- * a diagonal through their parent POI. Primary structures carry a decisive
- * route penalty so access spurs remain real streets, never floor decals under
- * a building. */
-const BR_SERVICE_ROADS:readonly BrRoadSegment[]=BR_SECONDARY_LOCATIONS.map((location,index)=>{
-  const candidates=BR_ARTERIAL_ROADS.map(arterial=>{
-    const point=closestPointOnRoad(location.position,arterial);
-    const road:BrRoadSegment={id:`service-${index}`,from:{...location.position,y:.1},to:point,width:index%4===0?10:8,color:"#263b57",kind:"service"};
-    const distance=Math.hypot(point.x-location.position.x,point.z-location.position.z);
-    const crossedSites=BR_SECONDARY_LOCATIONS.filter((other,otherIndex)=>otherIndex!==index
-      &&pointSegmentDistance(other.position,location.position,point)<48).length;
-    const crossedPrimary=[...primaryDistrictFootprints,...primaryAccessFootprints].filter(footprint=>brRoadIntersectsFootprint(road,footprint.center,footprint.size,1)).length;
-    return{road,score:distance+crossedSites*1_000+crossedPrimary*10_000};
-  }).sort((a,b)=>a.score-b.score);
-  const selected=candidates[0]?.road??{id:`service-${index}`,from:{...location.position,y:.1},to:{x:0,y:.1,z:0},width:8,color:"#263b57",kind:"service" as const};
-  return location.id==="east-checkpoint"?{...selected,width:4}:selected;
-});
-export const BR_DISTRICT_PLANS:readonly BrDistrictPlan[]=BR_SECONDARY_LOCATIONS.map((location,index)=>{
-  const ownServiceId=`service-${index}`;
-  const rejected={bounds:0,road:0,internal:0,localRoad:0,primary:0,parcel:0,primaryStreet:0,street:0};
-  for(const alongShift of [0,18,34,-16,-30,-44,-62,-80,-100,50,70,92])for(const lateralScale of [.45,.55,.72,.86,1,1.2,1.45,1.7,2])for(const flipFar of [false,true])for(const lateralBias of [0,18,-18,34,-34,50,-50,68,-68]){
-    const plan=createDistrictPlan(location,index,alongShift,lateralScale,flipFar,lateralBias);
-    const footprints=plan.parcels.map((parcel,slot)=>({center:parcel.position,size:secondaryStructureSize(index,slot)}));
-    const roofRamp=secondaryRoofRampFootprint(plan,index);
-    const occupiedFootprints=roofRamp?[...footprints,roofRamp]:footprints;
-    const cornersInside=occupiedFootprints.every(footprint=>[[-1,-1],[-1,1],[1,-1],[1,1]].every(([sx,sz])=>pointInPolygon(
-      footprint.center.x+sx*footprint.size.x/2,footprint.center.z+sz*footprint.size.z/2
-    )));
-    if(!cornersInside||!plan.streets.every(street=>isInsideBrIsland(street.from,3)&&isInsideBrIsland(street.to,3))){rejected.bounds++;continue;}
-    const collisionRoads=[...BR_ARTERIAL_ROADS,...BR_SERVICE_ROADS,...plannedDistrictStreets];
-    if(footprints.some(footprint=>collisionRoads.some(road=>brRoadIntersectsFootprint(road,footprint.center,footprint.size,.8)))){rejected.road++;continue;}
-    if(footprints.some((footprint,slot)=>footprints.some((other,otherSlot)=>otherSlot>slot&&plannedFootprintsOverlap(footprint,other,2)))){rejected.internal++;continue;}
-    if(footprints.some(footprint=>plan.streets.some(street=>brRoadIntersectsFootprint(street,footprint.center,footprint.size,.8)))){rejected.localRoad++;continue;}
-    if(roofRamp&&[...collisionRoads,...plan.streets].some(road=>brRoadIntersectsFootprint(road,roofRamp.center,roofRamp.size,.8))){rejected.localRoad++;continue;}
-    if(footprints.some(footprint=>[...primaryDistrictFootprints,...primaryAccessFootprints].some(other=>plannedFootprintsOverlap(footprint,other,2)))){rejected.primary++;continue;}
-    if(footprints.some(footprint=>plannedDistrictFootprints.some(other=>plannedFootprintsOverlap(footprint,other,2)))){rejected.parcel++;continue;}
-    if(roofRamp&&[...primaryDistrictFootprints,...primaryAccessFootprints,...plannedDistrictFootprints,...footprints.slice(1)].some(other=>plannedFootprintsOverlap(roofRamp,other,1))){rejected.parcel++;continue;}
-    if(plan.streets.some(street=>[...primaryDistrictFootprints,...primaryAccessFootprints].some(footprint=>brRoadIntersectsFootprint(street,footprint.center,footprint.size,1)))){rejected.primaryStreet++;continue;}
-    if(plan.streets.some(street=>plannedDistrictFootprints.some(footprint=>brRoadIntersectsFootprint(street,footprint.center,footprint.size,1)))){rejected.street++;continue;}
-    plannedDistrictFootprints.push(...occupiedFootprints);plannedDistrictStreets.push(...plan.streets);return plan;
-  }
-  throw new Error(`Unable to author a collision-free district plan for ${location.id} (${ownServiceId}): ${JSON.stringify(rejected)}`);
-});
-
+/** Fixed connective-district topology. These arrays are intentionally verbose:
+ * they are map data, not runtime urban-design algorithms. */
+const BR_SERVICE_ROADS:readonly BrRoadSegment[]=AUTHORED_BR_SERVICE_ROADS;
+export const BR_DISTRICT_PLANS:readonly BrDistrictPlan[]=AUTHORED_BR_SPATIAL_PLANS;
 export const BR_ROADS: readonly BrRoadSegment[] = [
   ...BR_ARTERIAL_ROADS,
+  ...BR_PRIMARY_DISTRICT_ROADS,
   ...BR_SERVICE_ROADS,
   ...BR_DISTRICT_PLANS.flatMap(plan=>plan.streets)
 ];
 
-const SECONDARY_ARCHETYPES:readonly BrStructureArchetype[]=["apartment","shop","utility","hotel","transit","warehouse","office","lab","industrial","greenhouse","hangar","academy","mall","tower"];
-// Presentation identities, not collision rules. The generic rotation assigned
-// greenhouses/hangars to Horizon Homes and unrelated shells to the hotel.
-const RESIDENTIAL_ARCHETYPES:Readonly<Record<string,readonly BrStructureArchetype[]>>={
-  "horizon-homes":["apartment","shop","apartment"],
-  "northwest-housing":["apartment","apartment","shop"],
-  "academy-dorms":["apartment","academy","shop"],
-  "comet-hotel":["hotel","shop","office"]
-};
 /** Exact 2D segment-vs-expanded-AABB check used while authoring secondary
  * shells. Keeping it shared prevents a visible building from ever occupying
  * the same corridor as its authoritative road. */
@@ -442,23 +335,13 @@ export function brRoadIntersectsFootprint(road:BrRoadSegment,center:Vec3,size:Ve
   return true;
 }
 
-const secondaryStructures=BR_SECONDARY_LOCATIONS.flatMap((location,index)=>{
-  const plan=BR_DISTRICT_PLANS.find(entry=>entry.id===location.id)!;
-  return [0,1,2].map((buildingIndex)=>{
-    const id=`${location.id}-${buildingIndex+1}`;
-    const {x:width,y:height,z:depth}=secondaryStructureSize(index,buildingIndex);
-    const floors=Math.min(3,Math.max(1,Math.round(height/7))) as 1|2|3;
-    const parcel=plan.parcels[buildingIndex];
-    const entrance=parcel.entrance;
-    const enterable=buildingIndex===0&&index<8;
-    const archetype=RESIDENTIAL_ARCHETYPES[location.id]?.[buildingIndex]??SECONDARY_ARCHETYPES[(index*3+buildingIndex)%SECONDARY_ARCHETYPES.length];
-    const roofAccess=enterable&&height<18;
-    return S(id,location.id,parcel.position.x,parcel.position.z,width,depth,height,location.color,location.style,floors,entrance,roofAccess,enterable,archetype,roofAccess?oppositeSide(entrance):undefined);
-  });
-});
-
 /** 152 structures total; 70 are enterable combat/loot spaces. */
-export const BR_STRUCTURES:readonly BrStructure[]=[...PRIMARY_BR_STRUCTURES,...secondaryStructures];
+const FIXED_SECONDARY_STRUCTURES:readonly BrStructure[]=AUTHORED_BR_SECONDARY_STRUCTURE_BLUEPRINTS.map(structure=>{
+  const placement=AUTHORED_BR_STRUCTURE_PLACEMENTS.get(structure.id);
+  if(!placement)throw new Error(`Missing fixed Orbital Isle placement for ${structure.id}`);
+  return {...structure,position:placement.position,size:placement.size?{...structure.size,...placement.size}:structure.size,entrance:placement.entrance,roofAccess:false,roofAccessSide:undefined,roofAccessOffset:undefined};
+});
+export const BR_STRUCTURES:readonly BrStructure[]=[...PRIMARY_BR_STRUCTURES,...FIXED_SECONDARY_STRUCTURES];
 
 /** Large flush deck treatments break up the island while preserving one flat gameplay surface. */
 export const BR_TERRAIN_PATCHES: readonly BrTerrainPatch[] = [
@@ -474,6 +357,16 @@ export const BR_TERRAIN_PATCHES: readonly BrTerrainPatch[] = [
   {id:"coolant-west",position:{x:-68,y:.32,z:106},size:{x:24,y:.08,z:118},rotation:.28,color:"#164e6d",kind:"coolant"},
   {id:"coolant-east",position:{x:99,y:.32,z:123},size:{x:20,y:.08,z:128},rotation:-.24,color:"#17607c",kind:"coolant"},
   {id:"south-landing",position:{x:20,y:.31,z:-300},size:{x:150,y:.1,z:70},rotation:.06,color:"#2f4862",kind:"landing"}
+];
+
+/** Fixed gameplay elevation in deliberately reserved civic/green spaces.
+ * These are broad landscape terraces, not ad-hoc building roof ramps. */
+export const BR_TERRACES:readonly BrTerrace[]=[
+  {id:"zero-point-steps",districtId:"zero-point",position:{x:0,y:0,z:-30},size:{x:16,z:14},height:1.6,accessSide:"south",color:"#476b83"},
+  {id:"astra-lab-court",districtId:"astra-academy",position:{x:-290,y:0,z:45},size:{x:16,z:14},height:2.8,accessSide:"north",color:"#706a9b"},
+  {id:"academy-commons-garden",districtId:"academy-commons",position:{x:-206.5,y:0,z:255.9},size:{x:15,z:14},height:2.8,accessSide:"north",color:"#706a9b"},
+  {id:"farm-irrigation-deck",districtId:"orbital-farms",position:{x:130,y:0,z:289},size:{x:16,z:14},height:2.2,accessSide:"west",color:"#42695a"},
+  {id:"crash-salvage-platform",districtId:"crash-site",position:{x:-280,y:0,z:-260},size:{x:16,z:14},height:2.4,accessSide:"south",color:"#674b4c"}
 ];
 
 type MutableNavNode={id:string;position:Vec3;neighbors:Set<string>};
@@ -541,10 +434,50 @@ function structureBlocks(structure: BrStructure): BrMapBlock[] {
     const doorX=structure.entrance==="east"?x+width/2:x-width/2; const backX=structure.entrance==="east"?x-width/2:x+width/2;
     addWall("back",backX,z,wall,depth); addWall("door-left",doorX,z-(depth+door)/4,wall,(depth-door)/2); addWall("door-right",doorX,z+(depth+door)/4,wall,(depth-door)/2);
   }
-  if(width>=30&&depth>=20){
-    const dividerZ=z+(structure.entrance==="north"?-depth*.18:depth*.18);const gap=Math.min(5,width*.22);const span=(width-gap)/2;
-    blocks.push({id:`${structure.id}-room-west`,districtId:structure.districtId,position:{x:x-(width+gap)/4,y:2,z:dividerZ},size:{x:span,y:4,z:.45},color:"#202f4a",kind:"wall"});
-    blocks.push({id:`${structure.id}-room-east`,districtId:structure.districtId,position:{x:x+(width+gap)/4,y:2,z:dividerZ},size:{x:span,y:4,z:.45},color:"#202f4a",kind:"wall"});
+  // Interior collision follows fixed archetype plans instead of placing the
+  // same world-Z divider into every building. Local V always points inward
+  // from the authored entrance; U runs across its frontage. This keeps the
+  // visible room plan and collision coherent for east/west entrances too.
+  const localWidth=structure.entrance==="north"||structure.entrance==="south"?width:depth;
+  const localDepth=structure.entrance==="north"||structure.entrance==="south"?depth:width;
+  const addInteriorSegment=(suffix:string,u:number,v:number,sizeU:number,sizeV:number,segmentHeight=4)=>{
+    let px=x,pz=z,sx=sizeU,sz=sizeV;
+    if(structure.entrance==="south"){px=x+u;pz=z-depth/2+v;}
+    else if(structure.entrance==="north"){px=x+u;pz=z+depth/2-v;}
+    else if(structure.entrance==="east"){px=x+width/2-v;pz=z+u;sx=sizeV;sz=sizeU;}
+    else {px=x-width/2+v;pz=z+u;sx=sizeV;sz=sizeU;}
+    const storeyHeight=height/structure.floors;
+    const wallHeight=Math.min(segmentHeight,Math.max(1.6,storeyHeight-.45));
+    for(let floor=0;floor<structure.floors;floor++)blocks.push({
+      id:`${structure.id}-room-${suffix}${structure.floors>1?`-level-${floor+1}`:""}`,
+      districtId:structure.districtId,
+      position:{x:px,y:floor*storeyHeight+wallHeight/2,z:pz},
+      size:{x:sx,y:wallHeight,z:sz},color:"#202f4a",kind:"wall"
+    });
+  };
+  const splitCrossWall=(suffix:string,v:number,gap:number)=>{
+    const span=(localWidth-gap)/2;
+    if(span<1)return;
+    addInteriorSegment(`${suffix}-left`,-(localWidth+gap)/4,v,span,.5);
+    addInteriorSegment(`${suffix}-right`,(localWidth+gap)/4,v,span,.5);
+  };
+  if(structure.archetype==="shop"){
+    // Public sales floor in front, compact service room behind it.
+    splitCrossWall("service",localDepth*.68,Math.min(5.2,localWidth*.28));
+  }else if(structure.archetype==="apartment"||structure.archetype==="hotel"){
+    // Lobby/corridor spine with two readable side rooms rather than a maze.
+    splitCrossWall("lobby",localDepth*.48,Math.min(5.2,localWidth*.3));
+    const rearLength=Math.max(3,localDepth*.34);
+    addInteriorSegment("suite-spine",localWidth*.2,localDepth*.78,.5,rearLength);
+  }else if(structure.archetype==="office"||structure.archetype==="lab"||structure.archetype==="academy"){
+    // Staggered partitions retain long combat sightlines and two circulation
+    // choices while giving campuses/offices a deliberate room plan.
+    addInteriorSegment("workbay-left",-localWidth*.25,localDepth*.58,localWidth*.36,.5);
+    addInteriorSegment("workbay-right",localWidth*.25,localDepth*.76,localWidth*.36,.5);
+  }else if(structure.archetype==="mall"){
+    // Keep the atrium center open; short storefront returns frame both sides.
+    addInteriorSegment("storefront-left",-localWidth*.36,localDepth*.58,localWidth*.22,.5);
+    addInteriorSegment("storefront-right",localWidth*.36,localDepth*.58,localWidth*.22,.5);
   }
   if(structure.roofAccess){
     const accessSide=structure.roofAccessSide??structure.entrance;
@@ -562,30 +495,44 @@ function structureBlocks(structure: BrStructure): BrMapBlock[] {
   return blocks;
 }
 
+function terraceBlocks(terrace:BrTerrace):BrMapBlock[]{
+  const {x,z}=terrace.position,{height,accessSide}=terrace;
+  const horizontalRun=Math.max(7,height*2.75),slopeLength=Math.hypot(horizontalRun,height);
+  const angle=Math.atan2(height,horizontalRun);
+  let rampX=x,rampZ=z,rotation:Vec3={x:0,y:0,z:0},size:Vec3;
+  if(accessSide==="south"){
+    rampZ=z-terrace.size.z/2-horizontalRun/2;rotation={x:-angle,y:0,z:0};size={x:4.8,y:.4,z:slopeLength};
+  }else if(accessSide==="north"){
+    rampZ=z+terrace.size.z/2+horizontalRun/2;rotation={x:angle,y:0,z:0};size={x:4.8,y:.4,z:slopeLength};
+  }else if(accessSide==="east"){
+    rampX=x+terrace.size.x/2+horizontalRun/2;rotation={x:0,y:0,z:-angle};size={x:slopeLength,y:.4,z:4.8};
+  }else{
+    rampX=x-terrace.size.x/2-horizontalRun/2;rotation={x:0,y:0,z:angle};size={x:slopeLength,y:.4,z:4.8};
+  }
+  return[
+    {id:`${terrace.id}-platform`,districtId:terrace.districtId,position:{x,y:height/2,z},size:{x:terrace.size.x,y:height,z:terrace.size.z},color:terrace.color,kind:"platform"},
+    {id:`${terrace.id}-ramp`,districtId:terrace.districtId,position:{x:rampX,y:height/2,z:rampZ},size,rotation,color:terrace.color,kind:"ramp"}
+  ];
+}
+
 const authoredCover: BrMapBlock[] = [
-  [-25,22,8,3,"zero-point"],[27,-25,5,7,"zero-point"],[-225,-134,7,3,"nova-plaza"],[-126,-137,4,8,"nova-plaza"],
-  [152,-180,12,3,"dockyard-7"],[224,-183,9,4,"dockyard-7"],[251,40,5,10,"helios-reactor"],[282,114,8,3,"helios-reactor"],
+  [-25,22,8,3,"zero-point"],[27,-25,5,7,"zero-point"],[-225,-126,7,3,"nova-plaza"],[-126,-147,4,8,"nova-plaza"],
+  [152,-176,12,3,"dockyard-7"],[224,-183,9,4,"dockyard-7"],[251,28,5,10,"helios-reactor"],[286,114,8,3,"helios-reactor"],
   [-306,98,10,3,"astra-academy"],[-250,94,4,9,"astra-academy"],[-119,231,12,3,"void-mall"],[-66,231,12,3,"void-mall"],
-  [78,322,6,8,"orbital-farms"],[178,309,9,3,"orbital-farms"],[-307,-286,9,4,"crash-site"],[-371,-264,5,8,"crash-site"],
+  [78,322,6,8,"orbital-farms"],[178,309,9,3,"orbital-farms"],[-307,-282,9,4,"crash-site"],[-371,-264,5,8,"crash-site"],
   [310,-50,8,3,"thruster-works"],[378,-72,4,9,"thruster-works"],
-  [-54,-10,10,3,"zero-point"],[52,8,10,3,"zero-point"],[-12,58,4,9,"zero-point"],[15,-55,4,9,"zero-point"],
-  [-238,-112,8,3,"nova-plaza"],[-112,-150,8,3,"nova-plaza"],[-197,-83,4,8,"nova-plaza"],[-146,-79,4,8,"nova-plaza"],
+  [-54,-21,10,3,"zero-point"],[56,8,10,3,"zero-point"],[-12,70,4,9,"zero-point"],[15,-47,4,9,"zero-point"],
+  [-240,-112,8,3,"nova-plaza"],[-112,-150,8,3,"nova-plaza"],[-197,-83,4,8,"nova-plaza"],[-146,-79,4,8,"nova-plaza"],
   [132,-157,11,3,"dockyard-7"],[251,-145,11,3,"dockyard-7"],[170,-211,4,10,"dockyard-7"],[218,-208,4,10,"dockyard-7"],
   [208,105,9,3,"helios-reactor"],[316,100,9,3,"helios-reactor"],[238,142,4,9,"helios-reactor"],[287,143,4,9,"helios-reactor"],
-  [-339,80,9,3,"astra-academy"],[-217,79,9,3,"astra-academy"],[-304,137,4,8,"astra-academy"],[-250,139,4,8,"astra-academy"],
-  [-160,285,9,3,"void-mall"],[-25,286,9,3,"void-mall"],[-126,339,4,9,"void-mall"],[-60,340,4,9,"void-mall"],
+  [-336,80,9,3,"astra-academy"],[-217,79,9,3,"astra-academy"],[-304,137,4,8,"astra-academy"],[-250,139,4,8,"astra-academy"],
+  [-162,285,9,3,"void-mall"],[-25,286,9,3,"void-mall"],[-126,333,4,9,"void-mall"],[-60,334,4,9,"void-mall"],
   [61,294,10,3,"orbital-farms"],[198,285,10,3,"orbital-farms"],[98,344,4,9,"orbital-farms"],[161,348,4,9,"orbital-farms"],
-  [-396,-245,10,3,"crash-site"],[-269,-260,10,3,"crash-site"],[-347,-317,4,9,"crash-site"],[-306,-198,4,9,"crash-site"],
-  [276,-70,10,3,"thruster-works"],[411,-72,10,3,"thruster-works"],[319,-5,4,9,"thruster-works"],[374,-10,4,9,"thruster-works"]
+  [-402,-245,10,3,"crash-site"],[-269,-260,10,3,"crash-site"],[-347,-313,4,9,"crash-site"],[-306,-206,4,9,"crash-site"],
+  [288,-70,10,3,"thruster-works"],[411,-72,10,3,"thruster-works"],[319,-5,4,9,"thruster-works"],[374,-10,4,9,"thruster-works"]
 ].map(([x,z,w,d,districtId], index) => ({ id:`cover-${index}`, districtId:String(districtId), position:{x:Number(x),y:1,z:Number(z)}, size:{x:Number(w),y:2,z:Number(d)}, color:"#344764", kind:"cover" }));
 
-const secondaryCover:BrMapBlock[]=BR_SECONDARY_LOCATIONS.flatMap((location,index)=>[0,1,2,3].map((slot)=>{
-  const angle=slot*Math.PI/2+(index%3)*.22,radius=27+(slot%2)*5;
-  const wide=slot%2===0;
-  return{id:`${location.id}-cover-${slot}`,districtId:location.id,position:{x:location.position.x+Math.cos(angle)*radius,y:1,z:location.position.z+Math.sin(angle)*radius},size:{x:wide?7:2.4,y:2,z:wide?2.4:7},color:location.color,kind:"cover" as const};
-}));
-
-export const BR_MAP_BLOCKS: readonly BrMapBlock[] = [...BR_STRUCTURES.flatMap(structureBlocks), ...authoredCover,...secondaryCover];
+export const BR_MAP_BLOCKS: readonly BrMapBlock[] = [...BR_STRUCTURES.flatMap(structureBlocks),...BR_TERRACES.flatMap(terraceBlocks), ...authoredCover,...AUTHORED_BR_SECONDARY_COVER,...AUTHORED_BR_CONNECTIVE_COVER];
 
 /** Fixed, learnable loot locations tied to actual playable structure floors. */
 export const BR_LOOT_SOCKETS: readonly BrLootSocket[] = BR_STRUCTURES.filter((structure)=>structure.enterable).flatMap((structure,index)=>{
@@ -599,7 +546,10 @@ export const BR_LOOT_SOCKETS: readonly BrLootSocket[] = BR_STRUCTURES.filter((st
     const lateral=Math.abs(inward.x)>.01?{x:0,z:structure.size.z*.22*side}:{x:structure.size.x*.22*side,z:0};
     sockets.push({id:`${structure.id}-interior-secondary`,districtId:structure.districtId,structureId:structure.id,position:{x:structure.position.x-inward.x*.3+lateral.x,y:.58,z:structure.position.z-inward.z*.3+lateral.z},kind:"interior"});
   }
-  if(structure.roofAccess||index%3===0)sockets.push({id:`${structure.id}-roof-loot`,districtId:structure.districtId,structureId:structure.id,position:{x:structure.position.x-structure.size.x*.18,y:structure.size.y+.65,z:structure.position.z+structure.size.z*.17},kind:"roof"});
+  // Roof loot is only valid where the authored layout provides an actual
+  // traversal route. Decorating inaccessible roofs with pickups creates false
+  // objectives and exposes the old procedural ramp assumptions.
+  if(structure.roofAccess)sockets.push({id:`${structure.id}-roof-loot`,districtId:structure.districtId,structureId:structure.id,position:{x:structure.position.x-structure.size.x*.18,y:structure.size.y+.65,z:structure.position.z+structure.size.z*.17},kind:"roof"});
   return sockets;
 });
 

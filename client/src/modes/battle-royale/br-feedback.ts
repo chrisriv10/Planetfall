@@ -51,6 +51,19 @@ export function brAstronautFacingRotation(gameplayYaw:number):number {
   return Number.isFinite(gameplayYaw)?-gameplayYaw:0;
 }
 
+/** The canonical Planetfall astronaut is authored around its torso rather than
+ * the soles of its boots. BR positions are authoritative foot positions, so
+ * the presentation rig needs one explicit, shared lift instead of sinking the
+ * character into every floor. State offsets stay presentation-only. */
+export const BR_ASTRONAUT_FLOOR_OFFSET=.26;
+
+export function brAstronautRigHeight(downed:boolean,airborne:boolean,crouched:boolean):number {
+  if(downed)return .28;
+  if(airborne)return BR_ASTRONAUT_FLOOR_OFFSET+.05;
+  if(crouched)return .05;
+  return BR_ASTRONAUT_FLOOR_OFFSET;
+}
+
 /** Ignore sub-pixel prediction noise and keep ordinary corrections small.
  * Large errors still converge decisively without producing 20 Hz foot jitter. */
 export function brPredictionCorrectionStrength(error:number):number {

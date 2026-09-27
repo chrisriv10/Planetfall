@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BR_LOOT_SOCKETS, BR_MAP_BLOCKS, BR_STRUCTURES } from "@planetfall/shared";
+import { BR_LOOT_SOCKETS, BR_MAP_BLOCKS, BR_STRUCTURES, type BrMapBlock } from "@planetfall/shared";
 import { buildRetailInterior } from "./br-retail-interiors";
 
 describe("retail interior visual placement", () => {
@@ -7,17 +7,45 @@ describe("retail interior visual placement", () => {
     let count=0;
     for (const structure of BR_STRUCTURES) for (const part of buildRetailInterior(structure).parts) {
       count++;
-      const wall=BR_MAP_BLOCKS.find(b => b.id.startsWith(`${structure.id}-room-`) &&
-        Math.abs(part.position.x-b.position.x)+part.scale.x/2 < b.size.x/2);
+      const wall=BR_MAP_BLOCKS.find(b => {
+        if(!b.id.startsWith(`${structure.id}-room-`))return false;
+        const alongX=b.size.x>=b.size.z;
+        const lateral=alongX?"x":"z",normal=alongX?"z":"x";
+        const sign=(alongX?structure.entrance==="north":structure.entrance==="east")?1:-1;
+        const face=b.position[normal]+sign*b.size[normal]/2;
+        const distance=(part.position[normal]-face)*sign;
+        return Math.abs(part.position[lateral]-b.position[lateral])+part.scale[lateral]/2<b.size[lateral]/2
+          &&distance-part.scale[normal]/2>0&&distance+part.scale[normal]/2<.7;
+      });
       expect(wall).toBeDefined();
-      const face=wall!.position.z-wall!.size.z/2;
-      expect(part.position.z+part.scale.z/2).toBeLessThan(face);
-      expect(face-part.position.z+part.scale.z/2).toBeLessThan(.7);
       expect(part.position.y-part.scale.y/2).toBeGreaterThan(0);
       expect(part.position.y+part.scale.y/2).toBeLessThan(4);
       expect(Object.values(part.scale).every(v=>v>0&&Number.isFinite(v))).toBe(true);
     }
     expect(count).toBeGreaterThan(100);
+  });
+  it("orients east/west retail along Z walls and keeps every scale positive",()=>{
+    const base=BR_STRUCTURES.find(s=>s.enterable&&s.archetype==="shop")!;
+    for(const entrance of ["east","west"] as const){
+      const structure={...base,id:"retail-axis-test",entrance};
+      const wall:BrMapBlock={id:`${structure.id}-room-display`,districtId:base.districtId,
+        position:{x:10,y:2,z:20},size:{x:.6,y:4,z:18},color:"#fff",kind:"wall"};
+      const before=JSON.stringify([structure,wall]);
+      const result=buildRetailInterior(structure,[wall]),sign=entrance==="east"?1:-1;
+      expect(result.parts.length).toBeGreaterThan(20);
+      expect(buildRetailInterior(structure,[wall])).toEqual(result);
+      for(const part of result.parts){
+        expect(Object.values(part.scale).every(value=>value>0&&Number.isFinite(value))).toBe(true);
+        expect(Object.values(part.position).every(Number.isFinite)).toBe(true);
+        expect((part.position.x-(10+sign*.3))*sign-part.scale.x/2).toBeGreaterThan(0);
+        expect(Math.abs(part.position.z-20)+part.scale.z/2).toBeLessThan(9);
+      }
+      expect(result.signs.every(label=>label.rotationY===sign*Math.PI/2)).toBe(true);
+      expect(JSON.stringify([structure,wall])).toBe(before);
+      for(const bad of [{...wall,size:{x:.6,y:4,z:2}},{...wall,size:{x:.6,y:2,z:18}},
+        {...wall,size:{x:NaN,y:4,z:18}},{...wall,rotation:{x:0,y:.2,z:0}}])
+        expect(buildRetailInterior(structure,[bad])).toEqual({parts:[],signs:[]});
+    }
   });
   it("leaves loot sockets unobstructed and uses compact mounted signs", () => {
     for(const structure of BR_STRUCTURES) {

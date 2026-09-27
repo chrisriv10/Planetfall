@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { io as connect, type Socket } from "socket.io-client";
-import { BR_BALANCE, BR_WEAPONS, type BrJoinResult, type BrRoomView, type ClientToServerEvents, type ServerToClientEvents } from "@planetfall/shared";
+import { BR_BALANCE, BR_WEAPONS, brDropVelocity, type BrJoinResult, type BrRoomView, type ClientToServerEvents, type ServerToClientEvents } from "@planetfall/shared";
 import { createPlanetfallServer } from "../../app.js";
 import { BattleRoyaleRoom } from "./br-room.js";
 
@@ -60,6 +60,20 @@ describe("Battle Royale room", () => {
     expect(player.velocity.x*routeX+player.velocity.z*routeZ).toBeGreaterThan(0);
     expect(Math.hypot(player.velocity.x,player.velocity.z)).toBeGreaterThan(12);
     expect(player.velocity.y).toBe(-5);
+  });
+
+  it("uses the attached pilot's latest camera yaw for authoritative drop prediction parity",async()=>{
+    const {server,url}=await setup();const host=await client(url);const joined=await createRoom(host,"Route aligned pilot");
+    if(!joined.ok)throw new Error(joined.error);
+    const room=server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom;
+    room.configure(joined.playerId,{targetPlayers:10,fillBots:true});room.setReady(joined.playerId,true);
+    const now=Date.now();room.start(joined.playerId,now);room.update(1/30,now+BR_BALANCE.countdownMs+1);
+    const player=room.players.get(joined.playerId)!;const yaw=1.17;
+    room.setInput(player.id,{sequence:1,dt:1/30,moveX:0,moveY:0,yaw,pitch:-.3,jump:false,sprint:false,crouch:false,fire:false,aim:false,reload:false});
+    expect(player.deployment).toBe("attached");expect(player.yaw).not.toBe(yaw);
+    expect(room.jumpFromShip(player.id,now+BR_BALANCE.countdownMs+100)).toBe(true);
+    expect(player.yaw).toBe(yaw);
+    expect(player.velocity).toEqual(brDropVelocity(room.ship!,yaw));
   });
 
   it("expires stale human movement input instead of authoritatively running forever", async () => {
