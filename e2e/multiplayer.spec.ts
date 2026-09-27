@@ -275,6 +275,12 @@ test("Battle Royale Solo requires confirmation and respects quick-play settings"
   await expect(page.locator("#family-br")).toHaveClass(/selected/);
   await expect(page.locator("#family-planetfall")).not.toHaveClass(/selected/);
   await expect(page.locator("#br-hud")).toBeVisible({timeout:15_000});
+  expect(await page.locator("#br-players-remaining").textContent()).toBe("10 PLAYERS");
+  expect(await page.locator("#br-teams-remaining").textContent()).toBe("10 TEAMS");
+  expect(await page.locator("#br-hp-meter").getAttribute("style")).toContain("width: 100%");
+  expect(await page.locator("#br-shield-meter").getAttribute("style")).toContain("width: 0%");
+  expect(["PREPARING", "DROP PHASE"]).toContain(await page.locator("#br-storm-copy").textContent());
+  expect(await page.locator("#br-inventory .br-slot").count()).toBe(5);
   await expect.poll(()=>page.locator("#br-players-remaining").textContent(),{timeout:12_000}).toBe("10 PLAYERS");
   await expect(page.locator("#br-team-hud")).toBeHidden();
   await expect(page.locator("#br-minimap .br-mini-teammate")).toHaveCount(0);

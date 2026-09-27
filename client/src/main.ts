@@ -1,5 +1,5 @@
 import "./style.css";
-import { BALANCE, BR_MAP, BR_POIS, BR_SECONDARY_LOCATIONS, BR_WEAPONS, CHAOS_COPY, PLANET_PASS_REWARDS, SESSION_PROGRESSION, SHOP_CATALOG, WEAPON_COPY, WEAPON_ORDER, isBrWeapon, type BotDifficulty, type BrCrateState, type BrJoinResult, type BrLootState, type BrMatchResult, type BrRoomView, type BrTeamMode, type ChaosModifier, type CosmeticCategory, type EmoteType, type GameFamily, type GameMode, type JoinResult, type MatchCalloutType, type MatchEvent, type MatchResult, type RoomView, type WeaponType } from "@planetfall/shared";
+import { BALANCE, BR_MAP, BR_POIS, BR_SECONDARY_LOCATIONS, BR_WEAPONS, CHAOS_COPY, PLANET_PASS_REWARDS, SESSION_PROGRESSION, SHOP_CATALOG, WEAPON_COPY, WEAPON_ORDER, isBrWeapon, type BotDifficulty, type BrCrateState, type BrJoinResult, type BrLootState, type BrMatchResult, type BrPlayerState, type BrRoomView, type BrTeamMode, type ChaosModifier, type CosmeticCategory, type EmoteType, type GameFamily, type GameMode, type JoinResult, type MatchCalloutType, type MatchEvent, type MatchResult, type RoomView, type WeaponType } from "@planetfall/shared";
 import { createGameSocket } from "./network";
 import { inputLabel, type InputMethod } from "./input";
 import { SETTINGS_STORAGE_KEY, parseStoredSettings, type UserSettings } from "./settings";
@@ -569,6 +569,24 @@ async function applyBrRoom(nextRoom: BrRoomView): Promise<void> {
     return;
   }
   if (nextRoom.phase === "results") { const instance = await ensureBrGame(nextRoom); instance.setRoom(nextRoom); if (nextRoom.matchResult) showBrResults(nextRoom.matchResult); return; }
+  // The BR module is loaded asynchronously. Prime the visible count strip
+  // from the authoritative room view before revealing the HUD so a configured
+  // 10/20-player quick match never flashes the markup's 40-player default.
+  const livingPlayers = nextRoom.players.filter((player) => player.alive);
+  byId("br-players-remaining").textContent = `${livingPlayers.length} PLAYERS`;
+  byId("br-teams-remaining").textContent = `${new Set(livingPlayers.map((player) => player.teamId)).size} TEAMS`;
+  const stormReadout = brStormReadout(nextRoom.phase, nextRoom.storm, Date.now());
+  byId("br-storm-copy").textContent = stormReadout.label;
+  byId("br-storm-timer").textContent = stormReadout.time;
+  const localPlayer = nextRoom.players.find((player) => player.id === playerId);
+  if (localPlayer) {
+    byId("br-hp").textContent = String(Math.ceil(localPlayer.hp));
+    byId("br-shield").textContent = String(Math.ceil(localPlayer.shield));
+    byId<HTMLElement>("br-hp-meter").style.width = `${Math.max(0, Math.min(100, localPlayer.hp))}%`;
+    byId<HTMLElement>("br-shield-meter").style.width = `${Math.max(0, Math.min(100, localPlayer.shield))}%`;
+    brInventoryMarkup = brInventoryMarkupFor(localPlayer);
+    byId("br-inventory").innerHTML = brInventoryMarkup;
+  }
   showScreen("brHud");
   const instance = await ensureBrGame(nextRoom); instance.setRoom(nextRoom);
 }
@@ -629,12 +647,7 @@ function renderBrHud(state: import("./modes/battle-royale/br-game").BrHudState):
   const contextText=eliminated?"":state.prompt;
   const contextAmount=contextText ? Math.max(state.reloadProgress,state.useProgress,state.reviveProgress) : 0;
   brContextPrompt.dataset.kind="action";brContextCopy.textContent=contextText;brContextPrompt.hidden=!contextText;brContextProgress.style.width=`${contextAmount*100}%`;
-  const inventory = byId("br-inventory"); const nextInventoryMarkup = player.inventory.map((item, index) => {
-    const color = item ? ({ common: "#b8c4dc", rare: "#54b8ff", epic: "#c565ff", legendary: "#ffc84f" }[item.rarity]) : "#56617f";
-    const name = item ? isBrWeapon(item.itemId) ? BR_WEAPONS[item.itemId].name : item.itemId.replaceAll("-", " ").toUpperCase() : "EMPTY"; const ammo = item && isBrWeapon(item.itemId) ? item.itemId === "energy-saber" ? "∞" : `${item.magazine} / ${BR_WEAPONS[item.itemId].ammo ? player.ammo[BR_WEAPONS[item.itemId].ammo!] : 0}` : item ? `×${item.count}` : "";
-    const icon = item ? isBrWeapon(item.itemId) ? item.itemId : item.itemId.startsWith("shield") ? "shield" : "heal" : "empty";
-    return `<div class="br-slot${index === player.selectedSlot ? " selected" : ""}" data-item="${icon}" style="--slot-color:${color}"><i aria-hidden="true"></i><b>${index + 1} · ${name}</b><small>${ammo}</small></div>`;
-  }).join("");
+  const inventory = byId("br-inventory"); const nextInventoryMarkup = brInventoryMarkupFor(player);
   if (nextInventoryMarkup !== brInventoryMarkup) { brInventoryMarkup = nextInventoryMarkup; inventory.innerHTML = nextInventoryMarkup; }
   const nextTeammateMarkup = teamMembers.map((mate) => { const status=brTeammateStatus(mate);return `<div class="br-teammate ${status}" style="--mate-color:${mate.color}"><i></i><b>${escapeHtml(mate.name)}</b><span>${status.toUpperCase()}</span><label>HP<em style="--value:${Math.max(0,mate.hp)}%"></em></label><label>SHIELD<em style="--value:${Math.max(0,mate.shield)}%"></em></label></div>`; }).join("");
   if (nextTeammateMarkup !== brTeammateMarkup) { brTeammateMarkup = nextTeammateMarkup; const teamHud=byId("br-team-hud");teamHud.innerHTML=nextTeammateMarkup;teamHud.hidden=state.teamMode==="solo"||teamMembers.length===0; }
@@ -656,6 +669,16 @@ function showBrResults(result: BrMatchResult): void {
 function appendBrFeed(message: string, color: string): void { if(currentScreen!=="brHud")return;const row = document.createElement("div"); row.className = "br-feed-row"; row.style.setProperty("--feed-color", color); row.textContent = message; byId("br-kill-feed").prepend(row); while (byId("br-kill-feed").children.length > 4) byId("br-kill-feed").lastElementChild?.remove(); setTimeout(() => row.remove(), 5200); }
 function brName(id: string): string { return brRoom?.players.find((player) => player.id === id)?.name ?? "A pilot"; }
 function ordinal(value: number): string { const mod100 = value % 100; return `${value}${mod100 >= 11 && mod100 <= 13 ? "TH" : value % 10 === 1 ? "ST" : value % 10 === 2 ? "ND" : value % 10 === 3 ? "RD" : "TH"}`; }
+
+function brInventoryMarkupFor(player: BrPlayerState): string {
+  return player.inventory.map((item, index) => {
+    const color = item ? ({ common: "#b8c4dc", rare: "#54b8ff", epic: "#c565ff", legendary: "#ffc84f" }[item.rarity]) : "#56617f";
+    const name = item ? isBrWeapon(item.itemId) ? BR_WEAPONS[item.itemId].name : item.itemId.replaceAll("-", " ").toUpperCase() : "EMPTY";
+    const ammo = item && isBrWeapon(item.itemId) ? item.itemId === "energy-saber" ? "∞" : `${item.magazine} / ${BR_WEAPONS[item.itemId].ammo ? player.ammo[BR_WEAPONS[item.itemId].ammo!] : 0}` : item ? `×${item.count}` : "";
+    const icon = item ? isBrWeapon(item.itemId) ? item.itemId : item.itemId.startsWith("shield") ? "shield" : "heal" : "empty";
+    return `<div class="br-slot${index === player.selectedSlot ? " selected" : ""}" data-item="${icon}" style="--slot-color:${color}"><i aria-hidden="true"></i><b>${index + 1} · ${name}</b><small>${ammo}</small></div>`;
+  }).join("");
+}
 
 function showBrMap(visible: boolean): void { brMapOverlay.hidden = !visible; if (visible) { const me = brRoom?.players.find((player) => player.id === playerId); if (me) renderBrMap(me); focusFirst(brMapOverlay); } else focusFirst(screens[currentScreen]); }
 function toggleBrMap(visible: boolean): void { brGame?.setMapVisible(visible); showBrMap(visible); }
