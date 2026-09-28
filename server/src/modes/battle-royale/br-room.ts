@@ -87,7 +87,7 @@ function snapshotPlayer(player: BrPlayerRecord): BrPlayerSnapshotState {
     id: player.id, name: player.name, isBot: player.isBot, connected: player.connected, color: player.color, teamId: player.teamId,
     alive: player.alive, downed: player.downed, deployment: player.deployment, hp: player.hp, shield: player.shield,
     downedHp: player.downedHp, bleedoutEndsAt: player.bleedoutEndsAt, position: { ...player.position }, velocity: { ...player.velocity },
-    rotation: { ...player.rotation }, yaw: player.yaw, pitch: player.pitch, grounded: player.grounded, crouched: player.crouched, selectedSlot: player.selectedSlot,
+    rotation: { ...player.rotation }, yaw: player.yaw, pitch: player.pitch, grounded: player.grounded, crouched: player.crouched, aiming:player.aiming, selectedSlot: player.selectedSlot,
     heldItem: heldItem ? { ...heldItem } : null, kills: player.kills, damageDealt: player.damageDealt, revives: player.revives,
     placement: player.placement, equippedCosmetics: { ...player.equippedCosmetics }
   };
@@ -507,7 +507,7 @@ export class BattleRoyaleRoom {
       moveX: input?.moveX ?? 0, moveY: input?.moveY ?? 0, yaw: input?.yaw ?? player.yaw,
       jump: Boolean(input?.jump), sprint: Boolean(input?.sprint), crouch: Boolean(input?.crouch)
     }, dt, now, (position, desired, options) => this.physics.move(player.id, position, desired, options.jumping, options.crouched));
-    player.position = motion.position; player.velocity = motion.velocity; player.yaw = motion.yaw; player.grounded = motion.grounded; player.crouched = motion.crouched; player.deployment = motion.deployment;
+    player.position = motion.position; player.velocity = motion.velocity; player.yaw = motion.yaw; player.grounded = motion.grounded; player.crouched = motion.crouched; player.aiming=Boolean(input?.aim||input?.fire); player.deployment = motion.deployment;
     player.lastJumpSignal = motion.lastJumpSignal; player.lastCrouchSignal = motion.lastCrouchSignal; player.slideEndsAt = motion.slideEndsAt; player.traversalCooldownUntil = motion.traversalCooldownUntil;
     player.lastGroundedAt = motion.lastGroundedAt ?? player.lastGroundedAt; player.jumpBufferedUntil = motion.jumpBufferedUntil ?? player.jumpBufferedUntil;
     player.history.push({ at: now, position: { ...player.position } });

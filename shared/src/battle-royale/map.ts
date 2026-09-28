@@ -3,7 +3,14 @@ import {
   AUTHORED_BR_SECONDARY_STRUCTURE_BLUEPRINTS,
   AUTHORED_BR_SERVICE_ROADS
 } from "./orbital-isle-authored.js";
-import { AUTHORED_BR_CONNECTIVE_COVER, AUTHORED_BR_SECONDARY_COVER, AUTHORED_BR_SPATIAL_PLANS, AUTHORED_BR_STRUCTURE_PLACEMENTS } from "./orbital-isle-spatial-plan.js";
+import {
+  AUTHORED_BR_CONNECTIVE_COVER,
+  AUTHORED_BR_DISTRICT_ELEVATIONS,
+  AUTHORED_BR_ELEVATED_ACCESS,
+  AUTHORED_BR_SECONDARY_COVER,
+  AUTHORED_BR_SPATIAL_PLANS,
+  AUTHORED_BR_STRUCTURE_PLACEMENTS
+} from "./orbital-isle-spatial-plan.js";
 
 export type BrDistrictStyle = "nexus" | "city" | "dock" | "reactor" | "academy" | "mall" | "farm" | "wreck" | "industrial";
 
@@ -79,6 +86,9 @@ export interface BrTerrace {
   size: { x: number; z: number };
   height: number;
   accessSide: BrStructure["entrance"];
+  /** Broad district decks use their authored service-road grade instead of a
+   * separate narrow pedestrian ramp. */
+  gradedRoadAccess?: boolean;
   color: string;
 }
 
@@ -108,7 +118,9 @@ export const BR_POIS: readonly BrPoi[] = [
   poi("thruster-works", "THRUSTER WORKS", 342, -70, "#65b8ff", "industrial", [[0,0],[36,12],[-36,10],[23,-38],[-25,-37],[0,43]])
 ];
 
-const secondary=(id:string,name:string,x:number,z:number,color:string,style:BrDistrictStyle,connectTo:string):BrSecondaryLocation=>({id,name,position:{x,y:0,z},color,style,connectTo});
+const secondary=(id:string,name:string,x:number,z:number,color:string,style:BrDistrictStyle,connectTo:string):BrSecondaryLocation=>({
+  id,name,position:{x,y:AUTHORED_BR_DISTRICT_ELEVATIONS.get(id)??0,z},color,style,connectTo
+});
 
 /** Connective neighborhoods and utility compounds keep rotations active between the nine major POIs. */
 export const BR_SECONDARY_LOCATIONS:readonly BrSecondaryLocation[]=[
@@ -311,7 +323,16 @@ const PRIMARY_BR_STRUCTURES: readonly BrStructure[] = [
 
 /** Fixed connective-district topology. These arrays are intentionally verbose:
  * they are map data, not runtime urban-design algorithms. */
-const BR_SERVICE_ROADS:readonly BrRoadSegment[]=AUTHORED_BR_SERVICE_ROADS;
+const BR_SERVICE_ROADS:readonly BrRoadSegment[]=AUTHORED_BR_SERVICE_ROADS.flatMap(road=>{
+  const access=AUTHORED_BR_ELEVATED_ACCESS.get(road.id);
+  if(!access)return [road];
+  const elevation=AUTHORED_BR_DISTRICT_ELEVATIONS.get(access.districtId)??0;
+  const deckY=elevation+.1;
+  return [
+    {...road,id:`${road.id}-deck`,from:{...road.from,y:deckY},to:{...access.edge,y:deckY}},
+    {...road,id:`${road.id}-grade`,from:{...access.edge,y:deckY},to:{...road.to}}
+  ];
+});
 export const BR_DISTRICT_PLANS:readonly BrDistrictPlan[]=AUTHORED_BR_SPATIAL_PLANS;
 export const BR_ROADS: readonly BrRoadSegment[] = [
   ...BR_ARTERIAL_ROADS,
@@ -362,6 +383,13 @@ export const BR_TERRAIN_PATCHES: readonly BrTerrainPatch[] = [
 /** Fixed gameplay elevation in deliberately reserved civic/green spaces.
  * These are broad landscape terraces, not ad-hoc building roof ramps. */
 export const BR_TERRACES:readonly BrTerrace[]=[
+  // Full secondary districts use one broad engineered deck and one explicit
+  // service-road grade. Their structures, streets, loot and decoration all
+  // share the same authored elevation.
+  {id:"east-checkpoint-deck",districtId:"east-checkpoint",position:{x:355,y:0,z:250},size:{x:80,z:92},height:4.5,accessSide:"south",gradedRoadAccess:true,color:"#40586c"},
+  {id:"academy-commons-deck",districtId:"academy-commons",position:{x:-265,y:0,z:235},size:{x:70,z:66},height:5.5,accessSide:"east",gradedRoadAccess:true,color:"#625e82"},
+  {id:"south-terminal-deck",districtId:"south-terminal",position:{x:15,y:0,z:-415},size:{x:70,z:66},height:3.5,accessSide:"north",gradedRoadAccess:true,color:"#405469"},
+  {id:"south-shipworks-deck",districtId:"south-shipworks",position:{x:190,y:0,z:-400},size:{x:70,z:66},height:4,accessSide:"north",gradedRoadAccess:true,color:"#51483f"},
   {id:"zero-point-steps",districtId:"zero-point",position:{x:0,y:0,z:-30},size:{x:16,z:14},height:1.6,accessSide:"south",color:"#476b83"},
   {id:"astra-lab-court",districtId:"astra-academy",position:{x:-290,y:0,z:45},size:{x:16,z:14},height:2.8,accessSide:"north",color:"#706a9b"},
   {id:"academy-commons-garden",districtId:"academy-commons",position:{x:-206.5,y:0,z:255.9},size:{x:15,z:14},height:2.8,accessSide:"north",color:"#706a9b"},
@@ -370,12 +398,12 @@ export const BR_TERRACES:readonly BrTerrace[]=[
 ];
 
 type MutableNavNode={id:string;position:Vec3;neighbors:Set<string>};
-const navKey=(point:Vec3)=>`${Math.round(point.x*100)/100}:${Math.round(point.z*100)/100}`;
+const navKey=(point:Vec3)=>`${Math.round(point.x*100)/100}:${Math.round(point.y*100)/100}:${Math.round(point.z*100)/100}`;
 const mutableNavNodes=new Map<string,MutableNavNode>();
 const ensureNavNode=(point:Vec3):MutableNavNode=>{
   const id=`road-${navKey(point)}`;
   let node=mutableNavNodes.get(id);
-  if(!node){node={id,position:{x:point.x,y:.3,z:point.z},neighbors:new Set()};mutableNavNodes.set(id,node);}
+  if(!node){node={id,position:{x:point.x,y:point.y+.2,z:point.z},neighbors:new Set()};mutableNavNodes.set(id,node);}
   return node;
 };
 const linkNavNodes=(first:MutableNavNode,second:MutableNavNode)=>{
@@ -407,24 +435,24 @@ export function brNextWaypoint(start:Vec3,target:Vec3):Vec3 {
 }
 
 function structureBlocks(structure: BrStructure): BrMapBlock[] {
-  const { x, z } = structure.position; const { x: width, z: depth, y: height } = structure.size;
+  const { x, y:baseY, z } = structure.position; const { x: width, z: depth, y: height } = structure.size;
   const wall = .65; const door = 4.8; const blocks: BrMapBlock[] = [];
-  if(!structure.enterable)return[{id:`${structure.id}-solid`,districtId:structure.districtId,position:{x,y:height/2,z},size:{x:width,y:height,z:depth},color:structure.color,kind:"building"}];
-  blocks.push({ id:`${structure.id}-floor`, districtId:structure.districtId, position:{x,y:.18,z}, size:{x:width,y:.36,z:depth}, color:"#17243b", kind:"platform" });
+  if(!structure.enterable)return[{id:`${structure.id}-solid`,districtId:structure.districtId,position:{x,y:baseY+height/2,z},size:{x:width,y:height,z:depth},color:structure.color,kind:"building"}];
+  blocks.push({ id:`${structure.id}-floor`, districtId:structure.districtId, position:{x,y:baseY+.18,z}, size:{x:width,y:.36,z:depth}, color:"#17243b", kind:"platform" });
   for (let floor = 1; floor < structure.floors; floor++) {
     const floorHeight=height/structure.floors;const levelY=floor*floorHeight;const stairX=x+width*.27;const opening=Math.min(5.2,width*.22);
     const leftWidth=stairX-opening/2-(x-width/2);const rightWidth=x+width/2-(stairX+opening/2);
-    if(leftWidth>.5)blocks.push({id:`${structure.id}-deck-${floor}-left`,districtId:structure.districtId,position:{x:x-width/2+leftWidth/2,y:levelY,z},size:{x:leftWidth,y:.35,z:depth},color:"#253554",kind:"platform"});
-    if(rightWidth>.5)blocks.push({id:`${structure.id}-deck-${floor}-right`,districtId:structure.districtId,position:{x:stairX+opening/2+rightWidth/2,y:levelY,z},size:{x:rightWidth,y:.35,z:depth},color:"#253554",kind:"platform"});
+    if(leftWidth>.5)blocks.push({id:`${structure.id}-deck-${floor}-left`,districtId:structure.districtId,position:{x:x-width/2+leftWidth/2,y:baseY+levelY,z},size:{x:leftWidth,y:.35,z:depth},color:"#253554",kind:"platform"});
+    if(rightWidth>.5)blocks.push({id:`${structure.id}-deck-${floor}-right`,districtId:structure.districtId,position:{x:stairX+opening/2+rightWidth/2,y:baseY+levelY,z},size:{x:rightWidth,y:.35,z:depth},color:"#253554",kind:"platform"});
     const rampLength=Math.max(6,Math.min(depth-3,floorHeight*2.6));const angle=Math.atan2(floorHeight,rampLength);
-    blocks.push({id:`${structure.id}-stairs-${floor}`,districtId:structure.districtId,position:{x:stairX,y:levelY-floorHeight/2,z},size:{x:opening-.7,y:.32,z:Math.hypot(rampLength,floorHeight)},rotation:{x:angle,y:0,z:0},color:"#405978",kind:"ramp"});
+    blocks.push({id:`${structure.id}-stairs-${floor}`,districtId:structure.districtId,position:{x:stairX,y:baseY+levelY-floorHeight/2,z},size:{x:opening-.7,y:.32,z:Math.hypot(rampLength,floorHeight)},rotation:{x:angle,y:0,z:0},color:"#405978",kind:"ramp"});
     // Bridge only the upper-end margin of the stair opening. The old split
     // decks left a full-depth hole, so walking off the incline caused a fall.
     const landingDepth=(depth-rampLength)/2;
-    blocks.push({id:`${structure.id}-deck-${floor}-landing`,districtId:structure.districtId,position:{x:stairX,y:levelY,z:z-depth/2+landingDepth/2},size:{x:opening,y:.35,z:landingDepth},color:"#253554",kind:"platform"});
+    blocks.push({id:`${structure.id}-deck-${floor}-landing`,districtId:structure.districtId,position:{x:stairX,y:baseY+levelY,z:z-depth/2+landingDepth/2},size:{x:opening,y:.35,z:landingDepth},color:"#253554",kind:"platform"});
   }
-  blocks.push({ id:`${structure.id}-roof`, districtId:structure.districtId, position:{x,y:height,z}, size:{x:width,y:.42,z:depth}, color:structure.color, kind:"platform" });
-  const addWall = (suffix:string,px:number,pz:number,sx:number,sz:number) => blocks.push({ id:`${structure.id}-${suffix}`, districtId:structure.districtId, position:{x:px,y:height/2,z:pz}, size:{x:sx,y:height,z:sz}, color:structure.color, kind:"wall" });
+  blocks.push({ id:`${structure.id}-roof`, districtId:structure.districtId, position:{x,y:baseY+height,z}, size:{x:width,y:.42,z:depth}, color:structure.color, kind:"platform" });
+  const addWall = (suffix:string,px:number,pz:number,sx:number,sz:number) => blocks.push({ id:`${structure.id}-${suffix}`, districtId:structure.districtId, position:{x:px,y:baseY+height/2,z:pz}, size:{x:sx,y:height,z:sz}, color:structure.color, kind:"wall" });
   if (structure.entrance === "north" || structure.entrance === "south") {
     addWall("west",x-width/2,z,wall,depth); addWall("east",x+width/2,z,wall,depth);
     const doorZ=structure.entrance==="north"?z+depth/2:z-depth/2; const backZ=structure.entrance==="north"?z-depth/2:z+depth/2;
@@ -451,7 +479,7 @@ function structureBlocks(structure: BrStructure): BrMapBlock[] {
     for(let floor=0;floor<structure.floors;floor++)blocks.push({
       id:`${structure.id}-room-${suffix}${structure.floors>1?`-level-${floor+1}`:""}`,
       districtId:structure.districtId,
-      position:{x:px,y:floor*storeyHeight+wallHeight/2,z:pz},
+      position:{x:px,y:baseY+floor*storeyHeight+wallHeight/2,z:pz},
       size:{x:sx,y:wallHeight,z:sz},color:"#202f4a",kind:"wall"
     });
   };
@@ -490,13 +518,15 @@ function structureBlocks(structure: BrStructure): BrMapBlock[] {
     // `length` is the horizontal run used for placement and slope. Rotating a
     // slab of that same length leaves both ends short (and the bottom floating).
     const slopeLength=Math.hypot(length,height);
-    blocks.push({id:`${structure.id}-roof-ramp`,districtId:structure.districtId,position:{x:px,y:height/2,z:pz},size:{x:accessSide==="north"||accessSide==="south"?BR_ROOF_RAMP_WIDTH:slopeLength,y:.36,z:accessSide==="north"||accessSide==="south"?slopeLength:BR_ROOF_RAMP_WIDTH},rotation,color:"#354d6d",kind:"ramp"});
+    blocks.push({id:`${structure.id}-roof-ramp`,districtId:structure.districtId,position:{x:px,y:baseY+height/2,z:pz},size:{x:accessSide==="north"||accessSide==="south"?BR_ROOF_RAMP_WIDTH:slopeLength,y:.36,z:accessSide==="north"||accessSide==="south"?slopeLength:BR_ROOF_RAMP_WIDTH},rotation,color:"#354d6d",kind:"ramp"});
   }
   return blocks;
 }
 
 function terraceBlocks(terrace:BrTerrace):BrMapBlock[]{
   const {x,z}=terrace.position,{height,accessSide}=terrace;
+  const platform:BrMapBlock={id:`${terrace.id}-platform`,districtId:terrace.districtId,position:{x,y:height/2,z},size:{x:terrace.size.x,y:height,z:terrace.size.z},color:terrace.color,kind:"platform"};
+  if(terrace.gradedRoadAccess)return[platform];
   const horizontalRun=Math.max(7,height*2.75),slopeLength=Math.hypot(horizontalRun,height);
   const angle=Math.atan2(height,horizontalRun);
   let rampX=x,rampZ=z,rotation:Vec3={x:0,y:0,z:0},size:Vec3;
@@ -510,9 +540,30 @@ function terraceBlocks(terrace:BrTerrace):BrMapBlock[]{
     rampX=x-terrace.size.x/2-horizontalRun/2;rotation={x:0,y:0,z:angle};size={x:slopeLength,y:.4,z:4.8};
   }
   return[
-    {id:`${terrace.id}-platform`,districtId:terrace.districtId,position:{x,y:height/2,z},size:{x:terrace.size.x,y:height,z:terrace.size.z},color:terrace.color,kind:"platform"},
+    platform,
     {id:`${terrace.id}-ramp`,districtId:terrace.districtId,position:{x:rampX,y:height/2,z:rampZ},size,rotation,color:terrace.color,kind:"ramp"}
   ];
+}
+
+/** Sloped service-road collision is kept deliberately simple and matches the
+ * rendered grade. Level roads continue to use their supporting deck. */
+function roadGradeBlocks(roads:readonly BrRoadSegment[]):BrMapBlock[]{
+  return roads.flatMap(road=>{
+    const dx=road.to.x-road.from.x,dy=road.to.y-road.from.y,dz=road.to.z-road.from.z;
+    const horizontal=Math.hypot(dx,dz);
+    if(horizontal<.01||Math.abs(dy)<.05)return[];
+    const slope=Math.atan2(dy,horizontal),yaw=Math.atan2(dz,dx),thickness=.34;
+    // Road endpoints are authored 10 cm above their walkable deck to avoid
+    // visual z-fighting. Place the oriented collider so its *top* surface,
+    // rather than its center line, joins the base and raised deck heights.
+    const surfaceOffset=.1+thickness/2*Math.cos(slope);
+    return [{
+      id:`${road.id}-surface`,districtId:AUTHORED_BR_ELEVATED_ACCESS.get(road.id.replace(/-grade$/,""))?.districtId??"orbital-isle",
+      position:{x:(road.from.x+road.to.x)/2,y:(road.from.y+road.to.y)/2-surfaceOffset,z:(road.from.z+road.to.z)/2},
+      size:{x:Math.hypot(horizontal,dy),y:thickness,z:road.width},rotation:{x:0,y:-yaw,z:slope},
+      color:road.color,kind:"ramp" as const
+    }];
+  });
 }
 
 const authoredCover: BrMapBlock[] = [
@@ -532,31 +583,84 @@ const authoredCover: BrMapBlock[] = [
   [288,-70,10,3,"thruster-works"],[411,-72,10,3,"thruster-works"],[319,-5,4,9,"thruster-works"],[374,-10,4,9,"thruster-works"]
 ].map(([x,z,w,d,districtId], index) => ({ id:`cover-${index}`, districtId:String(districtId), position:{x:Number(x),y:1,z:Number(z)}, size:{x:Number(w),y:2,z:Number(d)}, color:"#344764", kind:"cover" }));
 
-export const BR_MAP_BLOCKS: readonly BrMapBlock[] = [...BR_STRUCTURES.flatMap(structureBlocks),...BR_TERRACES.flatMap(terraceBlocks), ...authoredCover,...AUTHORED_BR_SECONDARY_COVER,...AUTHORED_BR_CONNECTIVE_COVER];
+export const BR_MAP_BLOCKS: readonly BrMapBlock[] = [
+  ...BR_STRUCTURES.flatMap(structureBlocks),...BR_TERRACES.flatMap(terraceBlocks),...roadGradeBlocks(BR_ROADS),
+  ...authoredCover,...AUTHORED_BR_SECONDARY_COVER,...AUTHORED_BR_CONNECTIVE_COVER
+];
+
+const brRoadBySurfaceId=new Map(BR_ROADS.filter(road=>road.id.endsWith("-grade")).map(road=>[`${road.id}-surface`,road]));
+/** Walkable height of an authored service-road grade. This deterministic floor
+ * path avoids the KCC choosing the island's overlapping base deck underneath
+ * a shallow oriented cuboid; the cuboid remains in both physics worlds for
+ * ray/weapon obstruction. */
+export function brRoadGradeFloorAt(block:BrMapBlock,position:Vec3,margin=0):number|null{
+  const road=brRoadBySurfaceId.get(block.id);if(!road)return null;
+  const dx=road.to.x-road.from.x,dz=road.to.z-road.from.z,lengthSq=dx*dx+dz*dz;
+  if(lengthSq<.001)return null;
+  const length=Math.sqrt(lengthSq),raw=((position.x-road.from.x)*dx+(position.z-road.from.z)*dz)/lengthSq;
+  if(raw < -margin/length || raw > 1+margin/length)return null;
+  const amount=Math.max(0,Math.min(1,raw));
+  const closestX=road.from.x+dx*amount,closestZ=road.from.z+dz*amount;
+  if(Math.hypot(position.x-closestX,position.z-closestZ)>road.width/2+margin)return null;
+  // Authored road ribbons sit 10 cm above collision to avoid z-fighting.
+  return road.from.y+(road.to.y-road.from.y)*amount-.1;
+}
+
+/** Selects a real upper-deck patch instead of assuming the center of every
+ * storey is solid. Multi-storey interiors deliberately reserve a stairwell,
+ * and several old sockets floated directly above that opening. */
+function upperLootSocketPosition(structure:BrStructure,inward:{x:number;z:number}):Vec3{
+  const supportY=structure.position.y+structure.size.y/structure.floors;
+  const candidates:readonly [number,number][]=[
+    [inward.x*.72/structure.size.x,inward.z*.72/structure.size.z],
+    [-.3,-.22],[-.3,.22],[-.14,0],[.4,-.22],[.4,.22]
+  ];
+  for(const [fx,fz] of candidates){
+    const position={x:structure.position.x+structure.size.x*fx,y:supportY+.58,z:structure.position.z+structure.size.z*fz};
+    const supported=BR_MAP_BLOCKS.some(block=>block.districtId===structure.districtId&&block.kind==="platform"
+      &&Math.abs(block.position.y+block.size.y/2-supportY)<.3
+      &&Math.abs(position.x-block.position.x)<=block.size.x/2-.5
+      &&Math.abs(position.z-block.position.z)<=block.size.z/2-.5);
+    const blocked=BR_MAP_BLOCKS.some(block=>block.districtId===structure.districtId&&(block.kind==="wall"||block.kind==="cover")
+      &&Math.abs(position.x-block.position.x)<block.size.x/2+.38
+      &&Math.abs(position.z-block.position.z)<block.size.z/2+.38
+      &&position.y+.38>block.position.y-block.size.y/2&&position.y-.38<block.position.y+block.size.y/2);
+    if(supported&&!blocked)return position;
+  }
+  // Authoring validation catches this fallback. It is intentionally finite so
+  // malformed content cannot poison a match snapshot before tests report it.
+  return {x:structure.position.x-structure.size.x*.3,y:supportY+.58,z:structure.position.z};
+}
 
 /** Fixed, learnable loot locations tied to actual playable structure floors. */
 export const BR_LOOT_SOCKETS: readonly BrLootSocket[] = BR_STRUCTURES.filter((structure)=>structure.enterable).flatMap((structure,index)=>{
   const inward=structure.entrance==="north"?{x:0,z:-structure.size.z*.23}:structure.entrance==="south"?{x:0,z:structure.size.z*.23}:structure.entrance==="east"?{x:-structure.size.x*.23,z:0}:{x:structure.size.x*.23,z:0};
-  const sockets:BrLootSocket[]=[{id:`${structure.id}-interior`,districtId:structure.districtId,structureId:structure.id,position:{x:structure.position.x+inward.x,y:.58,z:structure.position.z+inward.z},kind:"interior"}];
+  const floorY=structure.position.y+.58;
+  const sockets:BrLootSocket[]=[{id:`${structure.id}-interior`,districtId:structure.districtId,structureId:structure.id,position:{x:structure.position.x+inward.x,y:floorY,z:structure.position.z+inward.z},kind:"interior"}];
   // A legitimate landing building must offer a second decision without forcing
   // a room-by-room scavenger hunt. Keep the socket on the opposite side of the
   // central traversal lane rather than sprinkling pickups outside at random.
   if(structure.size.x>=10&&structure.size.z>=9){
     const side=index%2?-1:1;
     const lateral=Math.abs(inward.x)>.01?{x:0,z:structure.size.z*.22*side}:{x:structure.size.x*.22*side,z:0};
-    sockets.push({id:`${structure.id}-interior-secondary`,districtId:structure.districtId,structureId:structure.id,position:{x:structure.position.x-inward.x*.3+lateral.x,y:.58,z:structure.position.z-inward.z*.3+lateral.z},kind:"interior"});
+    sockets.push({id:`${structure.id}-interior-secondary`,districtId:structure.districtId,structureId:structure.id,position:{x:structure.position.x-inward.x*.3+lateral.x,y:floorY,z:structure.position.z-inward.z*.3+lateral.z},kind:"interior"});
   }
+  // Every authored multi-storey structure has a shared stair/deck collider.
+  // Reuse the known-clear ground-floor footprint at the first upper deck so a
+  // landing site rewards vertical exploration instead of exhausting its loot
+  // on the entrance floor.
+  if(structure.floors>=2)sockets.push({id:`${structure.id}-upper-loot`,districtId:structure.districtId,structureId:structure.id,position:upperLootSocketPosition(structure,inward),kind:"interior"});
   // Roof loot is only valid where the authored layout provides an actual
   // traversal route. Decorating inaccessible roofs with pickups creates false
   // objectives and exposes the old procedural ramp assumptions.
-  if(structure.roofAccess)sockets.push({id:`${structure.id}-roof-loot`,districtId:structure.districtId,structureId:structure.id,position:{x:structure.position.x-structure.size.x*.18,y:structure.size.y+.65,z:structure.position.z+structure.size.z*.17},kind:"roof"});
+  if(structure.roofAccess)sockets.push({id:`${structure.id}-roof-loot`,districtId:structure.districtId,structureId:structure.id,position:{x:structure.position.x-structure.size.x*.18,y:structure.position.y+structure.size.y+.65,z:structure.position.z+structure.size.z*.17},kind:"roof"});
   return sockets;
 });
 
 export const BR_CRATE_SOCKETS: readonly Vec3[] = [...BR_POIS.map((district,index)=>{
   const structure=BR_STRUCTURES.find((entry)=>entry.districtId===district.id)!;const side=index%2?-1:1;
   return{x:structure.position.x+side*structure.size.x*.22,y:.62,z:structure.position.z};
-}),...BR_SECONDARY_LOCATIONS.filter((_,index)=>index%3===0).map((location)=>({x:location.position.x,y:.62,z:location.position.z}))];
+}),...BR_SECONDARY_LOCATIONS.filter((_,index)=>index%3===0).map((location)=>({x:location.position.x,y:location.position.y+.62,z:location.position.z}))];
 
 export const BR_TRAVERSAL = [
   { id:"lift-zero", kind:"grav-lift" as const, position:{x:20,y:0,z:18}, target:{x:20,y:25,z:18} },
@@ -575,6 +679,20 @@ export function isInsideBrIsland(position: Vec3, margin = 0): boolean {
 // mantle queries executed by every character; broad sector construction queries
 // still use the complete map. Bound the cache to the island's surrounding cells.
 const localBlockCandidates = new Map<number, readonly BrMapBlock[]>();
+/** World-space X/Z half extents for the authored collider. Rotated ramps are
+ * long on a different world axis than their unrotated `size` suggests, so the
+ * broadphase must project their oriented box before deciding they are absent.
+ * This matches Three/Rapier's shared XYZ Euler convention. */
+export function brBlockPlanarHalfExtents(block:BrMapBlock):{x:number;z:number}{
+  const hx=block.size.x/2,hy=block.size.y/2,hz=block.size.z/2;
+  if(!block.rotation)return{x:hx,z:hz};
+  const {x,y,z}=block.rotation;
+  const a=Math.cos(x),b=Math.sin(x),c=Math.cos(y),d=Math.sin(y),e=Math.cos(z),f=Math.sin(z);
+  return{
+    x:Math.abs(c*e)*hx+Math.abs(-c*f)*hy+Math.abs(d)*hz,
+    z:Math.abs(b*f-a*e*d)*hx+Math.abs(b*e+a*f*d)*hy+Math.abs(a*c)*hz
+  };
+}
 export function brBlocksNear(position: Vec3, radius = 8): BrMapBlock[] {
   let candidates = BR_MAP_BLOCKS;
   const cellX = Math.floor(position.x / 50), cellZ = Math.floor(position.z / 50);
@@ -583,12 +701,12 @@ export function brBlocksNear(position: Vec3, radius = 8): BrMapBlock[] {
     let cached = localBlockCandidates.get(key);
     if (!cached) {
       const x = cellX * 50 + 25, z = cellZ * 50 + 25;
-      cached = BR_MAP_BLOCKS.filter(block => Math.abs(block.position.x-x)<=block.size.x/2+33 && Math.abs(block.position.z-z)<=block.size.z/2+33);
+      cached = BR_MAP_BLOCKS.filter(block => {const half=brBlockPlanarHalfExtents(block);return Math.abs(block.position.x-x)<=half.x+33 && Math.abs(block.position.z-z)<=half.z+33;});
       localBlockCandidates.set(key, cached);
     }
     candidates = cached;
   }
-  return candidates.filter((block) => Math.abs(block.position.x-position.x)<=block.size.x/2+radius && Math.abs(block.position.z-position.z)<=block.size.z/2+radius);
+  return candidates.filter((block) => {const half=brBlockPlanarHalfExtents(block);return Math.abs(block.position.x-position.x)<=half.x+radius && Math.abs(block.position.z-position.z)<=half.z+radius;});
 }
 
 /** Stable spatial partition used by both prediction and authority for movement queries. */

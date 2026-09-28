@@ -43,6 +43,8 @@ export interface BrPlayerState {
   pitch: number;
   grounded: boolean;
   crouched: boolean;
+  /** Presentation hint; authority still validates every aim/fire action. */
+  aiming?: boolean;
   selectedSlot: number;
   inventory: Array<BrInventoryItem | null>;
   ammo: BrAmmoState;
@@ -83,6 +85,7 @@ export interface BrPlayerSnapshotState {
   pitch: number;
   grounded: boolean;
   crouched: boolean;
+  aiming?: boolean;
   selectedSlot: number;
   heldItem: BrInventoryItem | null;
   kills: number;

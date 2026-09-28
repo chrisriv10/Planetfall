@@ -34,6 +34,7 @@ import { buildWreckExterior } from "./br-wreck-exterior";
 import { buildFoundryEngines } from "./br-foundry";
 import { buildRoadsideInfrastructure, type RoadsideFinish } from "./br-roadside-infrastructure";
 import { buildBrVisibleRoadSpans } from "./br-road-surfaces";
+import { buildBrRoadGradeDetails } from "./br-road-grade-details";
 import { buildMaintenanceStrips } from "./br-maintenance-strips";
 import { buildMallDirectories } from "./br-mall-directories";
 import { buildMallWallBays } from "./br-mall-wall-bays";
@@ -48,6 +49,7 @@ import { buildConnectiveClusters, type ConnectiveClusterPart } from "./br-connec
 import { buildBrCorridorGroves, type BrCorridorGrovePart } from "./br-corridor-groves";
 import { buildBrIslandDeckGeometry } from "./br-island-deck";
 import { buildBrTerraceDetails, type BrTerraceDetailPart } from "./br-terrace-details";
+import { buildBrRaisedDeckDetails, type BrRaisedDeckPart } from "./br-raised-deck-details";
 import { buildBrAuthoredDistrictProps, type BrDistrictPropPart } from "./br-authored-district-props";
 import {
   buildBrAuthoredSecondaryDressing,
@@ -293,18 +295,30 @@ export class BrWorldRenderer {
     const medians: MatrixSpec[] = [];
     const lampPosts: MatrixSpec[] = [];
     const lampBulbs: MatrixSpec[] = [];
+    const gradeEdges: MatrixSpec[] = [];
+    const gradeSupports: MatrixSpec[] = [];
+    const gradeLights: MatrixSpec[] = [];
     for (const road of BR_ROADS) {
       const dx = road.to.x - road.from.x;
+      const dy = road.to.y - road.from.y;
       const dz = road.to.z - road.from.z;
       const length = Math.hypot(dx, dz);
       const angle = -Math.atan2(dz, dx);
+      const gradeAngle=Math.atan2(dy,length);
+      const surfaceY=(t:number)=>road.from.y+dy*t-.065;
       const pavedWidth = road.width;
+      for(const part of buildBrRoadGradeDetails(road)){
+        const spec={position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z),rotationY:part.rotationY,rotationZ:part.rotationZ};
+        (part.role==="edge"?gradeEdges:part.role==="support"?gradeSupports:gradeLights).push(spec);
+      }
       for (const span of buildBrVisibleRoadSpans(road)) {
-        const spanLength=Math.hypot(span.to.x-span.from.x,span.to.z-span.from.z);
+        const spanHorizontal=Math.hypot(span.to.x-span.from.x,span.to.z-span.from.z);
+        const spanRise=span.to.y-span.from.y;
+        const spanLength=Math.hypot(spanHorizontal,spanRise);
         roads.push({
-          position:position((span.from.x+span.to.x)/2,.035,(span.from.z+span.to.z)/2),
+          position:position((span.from.x+span.to.x)/2,(span.from.y+span.to.y)/2-.065,(span.from.z+span.to.z)/2),
           scale:position(spanLength,.012,pavedWidth),
-          rotationY:angle
+          rotationY:angle,rotationZ:Math.atan2(spanRise,spanHorizontal)
         });
       }
       for (const side of [-1, 1]) {
@@ -315,8 +329,8 @@ export class BrWorldRenderer {
           const t=(index+.5)/sections;
           const px=road.from.x+dx*t+Math.sin(angle)*curbOffset,pz=road.from.z+dz*t+Math.cos(angle)*curbOffset;
           if(!brRoadDetailClear(road,px,pz))continue;
-          curbs.push({position:position(px,.074,pz),scale:position(length/sections-.15,.07,.38),rotationY:angle});
-          if(index%4===0)edgeLights.push({position:position(road.from.x+dx*t+Math.sin(angle)*lightOffset,.072,road.from.z+dz*t+Math.cos(angle)*lightOffset),scale:position(1.7,.016,.065),rotationY:angle});
+          curbs.push({position:position(px,surfaceY(t)+.039,pz),scale:position(Math.hypot(length/sections,dy/sections)-.15,.07,.38),rotationY:angle,rotationZ:gradeAngle});
+          if(index%4===0)edgeLights.push({position:position(road.from.x+dx*t+Math.sin(angle)*lightOffset,surfaceY(t)+.037,road.from.z+dz*t+Math.cos(angle)*lightOffset),scale:position(1.7,.016,.065),rotationY:angle,rotationZ:gradeAngle});
         }
       }
       const dashCount = Math.max(2, Math.floor(length / 12));
@@ -324,8 +338,8 @@ export class BrWorldRenderer {
         const t = (index + .5) / dashCount;
         if(!brRoadDetailClear(road,road.from.x+dx*t,road.from.z+dz*t))continue;
         dashMatrices.push({
-          position: position(road.from.x + dx * t, .048, road.from.z + dz * t),
-          scale: position(3.2, .012, .18), rotationY: angle
+          position: position(road.from.x + dx * t, surfaceY(t)+.013, road.from.z + dz * t),
+          scale: position(3.2, .012, .18), rotationY: angle,rotationZ:gradeAngle
         });
       }
       if (length > 100 && road.id.startsWith("ring-")) {
@@ -334,7 +348,7 @@ export class BrWorldRenderer {
             const t = THREE.MathUtils.clamp(endT + stripe * (2.25 / length), .04, .96);
             if(!brRoadDetailClear(road,road.from.x+dx*t,road.from.z+dz*t))continue;
             crossings.push({
-              position: position(road.from.x + dx * t, .052, road.from.z + dz * t),
+              position: position(road.from.x + dx * t, surfaceY(t)+.017, road.from.z + dz * t),
               scale: position(pavedWidth * .58, .025, .72), rotationY: angle + Math.PI / 2
             });
           }
@@ -348,8 +362,8 @@ export class BrWorldRenderer {
           const x = road.from.x + dx * t + nx * road.width * .62 * side;
           const z = road.from.z + dz * t + nz * road.width * .62 * side;
           if(!brRoadDetailClear(road,x,z))continue;
-          lampPosts.push({ position: position(x, 2.25, z), scale: position(.22, 4.5, .22) });
-          lampBulbs.push({ position: position(x, 4.62, z), scale: position(.42, .18, .42) });
+          lampPosts.push({ position: position(x, surfaceY(t)+2.215, z), scale: position(.22, 4.5, .22) });
+          lampBulbs.push({ position: position(x, surfaceY(t)+4.585, z), scale: position(.42, .18, .42) });
         }
       }
     }
@@ -361,6 +375,9 @@ export class BrWorldRenderer {
     this.addInstances(this.root, this.materials.unitChamferedBox, this.materials.get("industrialOrange"), medians, false);
     this.addInstances(this.root, this.materials.unitBox, this.materials.get("structuralDark"), lampPosts, false);
     this.addInstances(this.root, this.materials.unitBox, this.materials.get("energyCyan"), lampBulbs, false);
+    this.addInstances(this.root,this.materials.unitBox,this.materials.get("brushedMetal"),gradeEdges,false);
+    this.addInstances(this.root,this.materials.unitBox,this.materials.get("structuralDark"),gradeSupports,false);
+    this.addInstances(this.root,this.materials.unitBox,this.materials.get("energyCyan"),gradeLights,false);
   }
 
   private buildGameplayGeometry(): void {
@@ -405,7 +422,7 @@ export class BrWorldRenderer {
   private buildTerraceDetails():void {
     const group=new THREE.Group();group.name="authored-terrace-details";
     const batches=new Map<string,BrTerraceDetailPart[]>();
-    for(const part of BR_TERRACES.flatMap(buildBrTerraceDetails)){
+    for(const part of BR_TERRACES.filter(terrace=>!terrace.gradedRoadAccess).flatMap(buildBrTerraceDetails)){
       const key=`${part.geometry}:${part.finish}:${part.role}`;
       const batch=batches.get(key)??[];batch.push(part);batches.set(key,batch);
     }
@@ -418,16 +435,29 @@ export class BrWorldRenderer {
         scale:position(part.scale.x,part.scale.y,part.scale.z),rotationY:part.rotationY
       })),false);
     }
+    const raisedBatches=new Map<string,BrRaisedDeckPart[]>();
+    for(const part of BR_TERRACES.filter(terrace=>terrace.gradedRoadAccess).flatMap(terrace=>buildBrRaisedDeckDetails(terrace))){
+      const key=`${part.finish}:${part.role}`;
+      const batch=raisedBatches.get(key)??[];batch.push(part);raisedBatches.set(key,batch);
+    }
+    for(const [key,batch] of raisedBatches){
+      const [finish]=key.split(":") as [BrRaisedDeckPart["finish"]];
+      this.addInstances(group,this.materials.unitBox,this.materials.get(finish),batch.map(part=>({
+        position:position(part.position.x,part.position.y,part.position.z),
+        scale:position(part.scale.x,part.scale.y,part.scale.z),rotationY:part.rotationY
+      })),false);
+    }
     this.root.add(group);
   }
 
   private buildArchitecture(): void {
-    const allShells: MatrixSpec[] = [];
     for (const poi of [...BR_POIS,...BR_SECONDARY_LOCATIONS]) {
       const group = new THREE.Group();
       group.name = `detail-${poi.id}`;
+      group.position.y=poi.position.y;
       const distant = new THREE.Group();
       distant.name = `distant-facade-${poi.id}`;
+      distant.position.y=poi.position.y;
       distant.visible = false;
       const distantWindows: MatrixSpec[] = [];
       const structures = BR_STRUCTURES.filter((structure) => structure.districtId === poi.id);
@@ -456,45 +486,53 @@ export class BrWorldRenderer {
       const growFrames: MatrixSpec[] = [], growGlass: MatrixSpec[] = [], growBases: MatrixSpec[] = [];
       const industrial = { frame: [] as MatrixSpec[], paint: [] as MatrixSpec[], metal: [] as MatrixSpec[], glass: [] as MatrixSpec[] };
       for (const structure of structures) {
+        // Presentation helpers author local height above a district's deck;
+        // the district group supplies its fixed world elevation. Gameplay,
+        // collision and loot continue using the real elevated structure.
+        const visualStructure:BrStructure={...structure,position:{...structure.position,y:0}};
         const roofLoot=BR_LOOT_SOCKETS.find(socket=>socket.structureId===structure.id&&socket.kind==="roof");
+        const visualRoofLoot=roofLoot?{...roofLoot,position:{...roofLoot.position,y:roofLoot.position.y-structure.position.y}}:undefined;
         const roofTargets:Record<BrRoofPart["finish"],MatrixSpec[]>={edge:roofEdges,accent:roofAccents,solar:roofSolar,vent:roofVents};
-        for(const part of buildBrRooftopDetails(structure,roofLoot))roofTargets[part.finish].push({
+        for(const part of buildBrRooftopDetails(visualStructure,visualRoofLoot))roofTargets[part.finish].push({
           position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z),
           rotationX:part.rotationX,rotationY:part.rotationY
         });
-        for (const part of buildReactorInterior(structure)) {
+        for (const part of buildReactorInterior(visualStructure)) {
           (part.finish === "frame" ? reactorFrames : part.finish === "panel" ? reactorPanels : part.finish === "energy" ? reactorEnergy : reactorWarnings).push({
             position: position(part.position.x, part.position.y, part.position.z),
             scale: position(part.scale.x, part.scale.y, part.scale.z)
           });
         }
-        for(const part of buildReactorFloorChannels(structure)){
+        for(const part of buildReactorFloorChannels(visualStructure)){
           (part.finish==="channel"?reactorFrames:part.finish==="energy"?reactorEnergy:reactorWarnings).push({
             position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z)
           });
         }
-        for (const part of buildNovaEntrancePaving(structure)) {
+        for (const part of buildNovaEntrancePaving(visualStructure)) {
           (part.finish === "paver" ? entrancePavers : part.finish === "inset" ? entranceInsets : entranceDrains).push({
             position: position(part.position.x, part.position.y, part.position.z),
             scale: position(part.scale.x, part.scale.y, part.scale.z)
           });
         }
-        for (const part of buildIndustrialRoof(structure)) industrial[part.finish].push({
+        for (const part of buildIndustrialRoof(visualStructure)) industrial[part.finish].push({
           position: position(part.position.x, part.position.y, part.position.z),
           scale: position(part.scale.x, part.scale.y, part.scale.z)
         });
         for(const part of buildInteriorSurfaces(structure)) (part.finish==="seam"?floorSeams:floorTrim).push({
-          position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z),rotationX:part.rotationX
+          position:position(part.position.x,part.position.y-structure.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z),rotationX:part.rotationX
         });
         const retail=buildRetailInterior(structure);
         const retailTargets={frame:interiorDark,panel:interiorProps,glass:displayGlass,light:interiorLights,accent:accentVolumes};
-        for(const part of retail.parts) retailTargets[part.finish].push({position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z)});
+        for(const part of retail.parts) retailTargets[part.finish].push({
+          position:position(part.position.x,part.position.y-structure.position.y,part.position.z),
+          scale:position(part.scale.x,part.scale.y,part.scale.z)
+        });
         for(const label of retail.signs) {
           const sign=this.materials.createMountedSign(label.text,{border:poi.color});
-          sign.position.set(label.position.x,label.position.y,label.position.z); sign.rotation.y=label.rotationY;
+          sign.position.set(label.position.x,label.position.y-structure.position.y,label.position.z); sign.rotation.y=label.rotationY;
           sign.scale.set(label.width,.58,1);group.add(sign);
         }
-        for (const directory of buildMallDirectories(structure)) {
+        for (const directory of buildMallDirectories(visualStructure)) {
           for (const part of directory.parts) retailTargets[part.finish].push({
             position: position(part.position.x, part.position.y, part.position.z),
             scale: position(part.scale.x, part.scale.y, part.scale.z)
@@ -507,7 +545,7 @@ export class BrWorldRenderer {
             group.add(sign);
           }
         }
-        for (const bay of buildMallWallBays(structure)) {
+        for (const bay of buildMallWallBays(visualStructure)) {
           for (const part of bay.parts) {
             const spec = {
               position: position(part.position.x, part.position.y, part.position.z),
@@ -518,7 +556,7 @@ export class BrWorldRenderer {
             else retailTargets[part.finish].push(spec);
           }
         }
-        for (const part of buildMallAtriumWalls(structure)) {
+        for (const part of buildMallAtriumWalls(visualStructure)) {
           const spec = {
             position: position(part.position.x, part.position.y, part.position.z),
             scale: position(part.scale.x, part.scale.y, part.scale.z)
@@ -527,7 +565,7 @@ export class BrWorldRenderer {
           else if (part.finish === "energyCyan") mallEnergyCyan.push(spec);
           else retailTargets[part.finish].push(spec);
         }
-        for (const skin of buildMallRampSkins(structure)) {
+        for (const skin of buildMallRampSkins(visualStructure)) {
           for (const part of skin.parts) {
             const spec = {
               position: position(part.position.x, part.position.y, part.position.z),
@@ -540,7 +578,7 @@ export class BrWorldRenderer {
             else railings.push(spec);
           }
         }
-        for (const ceiling of buildMallCeilingEdges(structure)) {
+        for (const ceiling of buildMallCeilingEdges(visualStructure)) {
           for (const part of ceiling.parts) {
             const spec = {
               position: position(part.position.x, part.position.y, part.position.z),
@@ -552,32 +590,32 @@ export class BrWorldRenderer {
             else railings.push(spec);
           }
         }
-        const residential=buildResidentialInterior(structure);
-        const landingMarkers=buildResidentialLandingMarkers(structure);
+        const residential=buildResidentialInterior(visualStructure);
+        const landingMarkers=buildResidentialLandingMarkers(visualStructure);
         for(const part of landingMarkers.parts) retailTargets[part.finish].push({position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z)});
         for(const label of landingMarkers.signs) {
           const sign=this.materials.createMountedSign(label.text,{border:"#8ca6b8"});
           sign.position.set(label.position.x,label.position.y,label.position.z);
           sign.scale.set(label.width,.55,1);group.add(sign);
         }
-        for(const part of [...buildResidentialCeiling(structure),...buildResidentialServiceWall(structure),...buildResidentialEntranceWall(structure),...buildResidentialRampSkins(structure),...residential.parts])
+        for(const part of [...buildResidentialCeiling(visualStructure),...buildResidentialServiceWall(visualStructure),...buildResidentialEntranceWall(visualStructure),...buildResidentialRampSkins(visualStructure),...residential.parts])
           retailTargets[part.finish].push({position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z),rotationX:part.rotationX});
         for(const label of residential.signs) {
           const sign=this.materials.createMountedSign(label.text,{border:"#8ca6b8"});
           sign.position.set(label.position.x,label.position.y,label.position.z);sign.rotation.y=Math.PI/2;
           sign.scale.set(label.width,.45,1);group.add(sign);
         }
-        for (const part of buildGrowhouseRoof(structure)) {
+        for (const part of buildGrowhouseRoof(visualStructure)) {
           (part.finish === "frame" ? growFrames : part.finish === "glass" ? growGlass : growBases).push({
             position: position(part.position.x, part.position.y, part.position.z),
             scale: position(part.scale.x, part.scale.y, part.scale.z), rotationZ: part.rotationZ
           });
         }
-        for (const part of buildDistantFacadeParts(structure)) {
+        for (const part of buildDistantFacadeParts(visualStructure)) {
           distantWindows.push({ position: position(part.position.x,part.position.y,part.position.z), scale: position(part.scale.x,part.scale.y,part.scale.z) });
         }
         this.architectureMatrices(
-          structure, shells, columns, trims, windowsDark, windowsLit, roofUnits, doorFrames,
+          visualStructure, shells, columns, trims, windowsDark, windowsLit, roofUnits, doorFrames,
           interiorProps, interiorDark, interiorLights, railings, massing, glassVolumes, accentVolumes, machinery, facadePlants
         );
         const signText = this.facadeSignText(structure);
@@ -587,15 +625,15 @@ export class BrWorldRenderer {
           const y = Math.max(5.65, Math.min(structure.size.y - 1.1, 6.4));
           const offset = .95;
           sign.position.set(
-            structure.position.x + (structure.entrance === "east" ? structure.size.x / 2 + offset : structure.entrance === "west" ? -structure.size.x / 2 - offset : 0),
+            visualStructure.position.x + (visualStructure.entrance === "east" ? visualStructure.size.x / 2 + offset : visualStructure.entrance === "west" ? -visualStructure.size.x / 2 - offset : 0),
             y,
-            structure.position.z + (structure.entrance === "north" ? structure.size.z / 2 + offset : structure.entrance === "south" ? -structure.size.z / 2 - offset : 0)
+            visualStructure.position.z + (visualStructure.entrance === "north" ? visualStructure.size.z / 2 + offset : visualStructure.entrance === "south" ? -visualStructure.size.z / 2 - offset : 0)
           );
           sign.rotation.y = structure.entrance === "north" ? 0 : structure.entrance === "south" ? Math.PI : structure.entrance === "east" ? Math.PI / 2 : -Math.PI / 2;
           sign.scale.set(8.5, 2.15, 1); group.add(sign);
         }
       }
-      allShells.push(...shells);
+      this.addInstances(group, this.materials.unitBox, this.materials.get("structuralWhite"), shells, true);
       this.addInstances(group, this.materials.unitChamferedBox, this.materials.get("structuralDark"), columns, false);
       this.addInstances(group, this.materials.unitBox, this.materials.accent(poi.color, .12), trims, false);
       this.addInstances(group, this.materials.unitBox, this.materials.get(poi.style === "farm" ? "growGlass" : "windowDark"), windowsDark, false);
@@ -625,21 +663,20 @@ export class BrWorldRenderer {
       this.addInstances(group, this.materials.unitBox, this.materials.get("structuralDark"), railings, false);
       // Roof crowns and major silhouette masses must not disappear at the
       // same threshold as tiny interior props and facade signs.
-      this.addInstances(this.root, this.materials.unitChamferedBox, this.materials.get("structuralWhite"), massing, false);
-      this.addInstances(this.root, this.materials.unitChamferedBox, this.materials.get("glass"), glassVolumes, false);
+      this.addInstances(group, this.materials.unitChamferedBox, this.materials.get("structuralWhite"), massing, false);
+      this.addInstances(group, this.materials.unitChamferedBox, this.materials.get("glass"), glassVolumes, false);
       this.addInstances(group, this.materials.unitChamferedBox, this.materials.architecturalPaint(poi.color), accentVolumes, false);
       this.addInstances(group, this.materials.unitCylinder, this.materials.get("brushedMetal"), machinery, false);
       this.addInstances(distant, this.materials.unitBox, this.materials.get("windowDark"), distantWindows, false);
-      this.addInstances(this.root, this.materials.unitBox, this.materials.get("structuralWhite"), growFrames, false);
-      this.addInstances(this.root, this.materials.unitBox, this.materials.get("growGlass"), growGlass, false);
-      this.addInstances(this.root, this.materials.unitBox, this.materials.get("structuralDark"), growBases, false);
-      this.addInstances(this.root, this.materials.unitBox, this.materials.get("structuralDark"), industrial.frame, false);
-      this.addInstances(this.root, this.materials.unitBox, this.materials.get("industrialOrange"), industrial.paint, false);
-      this.addInstances(this.root, this.materials.unitBox, this.materials.get("brushedMetal"), industrial.metal, false);
+      this.addInstances(group, this.materials.unitBox, this.materials.get("structuralWhite"), growFrames, false);
+      this.addInstances(group, this.materials.unitBox, this.materials.get("growGlass"), growGlass, false);
+      this.addInstances(group, this.materials.unitBox, this.materials.get("structuralDark"), growBases, false);
+      this.addInstances(group, this.materials.unitBox, this.materials.get("structuralDark"), industrial.frame, false);
+      this.addInstances(group, this.materials.unitBox, this.materials.get("industrialOrange"), industrial.paint, false);
+      this.addInstances(group, this.materials.unitBox, this.materials.get("brushedMetal"), industrial.metal, false);
       this.root.add(group, distant);
-      this.districtDetails.push({ group, distant, center: position(poi.position.x, 0, poi.position.z), visible: true });
+      this.districtDetails.push({ group, distant, center: position(poi.position.x, poi.position.y, poi.position.z), visible: true });
     }
-    this.addInstances(this.root, this.materials.unitBox, this.materials.get("structuralWhite"), allShells, true);
   }
 
   private architectureMatrices(
@@ -732,9 +769,10 @@ export class BrWorldRenderer {
       doorFrames.push({ position: position(doorX, 4.05, doorZ), scale: position(.55, .38, 5.8) });
       doorFrames.push({ position: position(doorX + (structure.entrance === "east" ? .75 : -.75), 4.45, doorZ), scale: position(shopCanopy ? 2.4 : 1.8, .22, shopCanopy ? Math.max(7.4,depth*.72) : 7.4) });
     }
-    for (let index = 0; structure.id !== "crash-fuselage" && !["apartment","hotel"].includes(structure.archetype) && index < Math.min(4, 1 + structure.floors); index++) {
-      interiorProps.push({ position: position(x - width * .22 + index * 2.8, .62, z + depth * .2), scale: position(2.1, 1.2, .75), rotationY: index % 2 ? Math.PI / 2 : 0 });
-    }
+    // Do not scatter generic freestanding boxes through enterable rooms. They
+    // looked like heavy counters but had no authoritative collider, making the
+    // player appear to phase through furniture. Archetype-specific helpers and
+    // the wall-mounted kit below provide interior identity without false cover.
     if (structure.roofAccess) {
       const segments = 5;
       for (let index = 0; index < segments; index++) {
@@ -953,10 +991,10 @@ export class BrWorldRenderer {
   private buildSecondaryLocations():void {
     for(const location of BR_SECONDARY_LOCATIONS){
       const group=new THREE.Group();group.name=`secondary-${location.id}`;
-      const title=this.materials.createSign(location.name,{border:location.color,subtitle:this.poiSubtitle(location)});title.name="secondary-title";title.position.set(location.position.x,8.5,location.position.z);title.scale.set(13,3.8,1);group.add(title);this.secondaryLabels.push(title);
+      const title=this.materials.createSign(location.name,{border:location.color,subtitle:this.poiSubtitle(location)});title.name="secondary-title";title.position.set(location.position.x,location.position.y+8.5,location.position.z);title.scale.set(13,3.8,1);group.add(title);this.secondaryLabels.push(title);
       const authored=buildBrAuthoredSecondaryDressing(location);
       if(authored)this.addAuthoredSecondaryDressing(group,authored);
-      this.root.add(group);this.districtDetails.push({group,center:position(location.position.x,0,location.position.z),visible:true});
+      this.root.add(group);this.districtDetails.push({group,center:position(location.position.x,location.position.y,location.position.z),visible:true});
     }
     for(const authored of buildBrAuthoredTransitionDressing()){
       const group=new THREE.Group();group.name=`transition-${authored.id}`;

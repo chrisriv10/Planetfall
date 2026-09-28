@@ -2,8 +2,8 @@ import { BR_STRUCTURES, type BrRoadSegment, type BrStructure } from "@planetfall
 
 export interface BrVisibleRoadSpan {
   sourceRoadId: string;
-  from: { x: number; z: number };
-  to: { x: number; z: number };
+  from: { x: number; y: number; z: number };
+  to: { x: number; y: number; z: number };
   startT: number;
   endT: number;
   width: number;
@@ -52,6 +52,7 @@ export function buildBrVisibleRoadSpans(
     else merged.push([...interval]);
   }
   const dx = road.to.x - road.from.x;
+  const dy = road.to.y - road.from.y;
   const dz = road.to.z - road.from.z;
   const length = Math.hypot(dx, dz);
   const spans: BrVisibleRoadSpan[] = [];
@@ -62,8 +63,8 @@ export function buildBrVisibleRoadSpans(
         sourceRoadId: road.id,
         startT: cursor,
         endT: start,
-        from: { x: road.from.x + dx * cursor, z: road.from.z + dz * cursor },
-        to: { x: road.from.x + dx * start, z: road.from.z + dz * start },
+        from: { x: road.from.x + dx * cursor, y: road.from.y + dy * cursor, z: road.from.z + dz * cursor },
+        to: { x: road.from.x + dx * start, y: road.from.y + dy * start, z: road.from.z + dz * start },
         width: road.width,
         color: road.color
       });

@@ -1,5 +1,5 @@
 import { BR_BALANCE } from "./balance.js";
-import { BR_MAP_BLOCKS, BR_TRAVERSAL, brBlocksNear, isInsideBrIsland } from "./map.js";
+import { BR_MAP_BLOCKS, BR_TRAVERSAL, brBlockPlanarHalfExtents, brBlocksNear, brRoadGradeFloorAt, isInsideBrIsland } from "./map.js";
 import { brClamp } from "./math.js";
 import type { BrDeploymentState, BrShipState } from "./types.js";
 import type { Vec3 } from "../index.js";
@@ -47,12 +47,19 @@ export function brFlatDeckCollision(feet:Vec3,desiredMovement:Vec3,jumping:boole
   const minX=Math.min(feet.x,next.x),maxX=Math.max(feet.x,next.x),minZ=Math.min(feet.z,next.z),maxZ=Math.max(feet.z,next.z);
   let floorTop=isInsideBrIsland(next)?0:Number.NEGATIVE_INFINITY;
   for(const block of brBlocksNear(midpoint,horizontal*.5+BR_BALANCE.playerRadius+.25)){
-    const halfX=block.size.x/2+BR_BALANCE.playerRadius,halfZ=block.size.z/2+BR_BALANCE.playerRadius;
+    const planarHalf=brBlockPlanarHalfExtents(block);
+    const halfX=planarHalf.x+BR_BALANCE.playerRadius,halfZ=planarHalf.z+BR_BALANCE.playerRadius;
     const planarOverlap=maxX>=block.position.x-halfX&&minX<=block.position.x+halfX&&maxZ>=block.position.z-halfZ&&minZ<=block.position.z+halfZ;
     if(!planarOverlap)continue;
-    // Ramp AABBs are stored before their X/Z rotation, so keep their full
-    // planar approach on Rapier's exact path.
-    if(block.rotation)return null;
+    // Service-road grades overlap the monolithic base-deck collider. Rapier's
+    // KCC can choose that lower floor and travel underneath the shallow ramp,
+    // so resolve their authored top plane deterministically on both client and
+    // server. Other rotated ramps remain on Rapier's exact path.
+    if(block.rotation){
+      const gradeFloor=brRoadGradeFloorAt(block,next,BR_BALANCE.playerRadius);
+      if(gradeFloor!==null&&desiredMovement.y<=0){floorTop=Math.max(floorTop,gradeFloor);continue;}
+      return null;
+    }
     const blockBottom=block.position.y-block.size.y/2,blockTop=block.position.y+block.size.y/2;
     if(block.kind==="platform"||block.kind==="bridge"){
       const endpointOverlap=next.x>=block.position.x-halfX&&next.x<=block.position.x+halfX&&next.z>=block.position.z-halfZ&&next.z<=block.position.z+halfZ;

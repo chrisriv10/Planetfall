@@ -51,10 +51,27 @@ export function brAstronautFacingRotation(gameplayYaw:number):number {
   return Number.isFinite(gameplayYaw)?-gameplayYaw:0;
 }
 
+/** Free-running astronauts face their travel direction; ADS/firing keeps the
+ * torso aligned with the camera so strafing and backpedalling remain legible. */
+export function brMovementFacingYaw(cameraYaw:number,velocity:{x:number;z:number},aiming:boolean,firing:boolean,currentYaw:number):number {
+  if(aiming||firing)return cameraYaw;
+  if(Math.hypot(velocity.x,velocity.z)<.28)return currentYaw;
+  return Math.atan2(velocity.x,-velocity.z);
+}
+
+/** A snapshot sent before authority processes the jump edge must not glue the
+ * predicted player back to the floor. */
+export function brPreservePendingJump(authoritativeSequence:number,jumpSequence:number,startedAt:number,now:number,predictedVelocityY:number):boolean {
+  return jumpSequence>0&&authoritativeSequence<jumpSequence&&now-startedAt<500&&predictedVelocityY>0;
+}
+
 /** The canonical Planetfall astronaut is authored around its torso rather than
  * the soles of its boots. BR positions are authoritative foot positions, so
  * the presentation rig needs one explicit, shared lift instead of sinking the
  * character into every floor. State offsets stay presentation-only. */
+// Canonical boot soles bottom at roughly -0.29m in astronaut-local space.
+// Rapier's stable contact offset keeps the authoritative foot point about
+// .04m above support, so .26 leaves the rendered sole about .01m above it.
 export const BR_ASTRONAUT_FLOOR_OFFSET=.26;
 
 export function brAstronautRigHeight(downed:boolean,airborne:boolean,crouched:boolean):number {

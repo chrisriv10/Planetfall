@@ -1,4 +1,4 @@
-import type { BrDistrictPlan, Vec3 } from "@planetfall/shared";
+import { BR_DISTRICT_PLANS, type BrDistrictPlan, type Vec3 } from "@planetfall/shared";
 import type { BrMaterialKey } from "./br-materials";
 
 export interface BrAuthoredSecondaryPart {
@@ -195,15 +195,15 @@ const SITES: readonly Site[] = [
     ["cable-cover", "box", "paintedMetal", 396.1, .032, 165, .18, .016, 1.4, 0, true],
     ["walk-strip", "box", "sidewalk", 395, .032, 166.15, 3.4, .016, .32, 0, true],
   ] },
-  { id: "orbital-overlook", family: "civic", context: "Open-air orbital viewing seat", center: [340, 205], parts: [
-    ["view-apron", "box", "sidewalk", 340, .016, 205, 4, .016, 3, 0, true],
-    ["view-seat", "box", "brushedMetal", 340, .35, 205.5, 2.2, .14, .6],
-    ["seat-base", "box", "structuralDark", 340, .16, 205.5, 1.5, .24, .35],
-    ["view-post", "box", "structuralWhite", 338.7, 1.25, 204.25, .12, 2.42, .12],
-    ["view-lens", "box", "windowLit", 338.7, 2.25, 204.25, .15, .28, .15],
-    ["bearing-inlay", "box", "brushedMetal", 340, .032, 204.3, 1.6, .016, .13, 0, true],
-    ["bearing-cross", "box", "paintedMetal", 340, .037, 204.3, .13, .006, .85, 0, true],
-    ["approach", "box", "concrete", 340, .032, 206.15, 3.4, .016, .32, 0, true],
+  { id: "orbital-overlook", family: "civic", context: "Open-air orbital viewing seat", center: [340, 195], parts: [
+    ["view-apron", "box", "sidewalk", 340, .016, 195, 4, .016, 3, 0, true],
+    ["view-seat", "box", "brushedMetal", 340, .35, 195.5, 2.2, .14, .6],
+    ["seat-base", "box", "structuralDark", 340, .16, 195.5, 1.5, .24, .35],
+    ["view-post", "box", "structuralWhite", 338.7, 1.25, 194.25, .12, 2.42, .12],
+    ["view-lens", "box", "windowLit", 338.7, 2.25, 194.25, .15, .28, .15],
+    ["bearing-inlay", "box", "brushedMetal", 340, .032, 194.3, 1.6, .016, .13, 0, true],
+    ["bearing-cross", "box", "paintedMetal", 340, .037, 194.3, .13, .006, .85, 0, true],
+    ["approach", "box", "concrete", 340, .032, 196.15, 3.4, .016, .32, 0, true],
   ] },
   { id: "farm-service", family: "agricultural", context: "Two cultivated inset beds and irrigation monitor", center: [260, 360], parts: [
     ["farm-path", "box", "sidewalk", 260, .016, 360, 4, .016, 3, 0, true],
@@ -392,21 +392,24 @@ const TRANSITIONS: readonly Site[] = [
   ] },
 ];
 
-// Decode only: none of the transform values depend on site position, road order,
-// a seed, frame time or another map input. Fresh objects protect the authored data.
-function decode(site: Site): BrAuthoredSecondaryDressing {
+// Decode only: authored X/Z and local heights never depend on road order, a
+// seed or frame time. District elevation is the sole authoritative translation.
+// Fresh objects protect the authored data.
+function decode(site: Site,elevation=0): BrAuthoredSecondaryDressing {
   return { id: site.id, family: site.family, context: site.context,
-    center: { x: site.center[0], y: 0, z: site.center[1] }, radius: 3,
+    center: { x: site.center[0], y: elevation, z: site.center[1] }, radius: 3,
     parts: site.parts.map(([name, geometry, finish, x, y, z, sx, sy, sz, rotationY = 0, surface = false]) => ({
-      name, geometry, finish, position: { x, y, z }, scale: { x: sx, y: sy, z: sz }, rotationY, surface,
+      name, geometry, finish, position: { x, y:y+elevation, z }, scale: { x: sx, y: sy, z: sz }, rotationY, surface,
     })) };
 }
 
-export function buildBrAuthoredSecondaryDressing(site: { id: string }): BrAuthoredSecondaryDressing | undefined {
+export function buildBrAuthoredSecondaryDressing(site: { id: string; position?:Vec3 }): BrAuthoredSecondaryDressing | undefined {
   const authored = SITES.find(entry => entry.id === site.id);
-  return authored ? decode(authored) : undefined;
+  const elevation=BR_DISTRICT_PLANS.find(plan=>plan.id===site.id)?.elevation??0;
+  return authored ? decode(authored,elevation) : undefined;
 }
 
 export function buildBrAuthoredTransitionDressing(): BrAuthoredSecondaryDressing[] {
-  return TRANSITIONS.map(decode);
+  // Do not pass decode directly: Array.map's index is NOT a deck elevation.
+  return TRANSITIONS.map(site=>decode(site));
 }

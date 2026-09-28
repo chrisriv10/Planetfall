@@ -31,22 +31,22 @@ const FIXED_SITES:readonly FixedSite[]=[
   {id:"signal-station",kind:"workyard",elevation:0,approach:{x:-1,y:0,z:0},streets:[road("signal-station-main",-435,-125,-375,-125,8),road("signal-station-cross",-405,-152,-405,-98,7,"#374351",true)],parcels:[["signal-station-parcel-1",-409,-83,"east","anchor"],["signal-station-parcel-2",-385,-109,"west","support"],["signal-station-parcel-3",-385,-141,"west","service"]],openZone:{x:-425,z:-142,radius:8,purpose:"yard"}},
   {id:"salvage-row",kind:"salvage",elevation:0,approach:{x:0,y:0,z:1},streets:[road("salvage-row-main",-345,-335,-285,-335,8),road("salvage-row-cross",-315,-362,-315,-308,7,"#49363c",true)],parcels:[["salvage-row-parcel-1",-307,-293,"east","anchor",16,14],["salvage-row-parcel-2",-335,-351,"east","support"],["salvage-row-parcel-3",-295,-351,"west","service"]],openZone:{x:-295,z:-318,radius:8,purpose:"salvage"}},
   {id:"emergency-depot",kind:"salvage",elevation:0,approach:{x:0,y:0,z:1},streets:[road("emergency-depot-main",-190,-420,-130,-420,8),road("emergency-depot-cross",-160,-447,-160,-393,8,"#49363c",true)],parcels:[["emergency-depot-parcel-1",-140,-403,"west","anchor"],["emergency-depot-parcel-2",-140,-437,"west","support"],["emergency-depot-parcel-3",-180,-437,"east","service"]],openZone:{x:-180,z:-403,radius:8,purpose:"salvage"}},
-  {id:"south-terminal",kind:"civic",elevation:0,approach:{x:0,y:0,z:1},streets:[road("south-terminal-main",-15,-415,45,-415,8),road("south-terminal-cross",15,-442,15,-388,8,"#33465b",true)],parcels:[["south-terminal-parcel-1",35,-398,"west","anchor"],["south-terminal-parcel-2",35,-432,"west","support"],["south-terminal-parcel-3",-5,-432,"east","service"]],openZone:{x:-5,z:-398,radius:8,purpose:"courtyard"}},
+  {id:"south-terminal",kind:"civic",elevation:3.5,approach:{x:0,y:0,z:1},streets:[road("south-terminal-main",-15,-415,45,-415,8),road("south-terminal-cross",15,-442,15,-388,8,"#33465b",true)],parcels:[["south-terminal-parcel-1",35,-398,"west","anchor"],["south-terminal-parcel-2",35,-432,"west","support"],["south-terminal-parcel-3",-5,-432,"east","service"]],openZone:{x:-5,z:-398,radius:8,purpose:"courtyard"}},
   {id:"cargo-spur",kind:"workyard",elevation:0,approach:{x:1,y:0,z:0},streets:[road("cargo-spur-main",65,-285,125,-285,8),road("cargo-spur-cross",95,-312,95,-258,8,"#463d34",true)],parcels:[["cargo-spur-parcel-1",75,-269,"east","anchor"],["cargo-spur-parcel-2",75,-301,"east","support"],["cargo-spur-parcel-3",129,-301,"west","service"]],openZone:{x:115,z:-268,radius:8,purpose:"yard"}},
   {id:"dock-service",kind:"workyard",elevation:0,approach:{x:-.2,y:0,z:1},streets:[road("dock-service-main",255,-275,315,-275,9),road("dock-service-cross",285,-302,285,-248,8,"#463d34",true)],parcels:[["dock-service-parcel-1",319,-253,"west","anchor"],["dock-service-parcel-2",253,-291,"east","support"],["dock-service-parcel-3",271,-291,"west","service"]],openZone:{x:265,z:-258,radius:8,purpose:"yard"}},
   {id:"engine-gate",kind:"workyard",elevation:0,approach:{x:.5,y:0,z:1},streets:[road("engine-gate-main",375,-180,435,-180,8),road("engine-gate-cross",405,-207,405,-153,8,"#33465b",true)],parcels:[["engine-gate-parcel-1",385,-163,"east","anchor"],["engine-gate-parcel-2",385,-197,"east","support"],["engine-gate-parcel-3",425,-197,"west","service"]],openZone:{x:425,z:-163,radius:8,purpose:"yard"}},
-  {id:"east-checkpoint",kind:"civic",elevation:0,approach:{x:0,y:0,z:-1},streets:[road("east-checkpoint-main",325,255,385,255,8),road("east-checkpoint-cross",355,228,355,282,8,"#33465b",true)],parcels:[["east-checkpoint-parcel-1",373,239,"west","anchor"],["east-checkpoint-parcel-2",373,215,"west","support"],["east-checkpoint-parcel-3",327,241,"east","service"]],openZone:{x:335,z:272,radius:8,purpose:"courtyard"}},
+  {id:"east-checkpoint",kind:"civic",elevation:4.5,approach:{x:0,y:0,z:-1},streets:[road("east-checkpoint-main",325,255,385,255,8),road("east-checkpoint-cross",355,228,355,282,8,"#33465b",true)],parcels:[["east-checkpoint-parcel-1",373,239,"west","anchor"],["east-checkpoint-parcel-2",373,215,"west","support"],["east-checkpoint-parcel-3",327,241,"east","service"]],openZone:{x:335,z:272,radius:8,purpose:"courtyard"}},
   {id:"helios-relay",kind:"workyard",elevation:0,approach:{x:-1,y:0,z:0},streets:[road("helios-relay-main",345,135,405,135,8),road("helios-relay-cross",375,108,375,162,8,"#4b482e",true)],parcels:[["helios-relay-parcel-1",359,179,"east","anchor"],["helios-relay-parcel-2",365,89,"east","support"],["helios-relay-parcel-3",417,121,"west","service"]],openZone:{x:395,z:152,radius:8,purpose:"yard"}},
   {id:"orbital-overlook",kind:"civic",elevation:0,approach:{x:.6,y:0,z:-1},streets:[road("orbital-overlook-main",275,220,335,220,7),road("orbital-overlook-cross",305,193,305,247,7,"#33465b",true)],parcels:[["orbital-overlook-parcel-1",285,236,"east","anchor"],["orbital-overlook-parcel-2",313,262,"west","support"],["orbital-overlook-parcel-3",267,174,"east","service"]],openZone:{x:325,z:203,radius:8,purpose:"courtyard"}},
   {id:"farm-service",kind:"agricultural",elevation:0,approach:{x:-1,y:0,z:0},streets:[road("farm-service-main",250,330,310,330,7),road("farm-service-cross",280,303,280,357,7,"#304b43",true)],parcels:[["farm-service-parcel-1",300,347,"west","anchor"],["farm-service-parcel-2",300,313,"west","support"],["farm-service-parcel-3",260,313,"east","service"]],openZone:{x:260,z:347,radius:8,purpose:"garden"}},
   {id:"solar-field",kind:"agricultural",elevation:0,approach:{x:0,y:0,z:-1},streets:[road("solar-field-main",45,415,105,415,7),road("solar-field-cross",75,388,75,442,7,"#304b43",true)],parcels:[["solar-field-parcel-1",55,432,"east","anchor"],["solar-field-parcel-2",95,432,"west","support"],["solar-field-parcel-3",55,398,"east","service"]],openZone:{x:95,z:398,radius:8,purpose:"garden"}},
   {id:"north-gardens",kind:"agricultural",elevation:0,approach:{x:0,y:0,z:-1},streets:[road("north-gardens-main",-75,405,-15,405,7),road("north-gardens-cross",-45,378,-45,432,7,"#304b43",true)],parcels:[["north-gardens-parcel-1",-65,422,"east","anchor"],["north-gardens-parcel-2",-65,388,"east","support"],["north-gardens-parcel-3",-25,388,"west","service"]],openZone:{x:-25,z:422,radius:8,purpose:"garden"}},
   {id:"mall-annex",kind:"commercial",elevation:0,approach:{x:1,y:0,z:0},streets:[road("mall-annex-main",-235,365,-175,365,8),road("mall-annex-cross",-205,338,-205,392,8,"#41314f",true)],parcels:[["mall-annex-parcel-1",-225,381,"east","anchor"],["mall-annex-parcel-2",-221,327,"east","support"],["mall-annex-parcel-3",-203,323,"west","service"]],openZone:{x:-185,z:382,radius:8,purpose:"courtyard"}},
-  {id:"academy-commons",kind:"campus",elevation:0,approach:{x:-1,y:0,z:1},streets:[road("academy-commons-main",-295,235,-235,235,7),road("academy-commons-cross",-265,208,-265,262,7,"#393650",true)],parcels:[["academy-commons-parcel-1",-245,252,"west","anchor"],["academy-commons-parcel-2",-245,218,"west","support"],["academy-commons-parcel-3",-285,218,"east","service"]],openZone:{x:-285,z:252,radius:8,purpose:"garden"}},
+  {id:"academy-commons",kind:"campus",elevation:5.5,approach:{x:-1,y:0,z:1},streets:[road("academy-commons-main",-295,235,-235,235,7),road("academy-commons-cross",-265,208,-265,262,7,"#393650",true)],parcels:[["academy-commons-parcel-1",-245,252,"west","anchor"],["academy-commons-parcel-2",-245,218,"west","support"],["academy-commons-parcel-3",-285,218,"east","service"]],openZone:{x:-285,z:252,radius:8,purpose:"garden"}},
   {id:"west-park",kind:"campus",elevation:0,approach:{x:-1,y:0,z:0},streets:[road("west-park-main",-430,150,-370,150,7),road("west-park-cross",-400,123,-400,177,7,"#393650",true)],parcels:[["west-park-parcel-1",-360,166,"west","anchor"],["west-park-parcel-2",-410,108,"west","support"],["west-park-parcel-3",-448,134,"east","service"]],openZone:{x:-420,z:167,radius:8,purpose:"garden"}},
   {id:"coolant-plant",kind:"workyard",elevation:0,approach:{x:1,y:0,z:0},streets:[road("coolant-plant-main",50,180,110,180,8),road("coolant-plant-cross",80,153,80,207,8,"#304a58",true)],parcels:[["coolant-plant-parcel-1",60,197,"east","anchor"],["coolant-plant-parcel-2",60,163,"east","support"],["coolant-plant-parcel-3",100,163,"west","service"]],openZone:{x:100,z:197,radius:8,purpose:"yard"}},
   {id:"central-security",kind:"civic",elevation:0,approach:{x:-1,y:0,z:1},streets:[road("central-security-main",-175,85,-115,85,8),road("central-security-cross",-145,58,-145,112,8,"#374157",true)],parcels:[["central-security-parcel-1",-109,123,"west","anchor"],["central-security-parcel-2",-181,65,"east","support"],["central-security-parcel-3",-125,69,"west","service"]],openZone:{x:-165,z:102,radius:8,purpose:"courtyard"}},
-  {id:"south-shipworks",kind:"workyard",elevation:0,approach:{x:0,y:0,z:1},streets:[road("south-shipworks-main",160,-400,220,-400,9),road("south-shipworks-cross",190,-427,190,-373,8,"#463d34",true)],parcels:[["south-shipworks-parcel-1",210,-383,"west","anchor"],["south-shipworks-parcel-2",210,-417,"west","support"],["south-shipworks-parcel-3",170,-417,"east","service"]],openZone:{x:170,z:-383,radius:8,purpose:"yard"}},
+  {id:"south-shipworks",kind:"workyard",elevation:4,approach:{x:0,y:0,z:1},streets:[road("south-shipworks-main",160,-400,220,-400,9),road("south-shipworks-cross",190,-427,190,-373,8,"#463d34",true)],parcels:[["south-shipworks-parcel-1",210,-383,"west","anchor"],["south-shipworks-parcel-2",210,-417,"west","support"],["south-shipworks-parcel-3",170,-417,"east","service"]],openZone:{x:170,z:-383,radius:8,purpose:"yard"}},
   {id:"east-freight",kind:"workyard",elevation:0,approach:{x:-1,y:0,z:1},streets:[road("east-freight-main",300,-315,360,-315,9),road("east-freight-cross",330,-342,330,-288,8,"#463d34",true)],parcels:[["east-freight-parcel-1",350,-298,"west","anchor"],["east-freight-parcel-2",350,-332,"west","support"],["east-freight-parcel-3",310,-332,"east","service"]],openZone:{x:310,z:-298,radius:8,purpose:"yard"}},
   {id:"northwest-housing",kind:"neighborhood",elevation:0,approach:{x:1,y:0,z:0},streets:[road("northwest-housing-main",-280,365,-220,365,7),road("northwest-housing-cross",-250,338,-250,392,7,"#3b3b57",true)],parcels:[["northwest-housing-parcel-1",-268,381,"east","anchor"],["northwest-housing-parcel-2",-296,353,"east","support"],["northwest-housing-parcel-3",-238,323,"west","service"]],openZone:{x:-230,z:382,radius:8,purpose:"courtyard"}},
   {id:"west-salvage",kind:"salvage",elevation:0,approach:{x:-1,y:0,z:0},streets:[road("west-salvage-main",-415,-205,-355,-205,8),road("west-salvage-cross",-395,-232,-395,-205,7,"#49363c",true)],parcels:[["west-salvage-parcel-1",-365,-179,"west","anchor"],["west-salvage-parcel-2",-412,-229,"east","support"],["west-salvage-parcel-3",-367,-247,"west","service"]],openZone:{x:-405,z:-188,radius:8,purpose:"salvage"}},
@@ -54,21 +54,33 @@ const FIXED_SITES:readonly FixedSite[]=[
   {id:"west-rim",kind:"campus",elevation:0,approach:{x:1,y:0,z:-1},streets:[road("west-rim-main",-374,310,-346,310,7),road("west-rim-cross",-360,283,-360,330,7,"#393650",true)],parcels:[["west-rim-parcel-1",-340,326,"west","anchor"],["west-rim-parcel-2",-320,278,"west","support"],["west-rim-parcel-3",-376,292,"east","service"]],openZone:{x:-380,z:327,radius:8,purpose:"garden"}}
 ];
 
+export const AUTHORED_BR_DISTRICT_ELEVATIONS:ReadonlyMap<string,number>=new Map(FIXED_SITES.map(site=>[site.id,site.elevation]));
+
+/** Hand-authored grade break for the two full raised districts. The service
+ * road runs level across the district deck, then descends from `edge` to its
+ * existing collector endpoint. These are map data, not a terrain solver. */
+export const AUTHORED_BR_ELEVATED_ACCESS:ReadonlyMap<string,{districtId:string;edge:{x:number;y:number;z:number}}>=new Map([
+  ["service-9",{districtId:"south-terminal",edge:{x:15,y:3.6,z:-382}}],
+  ["service-13",{districtId:"east-checkpoint",edge:{x:327.4,y:4.6,z:207}}],
+  ["service-20",{districtId:"academy-commons",edge:{x:-230,y:5.6,z:234.15}}],
+  ["service-24",{districtId:"south-shipworks",edge:{x:190,y:4.1,z:-367}}]
+]);
+
 export const AUTHORED_BR_SPATIAL_PLANS:readonly BrDistrictPlan[]=FIXED_SITES.map(site=>({
   id:site.id,
-  origin:{...site.streets[0].from,x:(site.streets[0].from.x+site.streets[0].to.x)/2,z:(site.streets[0].from.z+site.streets[0].to.z)/2,y:0},
+  origin:{...site.streets[0].from,x:(site.streets[0].from.x+site.streets[0].to.x)/2,z:(site.streets[0].from.z+site.streets[0].to.z)/2,y:site.elevation},
   elevation:site.elevation,
   kind:site.kind,
   approach:site.approach,
-  streets:[...site.streets],
-  parcels:site.parcels.map(([id,x,z,entrance,role])=>({id,position:{x,y:0,z},entrance,role})),
-  openZone:{position:{x:site.openZone.x,y:0,z:site.openZone.z},radius:site.openZone.radius,purpose:site.openZone.purpose}
+  streets:site.streets.map(street=>({...street,from:{...street.from,y:site.elevation+.1},to:{...street.to,y:site.elevation+.1}})),
+  parcels:site.parcels.map(([id,x,z,entrance,role])=>({id,position:{x,y:site.elevation,z},entrance,role})),
+  openZone:{position:{x:site.openZone.x,y:site.elevation,z:site.openZone.z},radius:site.openZone.radius,purpose:site.openZone.purpose}
 }));
 
 export const AUTHORED_BR_STRUCTURE_PLACEMENTS:ReadonlyMap<string,{position:{x:number;y:number;z:number};entrance:Entrance;size?:{x:number;z:number}}>=new Map(
   FIXED_SITES.flatMap(site=>site.parcels.map(([parcelId,x,z,entrance,,width,depth])=>[
     parcelId.replace("-parcel-","-"),
-    {position:{x,y:0,z},entrance,size:width&&depth?{x:width,z:depth}:undefined}
+    {position:{x,y:site.elevation,z},entrance,size:width&&depth?{x:width,z:depth}:undefined}
   ] as const))
 );
 
@@ -107,7 +119,7 @@ const FIXED_SECONDARY_COVER:readonly [string,number,number,number,number][]=[
 ];
 
 export const AUTHORED_BR_SECONDARY_COVER:readonly BrMapBlock[]=FIXED_SECONDARY_COVER.map(([districtId,x,z,width,depth],index)=>({
-  id:`secondary-cover-${index}`,districtId,position:{x,y:1,z},size:{x:width,y:2,z:depth},color:"#344764",kind:"cover"
+  id:`secondary-cover-${index}`,districtId,position:{x,y:(AUTHORED_BR_DISTRICT_ELEVATIONS.get(districtId)??0)+1,z},size:{x:width,y:2,z:depth},color:"#344764",kind:"cover"
 }));
 
 /** Permanent tactical rhythm for the four long inter-district transitions.

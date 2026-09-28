@@ -21,6 +21,7 @@ type DebugState = {
   activeModifier: string | null;
   rules: { gravity: number; maxIntegrity: number; launchCooldownMs: number; shoveForce: number };
   performance: { fps: number; drawCalls: number; triangles: number; particles: number; projectiles: number };
+  mechanics: { speed: number; grounded: boolean; gravityPlanetId: string | null; altitude: number | null; correction: number; grappleTension: number; launchAssist: boolean };
 };
 
 const debugState = (page: Page) => page.evaluate(() => (window as unknown as { __PLANETFALL_DEBUG__: () => DebugState }).__PLANETFALL_DEBUG__());
@@ -383,8 +384,9 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
   await expect(host.locator("#context-prompt")).toContainText(/LAUNCH/i);
   await host.keyboard.press("e");
   await expect(host.locator("#context-prompt")).toContainText(/LAUNCH TO NOVA/i);
+  const outboundLaunchFeed = expect(host.locator("#event-feed")).toContainText("Chris launched to Nova");
   await host.keyboard.press("e");
-  await expect(host.locator("#event-feed")).toContainText("Chris launched to Nova");
+  await outboundLaunchFeed;
   await expect.poll(async () => (await debugState(host)).players.find((player) => player.id === hostPlayer.id)?.surfacePlanetId, { timeout: 12_000 }).toBe(guestPlanetId);
 
   hostState = await debugState(host);
@@ -425,9 +427,6 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
     await moveTo(host, (state) => state.players.find((player) => player.id === guestPlayer.id)!.position, .8, 60);
   }
   await expect(host.locator("#context-prompt")).toContainText(/SHOVE NOVA/i);
-  const guestBeforeShoveState = await debugState(guest);
-  const guestBeforeShove = guestBeforeShoveState.localPosition;
-  const guestAuthoritativeBeforeShove = guestBeforeShoveState.players.find((player) => player.id === guestPlayer.id)!.position;
   await host.evaluate(() => {
     const testWindow = window as Window & { __planetfallToastLog?: string[]; __planetfallToastObserver?: MutationObserver };
     testWindow.__planetfallToastObserver?.disconnect();
@@ -453,10 +452,35 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
       const promptReady = await expect(host.locator("#context-prompt")).toContainText(/SHOVE NOVA/i, { timeout: 1200 })
         .then(() => true, () => false);
       if (!promptReady) continue;
+      const hostBeforeShove = (await debugState(host)).players.find((player) => player.id === guestPlayer.id)!.position;
+      // The feed row and knockback are intentionally short-lived. Observe all
+      // three consequences concurrently with server acceptance, while the
+      // defender's frame-driven presentation owns the foreground tab.
+      await guest.bringToFront();
+      const shoveFeedObserved = expect(host.locator("#event-feed"))
+        .toContainText("Chris shoved Nova", { timeout: 2500 })
+        .then(() => true, () => false);
+      const authoritativeMotionObserved = expect.poll(async () => {
+        const target = (await debugState(host)).players.find((player) => player.id === guestPlayer.id)!;
+        return pointDistance(target.position, hostBeforeShove);
+      }, { timeout: 3000 }).toBeGreaterThan(0.6).then(() => true, () => false);
+      const presentationMotionObserved = expect.poll(async () => (await debugState(guest)).mechanics.speed,
+      { timeout: 3000 }).toBeGreaterThan(4).then(() => true, () => false);
       await host.keyboard.press("e");
-      successfulShoves = await expect.poll(async () =>
-        (await debugState(host)).matchStats.find((stats) => stats.playerId === hostPlayer.id)?.successfulShoves ?? 0,
-      { timeout: 900, intervals: [100, 150, 250] }).toBeGreaterThanOrEqual(1).then(() => 1, () => 0);
+      const [shoveAccepted, feedAccepted, authoritativeMotion, presentationMotion] = await Promise.all([
+        expect.poll(async () =>
+          (await debugState(host)).matchStats.find((stats) => stats.playerId === hostPlayer.id)?.successfulShoves ?? 0,
+        { timeout: 900, intervals: [100, 150, 250] }).toBeGreaterThanOrEqual(1).then(() => 1, () => 0),
+        shoveFeedObserved,
+        authoritativeMotionObserved,
+        presentationMotionObserved
+      ]);
+      if (shoveAccepted > 0) {
+        expect(feedAccepted).toBe(true);
+        expect(authoritativeMotion).toBe(true);
+        expect(presentationMotion).toBe(true);
+      }
+      successfulShoves = shoveAccepted;
     }
     expect(successfulShoves).toBeGreaterThanOrEqual(1);
   } catch (error) {
@@ -466,27 +490,16 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
     const denials = await host.evaluate(() => (window as Window & { __planetfallToastLog?: string[] }).__planetfallToastLog ?? []);
     throw new Error(`shove was rejected: ${denials.join(" | ") || "no server reason"}; predicted=${pointDistance(state.localPosition, target.position).toFixed(2)} authoritative=${pointDistance(attacker.position, target.position).toFixed(2)} surfaces=${attacker.surfacePlanetId}/${target.surfacePlanetId}`, { cause: error });
   }
-  await expect(host.locator("#event-feed")).toContainText("Chris shoved Nova");
-  // The defender's presentation is frame-driven. Observe it in a foreground
-  // tab rather than testing a throttled background WebGL loop. Independently
-  // require authoritative displacement so a camera/prediction update cannot
-  // stand in for real server knockback. Neither threshold is relaxed.
-  await guest.bringToFront();
-  await expect.poll(async () => {
-    const state = await debugState(guest);
-    return pointDistance(state.players.find((player) => player.id === guestPlayer.id)!.position, guestAuthoritativeBeforeShove);
-  }, { timeout: 3000 }).toBeGreaterThan(0.6);
-  await expect.poll(async () => pointDistance((await debugState(guest)).localPosition, guestBeforeShove), { timeout: 3000 }).toBeGreaterThan(0.6);
-
   await moveTo(host, (state) => state.repairs.find((repair) => repair.planetId === guestPlanetId)!.position, 2.5);
   await expect(host.locator("#context-prompt")).toContainText("JAM REPAIR");
+  const repairJamFeed = expect(host.locator("#event-feed")).toContainText("Chris jammed Nova's repair");
   await host.keyboard.down("e");
   await host.waitForTimeout(650);
   await expect(host.locator("#context-progress")).not.toHaveCSS("width", "0px");
   await host.waitForTimeout(850);
   await host.keyboard.up("e");
   await expect.poll(async () => (await debugState(host)).planets.find((planet) => planet.id === guestPlanetId)!.repairDisabledUntil, { timeout: 3000 }).toBeGreaterThan(Date.now());
-  await expect(host.locator("#event-feed")).toContainText("Chris jammed Nova's repair");
+  await repairJamFeed;
   await expect.poll(async () => (await debugState(host)).matchStats.find((stats) => stats.playerId === hostPlayer.id)?.stolenScrap ?? 0, { timeout: 3000 }).toBeGreaterThanOrEqual(5);
   // The shove retry loop above permits more than one successful shove while a
   // snapshot is in flight. Require the action outcome, not exactly one retry.
@@ -497,10 +510,11 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
   await expect(host.locator("#context-prompt")).toContainText(/LAUNCH/i);
   await host.keyboard.press("e");
   await expect(host.locator("#context-prompt")).toContainText(/LAUNCH TO CHRIS/i);
+  const returnLaunchFeed = expect(host.locator("#event-feed")).toContainText("Chris launched to Chris");
   await host.keyboard.press("e");
   // Separate server acceptance from arrival so a rejected return launch does
   // not surface only as a destination timeout twelve seconds later.
-  await expect(host.locator("#event-feed")).toContainText("Chris launched to Chris");
+  await returnLaunchFeed;
   await expect.poll(async () => (await debugState(host)).players.find((player) => player.id === hostPlayer.id)?.surfacePlanetId, { timeout: 12_000 }).toBe(hostPlanetId);
 
   await moveTo(guest, (state) => state.cannons.find((cannon) => cannon.planetId === guestPlanetId)!.position, 3.7);

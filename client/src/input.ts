@@ -1,5 +1,5 @@
 export type InputMethod = "keyboard" | "gamepad";
-export type InputAction = "jump" | "burst" | "crouch" | "interact" | "switchWeapon" | "repair" | "fire" | "grapple" | "emote" | "leaderboard" | "map" | "ping" | "cancel" | "nextTarget" | "previousTarget" | "pause" | "confirm";
+export type InputAction = "jump" | "burst" | "crouch" | "interact" | "switchWeapon" | "repair" | "fire" | "grapple" | "emote" | "leaderboard" | "map" | "inventory" | "ping" | "cancel" | "nextTarget" | "previousTarget" | "pause" | "confirm";
 
 export type ButtonState = { held: boolean; pressed: boolean; released: boolean };
 
@@ -20,6 +20,7 @@ export interface InputFrame {
   emote: ButtonState;
   leaderboard: ButtonState;
   map: ButtonState;
+  inventory: ButtonState;
   ping: ButtonState;
   cancel: ButtonState;
   nextTarget: ButtonState;
@@ -72,6 +73,7 @@ const keyboardMap: Record<string, InputAction> = {
   KeyR: "repair",
   KeyV: "emote",
   KeyM: "map",
+  KeyI: "inventory",
   Tab: "leaderboard",
   Escape: "cancel",
   ArrowRight: "nextTarget",
@@ -217,7 +219,7 @@ export class GameInput {
       lookY: this.mouseLookY + gamepad.look.y,
       jump: button("jump"), burst: button("burst"), crouch: button("crouch"), interact: button("interact"), switchWeapon: button("switchWeapon"),
       repair: button("repair"), fire: button("fire"), grapple: button("grapple"), emote: button("emote"), leaderboard: button("leaderboard"), cancel: button("cancel"),
-      map: button("map"), ping: button("ping"),
+      map: button("map"), inventory:button("inventory"), ping: button("ping"),
       nextTarget: button("nextTarget"), previousTarget: button("previousTarget"), pause: button("pause"), confirm: button("confirm"),
       menuX, menuY,
       directSlot: this.pendingDirectSlot

@@ -1,6 +1,7 @@
 import { BR_LOOT_SOCKETS, BR_MAP_BLOCKS, type BrStructure, type Vec3 } from "@planetfall/shared";
 
-export type ResidentialPart = { finish: "frame" | "panel" | "glass" | "light" | "accent"; position: Vec3; scale: Vec3; rotationX?: number };
+export type ResidentialPart = { finish: "frame" | "panel" | "glass" | "light" | "accent"; position: Vec3; scale: Vec3; rotationX?: number;
+  role?: "lounge-chair" | "lounge-table" | "reception-counter" | "wall-trim" };
 export type ResidentialSign = { text: string; position: Vec3; width: number };
 
 /** Shallow landing markers on the south wall, never freestanding in the stair. */
@@ -96,7 +97,11 @@ export function buildResidentialEntranceWall(structure: BrStructure): Residentia
   if(bayWidth<2)return parts;
   const normalCoordinate=(ns?z:x)+sign*(normal-.41);
   const add=(finish:ResidentialPart["finish"],lateral:number,y:number,breadth:number,height:number,thickness:number)=>{
-    parts.push({finish,position:{x:ns?x+lateral:normalCoordinate,y,z:ns?normalCoordinate:z+lateral},scale:{x:ns?breadth:thickness,y:height,z:ns?thickness:breadth}});
+    // The original pieces shared one center, burying the panel, glazing and
+    // accents inside the opaque frame. Each visible layer clears the last.
+    const inset=finish==="frame"?0:finish==="panel"?.09:finish==="glass"?.13:.16;
+    const face=normalCoordinate-sign*inset;
+    parts.push({finish,position:{x:ns?x+lateral:face,y,z:ns?face:z+lateral},scale:{x:ns?breadth:thickness,y:height,z:ns?thickness:breadth}});
   };
   for(const side of [-1,1]){
     const lateral=side*(3.2+bayWidth/2);
@@ -155,13 +160,15 @@ export function buildResidentialInterior(structure: BrStructure): {parts: Reside
     const floorY=floor===0?.36:floor*structure.size.y/structure.floors+.175;
     for(const side of [-1,1]) {
       const center=z+side*depth*.29, bay:ResidentialPart[]=[];
-      const add=(finish:ResidentialPart["finish"],distance:number,y:number,dz:number,sx:number,sy:number,sz:number)=>
-        bay.push({finish,position:{x:wallFace+distance,y:floorY+y,z:center+dz},scale:{x:sx,y:sy,z:sz}});
+      const add=(finish:ResidentialPart["finish"],distance:number,y:number,dz:number,sx:number,sy:number,sz:number,role?:ResidentialPart["role"])=>
+        bay.push({finish,position:{x:wallFace+distance,y:floorY+y,z:center+dz},scale:{x:sx,y:sy,z:sz},role});
       const bayHeight=structure.size.y/structure.floors-1;
       // Broad wall bay and high lintel give these tall rooms human-scale layers.
       add("panel",.03,bayHeight/2+.1,0,.04,bayHeight,4.25);
       for(const end of [-1,1])add("frame",.075,bayHeight/2+.1,end*2.13,.09,bayHeight,.065);
       add("frame",.07,bayHeight+.1,0,.1,.12,4.3);
+      if(structure.archetype==="hotel")for(const height of [1.22,3.72])
+        add("frame",.063,height,0,.025,.045,4.08,"wall-trim");
       // Framed wall textile/artwork with an asymmetric orbital city motif.
       add("frame",.085,2.42,0,.14,2.24,3.65);
       add("glass",.17,2.42,0,.035,1.94,3.34);
@@ -169,16 +176,32 @@ export function buildResidentialInterior(structure: BrStructure): {parts: Reside
         add(stripe===1?"accent":"panel",.2,2.14+stripe*.25,-.88+stripe*.78,.025,.16,1.04);
         add("panel",.21,2.68-stripe*.16,-.96+stripe*.65,.025,.4,.065);
       }
-      // Bench: separate cushions, backrest, arms and feet, not a solid cover box.
-      add("frame",.43,.38,0,.7,.14,3.6);
-      for(const end of [-1,1]) {
-        add("frame",.43,.15,end*1.4,.46,.3,.16);
-        add("panel",.45,.72,end*1.72,.78,.18,.2);
-        add("frame",.45,.54,end*1.72,.58,.26,.13);
-      }
-      for(const seat of [-1,0,1]) {
-        add("panel",.46,.53,seat*1.07,.64,.18,1.01);
-        add("panel",.16,.92,seat*1.07,.2,.62,1.01);
+      if(structure.archetype==="hotel"){
+        // Two visibly independent lounge chairs and a small intervening table,
+        // not a continuous 3.6m seat slab. All remain in the old shallow bay.
+        for(const seat of [-1.16,1.16]){
+          add("frame",.44,.35,seat,.67,.1,1.04,"lounge-chair");
+          add("panel",.46,.47,seat,.64,.14,.96,"lounge-chair");
+          add("panel",.16,.82,seat,.2,.58,.96,"lounge-chair");
+          for(const end of [-1,1]){
+            add("frame",.44,.15,seat+end*.36,.42,.3,.09,"lounge-chair");
+            add("panel",.45,.66,seat+end*.54,.73,.12,.12,"lounge-chair");
+          }
+        }
+        add("frame",.47,.19,0,.14,.34,.36,"lounge-table");
+        add("panel",.47,.4,0,.62,.08,.62,"lounge-table");
+      }else{
+        // Housing retains its communal bench vocabulary.
+        add("frame",.43,.38,0,.7,.14,3.6);
+        for(const end of [-1,1]) {
+          add("frame",.43,.15,end*1.4,.46,.3,.16);
+          add("panel",.45,.72,end*1.72,.78,.18,.2);
+          add("frame",.45,.54,end*1.72,.58,.26,.13);
+        }
+        for(const seat of [-1,0,1]) {
+          add("panel",.46,.53,seat*1.07,.64,.18,1.01);
+          add("panel",.16,.92,seat*1.07,.2,.62,1.01);
+        }
       }
       for(const end of [-1,1]) {
         add("frame",.16,2.56,end*2.04,.22,.74,.19);
@@ -188,8 +211,8 @@ export function buildResidentialInterior(structure: BrStructure): {parts: Reside
       parts.push(...bay);
     }
     if(floor===0&&clearBay(z,1.75,floorY)) {
-      const add=(finish:ResidentialPart["finish"],distance:number,y:number,dz:number,sx:number,sy:number,sz:number)=>
-        parts.push({finish,position:{x:wallFace+distance,y:floorY+y,z:z+dz},scale:{x:sx,y:sy,z:sz}});
+      const add=(finish:ResidentialPart["finish"],distance:number,y:number,dz:number,sx:number,sy:number,sz:number,role?:ResidentialPart["role"])=>
+        parts.push({finish,position:{x:wallFace+distance,y:floorY+y,z:z+dz},scale:{x:sx,y:sy,z:sz},role});
       add("frame",.13,1.62,0,.22,2.8,3.35);
       add("panel",.265,1.62,0,.08,2.58,3.1);
       if(structure.archetype==="hotel") {
@@ -199,8 +222,15 @@ export function buildResidentialInterior(structure: BrStructure): {parts: Reside
           add(row===0?"accent":"panel",.42,2.35-row*.32,-.2,.018,.09,1.35);
           add("light",.43,2.35-row*.32,.9,.018,.09,.11);
         }
-        add("frame",.46,1.25,0,.62,.15,2.72);
-        add("panel",.48,1.34,0,.56,.04,2.56);
+        // Leg-supported reception counter; open underneath, wall backed, and
+        // shorter than the former floating shelf. No new floor island/collider.
+        add("frame",.46,1.07,0,.62,.15,2.72,"reception-counter");
+        add("panel",.48,1.165,0,.56,.04,2.56,"reception-counter");
+        for(const end of [-1,1]){
+          add("frame",.46,.535,end*1.16,.45,1.07,.12,"reception-counter");
+          add("panel",.7,.61,end*1.16,.035,.72,.085,"reception-counter");
+        }
+        add("light",.785,.96,0,.025,.045,1.35,"reception-counter");
       } else {
         // Housing gets parcel compartments, not another hotel kiosk.
         for(let row=0;row<3;row++)for(const col of [-1,1]) {

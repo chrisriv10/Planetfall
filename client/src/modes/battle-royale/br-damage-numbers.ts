@@ -8,6 +8,25 @@ export interface BrDamageNumberEntry { targetId:string; kind:BrDamageNumberKind;
 export const BR_DAMAGE_NUMBER_LIFETIME_MS=920;
 export const BR_DAMAGE_NUMBER_AGGREGATE_MS=180;
 
+/** Sprite.center is in billboard space, so the two channels stay separated from
+ * every camera angle. World-X jitter collapses when viewed along the X axis.
+ * Opposite anchors also leave the center reticle/target face unobscured. */
+export function brDamageNumberLayout(entry:BrDamageNumberEntry,now:number){
+  const age=Math.max(0,now-entry.updatedAt),progress=Math.min(1,age/BR_DAMAGE_NUMBER_LIFETIME_MS);
+  const text=String(Math.round(entry.amount));
+  return {
+    centerX:entry.kind==="shield"?1.02:-.02,
+    rise:2.1+progress*1.05,
+    opacity:Math.min(1,(1-progress)*1.45),
+    scale:(entry.headshot?1.12:1)*(1+Math.sin(Math.min(1,age/120)*Math.PI)*.12),
+    text,
+    // Leave 24px margins plus stroke; headshot/break marks occupy separate rows
+    // and never prepend a font-dependent glyph to the numeric value.
+    fontSize:Math.min(entry.headshot?70:62,Math.floor(190/(Math.max(1,text.length)*.65))),
+    color:entry.kind==="shield"?(entry.shieldBroken?"#d8fbff":"#63d8ff"):entry.headshot?"#ffd75a":"#ffffff",
+  };
+}
+
 export function addBrDamageNumber(entries:readonly BrDamageNumberEntry[],input:BrDamageNumberInput,now:number,max=20):BrDamageNumberEntry[]{
   let result=entries.filter(entry=>now-entry.updatedAt<BR_DAMAGE_NUMBER_LIFETIME_MS).map(entry=>({...entry,position:{...entry.position}}));
   for(const [kind,amount] of [["shield",input.shieldDamage],["hp",input.hpDamage]] as const){
@@ -32,18 +51,29 @@ export class BrDamageNumbers extends THREE.Group{
     this.entries=this.entries.filter(entry=>now-entry.updatedAt<BR_DAMAGE_NUMBER_LIFETIME_MS);
     for(let i=0;i<this.slots.length;i++){
       const slot=this.slots[i],entry=this.entries[i];slot.sprite.visible=Boolean(entry);if(!entry)continue;
-      const age=Math.max(0,now-entry.updatedAt),progress=Math.min(1,age/BR_DAMAGE_NUMBER_LIFETIME_MS);
-      const lateral=((hash(entry.targetId+entry.kind)%9)-4)*.055;
-      slot.sprite.position.set(entry.position.x+lateral,entry.position.y+2.1+progress*1.05,entry.position.z);
-      slot.sprite.material.opacity=Math.min(1,(1-progress)*1.45);
-      const scale=(entry.headshot?1.12:1)*(1+Math.sin(Math.min(1,age/120)*Math.PI)*.12);slot.sprite.scale.set(1.55*scale,.72*scale,1);
+      const layout=brDamageNumberLayout(entry,now);
+      // Independent bursts retain one lane per damage channel. Stack older
+      // same-target/channel entries instead of painting them on the fresh hit.
+      let newer=0;for(let j=i+1;j<this.entries.length;j++)if(this.entries[j].targetId===entry.targetId&&this.entries[j].kind===entry.kind)newer++;
+      slot.sprite.center.set(layout.centerX,.5);
+      slot.sprite.position.set(entry.position.x,entry.position.y+layout.rise+newer*.68,entry.position.z);
+      slot.sprite.material.opacity=layout.opacity;
+      slot.sprite.scale.set(1.55*layout.scale,.72*layout.scale,1);
       const key=`${Math.round(entry.amount)}:${entry.kind}:${entry.shieldBroken}:${entry.headshot}`;if(slot.key!==key){slot.key=key;this.paint(slot,entry);}
     }
   }
   clearNumbers():void{this.entries=[];for(const slot of this.slots)slot.sprite.visible=false;}
-  dispose():void{for(const slot of this.slots){slot.texture.dispose();slot.sprite.material.dispose();}this.clearNumbers();}
+  dispose():void{for(const slot of this.slots){slot.texture.dispose();slot.sprite.material.dispose();}this.clearNumbers();this.clear();this.slots.length=0;}
   private createSlot():Slot{const canvas=document.createElement("canvas");canvas.width=256;canvas.height=128;const context=canvas.getContext("2d")!;const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;const material=new THREE.SpriteMaterial({map:texture,transparent:true,depthTest:true,depthWrite:false,toneMapped:false});const sprite=new THREE.Sprite(material);sprite.visible=false;sprite.renderOrder=18;this.add(sprite);return{sprite,canvas,context,texture,key:""};}
-  private paint(slot:Slot,entry:BrDamageNumberEntry):void{const c=slot.context;c.clearRect(0,0,256,128);const text=`${entry.headshot?"✦ ":""}${Math.round(entry.amount)}`;c.textAlign="center";c.textBaseline="middle";c.font=`900 ${entry.headshot?70:62}px Arial`;c.lineJoin="round";c.strokeStyle="rgba(2,5,19,.95)";c.lineWidth=16;c.strokeText(text,128,63);c.fillStyle=entry.kind==="shield"?(entry.shieldBroken?"#d8fbff":"#63d8ff"):entry.headshot?"#ffd75a":"#ffffff";c.fillText(text,128,63);if(entry.shieldBroken){c.strokeStyle="#6ef5ff";c.lineWidth=3;c.beginPath();c.moveTo(56,102);c.lineTo(200,102);c.stroke();}slot.texture.needsUpdate=true;}
+  private paint(slot:Slot,entry:BrDamageNumberEntry):void{
+    const c=slot.context,layout=brDamageNumberLayout(entry,entry.updatedAt);c.clearRect(0,0,256,128);
+    c.textAlign="center";c.textBaseline="middle";c.font=`900 ${layout.fontSize}px Arial`;c.lineJoin="round";
+    c.strokeStyle="rgba(2,5,19,.95)";c.lineWidth=12;c.strokeText(layout.text,128,66,204);
+    c.fillStyle=layout.color;c.fillText(layout.text,128,66,204);
+    if(entry.headshot){c.beginPath();c.moveTo(128,8);c.lineTo(134,14);c.lineTo(128,20);c.lineTo(122,14);c.closePath();c.lineWidth=3;c.stroke();c.fill();}
+    // A broken-shield cue belongs to the shield channel only, even when the
+    // same confirmed impact also damages HP. Split underline avoids a solid bar.
+    if(entry.kind==="shield"&&entry.shieldBroken){c.strokeStyle="#6ef5ff";c.lineWidth=3;c.beginPath();c.moveTo(86,110);c.lineTo(119,110);c.moveTo(137,110);c.lineTo(170,110);c.stroke();}
+    slot.texture.needsUpdate=true;
+  }
 }
-
-function hash(value:string):number{let out=2166136261;for(let i=0;i<value.length;i++)out=Math.imul(out^value.charCodeAt(i),16777619);return out>>>0;}

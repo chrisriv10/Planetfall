@@ -1,8 +1,43 @@
 import { describe,expect,it } from "vitest";
-import { BR_BALANCE, BR_MAP_BLOCKS, BR_STRUCTURES } from "@planetfall/shared";
+import { BR_BALANCE, BR_LOOT_SOCKETS, BR_MAP_BLOCKS, BR_ROADS, BR_STRUCTURES, stepBrMovement, type BrMotionState } from "@planetfall/shared";
 import { BrPhysicsWorld } from "./br-physics.js";
 
 describe("Battle Royale Rapier world",()=>{
+  it("keeps a buffered stationary jump airborne through the first authoritative frames",()=>{
+    const physics=new BrPhysicsWorld();
+    try{
+      let motion:BrMotionState={position:{x:72,y:.035,z:72},velocity:{x:0,y:0,z:0},yaw:0,grounded:true,crouched:false,deployment:"grounded",downed:false,lastJumpSignal:false,lastCrouchSignal:false,slideEndsAt:0,traversalCooldownUntil:0,lastGroundedAt:0,jumpBufferedUntil:0};
+      let apex=motion.position.y;
+      for(let frame=0;frame<24;frame++){
+        const input={moveX:0,moveY:0,yaw:0,jump:frame===0,sprint:false,crouch:false};
+        motion=stepBrMovement(motion,input,1/60,frame*1000/60,(position,desired,options)=>physics.move("jump-regression",position,desired,options.jumping,options.crouched));
+        apex=Math.max(apex,motion.position.y);
+        if(frame<12)expect(motion.grounded,`frame ${frame}`).toBe(false);
+      }
+      expect(apex).toBeGreaterThan(1.15);
+      expect(motion.position.y).toBeGreaterThan(.45);
+    }finally{physics.dispose();}
+  });
+  it("walks every authored service-road grade onto its raised district deck",()=>{
+    for(const road of BR_ROADS.filter(entry=>entry.id.endsWith("-grade"))){
+      const physics=new BrPhysicsWorld();
+      try{
+        const horizontal=Math.hypot(road.from.x-road.to.x,road.from.z-road.to.z);
+        const direction={x:(road.from.x-road.to.x)/horizontal,z:(road.from.z-road.to.z)/horizontal};
+        // Begin on the feeder road just before the ramp. Starting exactly on
+        // the end cap places the capsule inside the thin oriented cuboid and
+        // tests depenetration rather than normal player traversal.
+        let feet={x:road.to.x-direction.x*1.2,y:.04,z:road.to.z-direction.z*1.2};
+        for(let step=0;step<900;step++){
+          const result=physics.move(`grade-${road.id}`,feet,{x:direction.x*.12,y:-.08,z:direction.z*.12},false);
+          feet={x:feet.x+result.movement.x,y:feet.y+result.movement.y,z:feet.z+result.movement.z};
+          if(Math.hypot(feet.x-road.from.x,feet.z-road.from.z)<2.2&&feet.y>road.from.y-.3)break;
+        }
+        expect(Math.hypot(feet.x-road.from.x,feet.z-road.from.z),road.id).toBeLessThan(2.2);
+        expect(feet.y,road.id).toBeGreaterThan(road.from.y-.3);
+      }finally{physics.dispose();}
+    }
+  });
   it.each(["comet-hotel-1","horizon-homes-1"])("climbs %s interior stairs onto the upper floor without jumping",(id)=>{
     const physics=new BrPhysicsWorld();
     try {
@@ -57,6 +92,18 @@ describe("Battle Royale Rapier world",()=>{
 
   it("uses the same colliders for weapon obstruction",()=>{
     const physics=new BrPhysicsWorld();const structure=BR_STRUCTURES[0];const distance=physics.rayDistance({x:structure.position.x-30,y:1,z:structure.position.z},{x:1,y:0,z:0},80);expect(distance).toBeGreaterThan(0);expect(distance).toBeLessThan(30);physics.dispose();
+  });
+
+  it("places every fixed loot socket just above a real gameplay support",()=>{
+    const physics=new BrPhysicsWorld();
+    try{
+      const invalid:string[]=[];
+      for(const socket of BR_LOOT_SOCKETS){
+        const support=physics.rayDistance(socket.position,{x:0,y:-1,z:0},2);
+        if(support<=.12||support>=.9)invalid.push(`${socket.id}:${support.toFixed(3)}`);
+      }
+      expect(invalid).toEqual([]);
+    }finally{physics.dispose();}
   });
 
   it("sweeps a falling capsule onto the main deck without tunneling",()=>{const physics=new BrPhysicsWorld();let feet={x:72,y:12,z:72};let grounded=false;for(let step=0;step<80&&!grounded;step++){const result=physics.move("drop",feet,{x:0,y:-.55,z:0},false);feet={x:feet.x+result.movement.x,y:feet.y+result.movement.y,z:feet.z+result.movement.z};grounded=result.grounded;}expect(grounded).toBe(true);expect(feet.y).toBeGreaterThanOrEqual(-.01);expect(feet.y).toBeLessThan(.12);physics.dispose();});

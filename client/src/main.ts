@@ -1,11 +1,12 @@
 import "./style.css";
-import { BALANCE, BR_MAP, BR_POIS, BR_SECONDARY_LOCATIONS, BR_WEAPONS, CHAOS_COPY, PLANET_PASS_REWARDS, SESSION_PROGRESSION, SHOP_CATALOG, WEAPON_COPY, WEAPON_ORDER, isBrWeapon, type BotDifficulty, type BrCrateState, type BrJoinResult, type BrLootState, type BrMatchResult, type BrPlayerState, type BrRoomView, type BrTeamMode, type ChaosModifier, type CosmeticCategory, type EmoteType, type GameFamily, type GameMode, type JoinResult, type MatchCalloutType, type MatchEvent, type MatchResult, type RoomView, type WeaponType } from "@planetfall/shared";
+import { BALANCE, BR_BALANCE, BR_HEALS, BR_MAP, BR_POIS, BR_SECONDARY_LOCATIONS, BR_WEAPONS, CHAOS_COPY, PLANET_PASS_REWARDS, SESSION_PROGRESSION, SHOP_CATALOG, WEAPON_COPY, WEAPON_ORDER, isBrWeapon, type BotDifficulty, type BrCrateState, type BrItemId, type BrJoinResult, type BrLootState, type BrMatchResult, type BrPlayerState, type BrRoomView, type BrTeamMode, type ChaosModifier, type CosmeticCategory, type EmoteType, type GameFamily, type GameMode, type JoinResult, type MatchCalloutType, type MatchEvent, type MatchResult, type RoomView, type WeaponType } from "@planetfall/shared";
 import { createGameSocket } from "./network";
 import { inputLabel, type InputMethod } from "./input";
 import { SETTINGS_STORAGE_KEY, parseStoredSettings, type UserSettings } from "./settings";
 import { brStormReadout } from "./modes/battle-royale/br-feedback";
 import { brMapPercent, createBrMapArt, updateBrMinimapArt } from "./modes/battle-royale/br-map-art";
 import { brPresentedTeammates, brTeammateStatus } from "./modes/battle-royale/br-team-presentation";
+import { brItemIconSvg, type BrItemArtId } from "./modes/battle-royale/br-item-art";
 
 const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const canvas = byId<HTMLCanvasElement>("game-canvas");
@@ -79,6 +80,7 @@ const brPlayerTarget = byId<HTMLSelectElement>("br-player-target");
 const brFillBots = byId<HTMLInputElement>("br-fill-bots");
 const brTeamList = byId("br-team-list");
 const brMapOverlay = byId<HTMLElement>("br-map-overlay");
+const brInventoryOverlay = byId<HTMLElement>("br-inventory-overlay");
 const brQuickPlay = byId<HTMLElement>("br-quick-play");
 const brQuickPlayers = byId<HTMLSelectElement>("br-quick-players");
 const brQuickDifficulty = byId<HTMLSelectElement>("br-quick-difficulty");
@@ -126,6 +128,12 @@ let lastMinuteCue = 0;
 let brInventoryMarkup = "";
 let brTeammateMarkup = "";
 let lastBrMapRenderAt = 0;
+let lastBrHudPlayer: BrPlayerState | null = null;
+let lastBrStormStage:BrRoomView["storm"]["stage"]|null=null;
+let lastBrStormPhase=-1;
+let lastBrOutsideVoid=false;
+let nextBrVoidCueAt=0;
+let brEventTimer=0;
 const brMiniTeammates = new Map<string, HTMLElement>();
 
 await game.init();
@@ -238,9 +246,9 @@ socket.on("br:crate:spawned", (crates) => { if (brGame) brGame.spawnCrates(crate
 socket.on("br:crate:opened", ({ crateId, drops }) => brGame?.openCrate(crateId, drops));
 socket.on("br:weapon:fired", (payload) => brGame?.weaponFired(payload));
 socket.on("br:player:damaged", (payload) => brGame?.damaged(payload));
-socket.on("br:player:downed", ({ playerId: targetId }) => appendBrFeed(`${brName(targetId)} was knocked`, "#ffd84d"));
+socket.on("br:player:downed", ({ playerId: targetId }) => {appendBrFeed(`${brName(targetId)} was knocked`, "#ffd84d");if(brTeammateEvent(targetId)){showBrEvent("TEAMMATE DOWN","danger");game.audio.callout(true);}});
 socket.on("br:player:revived", ({ playerId: targetId, reviverId }) => appendBrFeed(`${brName(reviverId)} revived ${brName(targetId)}`, "#63ef8b"));
-socket.on("br:player:eliminated", ({ playerId: targetId, attackerId, weaponId, placement }) => { brGame?.eliminated(targetId,placement); appendBrFeed(`${attackerId ? brName(attackerId) : "THE VOID"} eliminated ${brName(targetId)}${weaponId ? ` with ${BR_WEAPONS[weaponId].name}` : ""}`, "#ff6b8a"); });
+socket.on("br:player:eliminated", ({ playerId: targetId, attackerId, weaponId, placement }) => { brGame?.eliminated(targetId,placement); appendBrFeed(`${attackerId ? brName(attackerId) : "THE VOID"} eliminated ${brName(targetId)}${weaponId ? ` with ${BR_WEAPONS[weaponId].name}` : ""}`, "#ff6b8a");if(brTeammateEvent(targetId)){showBrEvent("TEAMMATE ELIMINATED","danger");game.audio.callout(true);} });
 socket.on("br:kill-feed", () => undefined);
 socket.on("br:ping", ({ playerId: sourceId, position }) => { const source = brRoom?.players.find((player) => player.id === sourceId); brGame?.showPing(source?.name ?? "Pilot", position, source?.color ?? "#70f5ff"); });
 socket.on("br:emote", ({ playerId: sourceId, emote, startedAt }) => { brGame?.playEmote(sourceId, emote, startedAt); showLobbyEmote(sourceId, emote, "battle-royale"); });
@@ -390,6 +398,15 @@ byId("br-pass-lobby").addEventListener("click", openPass);
 byId("br-settings-lobby").addEventListener("click", () => openSettings("screen"));
 byId("br-map-button").addEventListener("click", () => toggleBrMap(true));
 byId("br-map-close").addEventListener("click", () => toggleBrMap(false));
+byId("br-inventory-close").addEventListener("click", () => toggleBrInventory(false));
+byId("br-inventory-panel-slots").addEventListener("click", (event) => {
+  const button=(event.target as HTMLElement).closest<HTMLButtonElement>("button[data-slot]");
+  if(!button)return;
+  const slot=Number(button.dataset.slot);
+  if(!Number.isInteger(slot)||slot<0||slot>=5)return;
+  if(button.dataset.action==="drop")socket.emit("br:inventory:drop",{slot});
+  else socket.emit("br:inventory:select",{slot});
+});
 byId("br-return-lobby").addEventListener("click", () => socket.emit("br:match:return"));
 byId("br-shop-results").addEventListener("click", openShop);
 byId("br-leave").addEventListener("click", () => location.reload());
@@ -542,6 +559,7 @@ async function ensureBrGame(nextRoom: BrRoomView): Promise<BrGame> {
     instance.onInputMethod = renderInputUi;
     instance.onPause = () => togglePause();
     instance.onMap = (visible) => showBrMap(visible);
+    instance.onInventory = () => toggleBrInventory(Boolean(brInventoryOverlay.hidden));
     instance.onMenuNavigate = navigateUi;
     brGame = instance;
     if (import.meta.env.DEV) {
@@ -564,7 +582,7 @@ async function applyBrRoom(nextRoom: BrRoomView): Promise<void> {
   modifierReveal.classList.remove("visible"); countdown.textContent = ""; leaderboard.classList.remove("visible");
   renderInputUi(brGame?.getInputMethod() ?? game.getInputMethod());
   if (nextRoom.phase === "lobby") {
-    if (brGame && previousBrPhase && previousBrPhase !== "lobby") brGame.reset(); pendingBrLoot = []; pendingBrCrates = []; byId("br-kill-feed").replaceChildren(); brInventoryMarkup = ""; brTeammateMarkup = ""; for (const node of brMiniTeammates.values()) node.remove(); brMiniTeammates.clear(); game.setActive(false); showScreen("brLobby"); const instance = await ensureBrGame(nextRoom); instance.setRoom(nextRoom); renderBrLobby();
+    if (brGame && previousBrPhase && previousBrPhase !== "lobby") brGame.reset(); pendingBrLoot = []; pendingBrCrates = []; byId("br-kill-feed").replaceChildren(); brInventoryMarkup = ""; brTeammateMarkup = "";lastBrHudPlayer=null;lastBrStormStage=null;lastBrStormPhase=-1;lastBrOutsideVoid=false;nextBrVoidCueAt=0;byId("br-void-warning").hidden=true;byId("br-event-banner").hidden=true;for (const node of brMiniTeammates.values()) node.remove(); brMiniTeammates.clear(); game.setActive(false); showScreen("brLobby"); const instance = await ensureBrGame(nextRoom); instance.setRoom(nextRoom); renderBrLobby();
     if (!shopOverlay.hidden) renderShop(); if (!passOverlay.hidden) renderPass();
     return;
   }
@@ -622,6 +640,7 @@ function configureBr(payload: { teamMode?: BrTeamMode; targetPlayers?: 10 | 20 |
 
 function renderBrHud(state: import("./modes/battle-royale/br-game").BrHudState): void {
   const { player } = state;
+  lastBrHudPlayer=player;
   const hud=byId("br-hud");const eliminated=!player.alive&&state.phase==="combat";hud.classList.toggle("eliminated",eliminated);
   const eliminationSummary=byId("br-elimination-summary");eliminationSummary.hidden=!eliminated;
   if(eliminated){
@@ -632,6 +651,17 @@ function renderBrHud(state: import("./modes/battle-royale/br-game").BrHudState):
   byId("br-players-remaining").textContent = `${state.playersRemaining} PLAYERS`; byId("br-teams-remaining").textContent = `${state.teamsRemaining} TEAMS`; byId("br-elims").textContent = `${player.kills} ELIMS`;
   byId("br-hp").textContent = String(Math.ceil(player.hp)); byId("br-shield").textContent = String(Math.ceil(player.shield)); byId<HTMLElement>("br-hp-meter").style.width = `${player.hp}%`; byId<HTMLElement>("br-shield-meter").style.width = `${player.shield}%`;
   const stormReadout=brStormReadout(state.phase,state.storm,Date.now());byId("br-storm-timer").textContent=stormReadout.time;byId("br-storm-copy").textContent=stormReadout.label;
+  const nowWall=Date.now();
+  const outsideVoid=state.phase==="combat"&&player.alive&&Math.hypot(player.position.x-state.storm.center.x,player.position.z-state.storm.center.z)>state.storm.radius;
+  const voidWarning=byId("br-void-warning");voidWarning.hidden=!outsideVoid;byId("br-void-damage").textContent=`${state.storm.damagePerSecond} HP / SEC`;
+  voidWarning.classList.toggle("urgent",state.storm.damagePerSecond>=5);
+  if(outsideVoid&&!lastBrOutsideVoid){showBrEvent("IN THE VOID","danger");game.audio.brVoid(state.storm.damagePerSecond>=5);nextBrVoidCueAt=nowWall+8000;}
+  else if(outsideVoid&&nowWall>=nextBrVoidCueAt){game.audio.brVoid(state.storm.damagePerSecond>=5);nextBrVoidCueAt=nowWall+8000;}
+  if(state.phase==="combat"&&lastBrStormStage!==null&&state.storm.stage!==lastBrStormStage){if(state.storm.stage==="closing"){showBrEvent(state.storm.phaseIndex>=4?"FINAL VOID CLOSING":"VOID CLOSING",state.storm.phaseIndex>=4?"danger":"storm");game.audio.brEvent(state.storm.phaseIndex>=4?"final":"closing");}else if(state.storm.stage==="waiting"){showBrEvent("SAFE ZONE UPDATED","safe");game.audio.brEvent("safe");}}
+  if(state.phase==="combat"&&lastBrStormPhase>=0&&state.storm.phaseIndex>lastBrStormPhase&&state.storm.phaseIndex>=4){showBrEvent("FINAL ZONE","danger");game.audio.brEvent("final");}
+  lastBrOutsideVoid=outsideVoid;lastBrStormStage=state.storm.stage;lastBrStormPhase=state.storm.phaseIndex;
+  const altitude=byId("br-altitude");altitude.hidden=!state.dropAltitude;
+  if(state.dropAltitude){const drop=state.dropAltitude;byId("br-altitude-state").textContent=drop.deployment==="chute"?"ION WINGS":"FREEFALL";byId("br-altitude-value").textContent=`${Math.round(drop.meters)}m`;byId("br-altitude-speed").textContent=`↓ ${Math.round(Math.abs(Math.min(0,drop.verticalSpeed)))} m/s`;byId<HTMLElement>("br-altitude-marker").style.bottom=`${Math.max(2,Math.min(96,drop.meters/Math.max(1,BR_BALANCE.shipHeight)*94))}%`;byId<HTMLElement>("br-altitude-deploy").style.bottom=`${Math.max(2,Math.min(96,BR_BALANCE.autoDeployHeight/Math.max(1,BR_BALANCE.shipHeight)*94))}%`;}
   const mini = byId("br-minimap"); const miniStorm = mini.querySelector<HTMLElement>(".br-mini-storm")!; const span = 110; updateBrMinimapArt(mini,player.position.x,player.position.z,span); miniStorm.style.left = `${50 + (state.storm.center.x - player.position.x) / span * 50}%`; miniStorm.style.top = `${50 + (state.storm.center.z - player.position.z) / span * 50}%`; miniStorm.style.width = `${state.storm.radius / span * 100}%`; miniStorm.style.height = miniStorm.style.width;
   const teamMembers = brPresentedTeammates(state.teamMode, player, state.players);
   byId("br-map-legend").textContent=state.teamMode==="solo"?"YOU · SAFE ZONE":"YOU · TEAM · SAFE ZONE";
@@ -655,6 +685,8 @@ function renderBrHud(state: import("./modes/battle-royale/br-game").BrHudState):
   brContextPrompt.dataset.kind="action";brContextCopy.textContent=contextText;brContextPrompt.hidden=!contextText;brContextProgress.style.width=`${contextAmount*100}%`;
   const inventory = byId("br-inventory"); const nextInventoryMarkup = brInventoryMarkupFor(player);
   if (nextInventoryMarkup !== brInventoryMarkup) { brInventoryMarkup = nextInventoryMarkup; inventory.innerHTML = nextInventoryMarkup; }
+  renderBrLootCard(state.targetedLoot);
+  if(!brInventoryOverlay.hidden)renderBrInventoryPanel(player);
   const nextTeammateMarkup = teamMembers.map((mate) => { const status=brTeammateStatus(mate);return `<div class="br-teammate ${status}" style="--mate-color:${mate.color}"><i></i><b>${escapeHtml(mate.name)}</b><span>${status.toUpperCase()}</span><label>HP<em style="--value:${Math.max(0,mate.hp)}%"></em></label><label>SHIELD<em style="--value:${Math.max(0,mate.shield)}%"></em></label></div>`; }).join("");
   if (nextTeammateMarkup !== brTeammateMarkup) { brTeammateMarkup = nextTeammateMarkup; const teamHud=byId("br-team-hud");teamHud.innerHTML=nextTeammateMarkup;teamHud.hidden=state.teamMode==="solo"||teamMembers.length===0; }
   const now = performance.now(); if (!brMapOverlay.hidden && now - lastBrMapRenderAt > 120) { lastBrMapRenderAt = now; renderBrMap(player); }
@@ -673,21 +705,52 @@ function showBrResults(result: BrMatchResult): void {
 }
 
 function appendBrFeed(message: string, color: string): void { if(currentScreen!=="brHud")return;const row = document.createElement("div"); row.className = "br-feed-row"; row.style.setProperty("--feed-color", color); row.textContent = message; byId("br-kill-feed").prepend(row); while (byId("br-kill-feed").children.length > 4) byId("br-kill-feed").lastElementChild?.remove(); setTimeout(() => row.remove(), 5200); }
+function showBrEvent(message:string,tone:"safe"|"storm"|"danger"):void{if(currentScreen!=="brHud")return;const banner=byId("br-event-banner");banner.textContent=message;banner.dataset.tone=tone;banner.hidden=false;banner.classList.remove("visible");void banner.offsetWidth;banner.classList.add("visible");clearTimeout(brEventTimer);brEventTimer=window.setTimeout(()=>{banner.classList.remove("visible");banner.hidden=true;},2400);}
 function brName(id: string): string { return brRoom?.players.find((player) => player.id === id)?.name ?? "A pilot"; }
+function brTeammateEvent(id:string):boolean{const me=brRoom?.players.find(player=>player.id===playerId),target=brRoom?.players.find(player=>player.id===id);return Boolean(me&&target&&target.id!==me.id&&target.teamId===me.teamId);}
 function ordinal(value: number): string { const mod100 = value % 100; return `${value}${mod100 >= 11 && mod100 <= 13 ? "TH" : value % 10 === 1 ? "ST" : value % 10 === 2 ? "ND" : value % 10 === 3 ? "RD" : "TH"}`; }
 
 function brInventoryMarkupFor(player: BrPlayerState): string {
   return player.inventory.map((item, index) => {
     const color = item ? ({ common: "#b8c4dc", rare: "#54b8ff", epic: "#c565ff", legendary: "#ffc84f" }[item.rarity]) : "#56617f";
-    const name = item ? isBrWeapon(item.itemId) ? BR_WEAPONS[item.itemId].name : item.itemId.replaceAll("-", " ").toUpperCase() : "EMPTY";
+    const name = item ? brItemName(item.itemId) : "EMPTY";
     const ammo = item && isBrWeapon(item.itemId) ? item.itemId === "energy-saber" ? "∞" : `${item.magazine} / ${BR_WEAPONS[item.itemId].ammo ? player.ammo[BR_WEAPONS[item.itemId].ammo!] : 0}` : item ? `×${item.count}` : "";
-    const icon = item ? isBrWeapon(item.itemId) ? item.itemId : item.itemId.startsWith("shield") ? "shield" : "heal" : "empty";
-    return `<div class="br-slot${index === player.selectedSlot ? " selected" : ""}" data-item="${icon}" style="--slot-color:${color}"><i aria-hidden="true"></i><b>${index + 1} · ${name}</b><small>${ammo}</small></div>`;
+    const art = item ? brItemIconSvg(item.itemId) : '<span class="br-empty-slot" aria-hidden="true">+</span>';
+    return `<div class="br-slot${index === player.selectedSlot ? " selected" : ""}" style="--slot-color:${color}"><span class="br-slot-key">${index+1}</span><span class="br-slot-art">${art}</span><b>${name}</b><small>${ammo}</small></div>`;
   }).join("");
 }
 
+function brItemName(itemId:BrItemId):string{return isBrWeapon(itemId)?BR_WEAPONS[itemId].name:BR_HEALS[itemId].name;}
+function brLootArtId(loot:BrLootState):BrItemArtId|null{return loot.itemId??(loot.ammoType?`ammo-${loot.ammoType}`:null);}
+function brLootName(loot:BrLootState):string{return loot.itemId?brItemName(loot.itemId):loot.ammoType?`${loot.ammoType.toUpperCase()} CELLS`:"UNKNOWN LOOT";}
+function brLootDescription(loot:BrLootState):string{
+  if(loot.ammoType)return `AMMO · ×${loot.count}`;
+  if(!loot.itemId)return `×${loot.count}`;
+  if(isBrWeapon(loot.itemId)){const weapon=BR_WEAPONS[loot.itemId];return `${weapon.role.toUpperCase()} · ${weapon.damage} DMG · ${weapon.range}m`;}
+  const heal=BR_HEALS[loot.itemId];return `${heal.hp?`+${heal.hp} HP`:`+${heal.shield} SHIELD`} · ${(heal.durationMs/1000).toFixed(heal.durationMs%1000?1:0)}s USE`;
+}
+function renderBrLootCard(loot:BrLootState|null):void{
+  const card=byId("br-loot-card");card.hidden=!loot;if(!loot)return;
+  const artId=brLootArtId(loot);const rarity=loot.rarity.toUpperCase();
+  card.style.setProperty("--loot-rarity",({common:"#b8c4dc",rare:"#54b8ff",epic:"#c565ff",legendary:"#ffc84f"} as const)[loot.rarity]);
+  card.innerHTML=`<span class="br-loot-art">${artId?brItemIconSvg(artId):""}</span><div><small>${rarity}</small><strong>${escapeHtml(brLootName(loot))}</strong><p>${escapeHtml(brLootDescription(loot))}</p></div><kbd>E</kbd>`;
+}
+function renderBrInventoryPanel(player:BrPlayerState):void{
+  byId("br-inventory-panel-slots").innerHTML=player.inventory.map((item,index)=>{
+    const color=item?({common:"#b8c4dc",rare:"#54b8ff",epic:"#c565ff",legendary:"#ffc84f"} as const)[item.rarity]:"#56617f";
+    const ammo=item&&isBrWeapon(item.itemId)?item.itemId==="energy-saber"?"No ammo required":`${item.magazine} loaded · ${BR_WEAPONS[item.itemId].ammo?player.ammo[BR_WEAPONS[item.itemId].ammo!]:0} reserve`:item?`${item.count} carried`:"Available slot";
+    return `<article class="br-inventory-panel-slot${index===player.selectedSlot?" selected":""}" style="--slot-color:${color}"><span>${item?brItemIconSvg(item.itemId):'<i aria-hidden="true">+</i>'}</span><div><small>SLOT ${index+1}${item?` · ${item.rarity.toUpperCase()}`:""}</small><strong>${item?escapeHtml(brItemName(item.itemId)):"EMPTY"}</strong><p>${ammo}</p></div><button type="button" data-slot="${index}" data-action="equip" ${item?"":"disabled"}>EQUIP</button><button type="button" data-slot="${index}" data-action="drop" ${item?"":"disabled"}>DROP</button></article>`;
+  }).join("");
+}
+function toggleBrInventory(visible:boolean):void{
+  if(currentScreen!=="brHud")visible=false;
+  if(visible&&!brMapOverlay.hidden)toggleBrMap(false);
+  brInventoryOverlay.hidden=!visible;captureUi(visible);game.audio.brEvent("inventory");
+  if(visible){if(lastBrHudPlayer)renderBrInventoryPanel(lastBrHudPlayer);focusFirst(brInventoryOverlay);}else focusFirst(screens[currentScreen]);
+}
+
 function showBrMap(visible: boolean): void { brMapOverlay.hidden = !visible; if (visible) { const me = brRoom?.players.find((player) => player.id === playerId); if (me) renderBrMap(me); focusFirst(brMapOverlay); } else focusFirst(screens[currentScreen]); }
-function toggleBrMap(visible: boolean): void { brGame?.setMapVisible(visible); showBrMap(visible); }
+function toggleBrMap(visible: boolean): void { if(visible&&!brInventoryOverlay.hidden)toggleBrInventory(false);brGame?.setMapVisible(visible); showBrMap(visible); }
 function renderBrMap(player: BrRoomView["players"][number]): void {
   const map = byId("br-map-canvas"); const toPercent = brMapPercent;
   const secondary=BR_SECONDARY_LOCATIONS.map((location)=>{const dot=document.createElement("i");dot.className="br-map-secondary";dot.style.left=`${toPercent(location.position.x)}%`;dot.style.top=`${toPercent(location.position.z)}%`;dot.title=location.name;return dot;});
@@ -1094,6 +1157,7 @@ function showFirstMatchControls(): void {
 
 function navigateUi(action: "up" | "down" | "left" | "right" | "confirm" | "back"): void {
   if (action === "back") {
+    if (!brInventoryOverlay.hidden) return toggleBrInventory(false);
     if (!brMapOverlay.hidden) return toggleBrMap(false);
     if (!shopOverlay.hidden) return closeShop();
     if (!passOverlay.hidden) return closePass();
@@ -1102,7 +1166,7 @@ function navigateUi(action: "up" | "down" | "left" | "right" | "confirm" | "back
     if (currentScreen === "lobby" || currentScreen === "brLobby") location.reload();
     return;
   }
-  const root = !brMapOverlay.hidden ? brMapOverlay : !shopOverlay.hidden ? shopOverlay : !passOverlay.hidden ? passOverlay : !settingsOverlay.hidden ? settingsOverlay : !pauseOverlay.hidden ? pauseOverlay : screens[currentScreen];
+  const root = !brInventoryOverlay.hidden ? brInventoryOverlay : !brMapOverlay.hidden ? brMapOverlay : !shopOverlay.hidden ? shopOverlay : !passOverlay.hidden ? passOverlay : !settingsOverlay.hidden ? settingsOverlay : !pauseOverlay.hidden ? pauseOverlay : screens[currentScreen];
   const elements = [...root.querySelectorAll<HTMLElement>("button:not([disabled]):not([hidden]), input[type='range'], input[type='checkbox'], select")]
     .filter((element) => element.offsetParent !== null);
   if (!settingsOpenButton.hidden&&root===screens[currentScreen]) elements.push(settingsOpenButton);
@@ -1136,7 +1200,7 @@ function focusFirst(root: HTMLElement): void {
 }
 
 function focusableElements(root:HTMLElement):HTMLElement[]{return [...root.querySelectorAll<HTMLElement>("button:not([disabled]):not([hidden]), input:not([disabled]):not([hidden]), select:not([disabled]):not([hidden]), [tabindex]:not([tabindex='-1'])")].filter(element=>element.offsetParent!==null);}
-function activeOverlay():HTMLElement|null{return !brQuickPlay.hidden?brQuickPlay:!brMapOverlay.hidden?brMapOverlay:!shopOverlay.hidden?shopOverlay:!passOverlay.hidden?passOverlay:!settingsOverlay.hidden?settingsOverlay:!pauseOverlay.hidden?pauseOverlay:null;}
+function activeOverlay():HTMLElement|null{return !brQuickPlay.hidden?brQuickPlay:!brInventoryOverlay.hidden?brInventoryOverlay:!brMapOverlay.hidden?brMapOverlay:!shopOverlay.hidden?shopOverlay:!passOverlay.hidden?passOverlay:!settingsOverlay.hidden?settingsOverlay:!pauseOverlay.hidden?pauseOverlay:null;}
 
 function setGameMode(mode: GameMode): void {
   if (!room || room.hostId !== playerId || room.phase !== "lobby" || room.gameMode === mode) return;

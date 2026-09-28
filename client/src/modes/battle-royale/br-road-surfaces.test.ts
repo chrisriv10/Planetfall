@@ -14,6 +14,15 @@ describe("BR visible road spans", () => {
   });
 
   it("leaves unobstructed roads intact", () => {
-    expect(buildBrVisibleRoadSpans(road, [])).toEqual([expect.objectContaining({ startT: 0, endT: 1, from: {x:road.from.x,z:road.from.z}, to: {x:road.to.x,z:road.to.z} })]);
+    expect(buildBrVisibleRoadSpans(road, [])).toEqual([expect.objectContaining({ startT: 0, endT: 1, from: road.from, to: road.to })]);
+  });
+
+  it("preserves authored grade heights when a road is clipped",()=>{
+    const graded={...road,from:{x:-20,y:5,z:0},to:{x:20,y:1,z:0}};
+    const spans=buildBrVisibleRoadSpans(graded,[structure],0);
+    expect(spans[0].from.y).toBe(5);
+    expect(spans[0].to.y).toBeCloseTo(3.9);
+    expect(spans[1].from.y).toBeCloseTo(2.1);
+    expect(spans[1].to.y).toBe(1);
   });
 });

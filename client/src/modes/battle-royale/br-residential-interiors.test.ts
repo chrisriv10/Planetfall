@@ -3,6 +3,49 @@ import { BR_STRUCTURES, BR_LOOT_SOCKETS, BR_MAP_BLOCKS } from "@planetfall/share
 import { buildResidentialInterior, buildResidentialCeiling, buildResidentialLandingMarkers, buildResidentialServiceWall, buildResidentialEntranceWall, buildResidentialRampSkins } from "./br-residential-interiors";
 
 describe("residential lounge dressing",()=>{
+  it("composes the hotel review lounge as separated chairs/table and a leg-supported reception counter",()=>{
+    const hotel=BR_STRUCTURES.find(s=>s.id==="comet-hotel-1")!;
+    const result=buildResidentialInterior(hotel),before=JSON.stringify(hotel);
+    expect(buildResidentialInterior(hotel)).toEqual(result);
+    const chairs=result.parts.filter(part=>part.role==="lounge-chair");
+    const tables=result.parts.filter(part=>part.role==="lounge-table");
+    const counter=result.parts.filter(part=>part.role==="reception-counter");
+    expect(chairs.length).toBeGreaterThanOrEqual(14);
+    expect(tables.length).toBeGreaterThanOrEqual(2);
+    expect(counter).toHaveLength(7);
+    expect(result.signs.some(sign=>sign.text==="CHECK IN")).toBe(true);
+    expect(result.parts.filter(part=>part.role==="wall-trim").length).toBeGreaterThanOrEqual(2);
+    for(const chair of chairs){
+      expect(chair.scale.z).toBeLessThanOrEqual(1.04);
+      for(const table of tables){
+        const intersects=Math.abs(chair.position.x-table.position.x)<(chair.scale.x+table.scale.x)/2&&
+          Math.abs(chair.position.y-table.position.y)<(chair.scale.y+table.scale.y)/2&&
+          Math.abs(chair.position.z-table.position.z)<(chair.scale.z+table.scale.z)/2;
+        expect(intersects).toBe(false);
+      }
+    }
+    const legs=counter.filter(part=>part.scale.y===1.07);
+    expect(legs).toHaveLength(2);
+    for(const leg of legs)expect(leg.position.y-leg.scale.y/2).toBeCloseTo(.36);
+    const frame=counter.find(part=>part.scale.z===2.72)!;
+    expect(legs.every(leg=>leg.position.y+leg.scale.y/2>frame.position.y-frame.scale.y/2)).toBe(true);
+    const top=counter.find(part=>part.scale.z===2.56)!;
+    expect(top.position.y-top.scale.y/2).toBeCloseTo(frame.position.y+frame.scale.y/2);
+    expect(JSON.stringify(hotel)).toBe(before);
+  });
+  it("supports every new hotel furniture footprint on real slabs without bridging a stair opening",()=>{
+    for(const hotel of BR_STRUCTURES.filter(s=>s.archetype==="hotel"&&s.enterable)){
+      for(const part of buildResidentialInterior(hotel).parts.filter(part=>part.role)){
+        const slabs=BR_MAP_BLOCKS.filter(block=>block.id.startsWith(`${hotel.id}-`)&&block.kind==="platform"&&!block.id.endsWith("-roof"));
+        const below=slabs.filter(slab=>slab.position.y+slab.size.y/2<=part.position.y-part.scale.y/2+1e-8&&
+          Math.abs(part.position.x-slab.position.x)+part.scale.x/2<=slab.size.x/2&&
+          Math.abs(part.position.z-slab.position.z)+part.scale.z/2<=slab.size.z/2);
+        expect(below.length,`${hotel.id}: ${part.role}`).toBeGreaterThan(0);
+        const floor=Math.max(...below.map(slab=>slab.position.y+slab.size.y/2));
+        expect(part.position.y+part.scale.y/2-floor).toBeLessThan(hotel.size.y/hotel.floors-.3);
+      }
+    }
+  });
   it("mounts numbered landing markers on real back walls, clear of stairs and ceilings",()=>{
     let markers=0;
     for(const s of BR_STRUCTURES) {

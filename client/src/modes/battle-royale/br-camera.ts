@@ -1,4 +1,4 @@
-import type { Vec3 } from "@planetfall/shared";
+import type { BrWeaponId, Vec3 } from "@planetfall/shared";
 
 export type BrCameraMode = "grounded" | "aiming" | "freefall" | "chute" | "downed" | "spectator";
 
@@ -16,6 +16,27 @@ export interface BrCameraGeometry extends BrCameraPreset {
   aimDirection: Vec3;
   horizontalForward: Vec3;
   right: Vec3;
+}
+
+export interface BrShipLookState { yaw: number; initialized: boolean; }
+export interface BrAimProfile { fov:number; sensitivity:number; scope:"rail"|"pulse"|null; }
+
+/** Original Planetfall optics: the precision rail optic is a true scope while
+ * the Pulse Rifle gets a lighter reflex zoom. Other weapons retain shoulder ADS. */
+export function brAimProfile(weaponId:BrWeaponId|null,aiming:boolean):BrAimProfile {
+  if(!aiming)return {fov:70,sensitivity:1,scope:null};
+  if(weaponId==="rail-laser")return {fov:36,sensitivity:.42,scope:"rail"};
+  if(weaponId==="pulse-rifle")return {fov:52,sensitivity:.68,scope:"pulse"};
+  return {fov:62,sensitivity:.82,scope:null};
+}
+
+/** Route-facing yaw is only a starting suggestion. Once initialized, the
+ * pilot owns the camera and mouse/right-stick look must never be overwritten
+ * by the moving transport. */
+export function brShipLookState(currentYaw:number,route:{x:number;z:number},initialized:boolean):BrShipLookState {
+  if(initialized)return{yaw:currentYaw,initialized:true};
+  const length=Math.hypot(route.x,route.z);
+  return {yaw:length>.0001?Math.atan2(route.x/length,-route.z/length):currentYaw,initialized:true};
 }
 
 const PRESETS: Record<BrCameraMode, BrCameraPreset> = {

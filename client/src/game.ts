@@ -2143,6 +2143,19 @@ export class PlanetfallGame {
     }
 
     this.trajectory.visible = false;
+    // Launch pads are escape-critical traversal. Give the pad priority over a
+    // nearby defender or overlapping enemy structure so an invader cannot be
+    // trapped by another astronaut standing on the interaction point.
+    const launchPad = this.nearbyLaunchPad();
+    if (launchPad) {
+      const cooldown = Math.max(0, (local.state.launchCooldownUntil - Date.now()) / 1000);
+      const boostCost=BALANCE.utilities.launchBoost.cost;
+      const boost = local.state.launchBoostUntil > Date.now() ? "BOOST READY"
+        : local.state.scrap<boostCost?`NEED ${boostCost-local.state.scrap} SCRAP FOR BOOST`
+          : `${this.label("repair")}  BOOST ${boostCost}`;
+      this.onPrompt?.(cooldown > 0 ? `LAUNCH READY IN ${cooldown.toFixed(1)}s  ·  ${boost}` : `${this.label("interact")}  LAUNCH  ·  ${boost}`, false, undefined, cooldown > 0 ? "cooldown" : "launch");
+      return;
+    }
     const shoveTarget = this.nearbyPlayer();
     if (shoveTarget) {
       const cooldown = Math.max(0, (local.state.shoveCooldownUntil - Date.now()) / 1000);
@@ -2161,17 +2174,6 @@ export class PlanetfallGame {
       }
       return;
     }
-    const launchPad = this.nearbyLaunchPad();
-    if (launchPad) {
-      const cooldown = Math.max(0, (local.state.launchCooldownUntil - Date.now()) / 1000);
-      const boostCost=BALANCE.utilities.launchBoost.cost;
-      const boost = local.state.launchBoostUntil > Date.now() ? "BOOST READY"
-        : local.state.scrap<boostCost?`NEED ${boostCost-local.state.scrap} SCRAP FOR BOOST`
-          : `${this.label("repair")}  BOOST ${boostCost}`;
-      this.onPrompt?.(cooldown > 0 ? `LAUNCH READY IN ${cooldown.toFixed(1)}s  ·  ${boost}` : `${this.label("interact")}  LAUNCH  ·  ${boost}`, false, undefined, cooldown > 0 ? "cooldown" : "launch");
-      return;
-    }
-
     const nearCannon = this.nearOwnCannon();
     const nearRepair = distance(plain(this.localPosition), repairPosition(ownPlanet.state)) < BALANCE.repair.range;
     if (nearCannon && ownPlanet.state.cannonDisabledUntil > Date.now()) {
@@ -2232,6 +2234,21 @@ export class PlanetfallGame {
       this.cancelLaunchAim();
       return;
     }
+    const pad = this.nearbyLaunchPad();
+    const local = this.players.get(this.localId);
+    const now = Date.now();
+    if (pad && local) {
+      const target = this.selectLaunchTarget(pad.state.id);
+      if (local.state.launchCooldownUntil <= now && target) {
+        this.launchAiming = true;
+        this.launchSourcePlanetId = pad.state.id;
+        this.launchTargetPlanetId = target.state.id;
+        this.launchTargetOffset = 0;
+        this.launchTargetCycled = false;
+        this.audio.click();
+      } else this.audio.denied();
+      return;
+    }
     const shoveTarget = this.nearbyPlayer();
     if (shoveTarget) {
       const localPlayer = this.players.get(this.localId);
@@ -2245,9 +2262,7 @@ export class PlanetfallGame {
       this.onInteract?.({ action: "sabotage", planetId: structure.planet.state.id, structure: structure.structure, active: true });
       return;
     }
-    const local = this.players.get(this.localId);
     const ownPlanet = local ? this.planets.get(local.state.planetId) : undefined;
-    const now = Date.now();
     if (local && ownPlanet && this.nearOwnCannon()) {
       if (local.state.overchargeUntil <= now && local.state.scrap >= BALANCE.utilities.overcharge.cost && ownPlanet.state.cannonDisabledUntil <= now) {
         this.onInteract?.({ action: "utility", planetId: ownPlanet.state.id, utility: "overcharge" });
@@ -2260,18 +2275,6 @@ export class PlanetfallGame {
         this.onInteract?.({ action: "utility", planetId: ownPlanet.state.id, utility: "shield" });
       } else this.audio.denied();
       return;
-    }
-    const pad = this.nearbyLaunchPad();
-    if (pad && local) {
-      const target = this.selectLaunchTarget(pad.state.id);
-      if (local.state.launchCooldownUntil <= now && target) {
-        this.launchAiming = true;
-        this.launchSourcePlanetId = pad.state.id;
-        this.launchTargetPlanetId = target.state.id;
-        this.launchTargetOffset = 0;
-        this.launchTargetCycled = false;
-        this.audio.click();
-      } else this.audio.denied();
     }
   }
 

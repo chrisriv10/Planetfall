@@ -120,6 +120,20 @@ export class GameAudio {
   slide():void { this.noise(.17,.03,540); }
   mantle():void { this.noise(.07,.023,420);this.tone(145,.08,"triangle",.016,95); }
   wings():void { this.tone(280,.28,"sine",.04,840);this.noise(.16,.025,1600); }
+  brJumpShip():void { this.duckMusic(220,.2);this.noise(.18,.03,980);this.tone(150,.24,"sawtooth",.028,410); }
+  brReload(weapon:string):void {
+    const heavy=weapon==="photon-shotgun"||weapon==="plasma-launcher"||weapon==="rail-laser";
+    this.tone(heavy?170:260,.07,"square",.018,heavy?120:340);
+    setTimeout(()=>this.tone(heavy?310:470,.09,"triangle",.02,heavy?520:690),95);
+  }
+  brEmpty():void { this.tone(92,.045,"square",.018,72);setTimeout(()=>this.tone(76,.035,"square",.012,68),54); }
+  brUseItem(shield=false):void { this.tone(shield?520:330,.2,"sine",.025,shield?910:540);this.noise(.06,.012,shield?1450:760); }
+  brVoid(urgent=false):void { this.duckMusic(urgent?420:260,urgent?.34:.2);this.tone(urgent?118:175,urgent?.28:.2,"sawtooth",urgent?.04:.027,urgent?72:112);setTimeout(()=>this.tone(urgent?96:148,.16,"triangle",urgent?.03:.02,urgent?64:105),150); }
+  brEvent(kind:"closing"|"safe"|"final"|"inventory"):void {
+    if(kind==="inventory"){this.tone(420,.055,"triangle",.018,610);return;}
+    const notes=kind==="final"?[155,116]:kind==="closing"?[310,235]:[440,620];
+    notes.forEach((note,index)=>setTimeout(()=>this.tone(note,.13,kind==="final"?"sawtooth":"triangle",kind==="final"?.035:.024,note*.82),index*105));
+  }
   critical(): void { this.tone(160, .16, "triangle", .035, 105); setTimeout(() => this.tone(130, .18, "triangle", .03, 82), 190); }
   rocket(): void { this.noise(0.18, 0.14, 600); this.tone(95, 0.18, "sawtooth", 0.07, 45); }
   asteroid(): void { this.duckMusic(520, .62); this.noise(0.28, 0.19, 320); this.tone(64, 0.3, "square", 0.08, 38); }

@@ -1,4 +1,4 @@
-import { BR_MAP_BLOCKS, type BrMapBlock, type BrStructure, type Vec3 } from "@planetfall/shared";
+import { BR_LOOT_SOCKETS, BR_MAP_BLOCKS, type BrMapBlock, type BrStructure, type Vec3 } from "@planetfall/shared";
 
 export type RetailFinish = "frame" | "panel" | "glass" | "light" | "accent";
 export type RetailPart = { finish: RetailFinish; position: Vec3; scale: Vec3 };
@@ -26,11 +26,29 @@ export function buildRetailInterior(structure: BrStructure, blocks: readonly BrM
     const pitch = usable / count, width = Math.min(7.6, pitch - .5);
     for (let bay = 0; bay < count; bay++) {
       const lateral = (alongX ? wall.position.x : wall.position.z) - usable / 2 + pitch * (bay + .5);
+      // A divider exists on EACH storey. Bind to the slab under this particular
+      // bay instead of drawing every level at ground-floor absolute heights.
+      const wallBase=wall.position.y-wall.size.y/2,wallTop=wall.position.y+wall.size.y/2;
+      const center=alongX?{x:lateral,z:face+sign*.35}:{x:face+sign*.35,z:lateral};
+      const footprint=alongX?{x:width+.1,z:.7}:{x:.7,z:width+.1};
+      const floor=blocks.find(block=>block.id.startsWith(`${structure.id}-`)&&block.kind==="platform"&&!block.rotation
+        &&!block.id.endsWith("-roof")&&block.position.y+block.size.y/2>=wallBase-.001
+        &&block.position.y+block.size.y/2<=wallBase+.5
+        &&Math.abs(center.x-block.position.x)+footprint.x/2<=block.size.x/2
+        &&Math.abs(center.z-block.position.z)+footprint.z/2<=block.size.z/2);
+      if(!floor)continue; // No display spanning a real stairwell opening.
+      const baseY=structure.position.y;
+      const floorY=floor.position.y+floor.size.y/2-baseY;
+      const wallTopLocal=wallTop-baseY;
+      const verticalScale=Math.min(1,(wallTopLocal-floorY-.07)/3.72);
+      if(verticalScale<.8)continue;
+      const kitY=(height:number)=>floorY+.02+(height-.21)*verticalScale;
+      const bayParts:RetailPart[]=[];
       const at = (dx: number, y: number, distance: number): Vec3 => alongX
-        ? { x: lateral + dx, y, z: face + sign * distance }
-        : { x: face + sign * distance, y, z: lateral + dx };
+        ? { x: lateral + dx, y:kitY(y), z: face + sign * distance }
+        : { x: face + sign * distance, y:kitY(y), z: lateral + dx };
       const add = (finish: RetailFinish, dx: number, y: number, distance: number, sx: number, sy: number, sz: number) =>
-        parts.push({finish,position:at(dx,y,distance),scale:alongX?{x:sx,y:sy,z:sz}:{x:sz,y:sy,z:sx}});
+        bayParts.push({finish,position:at(dx,y,distance),scale:alongX?{x:sx,y:sy*verticalScale,z:sz}:{x:sz,y:sy*verticalScale,z:sx}});
       add("frame",0,2.07,.08,width,3.72,.14);
       add("panel",0,.57,.3,width-.18,.65,.45);
       add("glass",0,2.1,.17,width-.6,2.1,.12);
@@ -48,6 +66,20 @@ export function buildRetailInterior(structure: BrStructure, blocks: readonly BrM
       add("panel",0,3.7,.27,width+.1,.26,.45);
       add("light",0,3.52,.4,width-.45,.055,.04);
       add("accent",-width*.42,.65,.535,.1,.32,.025);
+      const overlap=(p:RetailPart,position:Vec3,size:Vec3,padding=0)=>
+        Math.abs(p.position.x-position.x)<(p.scale.x+size.x)/2+padding&&
+        Math.abs(p.position.y-position.y)<(p.scale.y+size.y)/2+padding&&
+        Math.abs(p.position.z-position.z)<(p.scale.z+size.z)/2+padding;
+      if(bayParts.some(part=>Math.abs(part.position.x-structure.position.x)+part.scale.x/2>structure.size.x/2-.325
+        ||Math.abs(part.position.z-structure.position.z)+part.scale.z/2>structure.size.z/2-.325
+        ||BR_LOOT_SOCKETS.some(socket=>socket.structureId===structure.id&&overlap(part,{...socket.position,y:socket.position.y-baseY},{x:1.2,y:1.2,z:1.2}))
+        ||blocks.some(block=>block.id.startsWith(`${structure.id}-`)
+          &&block.id!==wall.id&&(block.kind==="ramp"||block.id.includes("-room-"))&&(()=>{
+            const angle=block.rotation?.x??0;
+            return overlap(part,{...block.position,y:block.position.y-baseY},{x:block.size.x,y:Math.abs(Math.cos(angle))*block.size.y+Math.abs(Math.sin(angle))*block.size.z,
+              z:Math.abs(Math.sin(angle))*block.size.y+Math.abs(Math.cos(angle))*block.size.z},.08);
+          })())))continue;
+      parts.push(...bayParts);
       signs.push({text:names[index++%names.length],position:at(0,3.18,.43),width:width*.72,
         rotationY:alongX?(sign>0?0:Math.PI):sign*Math.PI/2});
     }

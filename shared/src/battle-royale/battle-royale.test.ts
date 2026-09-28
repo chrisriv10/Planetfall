@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  BR_BALANCE, BR_BOT_DIFFICULTY, BR_CRATE_SOCKETS, BR_DISTRICT_PLANS, BR_ISLAND_OUTLINE, BR_LOOT_SOCKETS, BR_MAP, BR_MAP_BLOCKS, BR_NAV_NODES, BR_POIS, BR_ROADS, BR_SECONDARY_LOCATIONS, BR_STORM_PHASES, BR_STRUCTURES, BR_TERRACES, BR_TERRAIN_PATCHES, BR_WEAPONS, applyBrDamage, brApproachPlanarVelocity, brDropVelocity, brFlatDeckCollision, brHasStandingClearance, brMantleTopAt, brMuzzlePosition, brNextWaypoint, brPlayerHitDistance, brRarityDamage, brRoadIntersectsFootprint, brShipPath, isInsideBrIsland,
+  BR_BALANCE, BR_BOT_DIFFICULTY, BR_CRATE_SOCKETS, BR_DISTRICT_PLANS, BR_ISLAND_OUTLINE, BR_LOOT_SOCKETS, BR_MAP, BR_MAP_BLOCKS, BR_NAV_NODES, BR_POIS, BR_ROADS, BR_SECONDARY_LOCATIONS, BR_STORM_PHASES, BR_STRUCTURES, BR_TERRACES, BR_TERRAIN_PATCHES, BR_WEAPONS, applyBrDamage, brApproachPlanarVelocity, brBlockPlanarHalfExtents, brDropVelocity, brFlatDeckCollision, brHasStandingClearance, brMantleTopAt, brMuzzlePosition, brNextWaypoint, brPlayerHitDistance, brRarityDamage, brRoadIntersectsFootprint, brShipPath, isInsideBrIsland,
   brBlocksNear, brPickupDisposition, createEmptyBrInventory, raySphereDistance, reloadBrItem, stepBrMovement, stormContains, type BrInventoryItem, type BrMotionState
 } from "./index.js";
 
@@ -9,9 +9,16 @@ describe("Battle Royale shared rules", () => {
     for (let x = -600; x <= 600; x += 25) for (let z = -600; z <= 600; z += 25) {
       for (const radius of [0, .6, 2.5, 8, 96]) {
         const point = { x: x + .001, y: 0, z: z - .001 };
-        const original = BR_MAP_BLOCKS.filter(block => Math.abs(block.position.x-point.x)<=block.size.x/2+radius && Math.abs(block.position.z-point.z)<=block.size.z/2+radius);
+        const original = BR_MAP_BLOCKS.filter(block => {const half=brBlockPlanarHalfExtents(block);return Math.abs(block.position.x-point.x)<=half.x+radius && Math.abs(block.position.z-point.z)<=half.z+radius;});
         expect(brBlocksNear(point, radius)).toEqual(original);
       }
+    }
+  });
+
+  it("broadphases the low approach of rotated service-road grades",()=>{
+    for(const road of BR_ROADS.filter(entry=>entry.id.endsWith("-grade"))){
+      const midpoint={x:road.to.x,y:road.to.y,z:road.to.z};
+      expect(brBlocksNear(midpoint,BR_BALANCE.playerRadius+.25).some(block=>block.id===`${road.id}-surface`),road.id).toBe(true);
     }
   });
   it("distinguishes stackable pickups, full ammo and an explicit inventory swap", () => {
@@ -209,8 +216,20 @@ describe("Battle Royale shared rules", () => {
     for(const terrace of BR_TERRACES){
       const platform=BR_MAP_BLOCKS.find(block=>block.id===`${terrace.id}-platform`)!;
       const ramp=BR_MAP_BLOCKS.find(block=>block.id===`${terrace.id}-ramp`)!;
-      expect(platform).toBeTruthy();expect(ramp).toBeTruthy();
+      expect(platform).toBeTruthy();
       expect(platform.position.y+platform.size.y/2).toBeCloseTo(terrace.height,8);
+      if(terrace.gradedRoadAccess){
+        expect(ramp).toBeUndefined();
+        const grade=BR_MAP_BLOCKS.find(block=>block.kind==="ramp"&&block.districtId===terrace.districtId&&block.id.includes("service-"));
+        expect(grade,`${terrace.id} has no road grade`).toBeTruthy();
+        for(const structure of BR_STRUCTURES.filter(entry=>entry.districtId===terrace.districtId)){
+          expect(structure.position.y).toBe(terrace.height);
+          expect(Math.abs(structure.position.x-platform.position.x)+structure.size.x/2).toBeLessThanOrEqual(platform.size.x/2+.01);
+          expect(Math.abs(structure.position.z-platform.position.z)+structure.size.z/2).toBeLessThanOrEqual(platform.size.z/2+.01);
+        }
+        continue;
+      }
+      expect(ramp).toBeTruthy();
       const northSouth=terrace.accessSide==="north"||terrace.accessSide==="south";
       const angle=northSouth?ramp.rotation!.x:ramp.rotation!.z;
       expect(Math.abs(Math.sin(angle)*(northSouth?ramp.size.z:ramp.size.x))).toBeCloseTo(terrace.height,8);
@@ -294,7 +313,8 @@ describe("Battle Royale shared rules", () => {
       expect(new Set(plan.parcels.map(parcel=>parcel.role))).toEqual(new Set(["anchor","support","service"]));
       expect(plan.streets.length).toBeGreaterThanOrEqual(2);
       expect(plan.streets.some(street=>distanceToSegment(plan.origin,street.from,street.to)<.01)).toBe(true);
-      const service=BR_ROADS.find(road=>road.id===`service-${BR_SECONDARY_LOCATIONS.findIndex(location=>location.id===plan.id)}`)!;
+      const serviceId=`service-${BR_SECONDARY_LOCATIONS.findIndex(location=>location.id===plan.id)}`;
+      const service=BR_ROADS.find(road=>road.id===serviceId||road.id===`${serviceId}-grade`)!;
       expect(Math.min(...arterials.map(road=>distanceToSegment(service.to,road.from,road.to)))).toBeLessThan(.01);
       for(const endpoint of plan.streets.flatMap(street=>[street.from,street.to]))expect(isInsideBrIsland(endpoint,3)).toBe(true);
       for(const structure of BR_STRUCTURES.filter(entry=>entry.districtId===plan.id)){
@@ -379,7 +399,7 @@ describe("Battle Royale shared rules", () => {
       elapsedMs+=1000/60;
     }
     expect(motion.deployment).toBe("grounded");
-    expect(elapsedMs).toBeLessThan(18_000);
+    expect(elapsedMs).toBeLessThan(16_000);
     expect(-motion.position.z).toBeGreaterThan(340);
   });
 

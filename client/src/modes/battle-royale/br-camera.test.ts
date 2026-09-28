@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { brCameraGeometry, brCameraMode, brDropEntryPitch } from "./br-camera";
+import { brAimProfile, brCameraGeometry, brCameraMode, brDropEntryPitch, brShipLookState } from "./br-camera";
 
 describe("Battle Royale camera rig", () => {
   it("keeps physical camera orbit independent from aim pitch", () => {
@@ -34,5 +34,19 @@ describe("Battle Royale camera rig", () => {
     expect(brDropEntryPitch(.12)).toBe(-.3);
     expect(brDropEntryPitch(-.42)).toBe(-.42);
     expect(brDropEntryPitch(.45)).toBe(.45);
+  });
+
+  it("uses route-facing Starliner yaw for initialization only",()=>{
+    const initial=brShipLookState(.25,{x:1,z:0},false);
+    expect(initial.yaw).toBeCloseTo(Math.PI/2);
+    const deliberate=brShipLookState(-2.4,{x:1,z:0},initial.initialized);
+    expect(deliberate.yaw).toBe(-2.4);
+  });
+
+  it("provides functional precision and medium-range optics",()=>{
+    expect(brAimProfile("rail-laser",true)).toEqual({fov:36,sensitivity:.42,scope:"rail"});
+    expect(brAimProfile("pulse-rifle",true)).toEqual({fov:52,sensitivity:.68,scope:"pulse"});
+    expect(brAimProfile("nova-smg",true)).toEqual({fov:62,sensitivity:.82,scope:null});
+    expect(brAimProfile("rail-laser",false)).toEqual({fov:70,sensitivity:1,scope:null});
   });
 });

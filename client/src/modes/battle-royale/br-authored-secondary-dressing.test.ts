@@ -20,8 +20,35 @@ const segmentDistance = (p: { x: number; z: number }, a: { x: number; z: number 
 };
 const rectangleDistance = (p: { x: number; z: number }, c: { x: number; z: number }, w: number, d: number) =>
   Math.hypot(Math.max(0, Math.abs(p.x - c.x) - w / 2), Math.max(0, Math.abs(p.z - c.z) - d / 2));
+const rotatedRectangleDistance=(p:{x:number;z:number},c:{x:number;z:number},w:number,d:number,yaw=0)=>{
+  const dx=p.x-c.x,dz=p.z-c.z,cos=Math.cos(yaw),sin=Math.sin(yaw);
+  return Math.hypot(Math.max(0,Math.abs(dx*cos-dz*sin)-w/2),Math.max(0,Math.abs(dx*sin+dz*cos)-d/2));
+};
 
 describe("literal secondary-site presentation", () => {
+  it("anchors raised district pockets to their real deck while all four independent route pockets stay on ground",()=>{
+    for(const id of ["east-checkpoint","academy-commons","south-terminal","south-shipworks"]){
+      const plan=BR_DISTRICT_PLANS.find(plan=>plan.id===id)!;
+      const group=buildBrAuthoredSecondaryDressing({id})!;
+      expect(plan.elevation).toBeGreaterThan(0);
+      expect(group.center.y).toBe(plan.elevation);
+      const deck=BR_MAP_BLOCKS.find(block=>block.kind==="platform"
+        &&Math.abs(block.position.y+block.size.y/2-plan.elevation)<.001
+        &&Math.abs(group.center.x-block.position.x)+group.radius<=block.size.x/2
+        &&Math.abs(group.center.z-block.position.z)+group.radius<=block.size.z/2);
+      expect(deck,`${id} supporting deck`).toBeDefined();
+      for(const part of group.parts){
+        const bottom=part.position.y-part.scale.y*(part.geometry==="octahedron"?1:.5);
+        expect(bottom).toBeGreaterThan(plan.elevation);
+        if(part.surface)expect(part.position.y+part.scale.y/2-plan.elevation).toBeLessThanOrEqual(.041);
+      }
+    }
+    for(const group of buildBrAuthoredTransitionDressing()){
+      expect(group.center.y).toBe(0);
+      expect(group.parts[0].position.y).toBe(.016);
+      for(const part of group.parts.filter(part=>part.surface))expect(part.position.y+part.scale.y/2).toBeLessThanOrEqual(.041);
+    }
+  });
   it("covers all 30 sites, all seven contexts and four exact route gaps with 272 fixed parts", () => {
     const before = JSON.stringify([BR_SECONDARY_LOCATIONS, BR_DISTRICT_PLANS, BR_MAP_BLOCKS]);
     const all = groups();
@@ -71,8 +98,14 @@ describe("literal secondary-site presentation", () => {
       }
       // Spheres enclose rotated blocks, including ramps, terraces and roof access;
       // deliberately conservative rather than checking only a decoration's center.
-      for (const block of BR_MAP_BLOCKS) expect(Math.hypot(p.x - block.position.x, p.z - block.position.z), `${group.id}: block ${block.id}`)
-        .toBeGreaterThanOrEqual(Math.hypot(block.size.x, block.size.y, block.size.z) / 2 + radius + 2);
+      for (const block of BR_MAP_BLOCKS) {
+        const supportsPocket=block.kind==="platform"&&Math.abs(p.y-(block.position.y+block.size.y/2))<.01
+          &&Math.abs(p.x-block.position.x)+radius<=block.size.x/2
+          &&Math.abs(p.z-block.position.z)+radius<=block.size.z/2;
+        if(supportsPocket)continue;
+        expect(rotatedRectangleDistance(p,block.position,block.size.x,block.size.z,block.rotation?.y??0),`${group.id}: block ${block.id}`)
+          .toBeGreaterThanOrEqual(radius+2);
+      }
       for (const plan of BR_DISTRICT_PLANS) expect(Math.hypot(p.x - plan.openZone.position.x, p.z - plan.openZone.position.z), `${group.id}: open ${plan.id}`)
         .toBeGreaterThanOrEqual(plan.openZone.radius + radius + 1);
       for (const loot of BR_LOOT_SOCKETS) expect(Math.hypot(p.x - loot.position.x, p.z - loot.position.z), `${group.id}: loot ${loot.id}`)
@@ -117,20 +150,20 @@ describe("literal secondary-site presentation", () => {
         expect(Object.values(part.scale).every(n => Number.isFinite(n) && n > 0)).toBe(true);
         const yFactor = part.geometry === "octahedron" ? 1 : .5;
         const bottom = part.position.y - part.scale.y * yFactor, top = part.position.y + part.scale.y * yFactor;
-        expect(bottom).toBeGreaterThanOrEqual(0);
-        expect(top).toBeLessThanOrEqual(5);
+        expect(bottom).toBeGreaterThanOrEqual(group.center.y);
+        expect(top).toBeLessThanOrEqual(group.center.y+5);
         if (part.surface) {
           expect(part.geometry).toBe("box");
-          expect(top).toBeLessThanOrEqual(.041);
+          expect(top).toBeLessThanOrEqual(group.center.y+.041);
         } else if (part.finish === "canopy") {
-          expect(bottom).toBeGreaterThanOrEqual(2.4);
+          expect(bottom).toBeGreaterThanOrEqual(group.center.y+2.4);
           expect(part.geometry).toBe("octahedron");
-        } else if (bottom > 2.7) {
+        } else if (bottom > group.center.y+2.7) {
           // An open, supported header; never an opaque shelter roof or signboard.
           expect(part.scale.y).toBeLessThanOrEqual(.12);
           expect(part.scale.z).toBeLessThanOrEqual(.16);
           expect(group.parts.filter(p => p.name.startsWith("frame-") && p.scale.y > 2)).toHaveLength(2);
-        } else if (top > .45) {
+        } else if (top > group.center.y+.45) {
           const factor = part.geometry === "cylinder" ? 2 : 1;
           expect(part.scale.x * factor).toBeLessThanOrEqual(.18);
           expect(part.scale.z * factor).toBeLessThanOrEqual(.18);

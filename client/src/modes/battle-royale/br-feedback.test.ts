@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BR_ASTRONAUT_FLOOR_OFFSET, brActionTimer, brAstronautFacingRotation, brAstronautRigHeight, brDamageBearing, brFireRequestDue, brLandingFeedback, brPredictionCorrectionStrength, brRecoilAfter, brSmoothFacing, brStormReadout } from "./br-feedback";
+import { BR_ASTRONAUT_FLOOR_OFFSET, brActionTimer, brAstronautFacingRotation, brAstronautRigHeight, brDamageBearing, brFireRequestDue, brLandingFeedback, brMovementFacingYaw, brPredictionCorrectionStrength, brPreservePendingJump, brRecoilAfter, brSmoothFacing, brStormReadout } from "./br-feedback";
 
 describe("BR presentation correctness",()=>{
   it("shows a drop phase instead of a misleading expired storm countdown aboard the ship",()=>{
@@ -32,6 +32,18 @@ describe("BR presentation correctness",()=>{
     expect(brAstronautRigHeight(false,false,true)).toBeLessThan(BR_ASTRONAUT_FLOOR_OFFSET);
     expect(brAstronautRigHeight(false,true,false)).toBeGreaterThan(BR_ASTRONAUT_FLOOR_OFFSET);
     expect(Number.isFinite(brAstronautRigHeight(true,false,false))).toBe(true);
+  });
+  it("faces travel while free-running and preserves camera-facing aim strafes",()=>{
+    expect(brMovementFacingYaw(1.2,{x:0,z:-4},false,false,.5)).toBeCloseTo(0);
+    expect(brMovementFacingYaw(1.2,{x:-4,z:0},false,false,.5)).toBeCloseTo(-Math.PI/2);
+    expect(brMovementFacingYaw(1.2,{x:-4,z:0},true,false,.5)).toBe(1.2);
+    expect(brMovementFacingYaw(1.2,{x:0,z:0},false,false,.5)).toBe(.5);
+  });
+  it("protects an unacknowledged predicted jump without hiding later corrections",()=>{
+    expect(brPreservePendingJump(8,9,1000,1180,6)).toBe(true);
+    expect(brPreservePendingJump(9,9,1000,1180,6)).toBe(false);
+    expect(brPreservePendingJump(8,9,1000,1600,6)).toBe(false);
+    expect(brPreservePendingJump(8,9,1000,1180,-1)).toBe(false);
   });
   it("points toward attackers, not along their damage impulse",()=>{
     expect(brDamageBearing({x:0,z:1},0)).toBeCloseTo(0);

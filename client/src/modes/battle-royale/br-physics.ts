@@ -33,6 +33,16 @@ export class BrPredictionPhysics {
     return {movement:{x:movement.x,y:movementY,z:movement.z},grounded:inside&&!jumping&&(sector.controller.computedGrounded()||downwardContact(desiredMovement,movement)),ceiling:desiredMovement.y>0&&movementY<desiredMovement.y-.01,crouched:actualCrouch};
   }
 
+  /** Distance from the pilot's feet to the first gameplay support below.
+   * Uses the same collider sector as movement, so roofs, bridges and authored
+   * terraces correctly replace raw world-Y in the drop HUD. */
+  supportDistance(position:Vec3,maximum=BR_BALANCE.shipHeight+80):number {
+    const sector=this.sector(position);
+    const ray=new RAPIER.Ray({x:position.x,y:position.y+.02,z:position.z},{x:0,y:-1,z:0});
+    const hit=sector.world.castRay(ray,maximum,true,undefined,undefined,sector.collider);
+    return Math.max(0,Math.min(maximum,hit?.timeOfImpact??maximum));
+  }
+
   reset(feet:Vec3={x:0,y:0,z:0}):void {for(const sector of this.sectors.values()){sector.crouched=false;sector.collider.setHalfHeight(STANDING_HALF_HEIGHT);sector.collider.setTranslation({x:feet.x,y:feet.y+centerY(false),z:feet.z});}}
   dispose():void {for(const sector of this.sectors.values()){sector.world.removeCharacterController(sector.controller);sector.world.free();}this.sectors.clear();}
 
@@ -43,4 +53,5 @@ type MovementSector={world:RAPIER.World;collider:RAPIER.Collider;controller:RAPI
 function addMovementDeck(world:RAPIER.World):void{world.createCollider(RAPIER.ColliderDesc.cuboid(650,.5,650).setTranslation(0,-.5,0));}
 function addBlocks(world:RAPIER.World,blocks:readonly BrMapBlock[]):void{for(const block of blocks){const collider=RAPIER.ColliderDesc.cuboid(block.size.x/2,block.size.y/2,block.size.z/2).setTranslation(block.position.x,block.position.y,block.position.z);if(block.rotation)collider.setRotation(eulerQuaternion(block.rotation));world.createCollider(collider);}}
 
-function eulerQuaternion(rotation:Vec3):{x:number;y:number;z:number;w:number}{const cx=Math.cos(rotation.x/2),sx=Math.sin(rotation.x/2),cy=Math.cos(rotation.y/2),sy=Math.sin(rotation.y/2),cz=Math.cos(rotation.z/2),sz=Math.sin(rotation.z/2);return{x:sx*cy*cz-cx*sy*sz,y:cx*sy*cz+sx*cy*sz,z:cx*cy*sz-sx*sy*cz,w:cx*cy*cz+sx*sy*sz};}
+/** Quaternion matching Three.js/Rapier's authored XYZ Euler convention. */
+function eulerQuaternion(rotation:Vec3):{x:number;y:number;z:number;w:number}{const cx=Math.cos(rotation.x/2),sx=Math.sin(rotation.x/2),cy=Math.cos(rotation.y/2),sy=Math.sin(rotation.y/2),cz=Math.cos(rotation.z/2),sz=Math.sin(rotation.z/2);return{x:sx*cy*cz+cx*sy*sz,y:cx*sy*cz-sx*cy*sz,z:cx*cy*sz+sx*sy*cz,w:cx*cy*cz-sx*sy*sz};}
