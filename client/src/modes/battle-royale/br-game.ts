@@ -30,6 +30,7 @@ import { useBrPlayerImpostor } from "./br-player-lod";
 import { BrDamageNumbers } from "./br-damage-numbers";
 import { BrInputEdgeLatch } from "./br-input-latch";
 import { BrHealModelLibrary } from "./br-heal-models";
+import { BR_REVIEW_CAMERAS } from "./br-review-cameras";
 
 type PlayerVisual = { group: THREE.Group; rig: THREE.Group; target: THREE.Vector3; label: THREE.Sprite; body: THREE.Mesh; helmet: THREE.Group; backpack: THREE.Group; suitMaterial: THREE.MeshStandardMaterial; lodDetails: THREE.Object3D[]; limbs: THREE.Group[]; wings: THREE.Group; weapon: THREE.Group; weaponId: BrWeaponId | null; actionDevice:THREE.Group; actionHealId:BrHealId|null; actionHealModel:THREE.Group|null; state: BrPlayerSnapshotState; relevant: boolean; emote: EmoteType | null; emoteEndsAt: number; damageFeedback:BrDamageFeedback; damageRipple:THREE.Mesh<THREE.SphereGeometry,THREE.MeshBasicMaterial> };
 type LootVisual = { group: BrLootLod; state: BrLootState };
@@ -256,43 +257,8 @@ export class BattleRoyaleGame {
     if (!import.meta.env.DEV || !poiId) { this.debugCameraView = null; return; }
     // Repeatable review cameras live in clear streets/interiors, not inside a
     // neighboring building. These never move the authoritative player.
-    const reviews: Record<string, [number[], number[]]> = {
-      "zero-plaza": [[0, 4.5, -42], [0, 15, 0]],
-      "nova-street": [[-175, 2.7, -112], [-175, 7, -165]],
-      "nova-storefront": [[-175, 2.7, -92], [-207, 3.2, -103]],
-      "nova-roof": [[-209, 40, -137], [-171, 20, -125]],
-      "mall-interior": [[-106, 2.7, 252], [-80, 5, 264]],
-      "mall-directory": [[-115, 2.5, 253.5], [-124.7, 2.1, 253.5]],
-      "mall-ramp": [[-86, 2.3, 251.5], [-75.7, 4.5, 263]],
-      "mall-ceiling": [[-115, 2.4, 266], [-124, 8, 263]],
-      "hotel-stairs": [[-86, 2.2, -236], [-88, 6.8, -245]],
-      "hotel-lobby": [[-94, 2.2, -236], [-104.8, 2.35, -236]],
-      "hotel-service-wall": [[-89, 2.3, -241], [-105.5, 2.5, -241]],
-      "housing-lounge": [[-57, 2.2, -42], [-43, 2.6, -42]],
-      "hotel-landing": [[-87.5, 8.8, -245], [-94, 4.2, -236]],
-      "helios-interior": [[262, 2.7, 64], [262, 5, 88]],
-      "crash-exterior": [[-312, 16, -290], [-326, 3.2, -258]],
-      "crash-interior": [[-304, 2.7, -258], [-341, 4, -258]],
-      "foundry-interior": [[342, 2.7, -81], [350, 5, -61]],
-      "foundry-roof": [[342, 24.7, -60], [352, 28, -73]],
-      "roadside-south": [[15, 7.15, -380], [15, 5.35, -415]],
-      "roadside-nova": [[-76, 3.1, -178], [-76, 3, -214]],
-      "connective-academy": [[-265, 9.1, 280], [-265, 7.9, 235]],
-      "east-checkpoint-deck": [[355, 8.4, 292], [355, 7.2, 250]],
-      "academy-commons-grade": [[-207, 11.5, 211], [-231, 3.2, 234]],
-      "east-checkpoint-grade": [[297, 2.8, 171], [328, 5.6, 208]],
-      "south-terminal-grade": [[15, 3.1, -350], [15, 5.2, -388]],
-      "south-shipworks-grade": [[133, 4.1, -347], [183, 6.5, -374]],
-      "maintenance-south": [[190, 7.65, -360], [190, 5.85, -400]],
-      "deck-transition": [[-255, 3.2, 8], [-255, 2.2, -30]],
-      "sector-field": [[375, 3.2, 95], [405, 2.2, 105]],
-      "edge-south": [[0, 12, -550], [0, -13, -455]],
-      "storm-boundary": [[-184, 2.7, -40], [-184, 7, -10]],
-      "storm-final": [[-184, 2.7, -96], [-184, 7, -60]],
-      "aerial": [[-430, 520, 540], [0, 0, 0]]
-    };
-    const review = reviews[poiId];
-    if (review) { this.debugCameraView = {position:new THREE.Vector3(...review[0] as [number,number,number]),focus:new THREE.Vector3(...review[1] as [number,number,number])}; return; }
+    const review = BR_REVIEW_CAMERAS[poiId];
+    if (review) { this.debugCameraView = {position:new THREE.Vector3(...review.position),focus:new THREE.Vector3(...review.focus)}; return; }
     const poi = [...BR_POIS,...BR_SECONDARY_LOCATIONS].find((entry) => entry.id === poiId); if (!poi) return;
     const landmark = poi.style === "reactor" || poi.style === "nexus";
     const urban = poi.style === "city" || poi.style === "mall";

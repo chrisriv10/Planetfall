@@ -1,7 +1,7 @@
 import { BR_LOOT_SOCKETS, BR_MAP_BLOCKS, type BrStructure, type Vec3 } from "@planetfall/shared";
 
 export type ResidentialPart = { finish: "frame" | "panel" | "glass" | "light" | "accent"; position: Vec3; scale: Vec3; rotationX?: number;
-  role?: "lounge-chair" | "lounge-table" | "reception-counter" | "wall-trim" };
+  role?: "lounge-chair" | "lounge-table" | "reception-counter" | "lobby-planter" | "wall-trim" };
 export type ResidentialSign = { text: string; position: Vec3; width: number };
 
 /** Shallow landing markers on the south wall, never freestanding in the stair. */
@@ -240,6 +240,26 @@ export function buildResidentialInterior(structure: BrStructure): {parts: Reside
         }
       }
       signs.push({text:structure.archetype==="hotel"?"CHECK IN":"PARCELS",position:{x:wallFace+.28,y:floorY+3.32,z},width:2.7});
+    }
+    // Paired planted light-wells give the ground-floor service wall a real
+    // lobby composition instead of leaving the check-in/parcel bay floating
+    // alone. They stay shallow against the west wall, clear of the reception
+    // counter, central combat route, authored dividers and loot sockets.
+    if(floor===0&&clearBay(z,3.05,floorY)) {
+      const add=(finish:ResidentialPart["finish"],distance:number,y:number,dz:number,sx:number,sy:number,sz:number)=>
+        parts.push({finish,position:{x:wallFace+distance,y:floorY+y,z:z+dz},scale:{x:sx,y:sy,z:sz},role:"lobby-planter"});
+      for(const side of [-1,1]) {
+        const center=side*2.48;
+        add("frame",.42,.25,center,.72,.5,.82);
+        add("panel",.48,.53,center,.58,.09,.68);
+        add("light",.785,.35,center,.025,.08,.56);
+        // Staggered chunky leaves use the district accent material and keep
+        // the toy-like Planetfall silhouette rather than becoming realistic
+        // foliage or another opaque wall slab.
+        add("accent",.49,.92,center-side*.18,.22,.76,.22);
+        add("accent",.49,.82,center+side*.18,.2,.56,.2);
+        add("accent",.49,.7,center,.24,.34,.24);
+      }
     }
     // High mounted wayfinding is readable from the stair landing, not a false door.
     const signZ=z-depth*.29;

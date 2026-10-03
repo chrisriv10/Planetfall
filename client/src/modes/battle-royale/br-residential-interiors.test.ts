@@ -33,6 +33,35 @@ describe("residential lounge dressing",()=>{
     expect(top.position.y-top.scale.y/2).toBeCloseTo(frame.position.y+frame.scale.y/2);
     expect(JSON.stringify(hotel)).toBe(before);
   });
+  it("frames the ground-floor lobby with paired planters without crowding reception or loot",()=>{
+    const hotel=BR_STRUCTURES.find(s=>s.id==="comet-hotel-1")!;
+    const result=buildResidentialInterior(hotel);
+    const planters=result.parts.filter(part=>part.role==="lobby-planter");
+    const counter=result.parts.filter(part=>part.role==="reception-counter");
+    expect(planters).toHaveLength(12);
+    expect(planters.filter(part=>part.finish==="frame"&&part.scale.y===.5)).toHaveLength(2);
+    expect(planters.filter(part=>part.finish==="accent")).toHaveLength(6);
+    for(const part of planters){
+      expect(part.position.y-part.scale.y/2).toBeGreaterThanOrEqual(.36);
+      expect(part.position.y+part.scale.y/2).toBeLessThan(1.7);
+      expect(part.position.x+part.scale.x/2).toBeLessThan(hotel.position.x);
+      for(const fixture of counter){
+        const overlaps=Math.abs(part.position.x-fixture.position.x)<(part.scale.x+fixture.scale.x)/2&&
+          Math.abs(part.position.y-fixture.position.y)<(part.scale.y+fixture.scale.y)/2&&
+          Math.abs(part.position.z-fixture.position.z)<(part.scale.z+fixture.scale.z)/2;
+        expect(overlaps).toBe(false);
+      }
+      for(const loot of BR_LOOT_SOCKETS.filter(socket=>socket.structureId===hotel.id)){
+        const overlaps=Math.abs(part.position.x-loot.position.x)<part.scale.x/2+.6&&
+          Math.abs(part.position.y-loot.position.y)<part.scale.y/2+.6&&
+          Math.abs(part.position.z-loot.position.z)<part.scale.z/2+.6;
+        expect(overlaps).toBe(false);
+      }
+    }
+    const homes=BR_STRUCTURES.find(s=>s.id==="central-heights-1")!;
+    expect(buildResidentialInterior({...homes,entrance:"north"}).parts.some(part=>part.role==="lobby-planter")).toBe(true);
+    expect(buildResidentialInterior({...homes,entrance:"west"}).parts.some(part=>part.role==="lobby-planter")).toBe(false);
+  });
   it("supports every new hotel furniture footprint on real slabs without bridging a stair opening",()=>{
     for(const hotel of BR_STRUCTURES.filter(s=>s.archetype==="hotel"&&s.enterable)){
       for(const part of buildResidentialInterior(hotel).parts.filter(part=>part.role)){
