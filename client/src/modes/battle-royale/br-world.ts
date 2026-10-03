@@ -15,6 +15,7 @@ import {
 } from "@planetfall/shared";
 import type { GraphicsQuality } from "../../settings";
 import { BrMaterialLibrary } from "./br-materials";
+import { layoutBrPoiLabel } from "./br-poi-label-layout";
 import { buildFacadeParts, buildDistantFacadeParts, buildExteriorServiceParts } from "./br-facades";
 import { buildNovaStorefrontParts } from "./br-storefronts";
 import { buildNovaEntrancePaving } from "./br-entrance-paving";
@@ -947,15 +948,12 @@ export class BrWorldRenderer {
         for(let strip=0;strip<5;strip++) dark.push({position:position(x-width*.16,ceiling,z-depth*.36+strip*depth*.18),scale:position(width*.55,.08,.23)});
         for(const side of [-1,1]) light.push({position:position(x-width*.16+side*width*.255,ceiling,z),scale:position(.16,.09,depth*.82)});
       }
-    } else if (["warehouse", "hangar", "lab", "academy", "office", "industrial", "utility"].includes(archetype)) {
+    } else if (["warehouse", "hangar", "lab", "academy", "office", "industrial", "utility", "tower", "greenhouse", "transit"].includes(archetype)) {
       const targets = {dark, panel:light, light:emissive};
       for(const part of buildFunctionalInterior(sourceStructure))targets[part.finish].push({
         position:position(part.position.x,part.position.y,part.position.z),
         scale:position(part.scale.x,part.scale.y,part.scale.z)
       });
-    } else if(archetype!=="apartment"&&archetype!=="hotel") {
-      light.push({ position: position(x - width * .2, .62, z + depth * .2), scale: position(2.3, 1.2, 1.1) });
-      dark.push({ position: position(x + width * .2, .45, z - depth * .2), scale: position(2.1, .8, 1.3) });
     }
   }
 
@@ -974,13 +972,17 @@ export class BrWorldRenderer {
       ring.position.set(poi.position.x, .027, poi.position.z);
       ring.userData.cameraCollision = false;
       this.root.add(ring);
+      const landmark = this.buildLandmark(poi);
+      this.root.add(landmark);
+      landmark.updateWorldMatrix(true, true);
+      const landmarkBounds = new THREE.Box3().setFromObject(landmark);
+      const labelLayout = layoutBrPoiLabel(poi.position, { landmarkBounds });
       const label = this.materials.createSign(poi.name, { border: poi.color, subtitle: this.poiSubtitle(poi) });
-      label.position.set(poi.position.x, 38, poi.position.z);
-      label.scale.set(31, 9, 1);
+      label.position.set(labelLayout.position.x, labelLayout.position.y, labelLayout.position.z);
+      label.scale.set(labelLayout.scale.x, labelLayout.scale.y, labelLayout.scale.z);
       label.userData.cameraCollision = false;
       this.root.add(label);
       this.poiLabels.push({ sprite: label, position: label.position.clone() });
-      this.root.add(this.buildLandmark(poi));
       this.buildDistrictProps(poi);
     }
   }

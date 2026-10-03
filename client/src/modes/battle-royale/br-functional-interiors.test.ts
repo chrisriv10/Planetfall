@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import { BR_LOOT_SOCKETS, BR_MAP_BLOCKS, BR_STRUCTURES, type BrMapBlock } from "@planetfall/shared";
 import { buildFunctionalInterior } from "./br-functional-interiors";
 
-const supported = new Set(["warehouse", "hangar", "lab", "academy", "office", "industrial", "utility"]);
+const supported = new Set([
+  "warehouse", "hangar", "lab", "academy", "office", "industrial", "utility",
+  "tower", "greenhouse", "transit"
+]);
 const overlaps = (a: { position: { x: number; y: number; z: number }; scale: { x: number; y: number; z: number } },
   b: { position: { x: number; y: number; z: number }; scale: { x: number; y: number; z: number } }, padding = 0) =>
   Math.abs(a.position.x - b.position.x) < (a.scale.x + b.scale.x) / 2 + padding
@@ -95,6 +98,21 @@ describe("functional interior presentation", () => {
       expect(raised[index].position.y).toBeCloseTo(baseline[index].position.y);
       expect(raised[index].position.z).toBeCloseTo(baseline[index].position.z);
     }
+  });
+
+  it("gives tower, greenhouse and transit interiors distinct wall-bound identities", () => {
+    const signatures = new Map<string, string>();
+    for (const archetype of ["tower", "greenhouse", "transit"] as const) {
+      const structure = BR_STRUCTURES.find(candidate => candidate.enterable && candidate.archetype === archetype);
+      expect(structure, `${archetype} fixture`).toBeDefined();
+      const parts = buildFunctionalInterior(structure!);
+      expect(parts.length, `${archetype} dressing`).toBeGreaterThan(0);
+      expect(parts.some(part => part.role === "wall"), `${archetype} wall identity`).toBe(true);
+      expect(parts.some(part => part.role === "inlay"), `${archetype} flush guidance`).toBe(true);
+      expect(parts.filter(part => part.role === "wall").every(part => Math.min(part.scale.x, part.scale.z) <= .26)).toBe(true);
+      signatures.set(archetype, parts.map(part => `${part.finish}:${part.role}:${part.scale.x.toFixed(2)}:${part.scale.y.toFixed(2)}:${part.scale.z.toFixed(2)}`).join("|"));
+    }
+    expect(new Set(signatures.values()).size).toBe(3);
   });
 
   it("uses the projected world height of inclined ramps when rejecting a wall bay", () => {

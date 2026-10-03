@@ -17,7 +17,8 @@ type LootSocket = (typeof BR_LOOT_SOCKETS)[number];
 type Bay = { wall: BrMapBlock; floor: BrMapBlock; alongX: boolean; inward: number; lateral: number; width: number };
 
 const SUPPORTED = new Set<BrStructure["archetype"]>([
-  "warehouse", "hangar", "lab", "academy", "office", "industrial", "utility"
+  "warehouse", "hangar", "lab", "academy", "office", "industrial", "utility",
+  "tower", "greenhouse", "transit"
 ]);
 const overlaps = (position: Vec3, scale: Vec3, otherPosition: Vec3, otherScale: Vec3, padding = 0) =>
   Math.abs(position.x - otherPosition.x) < (scale.x + otherScale.x) / 2 + padding
@@ -113,6 +114,9 @@ export function buildFunctionalInterior(
       });
     const industrial = structure.archetype === "industrial" || structure.archetype === "utility";
     const cargo = structure.archetype === "warehouse" || structure.archetype === "hangar";
+    const tower = structure.archetype === "tower";
+    const greenhouse = structure.archetype === "greenhouse";
+    const transit = structure.archetype === "transit";
     const panelHeight = Math.min(2.35, usable - .7), panelCenter = .42 + panelHeight / 2;
     add("dark", "wall", bay.lateral, panelCenter, .06, bay.width, panelHeight, .12);
     add("panel", "wall", bay.lateral, panelCenter, .135, bay.width - .22, panelHeight - .2, .06);
@@ -125,6 +129,31 @@ export function buildFunctionalInterior(
         add("light", "wall", bay.lateral + offset * bay.width, panelCenter + .48, .255, .035, .72, .018);
       }
       add("panel", "wall", bay.lateral, .94, .21, bay.width * .36, .62, .04);
+    } else if (tower) {
+      // Tall, closely spaced frame lines make the service wall read as part of
+      // the tower's vertical structure without introducing lobby obstacles.
+      for (const offset of [-.36, -.12, .12, .36])
+        add("dark", "wall", bay.lateral + offset * bay.width, panelCenter, .2, .075, panelHeight - .24, .075);
+      add("light", "wall", bay.lateral, panelCenter + panelHeight * .3, .24, bay.width - .65, .055, .02);
+      add("panel", "wall", bay.lateral, .82, .225, bay.width * .32, .46, .025);
+    } else if (greenhouse) {
+      // Shallow cultivation rails and flush bed-edge markings reinforce the
+      // greenhouse identity while leaving the whole floor bay traversable.
+      for (const y of [.72, 1.2, 1.68])
+        add(y === 1.2 ? "light" : "dark", "wall", bay.lateral, y, .21, bay.width - .7, .07, .025);
+      for (const offset of [-.3, 0, .3])
+        add("panel", "wall", bay.lateral + offset * bay.width, 1.22, .19, .07, 1.34, .035);
+      for (const offset of [-.28, .28])
+        add("light", "inlay", bay.lateral + offset * bay.width, .02, .78, .055, .008, 1.15);
+    } else if (transit) {
+      // Route bands and timetable-like panels stay mounted to the perimeter;
+      // the platform centre remains a clear combat and circulation lane.
+      add("light", "wall", bay.lateral, 1.72, .235, bay.width - .62, .09, .02);
+      add("panel", "wall", bay.lateral - bay.width * .22, 1.18, .23, bay.width * .34, .7, .03);
+      add("panel", "wall", bay.lateral + bay.width * .22, 1.18, .23, bay.width * .34, .7, .03);
+      for (const offset of [-.34, 0, .34])
+        add("dark", "wall", bay.lateral + offset * bay.width, panelCenter, .195, .065, panelHeight - .28, .045);
+      add("light", "inlay", bay.lateral, .021, .78, bay.width * .7, .008, .045);
     } else {
       for (const offset of [-.27, .27]) add("dark", "wall", bay.lateral + offset * bay.width, panelCenter, .2, .11, panelHeight - .3, .08);
       for (const y of [.95, 1.45, 1.95]) add(y === 1.45 ? "light" : "dark", "wall", bay.lateral, y, .225, bay.width - .8, .11, .025);

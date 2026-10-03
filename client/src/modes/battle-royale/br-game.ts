@@ -285,6 +285,7 @@ export class BattleRoyaleGame {
       spectatorTargetId: this.spectatorTargetId,
       storm: this.room ? { ...this.room.storm, center: { ...this.room.storm.center }, nextCenter: { ...this.room.storm.nextCenter } } : null,
       camera:{position:{x:this.camera.position.x,y:this.camera.position.y,z:this.camera.position.z},fov:this.camera.fov},
+      input:{jumpInputSequence:this.jumpInputSequence},
       reconciliation: this.reconciliationTracker.summary(performance.now()),
       world:{islandObjects:this.island.children.length,shipVisible:this.starliner.visible,...this.world.debugStats()},
       renderer: { calls: this.renderer.info.render.calls, triangles: this.renderer.info.render.triangles }
