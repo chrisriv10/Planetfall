@@ -5,7 +5,7 @@ import { buildRetailInterior } from "./br-retail-interiors";
 describe("retail interior visual placement", () => {
   it("mounts every display on an authoritative divider without crossing its doorway", () => {
     let count=0;
-    for (const structure of BR_STRUCTURES) for (const part of buildRetailInterior(structure).parts) {
+    for (const structure of BR_STRUCTURES) for (const part of buildRetailInterior(structure).parts.filter(part=>part.role!=="amenity")) {
       count++;
       const wall=BR_MAP_BLOCKS.find(b => {
         if(!b.id.startsWith(`${structure.id}-room-`))return false;
@@ -27,6 +27,42 @@ describe("retail interior visual placement", () => {
       expect(Object.values(part.scale).every(v=>v>0&&Number.isFinite(v))).toBe(true);
     }
     expect(count).toBeGreaterThan(100);
+  });
+  it("composes mall ground floors around the perimeter while preserving the central combat lane", () => {
+    let amenityCount=0,amenitySigns=0;
+    for(const structure of BR_STRUCTURES.filter(s=>s.enterable&&s.archetype==="mall")){
+      const {parts,signs}=buildRetailInterior(structure);
+      const amenities=parts.filter(part=>part.role==="amenity");
+      amenityCount+=amenities.length;
+      amenitySigns+=signs.filter(sign=>sign.role==="amenity").length;
+      const alongZ=structure.entrance==="east"||structure.entrance==="west";
+      const localWidth=alongZ?structure.size.z:structure.size.x;
+      for(const part of amenities){
+        const localU=alongZ?part.position.z-structure.position.z:part.position.x-structure.position.x;
+        const localSize=alongZ?part.scale.z:part.scale.x;
+        // Props are intentionally perimeter composition, never another island
+        // in the main entrance/loot circulation lane.
+        expect(Math.abs(localU)-localSize/2).toBeGreaterThan(Math.min(3.6,localWidth*.18));
+        expect(Math.abs(part.position.x-structure.position.x)+part.scale.x/2).toBeLessThan(structure.size.x/2-.7);
+        expect(Math.abs(part.position.z-structure.position.z)+part.scale.z/2).toBeLessThan(structure.size.z/2-.7);
+        expect(Object.values(part.position).every(Number.isFinite)).toBe(true);
+        expect(Object.values(part.scale).every(value=>value>0&&Number.isFinite(value))).toBe(true);
+        for(const socket of BR_LOOT_SOCKETS.filter(socket=>socket.structureId===structure.id)){
+          const overlaps=Math.abs(socket.position.x-part.position.x)<part.scale.x/2+1.1
+            &&Math.abs(socket.position.y-structure.position.y-part.position.y)<part.scale.y/2+1.2
+            &&Math.abs(socket.position.z-part.position.z)<part.scale.z/2+1.1;
+          expect(overlaps).toBe(false);
+        }
+      }
+    }
+    expect(amenityCount).toBeGreaterThan(25);
+    expect(amenitySigns).toBeGreaterThanOrEqual(2);
+    for(const id of ["void-anchor","void-food-court"]){
+      const structure=BR_STRUCTURES.find(candidate=>candidate.id===id)!;
+      const result=buildRetailInterior(structure);
+      expect(result.parts.filter(part=>part.role==="amenity").length).toBeGreaterThan(8);
+      expect(result.signs.some(sign=>sign.role==="amenity")).toBe(true);
+    }
   });
   it("orients east/west retail along Z walls and keeps every scale positive",()=>{
     const base=BR_STRUCTURES.find(s=>s.enterable&&s.archetype==="shop")!;
@@ -62,7 +98,7 @@ describe("retail interior visual placement", () => {
           Math.abs(socket.position.z-part.position.z)<part.scale.z/2+.5;
         expect(overlaps).toBe(false);
       }
-      for(const sign of signs) {
+      for(const sign of signs.filter(sign=>sign.role!=="amenity")) {
         expect(sign.width).toBeLessThan(6);
         const storey=structure.size.y/structure.floors;
         expect(sign.position.y%storey).toBeGreaterThan(3);
