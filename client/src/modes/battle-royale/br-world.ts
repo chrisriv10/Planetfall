@@ -524,12 +524,14 @@ export class BrWorldRenderer {
         const retail=buildRetailInterior(structure);
         const retailTargets={frame:interiorDark,panel:interiorProps,glass:displayGlass,light:interiorLights,accent:accentVolumes};
         for(const part of retail.parts) retailTargets[part.finish].push({
-          position:position(part.position.x,part.position.y-structure.position.y,part.position.z),
+          // Retail helpers already return height relative to the structure's
+          // deck. The district group supplies world elevation once.
+          position:position(part.position.x,part.position.y,part.position.z),
           scale:position(part.scale.x,part.scale.y,part.scale.z)
         });
         for(const label of retail.signs) {
           const sign=this.materials.createMountedSign(label.text,{border:poi.color});
-          sign.position.set(label.position.x,label.position.y-structure.position.y,label.position.z); sign.rotation.y=label.rotationY;
+          sign.position.set(label.position.x,label.position.y,label.position.z); sign.rotation.y=label.rotationY;
           sign.scale.set(label.width,.58,1);group.add(sign);
         }
         for (const directory of buildMallDirectories(visualStructure)) {

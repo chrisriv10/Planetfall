@@ -247,6 +247,16 @@ test("Battle Royale creates an isolated room and enters the Starliner drop", asy
   await page.keyboard.press("Space");
   await expect.poll(() => page.evaluate(() => (window as unknown as { __PLANETFALL_BR_DEBUG__: () => { localPlayer: { deployment: string } } }).__PLANETFALL_BR_DEBUG__().localPlayer.deployment)).toBe("freefall");
   await expect.poll(() => page.evaluate(() => (window as unknown as { __PLANETFALL_BR_DEBUG__: () => { localPlayer: { deployment: string } } }).__PLANETFALL_BR_DEBUG__().localPlayer.deployment), { timeout: 20_000 }).toBe("grounded");
+  const pilot = () => page.evaluate(() => (window as unknown as {
+    __PLANETFALL_BR_DEBUG__: () => { localPlayer: { position: Point; velocity: Point; grounded: boolean; alive: boolean } }
+  }).__PLANETFALL_BR_DEBUG__().localPlayer);
+  await expect.poll(async () => (await pilot()).grounded).toBe(true);
+  const landed = await pilot();
+  expect(landed.alive).toBe(true);
+  await page.keyboard.press("Space");
+  await expect.poll(async () => (await pilot()).position.y - landed.position.y, { intervals: [50] }).toBeGreaterThan(.5);
+  await expect.poll(async () => (await pilot()).grounded).toBe(true);
+  expect(Math.abs((await pilot()).position.y - landed.position.y)).toBeLessThan(.2);
   expect(browserErrors).toEqual([]);
 });
 

@@ -915,7 +915,9 @@ export class BattleRoyaleGame {
     const previousDeployment=this.predictedMotion.deployment;
     const previousGrounded=this.predictedMotion.grounded;
     const previousVerticalSpeed=this.predictedMotion.velocity.y;
-    const nextMotion = stepBrMovement(this.predictedMotion, { moveX: frame.moveX, moveY: frame.moveY, yaw: this.yaw, jump: frame.jump.held, sprint: frame.burst.held, crouch: frame.crouch.held }, dt, now, (position,desired,options)=>this.physics.move(position,desired,options.jumping,options.crouched));
+    // A complete key tap can occur between render frames. Input sampling keeps
+    // its pressed edge even when held is already false; prediction must too.
+    const nextMotion = stepBrMovement(this.predictedMotion, { moveX: frame.moveX, moveY: frame.moveY, yaw: this.yaw, jump: frame.jump.held || frame.jump.pressed, sprint: frame.burst.held, crouch: frame.crouch.held }, dt, now, (position,desired,options)=>this.physics.move(position,desired,options.jumping,options.crouched));
     this.predictedMotion=nextMotion;
     if(previousGrounded&&!nextMotion.grounded&&nextMotion.velocity.y>1&&previousDeployment==="grounded")this.audio.jump();
     const landing=brLandingFeedback(previousDeployment,nextMotion.landed,previousVerticalSpeed,now,this.lastLandingFeedbackAt);
