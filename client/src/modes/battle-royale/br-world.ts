@@ -27,6 +27,7 @@ import { spinBrMachinery } from "./br-machinery";
 import { buildGrowhouseRoof } from "./br-growhouse";
 import { buildRetailInterior } from "./br-retail-interiors";
 import { buildInteriorSurfaces } from "./br-interior-surfaces";
+import { buildFunctionalInterior } from "./br-functional-interiors";
 import { buildResidentialInterior, buildResidentialCeiling, buildResidentialLandingMarkers, buildResidentialServiceWall, buildResidentialEntranceWall, buildResidentialRampSkins } from "./br-residential-interiors";
 import { buildCargoCrane, buildIndustrialRoof } from "./br-industrial";
 import { buildWreckRoof, buildWreckInterior } from "./br-wreck";
@@ -522,7 +523,7 @@ export class BrWorldRenderer {
           position:position(part.position.x,part.position.y-structure.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z),rotationX:part.rotationX
         });
         const retail=buildRetailInterior(structure);
-        const retailTargets={frame:interiorDark,panel:interiorProps,glass:displayGlass,light:interiorLights,accent:accentVolumes};
+        const retailTargets={frame:interiorDark,panel:interiorProps,glass:displayGlass,light:interiorLights,accent:accentVolumes,foliage:facadePlants};
         for(const part of retail.parts) retailTargets[part.finish].push({
           // Retail helpers already return height relative to the structure's
           // deck. The district group supplies world elevation once.
@@ -618,7 +619,7 @@ export class BrWorldRenderer {
         }
         this.architectureMatrices(
           visualStructure, shells, columns, trims, windowsDark, windowsLit, roofUnits, doorFrames,
-          interiorProps, interiorDark, interiorLights, railings, massing, glassVolumes, accentVolumes, machinery, facadePlants
+          interiorProps, interiorDark, interiorLights, railings, massing, glassVolumes, accentVolumes, machinery, facadePlants, structure
         );
         const signText = this.facadeSignText(structure);
         if (signText) {
@@ -687,7 +688,7 @@ export class BrWorldRenderer {
     columns: MatrixSpec[], trims: MatrixSpec[], darkWindows: MatrixSpec[], litWindows: MatrixSpec[],
     roofUnits: MatrixSpec[], doorFrames: MatrixSpec[], interiorProps: MatrixSpec[], interiorDark: MatrixSpec[],
     interiorLights: MatrixSpec[], railings: MatrixSpec[], massing: MatrixSpec[], glassVolumes: MatrixSpec[],
-    accentVolumes: MatrixSpec[], machinery: MatrixSpec[], facadePlants: MatrixSpec[]
+    accentVolumes: MatrixSpec[], machinery: MatrixSpec[], facadePlants: MatrixSpec[], sourceStructure: BrStructure
   ): void {
     const { x, z } = structure.position;
     const { x: width, y: height, z: depth } = structure.size;
@@ -799,7 +800,7 @@ export class BrWorldRenderer {
       roofUnits.push({position:position(x,height+3.1,z),scale:position(width*.42,3.8,depth*.4)});
     }
     this.addArchetypeMassing(structure, massing, glassVolumes, accentVolumes, machinery, roofUnits, railings);
-    this.addInteriorKit(structure, interiorProps, interiorDark, interiorLights);
+    this.addInteriorKit(structure, interiorProps, interiorDark, interiorLights, sourceStructure);
   }
 
   private addArchetypeMassing(
@@ -882,7 +883,7 @@ export class BrWorldRenderer {
     }
   }
 
-  private addInteriorKit(structure: BrStructure, light: MatrixSpec[], dark: MatrixSpec[], emissive: MatrixSpec[]): void {
+  private addInteriorKit(structure: BrStructure, light: MatrixSpec[], dark: MatrixSpec[], emissive: MatrixSpec[], sourceStructure: BrStructure): void {
     if (!structure.enterable) return;
     if (structure.id === "crash-fuselage") {
       const targets={panel:light,frame:dark,light:emissive};
@@ -946,18 +947,12 @@ export class BrWorldRenderer {
         for(let strip=0;strip<5;strip++) dark.push({position:position(x-width*.16,ceiling,z-depth*.36+strip*depth*.18),scale:position(width*.55,.08,.23)});
         for(const side of [-1,1]) light.push({position:position(x-width*.16+side*width*.255,ceiling,z),scale:position(.16,.09,depth*.82)});
       }
-    } else if (archetype === "warehouse" || archetype === "hangar") {
-      for (const side of [-1, 1]) for (const row of [-1, 0, 1]) dark.push({ position: position(x + side * width * .3, 1.25, z + row * depth * .22), scale: position(1.35, 2.5, depth * .13) });
-      light.push({ position: position(x, .7, z + depth * .27), scale: position(width * .25, 1.4, 2.2) });
-    } else if (archetype === "lab" || archetype === "academy" || archetype === "office") {
-      for (const side of [-1, 1]) {
-        light.push({ position: position(x + side * width * .23, .78, z + depth * .12), scale: position(width * .18, 1.45, 1.45) });
-        dark.push({ position: position(x + side * width * .23, 1.18, z - depth * .2), scale: position(width * .2, 2.2, .24) });
-      }
-      emissive.push({ position: position(x, 1.75, z - depth * .31), scale: position(width * .42, .18, .08) });
-    } else if (archetype === "industrial" || archetype === "utility") {
-      for (const side of [-1, 1]) dark.push({ position: position(x + side * width * .25, 1.55, z), scale: position(1.25, 3.1, 1.25) });
-      emissive.push({ position: position(x, .18, z), scale: position(width * .58, .08, .36) });
+    } else if (["warehouse", "hangar", "lab", "academy", "office", "industrial", "utility"].includes(archetype)) {
+      const targets = {dark, panel:light, light:emissive};
+      for(const part of buildFunctionalInterior(sourceStructure))targets[part.finish].push({
+        position:position(part.position.x,part.position.y,part.position.z),
+        scale:position(part.scale.x,part.scale.y,part.scale.z)
+      });
     } else if(archetype!=="apartment"&&archetype!=="hotel") {
       light.push({ position: position(x - width * .2, .62, z + depth * .2), scale: position(2.3, 1.2, 1.1) });
       dark.push({ position: position(x + width * .2, .45, z - depth * .2), scale: position(2.1, .8, 1.3) });

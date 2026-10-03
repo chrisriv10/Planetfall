@@ -40,7 +40,15 @@ describe("residential lounge dressing",()=>{
     const counter=result.parts.filter(part=>part.role==="reception-counter");
     expect(planters).toHaveLength(12);
     expect(planters.filter(part=>part.finish==="frame"&&part.scale.y===.5)).toHaveLength(2);
-    expect(planters.filter(part=>part.finish==="accent")).toHaveLength(6);
+    const foliage=planters.filter(part=>part.finish==="foliage");
+    expect(foliage).toHaveLength(6);
+    for(const leaf of foliage){
+      expect(leaf.scale.x).toBeLessThanOrEqual(.3);
+      expect(leaf.scale.y).toBeLessThanOrEqual(.42);
+      expect(leaf.scale.z).toBeLessThanOrEqual(.52);
+      expect(leaf.position.x-leaf.scale.x).toBeGreaterThan(hotel.position.x-hotel.size.x/2+.325);
+      expect(leaf.position.x+leaf.scale.x).toBeLessThan(hotel.position.x-hotel.size.x/2+1.2);
+    }
     for(const part of planters){
       expect(part.position.y-part.scale.y/2).toBeGreaterThanOrEqual(.36);
       expect(part.position.y+part.scale.y/2).toBeLessThan(1.7);

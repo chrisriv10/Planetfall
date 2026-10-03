@@ -553,6 +553,16 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
   await expect.poll(async () => (await debugState(guest)).players.find((player) => player.id === guestPlayer.id)!.scrap, { timeout: 3000 }).toBeLessThan(scrapAfterFirst);
   await expect.poll(async () => (await debugState(host)).matchStats.find((stats) => stats.playerId === guestPlayer.id)?.damageDealt ?? 0, { timeout: 5000 }).toBeGreaterThanOrEqual(BALANCE.weapons.rocket.damage * 2);
 
+  // The test server deliberately gives this traversal-heavy match 165s.
+  // Fast successful raids can finish their actions with more than 55s left;
+  // results must not be expected before the actual match clock expires.
+  // Keep the existing results deadline and the overall 220s test budget.
+  await expect.poll(async () => {
+    if (await host.locator("#results-screen").isVisible()) return 0;
+    const clock = (await host.locator("#timer").textContent())?.trim() ?? "";
+    const match = /^(\d+):(\d{2})$/.exec(clock);
+    return match ? Number(match[1]) * 60 + Number(match[2]) : Number.POSITIVE_INFINITY;
+  }, { timeout: 110_000 }).toBeLessThanOrEqual(45);
   await expect(host.locator("#results-screen")).toBeVisible({ timeout: 55_000 });
   await expect(guest.locator("#results-screen")).toBeVisible();
   await expect(host.locator("#results-standings .standing")).toHaveCount(2);

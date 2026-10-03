@@ -1,6 +1,6 @@
 import { BR_LOOT_SOCKETS, BR_MAP_BLOCKS, type BrStructure, type Vec3 } from "@planetfall/shared";
 
-export type ResidentialPart = { finish: "frame" | "panel" | "glass" | "light" | "accent"; position: Vec3; scale: Vec3; rotationX?: number;
+export type ResidentialPart = { finish: "frame" | "panel" | "glass" | "light" | "accent" | "foliage"; position: Vec3; scale: Vec3; rotationX?: number;
   role?: "lounge-chair" | "lounge-table" | "reception-counter" | "lobby-planter" | "wall-trim" };
 export type ResidentialSign = { text: string; position: Vec3; width: number };
 
@@ -253,12 +253,12 @@ export function buildResidentialInterior(structure: BrStructure): {parts: Reside
         add("frame",.42,.25,center,.72,.5,.82);
         add("panel",.48,.53,center,.58,.09,.68);
         add("light",.785,.35,center,.025,.08,.56);
-        // Staggered chunky leaves use the district accent material and keep
-        // the toy-like Planetfall silhouette rather than becoming realistic
-        // foliage or another opaque wall slab.
-        add("accent",.49,.92,center-side*.18,.22,.76,.22);
-        add("accent",.49,.82,center+side*.18,.2,.56,.2);
-        add("accent",.49,.7,center,.24,.34,.24);
+        // Three small octahedral leaf clusters reuse the shared grass/canopy
+        // path. Their shallow wall-normal reach stays within the planter base;
+        // staggered width/height reads as foliage rather than a solid bush wall.
+        add("foliage",.48,.84,center-side*.2,.28,.42,.48);
+        add("foliage",.48,.75,center+side*.22,.25,.34,.4);
+        add("foliage",.48,.65,center,.3,.27,.52);
       }
     }
     // High mounted wayfinding is readable from the stair landing, not a false door.
