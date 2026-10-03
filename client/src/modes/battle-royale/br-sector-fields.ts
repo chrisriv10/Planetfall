@@ -163,11 +163,27 @@ function createParts(center: Vec3, angle: number, style: BrDistrictStyle): BrSec
     add("brushedMetal", -9, z, .8, .46, 3, .14, .12);
     add(accent, -9, z, .5, .12, 3, .212, .025);
   }
+
+  // The opposite edge carries a restrained propulsion-service manifold: a
+  // flush cable trunk, two ankle-low diagnostic cabinets and slim energized
+  // risers. These give the foreground an inhabited industrial rhythm without
+  // becoming non-colliding cover or narrowing the six-metre through-road.
+  add("structuralDark", -11.2, 0, .14, 14, 3);
+  for (const z of [-3.4, 3.4]) add(accent, -11.18, z, .26, 1.2, 3);
+  for (const z of [-5.5, 5.5]) {
+    add("paintedMetal", -11.8, z, 1.8, .8, 3, .08, .12);
+    add("brushedMetal", -11.8, z, 1.42, .5, 3, .16, .04);
+    add(accent, -11.8, z, .8, .1, 3, .187, .014);
+  }
+  for (const z of [-7.3, 7.3]) {
+    add("structuralDark", -11.8, z, .14, .14, 3, .73, 1.4);
+    add(accent, -11.8, z, .2, .2, 3, 1.47, .2);
+  }
   return parts;
 }
 
 /**
- * Flush orbital deck composition with sparse open edge fixtures (30 boxes).
+ * Flush orbital deck composition with sparse open edge fixtures (43 boxes).
  * These fields are visual-only and deliberately avoid every gameplay route,
  * collider, authored terrain treatment, traversal device and existing kit.
  * All instances remain non-colliding; no lights or per-frame work are required.

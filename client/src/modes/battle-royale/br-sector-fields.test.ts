@@ -28,10 +28,10 @@ describe("BR broad orbital sector fields", () => {
     const fields = buildBrSectorFields();
     expect(fields.length).toBeGreaterThanOrEqual(3);
     expect(fields.length).toBeLessThanOrEqual(10);
-    // Original fourteen flush parts plus sixteen sparse edge-fixture boxes;
+    // Seventeen flush parts plus twenty-six sparse edge-fixture boxes;
     // still at most ten sites, using the same shared geometry/finish batches.
-    expect(fields.every(field => field.parts.length === 30)).toBe(true);
-    expect(fields.reduce((total, field) => total + field.parts.length, 0)).toBeLessThanOrEqual(300);
+    expect(fields.every(field => field.parts.length === 43)).toBe(true);
+    expect(fields.reduce((total, field) => total + field.parts.length, 0)).toBeLessThanOrEqual(430);
     expect(buildBrSectorFields()).toEqual(fields);
     expect(buildBrSectorFields({ roads: [...BR_ROADS].reverse() })).toEqual(fields);
     expect(new Set(fields.map(field => field.roadId)).size).toBe(fields.length);
@@ -82,11 +82,13 @@ describe("BR broad orbital sector fields", () => {
     for (const field of buildBrSectorFields()) {
       const flush = field.parts.filter(part => part.scale.y === .008);
       const raised = field.parts.filter(part => part.scale.y !== .008);
-      expect(flush).toHaveLength(14);
-      expect(raised).toHaveLength(16);
+      expect(flush).toHaveLength(17);
+      expect(raised).toHaveLength(26);
       expect(raised.filter(part => part.scale.y === 2.4)).toHaveLength(4); // Beacons.
       expect(raised.filter(part => part.scale.y === 3.8)).toHaveLength(2); // Open gantry posts.
       expect(raised.filter(part => part.position.y === .14)).toHaveLength(2); // Low diagnostics.
+      expect(raised.filter(part => part.position.y === .08 && part.scale.y === .12)).toHaveLength(2); // Service cabinets.
+      expect(raised.filter(part => part.scale.y === 1.4)).toHaveLength(2); // Propulsion risers.
       for (const part of raised) {
         const bottom = part.position.y - part.scale.y / 2;
         const top = part.position.y + part.scale.y / 2;
