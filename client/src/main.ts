@@ -1,5 +1,5 @@
 import "./style.css";
-import { BALANCE, BR_BALANCE, BR_HEALS, BR_MAP, BR_POIS, BR_SECONDARY_LOCATIONS, BR_WEAPONS, CHAOS_COPY, PLANET_PASS_REWARDS, SESSION_PROGRESSION, SHOP_CATALOG, WEAPON_COPY, WEAPON_ORDER, isBrWeapon, type BotDifficulty, type BrCrateState, type BrItemId, type BrJoinResult, type BrLootState, type BrMatchResult, type BrPlayerState, type BrRoomView, type BrTeamMode, type ChaosModifier, type CosmeticCategory, type EmoteType, type GameFamily, type GameMode, type JoinResult, type MatchCalloutType, type MatchEvent, type MatchResult, type RoomView, type WeaponType } from "@planetfall/shared";
+import { BALANCE, BR_BALANCE, BR_HEALS, BR_MAP, BR_POIS, BR_SECONDARY_LOCATIONS, BR_WEAPONS, CHAOS_COPY, PLANET_PASS_REWARDS, SESSION_PROGRESSION, SHOP_CATALOG, WEAPON_COPY, WEAPON_ORDER, brPickupDisposition, isBrWeapon, type BotDifficulty, type BrCrateState, type BrItemId, type BrJoinResult, type BrLootState, type BrMatchResult, type BrPlayerState, type BrRoomView, type BrTeamMode, type ChaosModifier, type CosmeticCategory, type EmoteType, type GameFamily, type GameMode, type JoinResult, type MatchCalloutType, type MatchEvent, type MatchResult, type RoomView, type WeaponType } from "@planetfall/shared";
 import { createGameSocket } from "./network";
 import { inputLabel, type InputMethod } from "./input";
 import { SETTINGS_STORAGE_KEY, parseStoredSettings, type UserSettings } from "./settings";
@@ -7,6 +7,8 @@ import { brStormReadout } from "./modes/battle-royale/br-feedback";
 import { brMapPercent, createBrMapArt, updateBrMinimapArt } from "./modes/battle-royale/br-map-art";
 import { brPresentedTeammates, brTeammateStatus } from "./modes/battle-royale/br-team-presentation";
 import { brItemIconSvg, type BrItemArtId } from "./modes/battle-royale/br-item-art";
+import { createShopCosmeticPreview } from "./shop-cosmetic-preview";
+import { brContextPromptFor } from "./modes/battle-royale/br-interaction-presentation";
 
 const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const canvas = byId<HTMLCanvasElement>("game-canvas");
@@ -240,6 +242,7 @@ socket.on("br:error", ({ message }) => toast(message));
 socket.on("br:room:state", (nextRoom) => { void applyBrRoom(nextRoom); });
 socket.on("br:match:snapshot", (snapshot) => { if(currentFamily==="battle-royale")brGame?.applySnapshot(snapshot); });
 socket.on("br:match:countdown", () => undefined);
+socket.on("br:ship:jumped", (payload) => brGame?.shipJumped(payload));
 socket.on("br:loot:spawned", (loot) => { if (brGame) brGame.spawnLoot(loot); else pendingBrLoot.push(...loot); });
 socket.on("br:loot:removed", ({ ids }) => brGame?.removeLoot(ids));
 socket.on("br:crate:spawned", (crates) => { if (brGame) brGame.spawnCrates(crates); else pendingBrCrates.push(...crates); });
@@ -545,6 +548,7 @@ async function ensureBrGame(nextRoom: BrRoomView): Promise<BrGame> {
     instance.onInput = (input) => socket.emit("br:player:input", input);
     instance.onJumpShip = () => socket.emit("br:player:jump");
     instance.onDeploy = () => socket.emit("br:player:deploy");
+    instance.onToggleVehicle = () => socket.emit("br:vehicle:toggle");
     instance.onFire = (origin, direction, clientTime) => socket.emit("br:weapon:fire", { origin, direction, clientTime });
     instance.onReload = () => socket.emit("br:weapon:reload");
     instance.onUseItem = () => socket.emit("br:item:use");
@@ -665,6 +669,8 @@ function renderBrHud(state: import("./modes/battle-royale/br-game").BrHudState):
   lastBrOutsideVoid=outsideVoid;lastBrStormStage=state.storm.stage;lastBrStormPhase=state.storm.phaseIndex;
   const altitude=byId("br-altitude");altitude.hidden=!state.dropAltitude;
   if(state.dropAltitude){const drop=state.dropAltitude;byId("br-altitude-state").textContent=drop.deployment==="chute"?"ION WINGS":"FREEFALL";byId("br-altitude-value").textContent=`${Math.round(drop.meters)}m`;byId("br-altitude-speed").textContent=`↓ ${Math.round(Math.abs(Math.min(0,drop.verticalSpeed)))} m/s`;byId<HTMLElement>("br-altitude-marker").style.bottom=`${Math.max(2,Math.min(96,drop.meters/Math.max(1,BR_BALANCE.shipHeight)*94))}%`;byId<HTMLElement>("br-altitude-deploy").style.bottom=`${Math.max(2,Math.min(96,BR_BALANCE.autoDeployHeight/Math.max(1,BR_BALANCE.shipHeight)*94))}%`;}
+  const autoJump=byId("br-auto-jump");const autoJumpSeconds=brRoom?.ship&&player.deployment==="attached"?Math.ceil((brRoom.ship.autoJumpAt-Date.now())/1000):0;
+  autoJump.hidden=autoJumpSeconds<1||autoJumpSeconds>3;if(!autoJump.hidden)autoJump.textContent=`AUTO-JUMP IN ${autoJumpSeconds}`;
   const mini = byId("br-minimap"); const miniStorm = mini.querySelector<HTMLElement>(".br-mini-storm")!; const span = 110; updateBrMinimapArt(mini,player.position.x,player.position.z,span); miniStorm.style.left = `${50 + (state.storm.center.x - player.position.x) / span * 50}%`; miniStorm.style.top = `${50 + (state.storm.center.z - player.position.z) / span * 50}%`; miniStorm.style.width = `${state.storm.radius / span * 100}%`; miniStorm.style.height = miniStorm.style.width;
   const teamMembers = brPresentedTeammates(state.teamMode, player, state.players);
   byId("br-map-legend").textContent=state.teamMode==="solo"?"YOU · SAFE ZONE":"YOU · TEAM · SAFE ZONE";
@@ -683,12 +689,12 @@ function renderBrHud(state: import("./modes/battle-royale/br-game").BrHudState):
   // through freefall, landing and combat obscured real interaction prompts.
   // The elimination panel already owns spectator instructions and exit. Keep
   // the transient action strip from duplicating those controls underneath it.
-  const contextText=eliminated?"":state.prompt;
+  const contextText=brContextPromptFor({prompt:state.prompt,hasLootTarget:Boolean(state.targetedLoot),eliminated});
   const contextAmount=contextText ? Math.max(state.reloadProgress,state.useProgress,state.reviveProgress) : 0;
   brContextPrompt.dataset.kind="action";brContextCopy.textContent=contextText;brContextPrompt.hidden=!contextText;brContextProgress.style.width=`${contextAmount*100}%`;
   const inventory = byId("br-inventory"); const nextInventoryMarkup = brInventoryMarkupFor(player);
   if (nextInventoryMarkup !== brInventoryMarkup) { brInventoryMarkup = nextInventoryMarkup; inventory.innerHTML = nextInventoryMarkup; }
-  renderBrLootCard(state.targetedLoot);
+  renderBrLootCard(state.targetedLoot,player);
   if(!brInventoryOverlay.hidden)renderBrInventoryPanel(player);
   const nextTeammateMarkup = teamMembers.map((mate) => { const status=brTeammateStatus(mate);return `<div class="br-teammate ${status}" style="--mate-color:${mate.color}"><i></i><b>${escapeHtml(mate.name)}</b><span>${status.toUpperCase()}</span><label>HP<em style="--value:${Math.max(0,mate.hp)}%"></em></label><label>SHIELD<em style="--value:${Math.max(0,mate.shield)}%"></em></label></div>`; }).join("");
   if (nextTeammateMarkup !== brTeammateMarkup) { brTeammateMarkup = nextTeammateMarkup; const teamHud=byId("br-team-hud");teamHud.innerHTML=nextTeammateMarkup;teamHud.hidden=state.teamMode==="solo"||teamMembers.length===0; }
@@ -732,11 +738,13 @@ function brLootDescription(loot:BrLootState):string{
   if(isBrWeapon(loot.itemId)){const weapon=BR_WEAPONS[loot.itemId];return `${weapon.role.toUpperCase()} · ${weapon.damage} DMG · ${weapon.range}m`;}
   const heal=BR_HEALS[loot.itemId];return `${heal.hp?`+${heal.hp} HP`:`+${heal.shield} SHIELD`} · ${(heal.durationMs/1000).toFixed(heal.durationMs%1000?1:0)}s USE`;
 }
-function renderBrLootCard(loot:BrLootState|null):void{
+function renderBrLootCard(loot:BrLootState|null,player:BrPlayerState):void{
   const card=byId("br-loot-card");card.hidden=!loot;if(!loot)return;
   const artId=brLootArtId(loot);const rarity=loot.rarity.toUpperCase();
   card.style.setProperty("--loot-rarity",({common:"#b8c4dc",rare:"#54b8ff",epic:"#c565ff",legendary:"#ffc84f"} as const)[loot.rarity]);
-  card.innerHTML=`<span class="br-loot-art">${artId?brItemIconSvg(artId):""}</span><div><small>${rarity}</small><strong>${escapeHtml(brLootName(loot))}</strong><p>${escapeHtml(brLootDescription(loot))}</p></div><kbd>E</kbd>`;
+  const disposition=brPickupDisposition(player.inventory,player.ammo,loot);
+  const action=disposition==="swap"?"SWAP HELD":"PICK UP";
+  card.innerHTML=`<span class="br-loot-art">${artId?brItemIconSvg(artId):""}</span><div><small>${rarity} · ${action}</small><strong>${escapeHtml(brLootName(loot))}</strong><p>${escapeHtml(brLootDescription(loot))}</p></div><kbd>E</kbd>`;
 }
 function renderBrInventoryPanel(player:BrPlayerState):void{
   byId("br-inventory-panel-slots").innerHTML=player.inventory.map((item,index)=>{
@@ -986,7 +994,8 @@ function renderShop(): void {
     card.style.setProperty("--item-color", item.color ?? (item.category === "emote" ? "#ff8bd9" : "#70f5ff"));
     const owned = me?.ownedCosmetics.includes(item.id) ?? false;
     const equipped = Boolean(me && item.category !== "emote" && me.equippedCosmetics[item.category] === item.id);
-    card.innerHTML = `<i></i><b>${escapeHtml(item.name)}</b><small>${owned ? "OWNED" : `${item.price} FALLBUCKS`}</small><button>${previewing ? "PLAY TO UNLOCK" : equipped ? "EQUIPPED" : owned ? item.category === "emote" ? "OWNED" : "EQUIP" : "BUY"}</button>`;
+    card.innerHTML = `<b>${escapeHtml(item.name)}</b><small>${owned ? "OWNED" : `${item.price} FALLBUCKS`}</small><button>${previewing ? "PLAY TO UNLOCK" : equipped ? "EQUIPPED" : owned ? item.category === "emote" ? "OWNED" : "EQUIP" : "BUY"}</button>`;
+    card.prepend(createShopCosmeticPreview(item));
     const button = card.querySelector("button")!;
     button.disabled = previewing || equipped || (owned && item.category === "emote") || (!owned && me!.fallbucks < item.price);
     button.addEventListener("click", () => {

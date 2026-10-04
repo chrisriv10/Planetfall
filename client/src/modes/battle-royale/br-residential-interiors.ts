@@ -191,16 +191,18 @@ export function buildResidentialInterior(structure: BrStructure): {parts: Reside
         add("frame",.47,.19,0,.14,.34,.36,"lounge-table");
         add("panel",.47,.4,0,.62,.08,.62,"lounge-table");
       }else{
-        // Housing retains its communal bench vocabulary.
-        add("frame",.43,.38,0,.7,.14,3.6);
+        // Housing retains its communal bench vocabulary, scaled against the
+        // shared ~2m astronaut: .53m seat top and 1.07m back top rather than
+        // the former .62m / 1.23m oversized arrangement.
+        add("frame",.43,.36,0,.7,.12,3.6);
         for(const end of [-1,1]) {
-          add("frame",.43,.15,end*1.4,.46,.3,.16);
-          add("panel",.45,.72,end*1.72,.78,.18,.2);
-          add("frame",.45,.54,end*1.72,.58,.26,.13);
+          add("frame",.43,.14,end*1.4,.46,.28,.16);
+          add("panel",.45,.62,end*1.72,.78,.14,.2);
+          add("frame",.45,.48,end*1.72,.58,.2,.13);
         }
         for(const seat of [-1,0,1]) {
-          add("panel",.46,.53,seat*1.07,.64,.18,1.01);
-          add("panel",.16,.92,seat*1.07,.2,.62,1.01);
+          add("panel",.46,.45,seat*1.07,.64,.16,1.01);
+          add("panel",.16,.82,seat*1.07,.2,.5,1.01);
         }
       }
       for(const end of [-1,1]) {

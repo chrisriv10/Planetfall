@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { io as connect, type Socket } from "socket.io-client";
-import { BR_BALANCE, BR_WEAPONS, brDropVelocity, type BrJoinResult, type BrRoomView, type ClientToServerEvents, type ServerToClientEvents } from "@planetfall/shared";
+import { BR_BALANCE, BR_MAP, BR_WEAPONS, brDropVelocity, type BrJoinResult, type BrRoomView, type ClientToServerEvents, type ServerToClientEvents } from "@planetfall/shared";
 import { createPlanetfallServer } from "../../app.js";
 import { BattleRoyaleRoom } from "./br-room.js";
 
@@ -77,6 +77,45 @@ describe("Battle Royale room", () => {
     expect(room.jumpFromShip(player.id,now+BR_BALANCE.countdownMs+100)).toBe(true);
     expect(player.yaw).toBe(yaw);
     expect(player.velocity).toEqual(brDropVelocity(room.ship!,yaw));
+  });
+
+  it("auto-ejects every attached pilot before the unsafe route end with inward momentum",async()=>{
+    const {server,url}=await setup();const host=await client(url);const joined=await createRoom(host,"Auto jump pilot");
+    if(!joined.ok)throw new Error(joined.error);
+    const room=server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom;
+    room.configure(joined.playerId,{targetPlayers:10,fillBots:true});room.setReady(joined.playerId,true);
+    const now=Date.now();room.start(joined.playerId,now);room.update(1/30,now+BR_BALANCE.countdownMs+1);
+    const ship=room.ship!;
+    expect(ship.autoJumpAt).toBeLessThan(ship.endsAt);
+    const forcedEvent=new Promise<{playerId:string;position:{x:number;y:number;z:number};velocity:{x:number;y:number;z:number};forced:boolean}>(resolve=>{
+      const handler=(payload:{playerId:string;position:{x:number;y:number;z:number};velocity:{x:number;y:number;z:number};forced:boolean})=>{
+        if(payload.playerId!==joined.playerId)return;host.off("br:ship:jumped",handler);resolve(payload);
+      };
+      host.on("br:ship:jumped",handler);
+    });
+    room.update(1/30,ship.autoJumpAt+1);
+    expect([...room.players.values()].every(player=>player.deployment!=="attached")).toBe(true);
+    const player=room.players.get(joined.playerId)!;
+    expect(Math.hypot(player.position.x,player.position.z)).toBeLessThan(BR_MAP.radius);
+    expect(player.position.x*player.velocity.x+player.position.z*player.velocity.z).toBeLessThan(0);
+    const event=await forcedEvent;expect(event.forced).toBe(true);
+    expect(event.position.x*event.velocity.x+event.position.z*event.velocity.z).toBeLessThan(0);
+    expect(room.phase).toBe("combat");
+  });
+
+  it("authoritatively enters, drives, blocks seated actions, and exits a hover skimmer",async()=>{
+    const {server,url}=await setup();const host=await client(url);const joined=await createRoom(host,"Skimmer pilot");
+    if(!joined.ok)throw new Error(joined.error);
+    const room=server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom;
+    const now=Date.now();room.configure(joined.playerId,{targetPlayers:10,fillBots:true});room.setReady(joined.playerId,true);room.start(joined.playerId,now);room.phase="combat";
+    const player=room.players.get(joined.playerId)!;const vehicle=[...room.vehicles.values()][0];
+    player.alive=true;player.downed=false;player.deployment="grounded";player.grounded=true;player.position={x:vehicle.position.x+1,y:vehicle.position.y,z:vehicle.position.z};
+    expect(room.toggleVehicle(player.id)).toBe(true);expect(player.vehicleId).toBe(vehicle.id);expect(vehicle.driverId).toBe(player.id);
+    const before={...vehicle.position};room.setInput(player.id,{sequence:1,dt:.1,moveX:.35,moveY:1,yaw:vehicle.yaw,pitch:0,jump:false,sprint:false,crouch:false,fire:false,aim:false,reload:false});
+    room.update(.1,now+100);expect(Math.hypot(vehicle.position.x-before.x,vehicle.position.z-before.z)).toBeGreaterThan(.05);expect(player.position.x).toBeCloseTo(vehicle.position.x,5);
+    player.inventory[0]={instanceId:"seat-test",itemId:"pulse-rifle",rarity:"common",count:1,magazine:BR_WEAPONS["pulse-rifle"].magazine};player.selectedSlot=0;
+    expect(room.fire(player.id,player.position,{x:0,y:0,z:-1},now+100,now+100)).toBe(false);
+    expect(room.toggleVehicle(player.id)).toBe(true);expect(player.vehicleId).toBeNull();expect(vehicle.driverId).toBeNull();
   });
 
   it("expires stale human movement input instead of authoritatively running forever", async () => {

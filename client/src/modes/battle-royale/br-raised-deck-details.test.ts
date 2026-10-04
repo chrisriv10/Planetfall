@@ -9,8 +9,8 @@ const pointSegment=(x:number,z:number,road:BrRoadSegment)=>{
   return Math.hypot(x-road.from.x-dx*t,z-road.from.z-dz*t);
 };
 describe("raised district edge construction",()=>{
-  it("dresses all four fixed districts with a restrained deterministic instance/material budget",()=>{
-    expect(decks).toHaveLength(4);
+  it("dresses every fixed raised district with a restrained deterministic instance/material budget",()=>{
+    expect(decks.length).toBeGreaterThanOrEqual(8);
     const before=JSON.stringify([BR_TERRACES,BR_ROADS]);
     for(const deck of decks){
       const parts=buildBrRaisedDeckDetails(deck);
@@ -40,6 +40,22 @@ describe("raised district edge construction",()=>{
           &&Math.abs(part.position.z-building.position.z)<(part.scale.z+building.size.z)/2
           &&part.position.y+part.scale.y/2>building.position.y&&part.position.y-part.scale.y/2<building.position.y+building.size.y;
         expect(overlaps,`${deck.id}: ${building.id}`).toBe(false);
+      }
+    }
+  });
+  it("gives tall retaining walls visible vertical structure without increasing the instance budget",()=>{
+    for(const deck of decks.filter(deck=>deck.height>=3)){
+      const parts=buildBrRaisedDeckDetails(deck),ribs=parts.filter(part=>part.role==="rib");
+      expect(ribs.length).toBeGreaterThan(4);
+      for(const rib of ribs){
+        expect(rib.position.y-rib.scale.y/2).toBeCloseTo(.925);
+        expect(rib.position.y+rib.scale.y/2).toBeCloseTo(deck.height-.175);
+        expect(rib.scale.y).toBeGreaterThan(deck.height*.6);
+        expect(Math.min(rib.scale.x,rib.scale.z)).toBeLessThanOrEqual(.09);
+      }
+      for(const armor of parts.filter(part=>part.role==="armor")){
+        expect(armor.scale.y).toBeGreaterThanOrEqual(.78);
+        expect(armor.scale.y).toBeLessThanOrEqual(1.6);
       }
     }
   });

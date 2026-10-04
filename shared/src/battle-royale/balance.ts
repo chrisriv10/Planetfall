@@ -11,6 +11,10 @@ export const BR_BALANCE = {
   reconnectGraceMs: 30_000,
   countdownMs: 5_000,
   shipDurationMs: 36_000,
+  // Leave the transport while it is still over safe island space. The final
+  // three seconds before this cutoff are surfaced as the auto-jump warning.
+  shipAutoJumpProgress: .84,
+  shipAutoJumpWarningMs: 3_000,
   shipHeight: 190,
   freefallSpeed: 32,
   freefallHorizontalSpeed: 21.5,
@@ -55,7 +59,8 @@ export const BR_BALANCE = {
   // An emergency result should arrive inside the intended compact BR cadence,
   // even when a final pair of bot teams keeps disengaging around cover.
   matchTimeoutMs: 8 * 60_000,
-  fallBoundaryY: -35
+  fallBoundaryY: -35,
+  vehicle:{maxSpeed:25,reverseSpeed:8,acceleration:20,braking:28,turnRate:1.85,enterRange:3.2,collisionRadius:2.45,hoverHeight:.44}
 } as const;
 
 export const BR_RARITY_MULTIPLIER: Record<BrRarity, number> = {

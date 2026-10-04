@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { BrDistrictPlan } from "@planetfall/shared";
 import { buildBrDistrictDressing } from "./br-district-dressing";
+import { BR_ENVIRONMENT_SCALE, isWithinBrPresentationScale } from "./br-environment-scale";
 
 const plan: BrDistrictPlan = {
   id: "review-court", origin: { x: 100, y: 0, z: 120 }, elevation: 3,
@@ -67,5 +68,22 @@ describe("authored district courtyard presentation", () => {
     expect(allowed.every(group => group.center.x > plan.openZone.position.x)).toBe(true);
     expect(buildBrDistrictDressing(plan, { ...options, isClear: () => false })).toEqual([]);
     expect(buildBrDistrictDressing({ ...plan, approach: { x: 0, y: 0, z: 0 } }, options)).toEqual([]);
+  });
+
+  it("keeps public and cafe seating at astronaut-readable heights", () => {
+    const neighborhood = buildBrDistrictDressing(plan, options).flatMap(group => group.parts);
+    const benchSeats = neighborhood.filter(part => part.finish === "windowLit" && part.scale.y === .16);
+    expect(benchSeats.length).toBeGreaterThan(0);
+    for (const seat of benchSeats) expect(isWithinBrPresentationScale(
+      seat.position.y + seat.scale.y / 2 - plan.elevation, BR_ENVIRONMENT_SCALE.benchSeatTop)).toBe(true);
+
+    const cafe = buildBrDistrictDressing({ ...plan, kind: "commercial" }, options).flatMap(group => group.parts);
+    const cafeSeats = cafe.filter(part => part.finish === "industrialOrange" && part.scale.x === .48);
+    expect(cafeSeats.length).toBeGreaterThan(0);
+    for (const seat of cafeSeats) expect(isWithinBrPresentationScale(
+      seat.position.y + seat.scale.y / 2 - plan.elevation, BR_ENVIRONMENT_SCALE.cafeSeatTop)).toBe(true);
+    const tableTops = cafe.filter(part => part.finish === "structuralWhite" && part.geometry === "cylinder" && part.scale.x === .72);
+    for (const table of tableTops) expect(isWithinBrPresentationScale(
+      table.position.y + table.scale.y / 2 - plan.elevation, BR_ENVIRONMENT_SCALE.cafeTableTop)).toBe(true);
   });
 });

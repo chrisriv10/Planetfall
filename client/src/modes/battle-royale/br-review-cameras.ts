@@ -31,10 +31,14 @@ export const BR_REVIEW_CAMERAS: Readonly<Record<string, BrReviewCamera>> = {
   "east-checkpoint-grade": { position: [297, 2.8, 171], focus: [328, 5.6, 208] },
   "south-terminal-grade": { position: [15, 3.1, -350], focus: [15, 5.2, -388] },
   "south-terminal-apron": { position: [-15, 5.35, -386], focus: [7, 4.1, -401] },
+  "south-terminal-skimmer": { position: [10, 6.15, -377], focus: [2, 4.65, -386] },
   "south-shipworks-grade": { position: [133, 4.1, -347], focus: [183, 6.5, -374] },
   "maintenance-south": { position: [190, 7.65, -360], focus: [190, 5.85, -400] },
   "deck-transition": { position: [-255, 3.2, 8], focus: [-255, 2.2, -30] },
-  "sector-field": { position: [382, 3.2, 105], focus: [425, 2.2, 105] },
+  // East Rim is a full six-metre raised district. Keep this connective-field
+  // review at astronaut eye height above that deck rather than inside its
+  // structural platform, where the underside used to occlude most of frame.
+  "sector-field": { position: [382, 9.2, 105], focus: [425, 7.6, 105] },
   "edge-south": { position: [0, 12, -550], focus: [0, -13, -455] },
   "storm-boundary": { position: [-184, 2.7, -40], focus: [-184, 7, -10] },
   "storm-final": { position: [-184, 2.7, -96], focus: [-184, 7, -60] },

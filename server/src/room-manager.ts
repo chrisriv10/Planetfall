@@ -125,6 +125,7 @@ export class RoomManager {
     socket.on("br:player:input", (payload) => { const c = this.currentBr(socket); if (c) c.room.setInput(c.playerId, payload); });
     socket.on("br:player:jump", () => { const c = this.currentBr(socket); if (c) c.room.jumpFromShip(c.playerId); });
     socket.on("br:player:deploy", () => { const c = this.currentBr(socket); if (c) c.room.deployChute(c.playerId); });
+    socket.on("br:vehicle:toggle",()=>{const c=this.currentBr(socket);if(c)c.room.toggleVehicle(c.playerId);});
     socket.on("br:inventory:select", (payload) => { const c = this.currentBr(socket); if (c) c.room.selectSlot(c.playerId, payload?.slot); });
     socket.on("br:inventory:pickup", (payload, ack) => {
       const c = this.currentBr(socket);

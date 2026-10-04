@@ -52,14 +52,14 @@ export class BrLootRarityVisual extends THREE.Group {
   private readonly phase: number;
   private readonly itemBaseY:number;
 
-  constructor(model: THREE.Object3D, id: string, surfaceOffsetY: number,
+  constructor(model: THREE.Object3D, id: string, surfaceOffsetY: number, itemLift:number,
     geometries: readonly [THREE.BufferGeometry, THREE.BufferGeometry, THREE.BufferGeometry],
     materials: FieldMaterials, height: number, private readonly onRelease: () => void) {
     super(); this.name = "loot-rarity-visual";
     let hash = 2166136261;
     for (let i = 0; i < id.length; i++) hash = Math.imul(hash ^ id.charCodeAt(i), 16777619);
     this.phase = (hash >>> 0) / 4294967296 * Math.PI * 2;
-    this.itemBaseY=surfaceOffsetY+BR_LOOT_FLOAT.lift;
+    this.itemBaseY=surfaceOffsetY+itemLift;
     this.itemPivot.name = "loot-item-pivot"; this.itemPivot.add(model);
     this.ring = new THREE.Mesh(geometries[0], materials.ring);
     this.aura = new THREE.Mesh(geometries[1], materials.aura);
@@ -124,12 +124,13 @@ export class BrLootRarityResources {
    * Pass the known surface offset; never infer a global ground plane for roof loot.
    * Model transforms/materials remain intact inside a separate animation pivot.
    */
-  create(model: THREE.Object3D, rarity: BrRarity, id: string, surfaceOffsetY: number): BrLootRarityVisual {
+  create(model: THREE.Object3D, rarity: BrRarity, id: string, surfaceOffsetY: number,itemLift:number=BR_LOOT_FLOAT.lift): BrLootRarityVisual {
     if (this.disposed) throw new Error("Loot rarity resources are disposed");
     if (!Number.isFinite(surfaceOffsetY)) throw new Error("Loot surface offset must be finite");
+    if (!Number.isFinite(itemLift)||itemLift<0) throw new Error("Loot item lift must be finite and non-negative");
     const materials = this.materials.get(rarity);
     if (!materials) throw new Error("Unknown loot rarity");
-    const visual = new BrLootRarityVisual(model, id, surfaceOffsetY, this.geometries, materials,
+    const visual = new BrLootRarityVisual(model, id, surfaceOffsetY,itemLift, this.geometries, materials,
       BEAM_HEIGHT[rarity], () => this.visuals.delete(visual));
     this.visuals.add(visual); return visual;
   }

@@ -80,10 +80,10 @@ function buildCluster(center: Vec3, yaw: number, motif: BrDistrictDressingCluste
     if (quality === "high") add("octahedron", "grass", x + .2, .79, z + .15, .28, .35, .28);
   };
   const bench = () => {
-    add("chamferedBox", "windowLit", 0, .49, -.68, 2.0, .16, .55);
-    add("box", "structuralDark", -.73, .255, -.68, .13, .35, .43);
-    add("box", "structuralDark", .73, .255, -.68, .13, .35, .43);
-    add("chamferedBox", "structuralWhite", 0, .77, -.92, 2.0, .46, .13);
+    add("chamferedBox", "windowLit", 0, .46, -.68, 2.0, .16, .55);
+    add("box", "structuralDark", -.73, .225, -.68, .13, .29, .43);
+    add("box", "structuralDark", .73, .225, -.68, .13, .29, .43);
+    add("chamferedBox", "structuralWhite", 0, .73, -.92, 2.0, .42, .13);
   };
   const terminal = (finish: BrMaterialKey) => {
     add("chamferedBox", "structuralDark", -.6, .75, .48, .6, 1.4, .45);
@@ -105,9 +105,9 @@ function buildCluster(center: Vec3, yaw: number, motif: BrDistrictDressingCluste
       add("cylinder", "structuralDark", 0, .5, 0, .1, .84, .1);
       add("cylinder", "structuralWhite", 0, .96, 0, .72, .1, .72);
       for (const x of [-1, 1]) {
-        add("chamferedBox", "industrialOrange", x, .5, 0, .48, .18, .57);
-        add("box", "structuralDark", x, .27, 0, .26, .3, .26);
-        add("box", "industrialOrange", x * 1.22, .76, 0, .11, .46, .57);
+        add("chamferedBox", "industrialOrange", x, .45, 0, .48, .16, .57);
+        add("box", "structuralDark", x, .225, 0, .26, .29, .26);
+        add("box", "industrialOrange", x * 1.22, .70, 0, .11, .40, .57);
       }
       if (quality === "high") add("cylinder", "paintedMetal", 0, 1.09, 0, .11, .16, .11);
       break;

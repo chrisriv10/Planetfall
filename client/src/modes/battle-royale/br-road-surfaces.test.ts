@@ -25,4 +25,17 @@ describe("BR visible road spans", () => {
     expect(spans[1].from.y).toBeCloseTo(2.1);
     expect(spans[1].to.y).toBe(1);
   });
+
+  it("clips later coplanar road slabs at crossings instead of z-fighting",()=>{
+    const vertical:BrRoadSegment={id:"vertical",from:{x:0,y:0,z:-20},to:{x:0,y:0,z:20},width:8,color:"#000"};
+    const spans=buildBrVisibleRoadSpans(vertical,[],0,[road]);
+    expect(spans).toHaveLength(2);
+    expect(spans[0].to.z).toBeLessThanOrEqual(-3.9);
+    expect(spans[1].from.z).toBeGreaterThanOrEqual(3.9);
+  });
+
+  it("does not clip an elevated bridge where roads cross on different levels",()=>{
+    const bridge:BrRoadSegment={id:"bridge",from:{x:0,y:5,z:-20},to:{x:0,y:5,z:20},width:8,color:"#000"};
+    expect(buildBrVisibleRoadSpans(bridge,[],0,[road])).toEqual([expect.objectContaining({startT:0,endT:1})]);
+  });
 });

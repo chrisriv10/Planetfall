@@ -5,3 +5,5 @@ export * from "./math.js";
 export * from "./inventory.js";
 export * from "./movement.js";
 export * from "./spectator.js";
+export * from "./vehicles.js";
+export * from "./bot-distribution.js";

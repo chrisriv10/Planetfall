@@ -54,6 +54,9 @@ import { buildBrIslandDeckGeometry } from "./br-island-deck";
 import { buildBrTerraceDetails, type BrTerraceDetailPart } from "./br-terrace-details";
 import { buildBrRaisedDeckDetails, type BrRaisedDeckPart } from "./br-raised-deck-details";
 import { buildBrAuthoredDistrictProps, type BrDistrictPropPart } from "./br-authored-district-props";
+import { buildBrNovaStreetscape } from "./br-nova-streetscape";
+import { buildBrEastRimStreetscape } from "./br-east-rim-streetscape";
+import { buildBrAcademyStreetscape } from "./br-academy-streetscape";
 import {
   buildBrAuthoredSecondaryDressing,
   buildBrAuthoredTransitionDressing,
@@ -116,6 +119,7 @@ export class BrWorldRenderer {
     this.buildArchitecture();
     this.buildDistricts();
     this.buildSecondaryLocations();
+    this.buildRaisedStreetscapes();
     this.buildConnectiveDressing();
     this.buildSouthShipworksDressing();
     this.buildSouthTerminalDressing();
@@ -315,7 +319,8 @@ export class BrWorldRenderer {
     const gradeEdges: MatrixSpec[] = [];
     const gradeSupports: MatrixSpec[] = [];
     const gradeLights: MatrixSpec[] = [];
-    for (const road of BR_ROADS) {
+    for (let roadIndex=0;roadIndex<BR_ROADS.length;roadIndex++) {
+      const road=BR_ROADS[roadIndex];
       const dx = road.to.x - road.from.x;
       const dy = road.to.y - road.from.y;
       const dz = road.to.z - road.from.z;
@@ -328,7 +333,7 @@ export class BrWorldRenderer {
         const spec={position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z),rotationY:part.rotationY,rotationZ:part.rotationZ};
         (part.role==="edge"?gradeEdges:part.role==="support"?gradeSupports:gradeLights).push(spec);
       }
-      for (const span of buildBrVisibleRoadSpans(road)) {
+      for (const span of buildBrVisibleRoadSpans(road,BR_STRUCTURES,1.25,BR_ROADS.slice(0,roadIndex))) {
         const spanHorizontal=Math.hypot(span.to.x-span.from.x,span.to.z-span.from.z);
         const spanRise=span.to.y-span.from.y;
         const spanLength=Math.hypot(spanHorizontal,spanRise);
@@ -1035,12 +1040,42 @@ export class BrWorldRenderer {
     }
   }
 
+  private buildRaisedStreetscapes(): void {
+    this.addRaisedStreetscapeGroup("east-rim-streetscape", buildBrEastRimStreetscape(this.quality), position(418, 12, 105));
+    this.addRaisedStreetscapeGroup("academy-streetscape", buildBrAcademyStreetscape(this.quality), position(-272, 12, 235));
+  }
+
+  private addRaisedStreetscapeGroup(name: string, compositions: { parts: BrDistrictPropPart[] }[], center: THREE.Vector3): void {
+    const group = new THREE.Group();
+    group.name = name;
+    const batches = new Map<string, BrDistrictPropPart[]>();
+    for (const composition of compositions) for (const part of composition.parts) {
+      const key = `${part.geometry}:${part.finish}:${part.surface}`;
+      const batch = batches.get(key) ?? [];
+      batch.push(part);
+      batches.set(key, batch);
+    }
+    for (const [key, batch] of batches) {
+      const [geometryKey, finish, surface] = key.split(":") as [BrDistrictPropPart["geometry"], BrDistrictPropPart["finish"], string];
+      const geometry = geometryKey === "cylinder" ? this.materials.unitCylinder : geometryKey === "octahedron" ? this.materials.unitOctahedron : this.materials.unitBox;
+      const material = finish === "canopy" ? this.materials.canopy() : surface === "true" ? this.materials.surface(finish, 1) : this.materials.get(finish);
+      this.addInstances(group, geometry, material, batch.map(part => ({
+        position: position(part.position.x, part.position.y, part.position.z),
+        scale: position(part.scale.x, part.scale.y, part.scale.z),
+        rotationY: part.rotationY
+      })), false);
+    }
+    this.root.add(group);
+    this.districtDetails.push({ group, center, visible: true, distanceScale: .8 });
+  }
+
   private buildDistrictProps(poi: BrPoi): void {
     const group = new THREE.Group();
     group.name = `props-${poi.id}`;
     const nexusInsets:MatrixSpec[]=[],nexusEnergy:MatrixSpec[]=[],nexusWarnings:MatrixSpec[]=[];
     const propBatches=new Map<string,BrDistrictPropPart[]>();
-    for(const authored of buildBrAuthoredDistrictProps(poi))for(const part of authored.parts){
+    const authoredProps=[...buildBrAuthoredDistrictProps(poi),...(poi.id==="nova-plaza"?buildBrNovaStreetscape(this.quality):[])];
+    for(const authored of authoredProps)for(const part of authored.parts){
       const key=`${part.geometry}:${part.finish}:${part.surface}`;
       const batch=propBatches.get(key)??[];batch.push(part);propBatches.set(key,batch);
     }

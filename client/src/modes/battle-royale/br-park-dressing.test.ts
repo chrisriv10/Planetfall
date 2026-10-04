@@ -4,6 +4,7 @@ import {readFileSync} from "node:fs";
 import {BR_SECONDARY_LOCATIONS} from "@planetfall/shared";
 import {buildBrParkDressing,buildBrParkPaths,type BrParkClearance} from "./br-park-dressing";
 import {buildBrAuthoredSecondaryDressing} from "./br-authored-secondary-dressing";
+import {BR_ENVIRONMENT_SCALE,isWithinBrPresentationScale} from "./br-environment-scale";
 
 const open:BrParkClearance={roads:[],structures:[],blocks:[],traversal:[],outline:[[-100,-100],[100,-100],[100,100],[-100,100]]};
 const park={...BR_SECONDARY_LOCATIONS.find(location=>location.id==="west-park")!,position:{x:0,y:0,z:0}};
@@ -35,6 +36,15 @@ describe("BR park dressing",()=>{
         }
       }
     }
+  });
+  it("keeps benches and lights proportional to the canonical astronaut",()=>{
+    const parts=buildBrParkDressing(park,destination,open).flatMap(cluster=>cluster.parts);
+    const seats=parts.filter(part=>part.finish==="brushedMetal"&&part.scale.x===.19&&part.scale.y===.12);
+    expect(seats.length).toBeGreaterThan(0);
+    for(const seat of seats)expect(isWithinBrPresentationScale(seat.position.y+seat.scale.y/2,BR_ENVIRONMENT_SCALE.benchSeatTop)).toBe(true);
+    const lamps=parts.filter(part=>part.geometry==="cylinder"&&part.scale.y===3.1);
+    expect(lamps.length).toBeGreaterThan(0);
+    for(const lamp of lamps)expect(isWithinBrPresentationScale(lamp.scale.y,BR_ENVIRONMENT_SCALE.streetLightHeight)).toBe(true);
   });
   it("retires generated West Park pockets in favor of its fixed authored garden",()=>{
     const location=BR_SECONDARY_LOCATIONS.find(value=>value.id==="west-park")!;

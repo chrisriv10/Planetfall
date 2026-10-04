@@ -2143,9 +2143,15 @@ export class PlanetfallGame {
     }
 
     this.trajectory.visible = false;
-    // Launch pads are escape-critical traversal. Give the pad priority over a
-    // nearby defender or overlapping enemy structure so an invader cannot be
-    // trapped by another astronaut standing on the interaction point.
+    // A defender only qualifies when the player is deliberately facing them,
+    // so that explicit combat intent wins over overlapping world structures.
+    // Looking away immediately restores the escape-critical launch prompt.
+    const shoveTarget = this.nearbyPlayer();
+    if (shoveTarget) {
+      const cooldown = Math.max(0, (local.state.shoveCooldownUntil - Date.now()) / 1000);
+      this.onPrompt?.(cooldown > 0 ? `SHOVE READY IN ${cooldown.toFixed(1)}s` : `${this.label("interact")}  SHOVE ${shoveTarget.state.name.toUpperCase()}`, false, undefined, cooldown > 0 ? "cooldown" : "shove");
+      return;
+    }
     const launchPad = this.nearbyLaunchPad();
     if (launchPad) {
       const cooldown = Math.max(0, (local.state.launchCooldownUntil - Date.now()) / 1000);
@@ -2154,12 +2160,6 @@ export class PlanetfallGame {
         : local.state.scrap<boostCost?`NEED ${boostCost-local.state.scrap} SCRAP FOR BOOST`
           : `${this.label("repair")}  BOOST ${boostCost}`;
       this.onPrompt?.(cooldown > 0 ? `LAUNCH READY IN ${cooldown.toFixed(1)}s  ·  ${boost}` : `${this.label("interact")}  LAUNCH  ·  ${boost}`, false, undefined, cooldown > 0 ? "cooldown" : "launch");
-      return;
-    }
-    const shoveTarget = this.nearbyPlayer();
-    if (shoveTarget) {
-      const cooldown = Math.max(0, (local.state.shoveCooldownUntil - Date.now()) / 1000);
-      this.onPrompt?.(cooldown > 0 ? `SHOVE READY IN ${cooldown.toFixed(1)}s` : `${this.label("interact")}  SHOVE ${shoveTarget.state.name.toUpperCase()}`, false, undefined, cooldown > 0 ? "cooldown" : "shove");
       return;
     }
     const enemyStructure = this.nearbyEnemyStructure();
@@ -2234,9 +2234,16 @@ export class PlanetfallGame {
       this.cancelLaunchAim();
       return;
     }
-    const pad = this.nearbyLaunchPad();
     const local = this.players.get(this.localId);
     const now = Date.now();
+    const shoveTarget = this.nearbyPlayer();
+    if (shoveTarget) {
+      const localPlayer = this.players.get(this.localId);
+      if (localPlayer && localPlayer.state.shoveCooldownUntil <= Date.now()) localPlayer.shoveUntil = performance.now() + 280;
+      this.onInteract?.({ action: "shove", targetPlayerId: shoveTarget.state.id, facing: plain(this.cameraForward) });
+      return;
+    }
+    const pad = this.nearbyLaunchPad();
     if (pad && local) {
       const target = this.selectLaunchTarget(pad.state.id);
       if (local.state.launchCooldownUntil <= now && target) {
@@ -2247,13 +2254,6 @@ export class PlanetfallGame {
         this.launchTargetCycled = false;
         this.audio.click();
       } else this.audio.denied();
-      return;
-    }
-    const shoveTarget = this.nearbyPlayer();
-    if (shoveTarget) {
-      const localPlayer = this.players.get(this.localId);
-      if (localPlayer && localPlayer.state.shoveCooldownUntil <= Date.now()) localPlayer.shoveUntil = performance.now() + 280;
-      this.onInteract?.({ action: "shove", targetPlayerId: shoveTarget.state.id, facing: plain(this.cameraForward) });
       return;
     }
     const structure = this.nearbyEnemyStructure();

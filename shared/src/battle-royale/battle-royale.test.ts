@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  BR_BALANCE, BR_BOT_DIFFICULTY, BR_CRATE_SOCKETS, BR_DISTRICT_PLANS, BR_ISLAND_OUTLINE, BR_LOOT_SOCKETS, BR_MAP, BR_MAP_BLOCKS, BR_NAV_NODES, BR_POIS, BR_ROADS, BR_SECONDARY_LOCATIONS, BR_STORM_PHASES, BR_STRUCTURES, BR_TERRACES, BR_TERRAIN_PATCHES, BR_WEAPONS, applyBrDamage, brApproachPlanarVelocity, brBlockPlanarHalfExtents, brDropVelocity, brFlatDeckCollision, brHasStandingClearance, brMantleTopAt, brMuzzlePosition, brNextWaypoint, brPlayerHitDistance, brRarityDamage, brRoadIntersectsFootprint, brShipPath, isInsideBrIsland,
+  BR_BALANCE, BR_BOT_DIFFICULTY, BR_CRATE_SOCKETS, BR_DISTRICT_PLANS, BR_ISLAND_OUTLINE, BR_LOOT_SOCKETS, BR_MAP, BR_MAP_BLOCKS, BR_NAV_NODES, BR_POIS, BR_ROADS, BR_SECONDARY_LOCATIONS, BR_STORM_PHASES, BR_STRUCTURES, BR_TERRACES, BR_TERRAIN_PATCHES, BR_WEAPONS, applyBrDamage, brApproachPlanarVelocity, brBlockPlanarHalfExtents, brDropVelocity, brFlatDeckCollision, brForcedDropVelocity, brHasStandingClearance, brMantleTopAt, brMuzzlePosition, brNextWaypoint, brPlayerHitDistance, brRarityDamage, brRoadIntersectsFootprint, brShipPath, isInsideBrIsland,
   brBlocksNear, brPickupDisposition, createEmptyBrInventory, raySphereDistance, reloadBrItem, stepBrMovement, stormContains, type BrInventoryItem, type BrMotionState
 } from "./index.js";
 
@@ -211,7 +211,9 @@ describe("Battle Royale shared rules", () => {
   });
 
   it("authors fixed raised terraces with aligned playable ramps",()=>{
-    expect(BR_TERRACES.length).toBeGreaterThanOrEqual(5);
+    const raisedDistricts=BR_TERRACES.filter(terrace=>terrace.gradedRoadAccess);
+    expect(raisedDistricts.length).toBeGreaterThanOrEqual(8);
+    expect(Math.max(...raisedDistricts.map(terrace=>terrace.height))).toBeGreaterThanOrEqual(8);
     expect(new Set(BR_TERRACES.map(terrace=>terrace.height)).size).toBeGreaterThanOrEqual(4);
     for(const terrace of BR_TERRACES){
       const platform=BR_MAP_BLOCKS.find(block=>block.id===`${terrace.id}-platform`)!;
@@ -436,6 +438,17 @@ describe("Battle Royale shared rules", () => {
     const velocity=brDropVelocity(ship,Math.PI/2);
     expect(velocity.x).toBeGreaterThan(20);expect(velocity.y).toBe(-5);expect(Math.abs(velocity.z)).toBeLessThan(.001);
     expect(Object.values(velocity).every(Number.isFinite)).toBe(true);
+  });
+
+  it("forces final ejection toward playable island space",()=>{
+    const ship={start:{x:-620,y:195,z:70},end:{x:620,y:195,z:70},startedAt:1000,endsAt:37_000};
+    for(const position of [{x:430,z:70},{x:-420,z:-60},{x:0,z:0}]){
+      const velocity=brForcedDropVelocity(ship,position);
+      const radius=Math.hypot(position.x,position.z);
+      if(radius>.001)expect((velocity.x*-position.x+velocity.z*-position.z)/radius).toBeGreaterThanOrEqual(8-.001);
+      expect(velocity.y).toBe(-5);
+      expect(Object.values(velocity).every(Number.isFinite)).toBe(true);
+    }
   });
 
   it("uses one deterministic movement step for sprint, jump, slide, and descent", () => {

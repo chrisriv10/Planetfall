@@ -1,4 +1,5 @@
 import { isBrHeal, isBrWeapon, type BrLootState, type BrWeaponId } from "@planetfall/shared";
+import * as THREE from "three";
 
 export type BrLootCategory = "weapon" | "ammo" | "health" | "shield" | "unknown";
 
@@ -17,13 +18,16 @@ export type BrPresentationTransform = Readonly<{
 }>;
 
 const HELD:Record<BrWeaponId,BrPresentationTransform>={
-  "pulse-rifle":{position:[.38,.76,.14],rotation:[0,Math.PI,0],scale:.4},
-  "nova-smg":{position:[.36,.74,.18],rotation:[0,Math.PI,0],scale:.58},
-  "photon-shotgun":{position:[.38,.75,.18],rotation:[0,Math.PI,0],scale:.45},
-  "rail-laser":{position:[.38,.78,.13],rotation:[0,Math.PI,0],scale:.37},
-  "plasma-launcher":{position:[.39,.73,.14],rotation:[0,Math.PI,0],scale:.46},
-  "arc-blaster":{position:[.37,.76,.12],rotation:[0,Math.PI,0],scale:.5},
-  "energy-saber":{position:[.42,.72,.26],rotation:[-.9,Math.PI,.12],scale:.58}
+  // Positions are offsets from the canonical astronaut's right glove anchor,
+  // never torso-local magic coordinates. The offset compensates each model's
+  // grip position after its scale/rotation is applied.
+  "pulse-rifle":{position:[.05,.11,-.13],rotation:[0,Math.PI,0],scale:.4},
+  "nova-smg":{position:[.05,.16,-.14],rotation:[0,Math.PI,0],scale:.58},
+  "photon-shotgun":{position:[.05,.14,-.12],rotation:[0,Math.PI,0],scale:.45},
+  "rail-laser":{position:[.05,.1,-.13],rotation:[0,Math.PI,0],scale:.37},
+  "plasma-launcher":{position:[.05,.14,-.1],rotation:[0,Math.PI,0],scale:.46},
+  "arc-blaster":{position:[.06,.14,-.12],rotation:[0,Math.PI,0],scale:.5},
+  "energy-saber":{position:[.02,.02,-.03],rotation:[-.9,Math.PI,.12],scale:.58}
 };
 
 const LOOT:Record<BrWeaponId,BrPresentationTransform>=Object.fromEntries((Object.keys(HELD) as BrWeaponId[]).map((id)=>[
@@ -32,6 +36,16 @@ const LOOT:Record<BrWeaponId,BrPresentationTransform>=Object.fromEntries((Object
 
 export const brHeldWeaponTransform=(id:BrWeaponId):BrPresentationTransform=>HELD[id];
 export const brLootWeaponTransform=(id:BrWeaponId):BrPresentationTransform=>LOOT[id];
+
+/** Minimum model-pivot height needed to keep transformed geometry above its
+ * resolved support. This is presentation-only: authoritative pickup positions
+ * stay untouched while tall/rotated models get their own correct clearance. */
+export function brLootModelSupportLift(model:THREE.Object3D,clearance=.07):number {
+  model.updateWorldMatrix(true,true);
+  const bounds=new THREE.Box3().setFromObject(model);
+  if(bounds.isEmpty()||!Number.isFinite(bounds.min.y))return .42;
+  return Math.max(.42,-bounds.min.y+Math.max(0,clearance));
+}
 
 /** Relative Y from the authoritative pickup origin to its supporting surface. */
 export function brLootSurfaceOffset(state:Pick<BrLootState,"position"|"surfaceY">):number {

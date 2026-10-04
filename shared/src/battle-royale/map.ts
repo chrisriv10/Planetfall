@@ -386,10 +386,14 @@ export const BR_TERRACES:readonly BrTerrace[]=[
   // Full secondary districts use one broad engineered deck and one explicit
   // service-road grade. Their structures, streets, loot and decoration all
   // share the same authored elevation.
+  {id:"emergency-depot-deck",districtId:"emergency-depot",position:{x:-160,y:0,z:-420},size:{x:80,z:72},height:5.5,accessSide:"north",gradedRoadAccess:true,color:"#584248"},
   {id:"east-checkpoint-deck",districtId:"east-checkpoint",position:{x:355,y:0,z:250},size:{x:80,z:92},height:4.5,accessSide:"south",gradedRoadAccess:true,color:"#40586c"},
+  {id:"solar-field-deck",districtId:"solar-field",position:{x:75,y:0,z:415},size:{x:80,z:72},height:4,accessSide:"south",gradedRoadAccess:true,color:"#36584d"},
   {id:"academy-commons-deck",districtId:"academy-commons",position:{x:-265,y:0,z:235},size:{x:70,z:66},height:5.5,accessSide:"east",gradedRoadAccess:true,color:"#625e82"},
   {id:"south-terminal-deck",districtId:"south-terminal",position:{x:15,y:0,z:-415},size:{x:70,z:66},height:3.5,accessSide:"north",gradedRoadAccess:true,color:"#405469"},
   {id:"south-shipworks-deck",districtId:"south-shipworks",position:{x:190,y:0,z:-400},size:{x:70,z:66},height:4,accessSide:"north",gradedRoadAccess:true,color:"#51483f"},
+  {id:"east-freight-deck",districtId:"east-freight",position:{x:330,y:0,z:-315},size:{x:82,z:78},height:8,accessSide:"north",gradedRoadAccess:true,color:"#55483d"},
+  {id:"east-rim-deck",districtId:"east-rim",position:{x:405,y:0,z:105},size:{x:86,z:70},height:6,accessSide:"west",gradedRoadAccess:true,color:"#405266"},
   {id:"zero-point-steps",districtId:"zero-point",position:{x:0,y:0,z:-30},size:{x:16,z:14},height:1.6,accessSide:"south",color:"#476b83"},
   {id:"astra-lab-court",districtId:"astra-academy",position:{x:-290,y:0,z:45},size:{x:16,z:14},height:2.8,accessSide:"north",color:"#706a9b"},
   {id:"academy-commons-garden",districtId:"academy-commons",position:{x:-206.5,y:0,z:255.9},size:{x:15,z:14},height:2.8,accessSide:"north",color:"#706a9b"},

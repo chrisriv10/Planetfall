@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { BALANCE, BR_MAP } from "@planetfall/shared";
+import { BALANCE, isInsideBrIsland } from "@planetfall/shared";
 
 type Point = { x: number; y: number; z: number };
 type DebugState = {
@@ -236,13 +236,16 @@ test("Battle Royale creates an isolated room and enters the Starliner drop", asy
   expect(state.crateCount).toBeGreaterThanOrEqual(19);
   expect(state.world.shipVisible).toBe(true);
   expect(state.world.islandObjects).toBeGreaterThan(50);
-  await expect.poll(() => page.evaluate(() => {
+  await expect.poll(async () => {
+    const player = await page.evaluate(() => {
     const player = (window as unknown as { __PLANETFALL_BR_DEBUG__: () => { localPlayer: { position: Point } } }).__PLANETFALL_BR_DEBUG__().localPlayer;
-    return Math.hypot(player.position.x, player.position.z);
-  // Enter the island's playable airspace before jumping. Requiring the ship to
-  // reach a narrow central radius made this browser flow depend on timer
-  // scheduling under heavily loaded software-rendered CI hosts.
-  }), { timeout: 20_000 }).toBeLessThan(BR_MAP.radius - 80);
+      return player.position;
+    });
+    return isInsideBrIsland(player, 20);
+  // Enter actual polygonal island airspace before jumping. A circular radius
+  // check can accept the cut-away corners of Orbital Isle, leaving a no-steer
+  // smoke-test pilot correctly gliding into space instead of landing.
+  }, { timeout: 20_000 }).toBe(true);
   await takeControl(page);
   await page.keyboard.press("Space");
   await expect.poll(() => page.evaluate(() => (window as unknown as { __PLANETFALL_BR_DEBUG__: () => { localPlayer: { deployment: string } } }).__PLANETFALL_BR_DEBUG__().localPlayer.deployment)).toBe("freefall");
@@ -266,25 +269,53 @@ test("Battle Royale creates an isolated room and enters the Starliner drop", asy
   const cameraStart = await page.evaluate(() => (window as unknown as {
     __PLANETFALL_BR_DEBUG__: () => { camera: { position: Point } }
   }).__PLANETFALL_BR_DEBUG__().camera.position);
-  let movementEnd = movementStart;
-  await page.keyboard.down("Shift");
-  await page.keyboard.down("KeyW");
-  try {
-    await expect.poll(async () => {
-      movementEnd = await pilot();
-      return Math.hypot(movementEnd.position.x - movementStart.position.x, movementEnd.position.z - movementStart.position.z);
-    }, { timeout: 5_000, intervals: [50, 100, 250] }).toBeGreaterThan(1.25);
-  } finally {
-    await page.keyboard.up("KeyW");
-    await page.keyboard.up("Shift");
-  }
-  const deltaX = movementEnd.position.x - movementStart.position.x;
-  const deltaZ = movementEnd.position.z - movementStart.position.z;
-  const travel = Math.hypot(deltaX, deltaZ);
   const viewX = movementStart.position.x - cameraStart.x;
   const viewZ = movementStart.position.z - cameraStart.z;
   const viewLength = Math.hypot(viewX, viewZ);
-  expect((deltaX * viewX + deltaZ * viewZ) / Math.max(.001, travel * viewLength)).toBeGreaterThan(.35);
+  let movementEnd = movementStart;
+  let movementOrigin = movementStart;
+  let movementKey = "KeyW";
+  // A no-steering drop may legitimately settle beside a wall, crate or roof
+  // utility. Probe each camera-relative lane so this asserts that the pilot can
+  // egress the landing, rather than incorrectly requiring the wall-facing lane
+  // to be open for every randomized ship route.
+  for (const key of ["KeyW", "KeyD", "KeyS", "KeyA"] as const) {
+    movementOrigin = await pilot();
+    movementEnd = movementOrigin;
+    await page.keyboard.down("Shift");
+    await page.keyboard.down(key);
+    try {
+      const moved = await expect.poll(async () => {
+        movementEnd = await pilot();
+        const x = movementEnd.position.x - movementOrigin.position.x;
+        const z = movementEnd.position.z - movementOrigin.position.z;
+        const distance = Math.hypot(x, z);
+        const intended = key === "KeyW" ? { x: viewX, z: viewZ }
+          : key === "KeyS" ? { x: -viewX, z: -viewZ }
+            : key === "KeyD" ? { x: -viewZ, z: viewX }
+              : { x: viewZ, z: -viewX };
+        const alignment = (x * intended.x + z * intended.z) / Math.max(.001, distance * viewLength);
+        return distance > 1.25 && alignment > .35;
+      }, { timeout: 2_500, intervals: [50, 100, 250] }).toBe(true).then(() => true, () => false);
+      if (moved) { movementKey = key; break; }
+    } finally {
+      await page.keyboard.up(key);
+      await page.keyboard.up("Shift");
+    }
+    await expect.poll(async () => {
+      const { velocity } = await pilot();
+      return Math.hypot(velocity.x, velocity.z);
+    }, { timeout: 2_500 }).toBeLessThan(1);
+  }
+  const deltaX = movementEnd.position.x - movementOrigin.position.x;
+  const deltaZ = movementEnd.position.z - movementOrigin.position.z;
+  const travel = Math.hypot(deltaX, deltaZ);
+  const intended = movementKey === "KeyW" ? { x: viewX, z: viewZ }
+    : movementKey === "KeyS" ? { x: -viewX, z: -viewZ }
+      : movementKey === "KeyD" ? { x: -viewZ, z: viewX }
+        : { x: viewZ, z: -viewX };
+  expect(travel).toBeGreaterThan(1.25);
+  expect((deltaX * intended.x + deltaZ * intended.z) / Math.max(.001, travel * viewLength)).toBeGreaterThan(.35);
   await expect.poll(async () => {
     const { velocity } = await pilot();
     return Math.hypot(velocity.x, velocity.z);
@@ -343,14 +374,28 @@ test("Battle Royale Solo requires confirmation and respects quick-play settings"
   await page.locator("#br-map-button").press("Enter");
   await expect(page.locator("#br-map-overlay")).toBeVisible();
   await expect(page.locator("#br-map-canvas .br-map-player.teammate")).toHaveCount(0);
-  for (const viewport of [{ width: 1280, height: 720 }, { width: 1920, height: 720 }]) {
+  for (const viewport of [{ width: 1280, height: 720 }, { width: 1920, height: 720 }, { width: 1440, height: 900 }]) {
     await page.setViewportSize(viewport);
     await expect(page.locator("#br-map-overlay")).toBeVisible();
-    const horizontalOffset = await page.locator("#br-map-canvas").evaluate((map) => {
+    const layout = await page.locator("#br-map-card, .br-map-card").evaluate((card) => {
+      const map=card.querySelector<HTMLElement>("#br-map-canvas")!;
+      const title=card.querySelector<HTMLElement>("#br-map-title")!;
+      const close=card.querySelector<HTMLElement>("#br-map-close")!;
+      const cardBounds=card.getBoundingClientRect();
       const bounds = map.getBoundingClientRect();
-      return Math.abs((bounds.left + bounds.right) / 2 - window.innerWidth / 2);
+      return {
+        horizontalOffset:Math.abs((bounds.left + bounds.right) / 2 - window.innerWidth / 2),
+        cardTop:cardBounds.top,cardBottom:cardBounds.bottom,
+        titleTop:title.getBoundingClientRect().top,closeBottom:close.getBoundingClientRect().bottom,
+        overflowing:card.scrollHeight>card.clientHeight+1
+      };
     });
-    expect(horizontalOffset).toBeLessThan(2);
+    expect(layout.horizontalOffset).toBeLessThan(2);
+    expect(layout.cardTop).toBeGreaterThanOrEqual(0);
+    expect(layout.cardBottom).toBeLessThanOrEqual(viewport.height);
+    expect(layout.titleTop).toBeGreaterThanOrEqual(layout.cardTop);
+    expect(layout.closeBottom).toBeLessThanOrEqual(layout.cardBottom);
+    expect(layout.overflowing).toBe(false);
   }
 });
 

@@ -86,6 +86,21 @@ export function brDropVelocity(ship:Pick<BrShipState,"start"|"end"|"startedAt"|"
   return {x:shipX*.84+Math.sin(yaw)*6,y:-5,z:shipZ*.84-Math.cos(yaw)*6};
 }
 
+/** Safe final-ejection velocity. It retains some Starliner continuity while
+ * guaranteeing a useful inward component instead of carrying idle pilots off
+ * the island along the final outward leg of the route. */
+export function brForcedDropVelocity(ship:Pick<BrShipState,"start"|"end"|"startedAt"|"endsAt">,position:Pick<Vec3,"x"|"z">):Vec3 {
+  const routeSeconds=Math.max(.001,(ship.endsAt-ship.startedAt)/1000);
+  const shipX=(ship.end.x-ship.start.x)/routeSeconds,shipZ=(ship.end.z-ship.start.z)/routeSeconds;
+  const routeSpeed=Math.max(.001,Math.hypot(shipX,shipZ));
+  const radius=Math.hypot(position.x,position.z);
+  const inward=radius>.001?{x:-position.x/radius,z:-position.z/radius}:{x:-shipX/routeSpeed,z:-shipZ/routeSpeed};
+  let x=shipX*.26+inward.x*18,z=shipZ*.26+inward.z*18;
+  const inwardSpeed=x*inward.x+z*inward.z;
+  if(inwardSpeed<8){const correction=8-inwardSpeed;x+=inward.x*correction;z+=inward.z*correction;}
+  return{x,y:-5,z};
+}
+
 /** Moves a planar velocity toward its target without diagonal acceleration gain or overshoot. */
 export function brApproachPlanarVelocity(current:Vec3,target:Vec3,maximumDelta:number):Vec3 {
   const dx=target.x-current.x,dz=target.z-current.z,distance=Math.hypot(dx,dz);
@@ -96,6 +111,13 @@ export function brApproachPlanarVelocity(current:Vec3,target:Vec3,maximumDelta:n
 export function brFloorHeightAt(position: Vec3, previousY: number): number {
   let floor = 0;
   for (const block of BR_MAP_BLOCKS) {
+    if(block.rotation){
+      const gradeFloor=brRoadGradeFloorAt(block,position);
+      if(gradeFloor!==null){
+        if(previousY>=gradeFloor-.5)floor=Math.max(floor,gradeFloor);
+        continue;
+      }
+    }
     const halfX = block.size.x / 2; const halfZ = block.size.z / 2; const top = block.position.y + block.size.y / 2;
     if (Math.abs(position.x - block.position.x) <= halfX && Math.abs(position.z - block.position.z) <= halfZ && previousY >= top - .5) floor = Math.max(floor, top);
   }

@@ -3,31 +3,30 @@ import { describe, expect, it } from "vitest";
 
 const css=readFileSync(new URL("./style.css",import.meta.url),"utf8");
 function rule(selector:string){
-  const start=css.indexOf(`${selector} {`);
+  let start=css.indexOf(`${selector} {`);
+  if(start<0)start=css.indexOf(`${selector}{`);
   expect(start,selector).toBeGreaterThanOrEqual(0);
   return css.slice(start,css.indexOf("}",start)+1);
 }
-describe("shop icon alignment",()=>{
-  it("reserves an equal icon row and stable wrapping name row in every card",()=>{
-    expect(rule(".shop-item")).toContain("grid-template-rows:40px minmax(2.4em,1fr) auto auto");
+describe("shop preview alignment",()=>{
+  it("reserves an equal preview row and stable wrapping name row in every card",()=>{
+    // Width plus modal padding used to exceed narrow viewports and expose a
+    // horizontal scrollbar across the entire shop.
+    expect(rule(".overlay-card")).toContain("box-sizing:border-box");
+    expect(rule(".shop-item")).toContain("grid-template-rows:96px minmax(2.4em,1fr) auto auto");
     expect(rule(".shop-item > b")).toContain("overflow-wrap:anywhere");
-    const icon=rule(".shop-item > i");
-    expect(icon).toContain("box-sizing:border-box");
-    expect(icon).toContain("align-self:center");
-    expect(icon).toContain("width:36px; height:36px");
-    expect(icon).not.toMatch(/box-shadow:0 0/);
+    const preview=rule(".shop-cosmetic-preview");
+    expect(preview).toContain("width:100%;height:96px");
+    expect(preview).toContain("overflow:hidden");
   });
-  it("centers the smile independently of border width and leaves the face circular",()=>{
-    const face=rule(".shop-item.planet-item > i");
-    expect(face).toContain("border:0");expect(face).toContain("border-radius:50%");
-    const smile=rule(".shop-item.planet-item > i::after");
-    expect(smile).toContain("box-sizing:border-box");
+  it("centers the Verity smile in a circular actual-cosmetic preview",()=>{
+    const face=rule(".shop-preview-planet");
+    expect(face).toContain("border-radius:50%");
+    const smile=rule(".shop-preview-smile");
     expect(smile).toContain("left:50%");
     expect(smile).toContain("transform:translateX(-50%)");
-    expect(smile).toContain("top:19px");
-    // Existing paired eye boxes have centers 12 and 24: their shared axis is
-    // the same 18px center used by the border-inclusive mouth above.
-    expect(rule(".shop-item.planet-item > i::before")).toContain("left:10px; width:4px");
-    expect(rule(".shop-item.planet-item > i::before")).toContain("box-shadow:12px 0");
+    expect(smile).toContain("top:34px");
+    expect(rule(".shop-preview-eye.left")).toContain("left:19px");
+    expect(rule(".shop-preview-eye.right")).toContain("right:19px");
   });
 });

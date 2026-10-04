@@ -14,7 +14,7 @@ describe("Battle Royale art-review cameras", () => {
         review.focus[2] - review.position[2]
       ), id).toBeGreaterThan(2);
       const point = new THREE.Vector3(...review.position);
-      for (const block of BR_MAP_BLOCKS.filter(candidate => candidate.kind !== "platform" && candidate.kind !== "bridge")) {
+      for (const block of BR_MAP_BLOCKS) {
         const local = point.clone().sub(new THREE.Vector3(block.position.x, block.position.y, block.position.z));
         if (block.rotation) local.applyQuaternion(new THREE.Quaternion().setFromEuler(
           new THREE.Euler(block.rotation.x, block.rotation.y, block.rotation.z, "XYZ")

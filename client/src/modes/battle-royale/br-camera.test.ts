@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { brAimProfile, brCameraGeometry, brCameraMode, brDropEntryPitch, brShipLookState } from "./br-camera";
+import { brAimProfile, brCameraGeometry, brCameraMode, brDropEntryPitch, brForcedDropLookYaw, brShipCameraFrame, brShipLookState } from "./br-camera";
 
 describe("Battle Royale camera rig", () => {
   it("keeps physical camera orbit independent from aim pitch", () => {
@@ -17,7 +17,7 @@ describe("Battle Royale camera rig", () => {
     const backZ = rig.desired.z - rig.right.z * rig.shoulder;
     expect(Math.hypot(backX, backZ)).toBeCloseTo(rig.boom, 6);
     expect(rig.horizontalForward.x).toBeCloseTo(1, 6);
-    expect(rig.desired.y).toBeCloseTo(2.05, 6);
+    expect(rig.desired.y).toBeCloseTo(2.42, 6);
   });
 
   it("selects separate gameplay camera states", () => {
@@ -36,11 +36,27 @@ describe("Battle Royale camera rig", () => {
     expect(brDropEntryPitch(.45)).toBe(.45);
   });
 
+  it("faces a forced drop along its authoritative safe velocity",()=>{
+    expect(brForcedDropLookYaw({x:0,z:-18},.4)).toBeCloseTo(0);
+    expect(brForcedDropLookYaw({x:18,z:0},.4)).toBeCloseTo(Math.PI/2);
+    expect(brForcedDropLookYaw({x:0,z:0},.4)).toBe(.4);
+  });
+
   it("uses route-facing Starliner yaw for initialization only",()=>{
     const initial=brShipLookState(.25,{x:1,z:0},false);
     expect(initial.yaw).toBeCloseTo(Math.PI/2);
     const deliberate=brShipLookState(-2.4,{x:1,z:0},initial.initialized);
     expect(deliberate.yaw).toBe(-2.4);
+  });
+
+  it("centers the establishing Starliner camera on the route axis",()=>{
+    const frame=brShipCameraFrame({x:20,y:185,z:-30},{x:4,y:0,z:0},true);
+    expect(frame.desired.z).toBeCloseTo(-30);
+    expect(frame.desired.x).toBeLessThan(20);
+    expect(frame.focus.z).toBeCloseTo(-30);
+    expect(frame.focus.x).toBeGreaterThan(20);
+    const free=brShipCameraFrame({x:20,y:185,z:-30},{x:4,y:0,z:0},false);
+    expect(free.desired.x).toBeLessThan(frame.desired.x);
   });
 
   it("provides functional precision and medium-range optics",()=>{

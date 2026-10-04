@@ -4,7 +4,7 @@ import { brStarlinerPosition } from "./br-presentation";
 
 const ship:BrShipState={
   start:{x:-100,y:195,z:20},end:{x:300,y:195,z:-80},position:{x:-100,y:195,z:20},
-  startedAt:1_000,endsAt:5_000,playersAboard:40
+  startedAt:1_000,endsAt:5_000,autoJumpAt:4_360,playersAboard:40
 };
 
 describe("Starliner presentation motion",()=>{

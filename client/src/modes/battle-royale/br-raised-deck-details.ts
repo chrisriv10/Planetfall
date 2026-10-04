@@ -68,8 +68,13 @@ export function buildBrRaisedDeckDetails(terrace:BrTerrace,roads:readonly BrRoad
           position:{x:position.x+(ns?along:normal),y,z:position.z+(ns?normal:along)},
           scale:{x:ns?breadth:thickness,y:tall,z:ns?thickness:breadth}});
       };
-      add("armor","structuralDark",height-.55,width,.74,.1,.16);
-      add("rib","brushedMetal",height-1.15,.2,1.95,.205,.09);
+      // Deeper segmented armor and ground-reaching ribs make a tall retaining
+      // wall read as supported construction at street level, not a plain slab
+      // with a thin decorative stripe. Same footprint/material/instance count;
+      // every box still stays outside the deck and below its playable top.
+      const armorHeight=Math.min(1.6,height*.26),ribTop=height-.175,ribBottom=.925;
+      add("armor","structuralDark",height-.18-armorHeight/2,width,armorHeight,.1,.16);
+      add("rib","brushedMetal",(ribTop+ribBottom)/2,.2,ribTop-ribBottom,.205,.09);
       if(bay===Math.floor(count/2))add("light","windowLit",height-.4,.7,.055,.199,.016);
       const clear=cassette.every(part=>validRoads.every(road=>clearOfRoad(part,road))&&structures.every(building=>
         Math.abs(part.position.x-building.position.x)>=(part.scale.x+building.size.x)/2+.15

@@ -1,8 +1,29 @@
 import { describe,expect,it } from "vitest";
 import { BR_STRUCTURES, BR_LOOT_SOCKETS, BR_MAP_BLOCKS } from "@planetfall/shared";
 import { buildResidentialInterior, buildResidentialCeiling, buildResidentialLandingMarkers, buildResidentialServiceWall, buildResidentialEntranceWall, buildResidentialRampSkins } from "./br-residential-interiors";
+import { BR_ENVIRONMENT_SCALE, isWithinBrPresentationScale } from "./br-environment-scale";
 
 describe("residential lounge dressing",()=>{
+  it("keeps hotel chairs and housing benches proportional to the shared astronaut",()=>{
+    const hotel=BR_STRUCTURES.find(s=>s.id==="comet-hotel-1")!;
+    const hotelFloor=.36;
+    const hotelSeats=buildResidentialInterior(hotel).parts.filter(part=>part.role==="lounge-chair"&&part.finish==="panel"&&part.scale.y<.2&&part.scale.z>.9);
+    expect(hotelSeats.length).toBeGreaterThan(0);
+    for(const seat of hotelSeats){
+      const floorIndex=Math.floor((seat.position.y-hotelFloor)/(hotel.size.y/hotel.floors));
+      const floorY=floorIndex===0?hotelFloor:floorIndex*hotel.size.y/hotel.floors+.175;
+      expect(isWithinBrPresentationScale(seat.position.y+seat.scale.y/2-floorY,BR_ENVIRONMENT_SCALE.benchSeatTop)).toBe(true);
+    }
+
+    const homes=BR_STRUCTURES.find(s=>s.id==="central-heights-1")!;
+    const housingSeats=buildResidentialInterior(homes).parts.filter(part=>part.finish==="panel"&&part.scale.x===.64&&part.scale.y===.16);
+    expect(housingSeats.length).toBeGreaterThan(0);
+    for(const seat of housingSeats){
+      const floorIndex=Math.floor((seat.position.y-.36)/(homes.size.y/homes.floors));
+      const floorY=floorIndex===0?.36:floorIndex*homes.size.y/homes.floors+.175;
+      expect(isWithinBrPresentationScale(seat.position.y+seat.scale.y/2-floorY,BR_ENVIRONMENT_SCALE.benchSeatTop)).toBe(true);
+    }
+  });
   it("composes the hotel review lounge as separated chairs/table and a leg-supported reception counter",()=>{
     const hotel=BR_STRUCTURES.find(s=>s.id==="comet-hotel-1")!;
     const result=buildResidentialInterior(hotel),before=JSON.stringify(hotel);

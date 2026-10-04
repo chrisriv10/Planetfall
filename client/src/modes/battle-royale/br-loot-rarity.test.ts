@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { describe, expect, it, vi } from "vitest";
 import { BR_LOOT_FLOAT, BR_LOOT_RARITY_COLORS, BrLootRarityResources } from "./br-loot-rarity";
 import { BrLootLod } from "./br-loot-lod";
+import { brLootModelSupportLift } from "./br-item-presentation";
 
 describe("BR loot rarity presentation", () => {
   it("uses four readable field colors without recoloring or rescaling item models", () => {
@@ -118,5 +119,21 @@ describe("BR loot rarity presentation", () => {
     const top = visual.beam.geometry.getAttribute("position"), colors = visual.beam.geometry.getAttribute("color");
     for (let i = 0; i < top.count; i++) if (top.getY(i) === .5) expect(colors.getX(i)).toBe(0);
     pool.dispose();
+  });
+
+  it("keeps differently shaped item categories clear of base and elevated supports",()=>{
+    const models=[
+      new THREE.Mesh(new THREE.BoxGeometry(1.8,.38,.5)),
+      new THREE.Mesh(new THREE.CylinderGeometry(.18,.18,.62,8)),
+      new THREE.Mesh(new THREE.BoxGeometry(.58,.9,.42)),
+      new THREE.Mesh(new THREE.CapsuleGeometry(.2,.7,4,8))
+    ];
+    models[0].rotation.z=.32;models[1].rotation.z=Math.PI/2;models[2].position.y=-.13;models[3].rotation.x=.44;
+    for(const support of [0,4.5,10])for(const model of models){
+      const lift=brLootModelSupportLift(model),bounds=new THREE.Box3().setFromObject(model);
+      expect(support+lift+bounds.min.y).toBeGreaterThanOrEqual(support+.069);
+      expect(lift).toBeGreaterThanOrEqual(BR_LOOT_FLOAT.lift);
+    }
+    for(const model of models)(model.geometry as THREE.BufferGeometry).dispose();
   });
 });

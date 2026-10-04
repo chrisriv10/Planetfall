@@ -46,7 +46,9 @@ export function buildBrRoadGradeDetails(road: BrRoadSegment): BrRoadGradeDetailP
         scale:{x:.18,y:height,z:.18}});
     }
     parts.push({role:"support",finish:"structuralDark",position:{x:point.x,y:Math.max(.16,point.y-.28),z:point.z},
-      scale:{x:Math.max(2.2,road.width*.8),y:.16,z:.24},rotationY});
+      // This crosshead joins the two side columns across the road, not along
+      // its heading. Longitudinal beams left both supports visibly disconnected.
+      scale:{x:Math.max(2.2,road.width*.8),y:.16,z:.24},rotationY:rotationY+Math.PI/2});
   }
   return parts;
 }

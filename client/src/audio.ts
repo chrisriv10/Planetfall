@@ -8,6 +8,8 @@ export class GameAudio {
   private musicVolume = .8;
   private sfxVolume = .9;
   private urgency = 0;
+  private readonly samples = new Map<string, HTMLAudioElement>();
+  private readonly brLoops = new Map<"starliner" | "skimmer" | "drop", HTMLAudioElement>();
 
   private get activeMusic(): HTMLAudioElement { return this.music[this.musicScene]; }
   private get musicTarget(): number { return (this.musicScene === "menu" ? .14 : .18) * this.musicVolume; }
@@ -17,6 +19,19 @@ export class GameAudio {
       menu: this.makeMusic("/audio/low-battery.ogg"),
       game: this.makeMusic("/audio/bot-city.ogg")
     };
+    this.registerSample("laser-small", "/audio/br/br-laser-small.ogg");
+    this.registerSample("laser-large", "/audio/br/br-laser-large.ogg");
+    this.registerSample("shield-hit", "/audio/br/br-shield-hit.ogg");
+    this.registerSample("shield-break", "/audio/br/br-shield-break.ogg");
+    this.registerSample("metal-impact", "/audio/br/br-metal-impact.ogg");
+    this.registerSample("plasma-explosion", "/audio/br/br-plasma-explosion.ogg");
+    this.registerSample("footstep-1", "/audio/br/br-footstep-1.ogg");
+    this.registerSample("footstep-2", "/audio/br/br-footstep-2.ogg");
+    this.brLoops.set("starliner", this.makeLoop("/audio/br/br-starliner-engine.ogg"));
+    this.brLoops.set("skimmer", this.makeLoop("/audio/br/br-skimmer-engine.ogg"));
+    // A filtered, quieter thruster layer gives freefall useful speed feedback
+    // without introducing another large asset or masking combat cues.
+    this.brLoops.set("drop", this.makeLoop("/audio/br/br-skimmer-engine.ogg"));
   }
 
   unlock(): void {
@@ -77,6 +92,29 @@ export class GameAudio {
     const active = this.activeMusic;
     this.stopInactiveMusic(active);
     if (!active.paused) active.volume = this.musicTarget;
+    for (const loop of this.brLoops.values()) {
+      const mix = Number(loop.dataset.mix ?? "0");
+      loop.volume = Math.min(1, mix * this.sfxVolume);
+    }
+  }
+
+  setBrLoop(kind: "starliner" | "skimmer" | "drop", active: boolean, intensity = 1): void {
+    const loop = this.brLoops.get(kind);
+    if (!loop) return;
+    const clamped = Math.min(1, Math.max(0, intensity));
+    const mix = active ? (kind === "starliner" ? .22 : kind === "drop" ? .13 : .2) * (.45 + clamped * .55) : 0;
+    loop.dataset.mix = String(mix);
+    loop.playbackRate = kind === "starliner" ? .72 + clamped * .08 : kind === "drop" ? .78 + clamped * .35 : .72 + clamped * .5;
+    loop.volume = mix * this.sfxVolume;
+    if (!active || !this.musicUnlocked) {
+      if (!active) { loop.pause(); loop.currentTime = 0; }
+      return;
+    }
+    if (loop.paused) void loop.play().catch(() => undefined);
+  }
+
+  stopBrLoops(): void {
+    for (const loop of this.brLoops.values()) { loop.pause(); loop.currentTime = 0; loop.dataset.mix = "0"; }
   }
 
   click(): void { this.tone(360, 0.04, "square", 0.025, 520); }
@@ -103,20 +141,23 @@ export class GameAudio {
     setTimeout(() => this.tone(heavy ? 150 : 280, 0.1, "square", heavy ? 0.035 : 0.022, heavy ? 80 : 210), heavy ? 170 : 130);
   }
   brWeapon(weapon: string): void {
-    if (weapon === "pulse-rifle") { this.tone(210,.055,"square",.026,410); this.noise(.035,.018,1500); }
-    else if (weapon === "nova-smg") { this.tone(310,.035,"sawtooth",.018,210); this.noise(.025,.014,2200); }
-    else if (weapon === "photon-shotgun") { this.duckMusic(120,.18);this.noise(.13,.085,720);this.tone(115,.15,"square",.055,58); }
-    else if (weapon === "rail-laser") { this.tone(1080,.11,"sine",.04,1820);setTimeout(()=>this.tone(170,.18,"sawtooth",.046,72),42); }
-    else if (weapon === "plasma-launcher") { this.tone(125,.22,"sine",.055,420);this.noise(.08,.035,520); }
-    else if (weapon === "arc-blaster") { this.tone(760,.08,"square",.028,280);setTimeout(()=>this.tone(1120,.055,"triangle",.018,650),28); }
+    if (weapon === "pulse-rifle") { this.playSample("laser-small",.18,1.03);this.tone(210,.055,"square",.026,410); this.noise(.035,.018,1500); }
+    else if (weapon === "nova-smg") { this.playSample("laser-small",.13,1.18);this.tone(310,.035,"sawtooth",.018,210); this.noise(.025,.014,2200); }
+    else if (weapon === "photon-shotgun") { this.playSample("laser-large",.24,.76);this.duckMusic(120,.18);this.noise(.13,.085,720);this.tone(115,.15,"square",.055,58); }
+    else if (weapon === "rail-laser") { this.playSample("laser-large",.22,1.14);this.tone(1080,.11,"sine",.04,1820);setTimeout(()=>this.tone(170,.18,"sawtooth",.046,72),42); }
+    else if (weapon === "plasma-launcher") { this.playSample("plasma-explosion",.18,.82);this.tone(125,.22,"sine",.055,420);this.noise(.08,.035,520); }
+    else if (weapon === "arc-blaster") { this.playSample("shield-hit",.15,1.18);this.tone(760,.08,"square",.028,280);setTimeout(()=>this.tone(1120,.055,"triangle",.018,650),28); }
     else if (weapon === "energy-saber") { this.noise(.09,.036,1300);this.tone(240,.16,"sawtooth",.035,480); }
   }
   hitConfirm(kind:"shield"|"hp"|"break"|"headshot"):void {
     const start=kind==="headshot"?980:kind==="break"?760:kind==="shield"?610:430;
     this.tone(start,kind==="break"?.13:.065,kind==="hp"?"square":"triangle",.025,kind==="break"?1260:start*1.18);
     if(kind==="break")this.noise(.09,.026,1800);
+    if(kind==="shield")this.playSample("shield-hit",.12,1.08);
+    else if(kind==="break")this.playSample("shield-break",.19,.96);
+    else if(kind==="hp"||kind==="headshot")this.playSample("metal-impact",kind==="headshot"?.16:.1,kind==="headshot"?1.2:1);
   }
-  footstep(sprinting=false):void { this.noise(.035,sprinting?.02:.013,sprinting?330:260);this.tone(sprinting?92:115,.035,"sine",.009,70); }
+  footstep(sprinting=false):void { this.playSample(Math.random()>.5?"footstep-1":"footstep-2",sprinting?.11:.075,sprinting?1.08:.94);this.noise(.035,sprinting?.02:.013,sprinting?330:260);this.tone(sprinting?92:115,.035,"sine",.009,70); }
   slide():void { this.noise(.17,.03,540); }
   mantle():void { this.noise(.07,.023,420);this.tone(145,.08,"triangle",.016,95); }
   wings():void { this.tone(280,.28,"sine",.04,840);this.noise(.16,.025,1600); }
@@ -211,6 +252,31 @@ export class GameAudio {
     music.preload = "auto";
     music.volume = 0;
     return music;
+  }
+
+  private registerSample(name: string, source: string): void {
+    const sample = new Audio(source);
+    sample.preload = "auto";
+    this.samples.set(name, sample);
+  }
+
+  private makeLoop(source: string): HTMLAudioElement {
+    const loop = new Audio(source);
+    loop.loop = true;
+    loop.preload = "auto";
+    loop.volume = 0;
+    loop.dataset.mix = "0";
+    return loop;
+  }
+
+  private playSample(name: string, volume: number, playbackRate = 1): void {
+    if (!this.musicUnlocked) return;
+    const template = this.samples.get(name);
+    if (!template) return;
+    const voice = template.cloneNode(true) as HTMLAudioElement;
+    voice.volume = Math.min(1, Math.max(0, volume * this.sfxVolume));
+    voice.playbackRate = Math.min(2, Math.max(.5, playbackRate));
+    void voice.play().catch(() => undefined);
   }
 
   private tone(start: number, duration: number, type: OscillatorType, gain: number, end = start): void {

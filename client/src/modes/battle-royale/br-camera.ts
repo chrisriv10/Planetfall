@@ -19,6 +19,7 @@ export interface BrCameraGeometry extends BrCameraPreset {
 }
 
 export interface BrShipLookState { yaw: number; initialized: boolean; }
+export interface BrShipCameraFrame { focus: Vec3; desired: Vec3; }
 export interface BrAimProfile { fov:number; sensitivity:number; scope:"rail"|"pulse"|null; }
 
 /** Original Planetfall optics: the precision rail optic is a true scope while
@@ -40,13 +41,26 @@ export function brShipLookState(currentYaw:number,route:{x:number;z:number},init
 }
 
 const PRESETS: Record<BrCameraMode, BrCameraPreset> = {
-  grounded: { boom: 6.15, height: 2.05, focusHeight: 1.02, shoulder: .68, fov: 70 },
-  aiming: { boom: 5.65, height: 2, focusHeight: 1.04, shoulder: .8, fov: 62 },
+  grounded: { boom: 6.15, height: 2.42, focusHeight: 1.22, shoulder: .68, fov: 70 },
+  aiming: { boom: 5.65, height: 2.32, focusHeight: 1.2, shoulder: .8, fov: 62 },
   freefall: { boom: 10.2, height: 3.15, focusHeight: 1.05, shoulder: .22, fov: 76 },
   chute: { boom: 9.1, height: 2.8, focusHeight: 1.05, shoulder: .25, fov: 73 },
   downed: { boom: 5.45, height: 1.22, focusHeight: .48, shoulder: .28, fov: 68 },
   spectator: { boom: 7.15, height: 2.4, focusHeight: 1.02, shoulder: .28, fov: 70 }
 };
+
+/** Centered transport composition. The establishing camera sits on the
+ * Starliner's longitudinal axis instead of drifting beside a wing; gameplay
+ * code hands control back to free look after the short establishing beat. */
+export function brShipCameraFrame(position:Vec3,route:Vec3,establishing:boolean):BrShipCameraFrame {
+  const length=Math.hypot(route.x,route.z)||1;
+  const forward={x:route.x/length,y:0,z:route.z/length};
+  const distance=establishing?66:104, height=establishing?34:43, lead=establishing?18:27;
+  return {
+    focus:{x:position.x+forward.x*lead,y:position.y+(establishing?-1:-5),z:position.z+forward.z*lead},
+    desired:{x:position.x-forward.x*distance,y:position.y+height,z:position.z-forward.z*distance}
+  };
+}
 
 export function brCameraMode(deployment: string, downed: boolean, aiming: boolean, spectator: boolean): BrCameraMode {
   if (spectator) return "spectator";
@@ -62,6 +76,15 @@ export function brCameraMode(deployment: string, downed: boolean, aiming: boolea
  */
 export function brDropEntryPitch(currentPitch: number): number {
   return currentPitch >= -.18 && currentPitch <= .18 ? -.3 : currentPitch;
+}
+
+/** Forced ejection owns the initial travel direction, unlike a deliberate
+ * player jump which must preserve free look. Point the camera along the
+ * authoritative safe velocity so an inward launch never appears to throw the
+ * astronaut toward empty space. */
+export function brForcedDropLookYaw(velocity:Pick<Vec3,"x"|"z">,fallback:number):number {
+  const speed=Math.hypot(velocity.x,velocity.z);
+  return speed>.001?Math.atan2(velocity.x,-velocity.z):fallback;
 }
 
 /** Yaw controls the physical orbit. Pitch controls the aim ray, not boom position. */

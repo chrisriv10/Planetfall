@@ -11,6 +11,15 @@ describe("BR item presentation transforms",()=>{
       }
     }
   });
+  it("uses compact right-hand-relative grip offsets, including the Arc Blaster",()=>{
+    for(const id of Object.keys(BR_WEAPONS) as BrWeaponId[]){
+      const [x,y,z]=brHeldWeaponTransform(id).position;
+      expect(Math.abs(x),id).toBeLessThan(.15);
+      expect(Math.abs(y),id).toBeLessThan(.22);
+      expect(Math.abs(z),id).toBeLessThan(.22);
+    }
+    expect(brHeldWeaponTransform("arc-blaster").position).toEqual([.06,.14,-.12]);
+  });
   it("anchors rarity fields to explicit floor and roof support heights",()=>{
     expect(brLootSurfaceOffset({position:{x:0,y:.58,z:0},surfaceY:0})).toBeCloseTo(-.555);
     expect(brLootSurfaceOffset({position:{x:0,y:18.65,z:0},surfaceY:18})).toBeCloseTo(-.625);

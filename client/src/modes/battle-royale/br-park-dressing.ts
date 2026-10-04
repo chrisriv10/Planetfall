@@ -149,11 +149,13 @@ function clusterParts(center:Vec3,angle:number,archetype:BrParkCluster["archetyp
   }
   if(index%2===0) {
     // Three visible seat slats, a narrow back, and separate feet read as a
-    // bench rather than the former solid block. Maximum back height 1.2m.
-    for(const x of [-1.65,-1.4,-1.15])add("box","brushedMetal",x,.62,.6,.19,.12,2.3);
-    add("box","brushedMetal",-.99,1,.6,.12,.36,2.3);
-    for(const z of [-.2,1.4])add("box","structuralDark",-1.4,.3,z,.62,.5,.14);
-    add("cylinder","structuralDark",-1.4,1.55,2.12,.07,3.1,.07);
+    // bench rather than the former solid block. A .54m seat top and .98m back
+    // top fit the canonical ~2m astronaut instead of the old oversized .68m
+    // seat, without increasing the footprint into the park approach lane.
+    for(const x of [-1.65,-1.4,-1.15])add("box","brushedMetal",x,.48,.6,.19,.12,2.3);
+    add("box","brushedMetal",-.99,.8,.6,.12,.36,2.3);
+    for(const z of [-.2,1.4])add("box","structuralDark",-1.4,.22,z,.62,.38,.14);
+    add("cylinder","structuralDark",-1.4,1.55,2.12,.09,3.1,.09);
     add("box","windowLit",-1.4,3.14,2.12,.28,.12,.28);
   }else {
     // A quiet contrasting border ties tree-only clusters into the park paths.

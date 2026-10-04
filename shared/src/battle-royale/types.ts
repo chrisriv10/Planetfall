@@ -10,6 +10,7 @@ export type BrWeaponId = "pulse-rifle" | "nova-smg" | "photon-shotgun" | "rail-l
 export type BrHealId = "med-patch" | "med-kit" | "shield-cell" | "shield-battery";
 export type BrItemId = BrWeaponId | BrHealId;
 export type BrPingType = "location" | "enemy" | "item" | "move";
+export type BrVehicleKind = "hover-skimmer";
 
 export interface BrInventoryItem {
   instanceId: string;
@@ -61,6 +62,7 @@ export interface BrPlayerState {
   unlockedPassRewards: string[];
   ownedCosmetics: string[];
   equippedCosmetics: EquippedCosmetics;
+  vehicleId: string | null;
 }
 
 /** Compact, presentation-only state sent for nearby remote players. */
@@ -93,6 +95,17 @@ export interface BrPlayerSnapshotState {
   revives: number;
   placement: number | null;
   equippedCosmetics: EquippedCosmetics;
+  vehicleId: string | null;
+}
+
+export interface BrVehicleState {
+  id:string;
+  spawnId:string;
+  kind:BrVehicleKind;
+  position:Vec3;
+  velocity:Vec3;
+  yaw:number;
+  driverId:string|null;
 }
 
 export interface BrLootState {
@@ -137,6 +150,7 @@ export interface BrShipState {
   position: Vec3;
   startedAt: number;
   endsAt: number;
+  autoJumpAt: number;
   playersAboard: number;
 }
 
@@ -172,6 +186,7 @@ export interface BrRoomView {
   teams: Array<{ id: string; playerIds: string[] }>;
   countdownEndsAt: number | null;
   ship: BrShipState | null;
+  vehicles:BrVehicleState[];
   storm: BrStormState;
   playersRemaining: number;
   teamsRemaining: number;
@@ -206,6 +221,7 @@ export interface BrSnapshot {
   loot: BrLootState[];
   storm: BrStormState;
   ship: BrShipState | null;
+  vehicles:BrVehicleState[];
   playersRemaining: number;
   teamsRemaining: number;
   spectatorTargetId: string | null;
@@ -225,6 +241,7 @@ export interface BrClientToServerEvents {
   "br:player:input": (payload: BrInput) => void;
   "br:player:jump": () => void;
   "br:player:deploy": () => void;
+  "br:vehicle:toggle": () => void;
   "br:inventory:select": (payload: { slot: number }) => void;
   "br:inventory:pickup": (
     payload: { lootId: string; replaceSlot?: number },
@@ -248,7 +265,7 @@ export interface BrServerToClientEvents {
   "br:room:state": (room: BrRoomView) => void;
   "br:match:snapshot": (snapshot: BrSnapshot) => void;
   "br:match:countdown": (payload: { startsAt: number; seed: number }) => void;
-  "br:ship:jumped": (payload: { playerId: string; position: Vec3; velocity: Vec3 }) => void;
+  "br:ship:jumped": (payload: { playerId: string; position: Vec3; velocity: Vec3; forced: boolean }) => void;
   "br:loot:spawned": (loot: BrLootState[]) => void;
   "br:loot:removed": (payload: { ids: string[] }) => void;
   "br:crate:spawned": (crates: BrCrateState[]) => void;

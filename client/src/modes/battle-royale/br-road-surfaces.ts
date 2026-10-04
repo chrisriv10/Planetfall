@@ -35,16 +35,45 @@ function clippedInterval(road: BrRoadSegment, structure: BrStructure, clearance:
   return exit <= 0 || enter >= 1 ? null : [Math.max(0, enter), Math.min(1, exit)];
 }
 
+function roadIntersectionInterval(road:BrRoadSegment,other:BrRoadSegment,clearance:number):[number,number]|null {
+  const rx=road.to.x-road.from.x,rz=road.to.z-road.from.z;
+  const sx=other.to.x-other.from.x,sz=other.to.z-other.from.z;
+  const roadLength=Math.hypot(rx,rz),otherLength=Math.hypot(sx,sz);
+  if(roadLength<.001||otherLength<.001)return null;
+  const qx=other.from.x-road.from.x,qz=other.from.z-road.from.z;
+  const denominator=rx*sz-rz*sx;
+  if(Math.abs(denominator)<1e-6){
+    // Collinear authored segments are clipped by projected overlap so duplicate
+    // pavement never occupies the same plane.
+    if(Math.abs(qx*rz-qz*rx)/roadLength>Math.max(road.width,other.width)/2+.25)return null;
+    const projection=(x:number,z:number)=>((x-road.from.x)*rx+(z-road.from.z)*rz)/(roadLength*roadLength);
+    const start=Math.max(0,Math.min(projection(other.from.x,other.from.z),projection(other.to.x,other.to.z)));
+    const end=Math.min(1,Math.max(projection(other.from.x,other.from.z),projection(other.to.x,other.to.z)));
+    return end-start>1e-5?[start,end]:null;
+  }
+  const t=(qx*sz-qz*sx)/denominator,u=(qx*rz-qz*rx)/denominator;
+  if(t<-.001||t>1.001||u<-.001||u>1.001)return null;
+  const roadY=road.from.y+(road.to.y-road.from.y)*t;
+  const otherY=other.from.y+(other.to.y-other.from.y)*u;
+  if(Math.abs(roadY-otherY)>.3)return null; // genuine bridge/underpass crossing
+  const sinAngle=Math.abs(denominator)/(roadLength*otherLength);
+  const halfWorld=(other.width/2+clearance)/Math.max(.2,sinAngle);
+  const halfT=halfWorld/roadLength;
+  return[Math.max(0,t-halfT),Math.min(1,t+halfT)];
+}
+
 /** Visual road spans with building footprints cut out. Authoritative roads stay unchanged. */
 export function buildBrVisibleRoadSpans(
   road: BrRoadSegment,
   structures: readonly BrStructure[] = BR_STRUCTURES,
-  clearance = 1.25
+  clearance = 1.25,
+  occludingRoads:readonly BrRoadSegment[]=[]
 ): BrVisibleRoadSpan[] {
-  const exclusions = structures
+  const exclusions:Array<[number,number]> = structures
     .map((structure) => clippedInterval(road, structure, clearance))
-    .filter((entry): entry is [number, number] => Boolean(entry))
-    .sort((a, b) => a[0] - b[0]);
+    .filter((entry): entry is [number, number] => Boolean(entry));
+  for(const other of occludingRoads){const interval=roadIntersectionInterval(road,other,.08);if(interval)exclusions.push(interval);}
+  exclusions.sort((a,b)=>a[0]-b[0]);
   const merged: Array<[number, number]> = [];
   for (const interval of exclusions) {
     const last = merged.at(-1);
