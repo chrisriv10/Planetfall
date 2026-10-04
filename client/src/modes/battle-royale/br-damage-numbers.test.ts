@@ -40,7 +40,7 @@ describe("BR damage number presentation",()=>{
       expect(layout.fontSize*layout.text.length*.65).toBeLessThanOrEqual(190);
       expect(layout.color).toBe("#ffd75a");
       const expired=brDamageNumberLayout(entry,BR_DAMAGE_NUMBER_LIFETIME_MS*2);
-      expect(expired.opacity).toBe(0);expect(expired.rise).toBeCloseTo(3.15);
+      expect(expired.opacity).toBe(0);expect(expired.rise).toBeCloseTo(3.28);
       expect(brDamageNumberLayout(entry,-100).opacity).toBe(1);
     }
   });
@@ -50,11 +50,24 @@ describe("BR damage number presentation",()=>{
     expect(contexts[0].fillText).toHaveBeenCalledWith("20",128,66,204);
     expect(contexts[1].fillText).toHaveBeenCalledWith("7",128,66,204);
     expect(contexts[0].moveTo).toHaveBeenCalledWith(86,110);
+    expect(contexts[0].moveTo).toHaveBeenCalledWith(132,101);
     expect(contexts[1].moveTo).not.toHaveBeenCalledWith(86,110);
     numbers.update(150);expect(contexts[0].fillText).toHaveBeenCalledTimes(1);
     numbers.hit(hit(4,0),160);numbers.update(160);
     expect(contexts[0].fillText).toHaveBeenLastCalledWith("24",128,66,204);
     numbers.dispose();
+  });
+  it("gives shield breaks and headshots stronger but still separated emphasis",()=>{
+    const normalShield=brDamageNumberLayout(addBrDamageNumber([],hit(20,0),0)[0],0);
+    const brokenShield=brDamageNumberLayout(addBrDamageNumber([],{...hit(20,0),shieldBroken:true},0)[0],0);
+    const normalHp=brDamageNumberLayout(addBrDamageNumber([],hit(0,20),0)[0],0);
+    const headshot=brDamageNumberLayout(addBrDamageNumber([],{...hit(0,20),headshot:true},0)[0],0);
+    expect(brokenShield.scale).toBeGreaterThan(normalShield.scale);
+    expect(headshot.scale).toBeGreaterThan(normalHp.scale);
+    expect(brokenShield.color).not.toBe(normalShield.color);
+    expect(headshot.color).not.toBe(normalHp.color);
+    expect(normalShield.centerX).toBeGreaterThan(1);
+    expect(normalHp.centerX).toBeLessThan(0);
   });
   it("stacks distinct same-channel bursts and cleans up its fixed pool exactly once",()=>{
     const {numbers}=renderer();

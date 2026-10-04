@@ -25,6 +25,9 @@ async function client(url: string): Promise<TestSocket> {
 
 function createRoom(socket: TestSocket, name: string): Promise<BrJoinResult> { return new Promise((resolve) => socket.emit("br:room:create", { name }, resolve)); }
 function joinRoom(socket: TestSocket, code: string, name: string, sessionToken?: string): Promise<BrJoinResult> { return new Promise((resolve) => socket.emit("br:room:join", { code, name, sessionToken }, resolve)); }
+function pickup(socket: TestSocket, lootId: string, replaceSlot?: number): Promise<{ ok: boolean; error?: string }> {
+  return new Promise((resolve) => socket.emit("br:inventory:pickup", { lootId, replaceSlot }, resolve));
+}
 function waitForRoom(socket: TestSocket, predicate: (room: BrRoomView) => boolean, timeoutMs = 4000): Promise<BrRoomView> {
   return new Promise((resolve, reject) => { const timeout = setTimeout(() => reject(new Error("room timeout")), timeoutMs); const handler = (room: BrRoomView) => { if (!predicate(room)) return; clearTimeout(timeout); socket.off("br:room:state", handler); resolve(room); }; socket.on("br:room:state", handler); });
 }
@@ -107,6 +110,15 @@ describe("Battle Royale room", () => {
     expect(room.pickup(player.id,"patch-remainder")).toBe(true);
     expect(player.inventory[1]?.count).toBe(1);expect(room.loot.has("patch-remainder")).toBe(false);
     expect(room.pickup(player.id,"patch-remainder")).toBe(false);
+  });
+  it("acknowledges only authoritative loot pickups as successful", async () => {
+    const { server, url } = await setup(); const host = await client(url); const joined = await createRoom(host, "Pickup pilot"); if (!joined.ok) throw new Error(joined.error);
+    const room = server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom;
+    room.configure(joined.playerId, { targetPlayers: 10, fillBots: true }); room.setReady(joined.playerId, true); room.start(joined.playerId); room.phase = "combat";
+    const player = room.players.get(joined.playerId)!; player.deployment = "grounded"; player.position = { x: 100, y: 0, z: 12 };
+    room.loot.set("acked-cell", { id: "acked-cell", ammoType: "light", count: 10, rarity: "common", position: { ...player.position } });
+    await expect(pickup(host, "acked-cell")).resolves.toEqual({ ok: true });
+    await expect(pickup(host, "acked-cell")).resolves.toEqual({ ok: false, error: "That item is no longer available." });
   });
   it("replicates reload/heal deadlines and clears them on slot cancellation", async () => {
     const { server, url } = await setup(); const host = await client(url); const joined = await createRoom(host, "Action sync"); if (!joined.ok) throw new Error(joined.error);

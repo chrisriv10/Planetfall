@@ -8,7 +8,7 @@ export function createBrReview(selectView:(id:string|null)=>void, quality:(value
   const options=[
     ["","Gameplay camera"],["aerial","Island aerial"],["zero-plaza","Zero Point plaza"],["nova-street","Nova street"],["nova-storefront","Nova storefront"],["nova-roof","Nova rooftop"],
     ["mall-interior","Mall interior"],["mall-directory","Mall directory"],["mall-ramp","Mall ramp"],["mall-ceiling","Mall ceiling edge"],["hotel-lounge","Hotel lounge"],["hotel-service-wall","Hotel service wall"],["housing-lounge","Housing lounge"],["hotel-stairs","Hotel stairs"],["hotel-landing","Hotel upper landing"],["helios-interior","Helios interior"],["crash-exterior","Crash fuselage exterior"],["crash-interior","Crash fuselage interior"],
-    ["foundry-interior","Foundry interior"],["foundry-roof","Foundry roof access"],["roadside-south","Radial roadside service bay"],["roadside-nova","Nova corridor grove"],["connective-academy","Academy connective pocket"],["maintenance-south","South maintenance strip"],["deck-transition","Deck transition field"],["sector-field","Orbital sector field"],["edge-south","South island perimeter"],
+    ["foundry-interior","Foundry interior"],["foundry-roof","Foundry roof access"],["roadside-south","Radial roadside service bay"],["roadside-nova","Nova corridor grove"],["connective-academy","Academy connective pocket"],["south-terminal-apron","South Terminal apron"],["maintenance-south","South maintenance strip"],["deck-transition","Deck transition field"],["sector-field","Orbital sector field"],["edge-south","South island perimeter"],
     ["storm-boundary","Storm boundary (art preview)"],["storm-final","Final circle (art preview)"],
     ...BR_POIS.map(p=>[p.id,p.name]),...BR_SECONDARY_LOCATIONS.map(p=>[p.id,p.name])
   ];

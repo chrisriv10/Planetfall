@@ -31,6 +31,30 @@ describe("Battle Royale art-review cameras", () => {
     expect(BR_REVIEW_CAMERAS["hotel-lobby"]).toEqual(BR_REVIEW_CAMERAS["hotel-lounge"]);
   });
 
+  it("frames the South Terminal apron from player height on the elevated deck", () => {
+    const review = BR_REVIEW_CAMERAS["south-terminal-apron"];
+    expect(review).toBeDefined();
+    for (const point of [review.position, review.focus]) {
+      expect(point[0]).toBeGreaterThanOrEqual(-20);
+      expect(point[0]).toBeLessThanOrEqual(50);
+      expect(point[1]).toBeGreaterThan(3.6);
+      expect(point[2]).toBeGreaterThanOrEqual(-448);
+      expect(point[2]).toBeLessThanOrEqual(-382);
+      for (const structure of BR_STRUCTURES.filter(candidate => candidate.districtId === "south-terminal")) {
+        const inside = Math.abs(point[0] - structure.position.x) < structure.size.x / 2
+          && point[1] > structure.position.y
+          && point[1] < structure.position.y + structure.size.y
+          && Math.abs(point[2] - structure.position.z) < structure.size.z / 2;
+        expect(inside, `review point intersects ${structure.id}`).toBe(false);
+      }
+    }
+    // The sightline begins on the apron and aims southeast across its markings
+    // toward the terminal buildings rather than down at an aerial angle.
+    expect(review.position[0]).toBeLessThan(review.focus[0]);
+    expect(review.position[2]).toBeGreaterThan(review.focus[2]);
+    expect(Math.abs(review.position[1] - review.focus[1])).toBeLessThan(2);
+  });
+
   it("keeps named interior cameras inside the intended authored structure", () => {
     for (const [view, structureId] of [["housing-lounge", "central-heights-1"], ["hotel-lounge", "comet-hotel-1"]] as const) {
       const structure = BR_STRUCTURES.find(candidate => candidate.id === structureId)!;

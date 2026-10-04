@@ -16,6 +16,7 @@ import {
 import type { GraphicsQuality } from "../../settings";
 import { BrMaterialLibrary } from "./br-materials";
 import { layoutBrPoiLabel } from "./br-poi-label-layout";
+import { brPoiLabelPresentation } from "./br-poi-label-presentation";
 import { buildFacadeParts, buildDistantFacadeParts, buildExteriorServiceParts } from "./br-facades";
 import { buildNovaStorefrontParts } from "./br-storefronts";
 import { buildNovaEntrancePaving } from "./br-entrance-paving";
@@ -59,6 +60,8 @@ import {
   type BrAuthoredSecondaryDressing,
   type BrAuthoredSecondaryPart
 } from "./br-authored-secondary-dressing";
+import { buildBrSouthShipworksDressing, type BrSouthShipworksPart } from "./br-south-shipworks-dressing";
+import { buildBrSouthTerminalDressing, type BrSouthTerminalPart } from "./br-south-terminal-dressing";
 
 export type BrPoiLabel = { sprite: THREE.Sprite; position: THREE.Vector3 };
 
@@ -98,6 +101,8 @@ export class BrWorldRenderer {
   private sectorFieldDetail: THREE.Group | null = null;
   private corridorGroveDetail: THREE.Group | null = null;
   private roadsideDetail: THREE.Group | null = null;
+  private southShipworksDetail: THREE.Group | null = null;
+  private southTerminalEnhancedDetail: THREE.Group | null = null;
   private quality: GraphicsQuality;
   private disposed = false;
 
@@ -112,6 +117,8 @@ export class BrWorldRenderer {
     this.buildDistricts();
     this.buildSecondaryLocations();
     this.buildConnectiveDressing();
+    this.buildSouthShipworksDressing();
+    this.buildSouthTerminalDressing();
     this.buildConnectiveClusters();
     this.buildSectorFields();
     this.buildRoadsideInfrastructure();
@@ -131,6 +138,8 @@ export class BrWorldRenderer {
     if (this.connectiveClusterDetail) this.connectiveClusterDetail.visible = quality !== "low";
     if (this.corridorGroveDetail) this.corridorGroveDetail.visible = quality !== "low";
     if (this.roadsideDetail) this.roadsideDetail.visible = quality !== "low";
+    if (this.southShipworksDetail) this.southShipworksDetail.visible = quality !== "low";
+    if (this.southTerminalEnhancedDetail) this.southTerminalEnhancedDetail.visible = quality !== "low";
     this.root.traverse((object) => {
       if (object instanceof THREE.Mesh || object instanceof THREE.InstancedMesh) {
         object.castShadow = quality === "high" && object.userData.cameraCollision === true;
@@ -138,7 +147,7 @@ export class BrWorldRenderer {
     });
   }
 
-  debugStats(): { objects: number; meshes: number; instances: number; visibleInstances:number; materials: number; visibleDistricts: number } {
+  debugStats(): { objects: number; meshes: number; instances: number; visibleInstances:number; materials: number; visibleDistricts: number; visibleSecondaryLabels:number } {
     let objects = 0, meshes = 0, instances = 0, visibleInstances=0; const materials = new Set<THREE.Material>();
     this.root.traverseVisible(object=>{if(object instanceof THREE.InstancedMesh)visibleInstances+=object.count;});
     this.root.traverse((object) => {
@@ -149,7 +158,7 @@ export class BrWorldRenderer {
         const source = object.material; for (const material of Array.isArray(source) ? source : [source]) materials.add(material);
       }
     });
-    return { objects, meshes, instances, visibleInstances, materials: materials.size, visibleDistricts: this.districtDetails.filter((detail) => detail.group.visible).length };
+    return { objects, meshes, instances, visibleInstances, materials: materials.size, visibleDistricts: this.districtDetails.filter((detail) => detail.group.visible).length, visibleSecondaryLabels:this.secondaryLabels.filter(label=>label.visible).length };
   }
 
   update(camera: THREE.Camera, now: number): void {
@@ -183,7 +192,13 @@ export class BrWorldRenderer {
       const material = this.energyMaterials[index] as THREE.MeshBasicMaterial;
       material.opacity = THREE.MathUtils.clamp(.45 + Math.sin(now * .002 + index * 1.7) * .16, .22, .76);
     }
-    for(const label of this.secondaryLabels){label.visible=camera.position.y<110&&camera.position.distanceTo(label.position)<175;}
+    for(const label of this.secondaryLabels){
+      const presentation=brPoiLabelPresentation(camera.position,label.position,camera.position,false);
+      label.visible=camera.position.y<110&&presentation.visible&&camera.position.distanceTo(label.position)<175;
+      if(!label.visible)continue;
+      label.scale.set(presentation.scale*2,presentation.scale*.58,1);
+      label.material.opacity=presentation.opacity;
+    }
   }
 
   dispose(): void {
@@ -1502,6 +1517,38 @@ export class BrWorldRenderer {
     }
     this.root.add(group);
     this.maintenanceDetail = group;
+  }
+
+  private buildSouthShipworksDressing():void {
+    const group=new THREE.Group();group.name="south-shipworks-maintenance-route";group.visible=this.quality!=="low";
+    const batches=new Map<string,MatrixSpec[]>();
+    for(const part of buildBrSouthShipworksDressing().parts){
+      const key=`${part.finish}:${part.surface}`;const batch=batches.get(key)??[];
+      batch.push({position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z),rotationY:part.rotationY});
+      batches.set(key,batch);
+    }
+    for(const [key,parts] of batches){
+      const [finish,surface]=key.split(":") as [BrSouthShipworksPart["finish"],string];
+      this.addInstances(group,this.materials.unitBox,surface==="true"?this.materials.surface(finish,3):this.materials.get(finish),parts,false);
+    }
+    this.root.add(group);this.southShipworksDetail=group;
+  }
+
+  private buildSouthTerminalDressing():void {
+    const group=new THREE.Group();group.name="south-terminal-wayfinding-pocket";
+    const enhanced=new THREE.Group();enhanced.name="south-terminal-enhanced-detail";enhanced.visible=this.quality!=="low";
+    const batches=new Map<string,MatrixSpec[]>();
+    for(const part of buildBrSouthTerminalDressing().parts){
+      const key=`${part.detail}:${part.finish}:${part.surface}`;const batch=batches.get(key)??[];
+      batch.push({position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z),rotationY:part.rotationY});
+      batches.set(key,batch);
+    }
+    for(const [key,parts] of batches){
+      const [detail,finish,surface]=key.split(":") as [BrSouthTerminalPart["detail"],BrSouthTerminalPart["finish"],string];
+      const target=detail==="enhanced"?enhanced:group;
+      this.addInstances(target,surface==="true"?this.materials.unitBox:this.materials.unitChamferedBox,surface==="true"?this.materials.surface(finish,3):this.materials.get(finish),parts,false);
+    }
+    group.add(enhanced);this.root.add(group);this.southTerminalEnhancedDetail=enhanced;
   }
 
   private makeTurbine(x: number, z: number, color: string): THREE.Group {

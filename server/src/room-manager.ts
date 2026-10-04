@@ -126,7 +126,13 @@ export class RoomManager {
     socket.on("br:player:jump", () => { const c = this.currentBr(socket); if (c) c.room.jumpFromShip(c.playerId); });
     socket.on("br:player:deploy", () => { const c = this.currentBr(socket); if (c) c.room.deployChute(c.playerId); });
     socket.on("br:inventory:select", (payload) => { const c = this.currentBr(socket); if (c) c.room.selectSlot(c.playerId, payload?.slot); });
-    socket.on("br:inventory:pickup", (payload) => { const c = this.currentBr(socket); if (c) c.room.pickup(c.playerId, String(payload?.lootId ?? ""), payload?.replaceSlot); });
+    socket.on("br:inventory:pickup", (payload, ack) => {
+      const c = this.currentBr(socket);
+      const accepted = Boolean(c?.room.pickup(c.playerId, String(payload?.lootId ?? ""), payload?.replaceSlot));
+      if (typeof ack === "function") ack(accepted
+        ? { ok: true }
+        : { ok: false, error: c ? "That item is no longer available." : "Not in a Battle Royale room." });
+    });
     socket.on("br:inventory:drop", (payload) => { const c = this.currentBr(socket); if (c) c.room.drop(c.playerId, payload?.slot); });
     socket.on("br:crate:open", (payload) => { const c = this.currentBr(socket); if (c) c.room.openCrate(c.playerId, String(payload?.crateId ?? "")); });
     socket.on("br:weapon:fire", (payload) => { const c = this.currentBr(socket); if (c) c.room.fire(c.playerId, payload?.origin, payload?.direction, payload?.clientTime); });

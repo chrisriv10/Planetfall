@@ -226,7 +226,10 @@ export interface BrClientToServerEvents {
   "br:player:jump": () => void;
   "br:player:deploy": () => void;
   "br:inventory:select": (payload: { slot: number }) => void;
-  "br:inventory:pickup": (payload: { lootId: string; replaceSlot?: number }) => void;
+  "br:inventory:pickup": (
+    payload: { lootId: string; replaceSlot?: number },
+    ack: (result: { ok: boolean; error?: string }) => void,
+  ) => void;
   "br:inventory:drop": (payload: { slot: number }) => void;
   "br:crate:open": (payload: { crateId: string }) => void;
   "br:weapon:fire": (payload: { origin: Vec3; direction: Vec3; clientTime: number }) => void;

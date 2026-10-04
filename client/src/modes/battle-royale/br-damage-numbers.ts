@@ -14,16 +14,20 @@ export const BR_DAMAGE_NUMBER_AGGREGATE_MS=180;
 export function brDamageNumberLayout(entry:BrDamageNumberEntry,now:number){
   const age=Math.max(0,now-entry.updatedAt),progress=Math.min(1,age/BR_DAMAGE_NUMBER_LIFETIME_MS);
   const text=String(Math.round(entry.amount));
+  const shieldBreak=entry.kind==="shield"&&entry.shieldBroken;
+  const emphasized=entry.headshot||shieldBreak;
+  const easedRise=1-Math.pow(1-progress,2);
   return {
     centerX:entry.kind==="shield"?1.02:-.02,
-    rise:2.1+progress*1.05,
+    rise:2.16+easedRise*1.12,
     opacity:Math.min(1,(1-progress)*1.45),
-    scale:(entry.headshot?1.12:1)*(1+Math.sin(Math.min(1,age/120)*Math.PI)*.12),
+    scale:(entry.headshot?1.14:shieldBreak?1.07:1)*(1+Math.sin(Math.min(1,age/130)*Math.PI)*.15),
     text,
     // Leave 24px margins plus stroke; headshot/break marks occupy separate rows
     // and never prepend a font-dependent glyph to the numeric value.
-    fontSize:Math.min(entry.headshot?70:62,Math.floor(190/(Math.max(1,text.length)*.65))),
-    color:entry.kind==="shield"?(entry.shieldBroken?"#d8fbff":"#63d8ff"):entry.headshot?"#ffd75a":"#ffffff",
+    fontSize:Math.min(emphasized?72:66,Math.floor(190/(Math.max(1,text.length)*.65))),
+    color:entry.kind==="shield"?(shieldBreak?"#c9fbff":"#63d8ff"):entry.headshot?"#ffd75a":"#ffffff",
+    glowColor:entry.kind==="shield"?"rgba(74,220,255,.8)":entry.headshot?"rgba(255,198,54,.78)":"rgba(255,255,255,.42)",
   };
 }
 
@@ -58,7 +62,7 @@ export class BrDamageNumbers extends THREE.Group{
       slot.sprite.center.set(layout.centerX,.5);
       slot.sprite.position.set(entry.position.x,entry.position.y+layout.rise+newer*.68,entry.position.z);
       slot.sprite.material.opacity=layout.opacity;
-      slot.sprite.scale.set(1.55*layout.scale,.72*layout.scale,1);
+      slot.sprite.scale.set(1.68*layout.scale,.78*layout.scale,1);
       const key=`${Math.round(entry.amount)}:${entry.kind}:${entry.shieldBroken}:${entry.headshot}`;if(slot.key!==key){slot.key=key;this.paint(slot,entry);}
     }
   }
@@ -68,12 +72,17 @@ export class BrDamageNumbers extends THREE.Group{
   private paint(slot:Slot,entry:BrDamageNumberEntry):void{
     const c=slot.context,layout=brDamageNumberLayout(entry,entry.updatedAt);c.clearRect(0,0,256,128);
     c.textAlign="center";c.textBaseline="middle";c.font=`900 ${layout.fontSize}px Arial`;c.lineJoin="round";
-    c.strokeStyle="rgba(2,5,19,.95)";c.lineWidth=12;c.strokeText(layout.text,128,66,204);
-    c.fillStyle=layout.color;c.fillText(layout.text,128,66,204);
+    c.shadowBlur=0;c.strokeStyle="rgba(2,5,19,.95)";c.lineWidth=12;c.strokeText(layout.text,128,66,204);
+    c.shadowColor=layout.glowColor;c.shadowBlur=entry.headshot||entry.kind==="shield"&&entry.shieldBroken?9:5;
+    c.fillStyle=layout.color;c.fillText(layout.text,128,66,204);c.shadowBlur=0;
     if(entry.headshot){c.beginPath();c.moveTo(128,8);c.lineTo(134,14);c.lineTo(128,20);c.lineTo(122,14);c.closePath();c.lineWidth=3;c.stroke();c.fill();}
     // A broken-shield cue belongs to the shield channel only, even when the
     // same confirmed impact also damages HP. Split underline avoids a solid bar.
-    if(entry.kind==="shield"&&entry.shieldBroken){c.strokeStyle="#6ef5ff";c.lineWidth=3;c.beginPath();c.moveTo(86,110);c.lineTo(119,110);c.moveTo(137,110);c.lineTo(170,110);c.stroke();}
+    if(entry.kind==="shield"&&entry.shieldBroken){
+      c.strokeStyle="#6ef5ff";c.lineWidth=3;c.beginPath();
+      c.moveTo(86,110);c.lineTo(118,110);c.moveTo(138,110);c.lineTo(170,110);
+      c.moveTo(132,101);c.lineTo(125,109);c.lineTo(132,109);c.lineTo(125,119);c.stroke();
+    }
     slot.texture.needsUpdate=true;
   }
 }

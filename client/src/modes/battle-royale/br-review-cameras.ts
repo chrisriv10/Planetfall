@@ -30,6 +30,7 @@ export const BR_REVIEW_CAMERAS: Readonly<Record<string, BrReviewCamera>> = {
   "academy-commons-grade": { position: [-207, 11.5, 211], focus: [-231, 3.2, 234] },
   "east-checkpoint-grade": { position: [297, 2.8, 171], focus: [328, 5.6, 208] },
   "south-terminal-grade": { position: [15, 3.1, -350], focus: [15, 5.2, -388] },
+  "south-terminal-apron": { position: [-15, 5.35, -386], focus: [7, 4.1, -401] },
   "south-shipworks-grade": { position: [133, 4.1, -347], focus: [183, 6.5, -374] },
   "maintenance-south": { position: [190, 7.65, -360], focus: [190, 5.85, -400] },
   "deck-transition": { position: [-255, 3.2, 8], focus: [-255, 2.2, -30] },

@@ -548,7 +548,10 @@ async function ensureBrGame(nextRoom: BrRoomView): Promise<BrGame> {
     instance.onFire = (origin, direction, clientTime) => socket.emit("br:weapon:fire", { origin, direction, clientTime });
     instance.onReload = () => socket.emit("br:weapon:reload");
     instance.onUseItem = () => socket.emit("br:item:use");
-    instance.onPickup = (lootId, replaceSlot) => socket.emit("br:inventory:pickup", { lootId, replaceSlot });
+    instance.onPickup = (lootId, replaceSlot) => socket.emit("br:inventory:pickup", { lootId, replaceSlot }, (result) => {
+      if (result.ok) game.audio.pickup();
+      else { game.audio.denied(); toast(result.error ?? "Pickup failed."); }
+    });
     instance.onOpenCrate = (crateId) => socket.emit("br:crate:open", { crateId });
     instance.onSelectSlot = (slot) => socket.emit("br:inventory:select", { slot });
     instance.onRevive = (targetId, active) => socket.emit("br:revive", { targetId, active });

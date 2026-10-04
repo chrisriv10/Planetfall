@@ -24,6 +24,7 @@ import { brReviveInput, brReviveRetryDue } from "./br-revive-input";
 import { BrDamageFeedback, brDamageFeedbackFade } from "./br-damage-feedback";
 import { createBrIonWings } from "./br-ion-wings";
 import { nextOccupiedBrSlot } from "./br-inventory-selection";
+import { brPoiLabelPresentation } from "./br-poi-label-presentation";
 import { resolveBrOptimisticSelection, type BrPendingSelection } from "./br-optimistic-selection";
 import { brHeldWeaponTransform,brLootCategory,brLootSurfaceOffset,brLootWeaponTransform } from "./br-item-presentation";
 import { useBrPlayerImpostor } from "./br-player-lod";
@@ -516,7 +517,7 @@ export class BattleRoyaleGame {
     const nearbyCrate = this.nearestCrate(interactionPosition);
     const downedTeammate = this.nearestDownedTeammate(local,interactionPosition);
     if (frame.interact.pressed && !downedTeammate) {
-      if (nearbyLoot) {this.audio.pickup();this.onPickup?.(nearbyLoot.state.id,swapLoot ? local.selectedSlot : undefined);}
+      if (nearbyLoot) this.onPickup?.(nearbyLoot.state.id, swapLoot ? local.selectedSlot : undefined);
       else if (nearbyCrate) this.onOpenCrate?.(nearbyCrate.state.id);
       else if (selectedItem && isBrHeal(selectedItem.itemId) && !local.downed && local.deployment === "grounded") { const heal=BR_HEALS[selectedItem.itemId];const usable=heal.hp>0?local.hp<BR_BALANCE.hp:local.shield<BR_BALANCE.shield;if(usable&&this.useEndsAt<=now&&this.reloadEndsAt<=now){this.useConfirmed=false;this.useStartedAt = now; this.useEndsAt = now + heal.durationMs;this.audio.brUseItem(heal.shield>0); this.onUseItem?.();} }
     }
@@ -1042,9 +1043,19 @@ export class BattleRoyaleGame {
   private updateWorldPresentation(now:number):void {
     if(this.poiTitle&&now>=this.poiTitleUntil)this.clearPoiTitle();
     this.world.update(this.camera, now);
-    const local=this.localState;const airborne=local&&(local.deployment==="attached"||local.deployment==="freefall"||local.deployment==="chute");
+    const local=this.localState;
+    const labelViewer=this.debugCameraView?.position??local?.position;
+    const airborne=this.debugCameraView
+      ? this.debugCameraView.position.y>80
+      : Boolean(local&&(local.deployment==="attached"||local.deployment==="freefall"||local.deployment==="chute"));
     if(local?.deployment==="grounded"){this.temp.set(local.position.x,0,local.position.z);this.sunTarget.position.lerp(this.temp,.08);this.sun.position.set(this.sunTarget.position.x-105,this.sunTarget.position.y+190,this.sunTarget.position.z+82);}
-    for(const label of this.poiLabels){const distance=local?Math.hypot(local.position.x-label.position.x,local.position.z-label.position.z):999;label.sprite.visible=Boolean(airborne||distance>82)&&this.camera.position.distanceTo(label.position)<780;const scale=THREE.MathUtils.clamp(this.camera.position.distanceTo(label.position)*.021,7.5,16);label.sprite.scale.set(scale*2.35,scale*.62,1);label.sprite.material.opacity=THREE.MathUtils.clamp((distance-70)/65,.24,.82);}
+    for(const label of this.poiLabels){
+      const presentation=brPoiLabelPresentation(labelViewer,label.position,this.camera.position,airborne);
+      label.sprite.visible=presentation.visible;
+      if(!presentation.visible)continue;
+      label.sprite.scale.set(presentation.scale*2.1,presentation.scale*.56,1);
+      label.sprite.material.opacity=presentation.opacity;
+    }
     if (local?.alive && local.deployment === "grounded") {
       let nearest: BrPoi | null = null; let nearestDistance = 82;
       for (const poi of BR_POIS) { const distance = Math.hypot(local.position.x - poi.position.x, local.position.z - poi.position.z); if (distance < nearestDistance) { nearest = poi; nearestDistance = distance; } }
