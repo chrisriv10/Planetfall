@@ -55,15 +55,17 @@ const SITES: readonly Site[] = [
     ["bench-foot-b", "box", "structuralDark", -59, .17, -71.4, .48, .26, .12],
     ["entry-apron", "box", "concrete", -60, .032, -73.15, 2.4, .016, .38, 0, true],
   ] },
-  { id: "relay-market", family: "commercial", context: "Market loading apron and open waiting frame", center: [42, -73], parts: [
-    ["apron", "box", "paintedMetal", 42, .016, -73, 4, .016, 3, 0, true],
-    ["frame-west", "box", "structuralDark", 40.7, 1.5, -73.7, .12, 2.92, .12],
-    ["frame-east", "box", "structuralDark", 43.3, 1.5, -73.7, .12, 2.92, .12],
-    ["frame-header", "box", "brushedMetal", 42, 2.93, -73.7, 2.72, .12, .16],
-    ["header-lens", "box", "windowLit", 42, 2.93, -73.6, 1.1, .06, .04],
-    ["waiting-seat", "box", "structuralWhite", 42, .34, -73.5, 1.8, .16, .48],
-    ["seat-foot", "box", "structuralDark", 42, .15, -73.5, 1.2, .22, .25],
-    ["walk-strip", "box", "sidewalk", 42, .032, -72.2, 3.4, .016, .65, 0, true],
+  // Western warehouse forecourt: separate from the new avenue's entry bend,
+  // north-facing waiting frame, with the warehouse's east door left untouched.
+  { id: "relay-market", family: "commercial", context: "Warehouse west loading apron and north-facing waiting frame", center: [42, -89], parts: [
+    ["apron", "box", "paintedMetal", 42, .016, -89, 4, .016, 3, 0, true],
+    ["frame-west", "box", "structuralDark", 40.7, 1.5, -89.7, .12, 2.92, .12],
+    ["frame-east", "box", "structuralDark", 43.3, 1.5, -89.7, .12, 2.92, .12],
+    ["frame-header", "box", "brushedMetal", 42, 2.93, -89.7, 2.72, .12, .16],
+    ["header-lens", "box", "windowLit", 42, 2.93, -89.6, 1.1, .06, .04],
+    ["waiting-seat", "box", "structuralWhite", 42, .34, -89.5, 1.8, .16, .48],
+    ["seat-foot", "box", "structuralDark", 42, .15, -89.5, 1.2, .22, .25],
+    ["walk-strip", "box", "sidewalk", 42, .032, -88.2, 3.4, .016, .65, 0, true],
   ] },
   { id: "comet-hotel", family: "commercial", context: "Hotel garden arrival seat", center: [-46, -189], parts: [
     ["arrival-apron", "box", "sidewalk", -46, .016, -189, 4, .016, 3, 0, true],

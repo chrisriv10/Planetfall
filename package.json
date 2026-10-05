@@ -11,6 +11,7 @@
     "build": "npm run build -w @planetfall/shared && npm run build -w @planetfall/server && npm run build -w @planetfall/client",
     "start": "npm run start -w @planetfall/server",
     "test": "npm run build -w @planetfall/shared && vitest run --configLoader native --no-file-parallelism",
+    "audit:br-density": "npm run build -w @planetfall/shared && node tools/br-density-audit.mjs",
     "test:e2e": "playwright test",
     "pretypecheck": "npm run build -w @planetfall/shared",
     "typecheck": "npm run typecheck --workspaces --if-present"

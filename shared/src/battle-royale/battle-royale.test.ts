@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  BR_BALANCE, BR_BOT_DIFFICULTY, BR_CRATE_SOCKETS, BR_DISTRICT_PLANS, BR_ISLAND_OUTLINE, BR_LOOT_SOCKETS, BR_MAP, BR_MAP_BLOCKS, BR_NAV_NODES, BR_POIS, BR_ROADS, BR_SECONDARY_LOCATIONS, BR_STORM_PHASES, BR_STRUCTURES, BR_TERRACES, BR_TERRAIN_PATCHES, BR_WEAPONS, applyBrDamage, brApproachPlanarVelocity, brBlockPlanarHalfExtents, brDropVelocity, brFlatDeckCollision, brForcedDropVelocity, brHasStandingClearance, brMantleTopAt, brMuzzlePosition, brNextWaypoint, brPlayerHitDistance, brRarityDamage, brRoadIntersectsFootprint, brShipPath, isInsideBrIsland,
+  BR_BALANCE, BR_BOT_DIFFICULTY, BR_CRATE_SOCKETS, BR_DISTRICT_PLANS, BR_ISLAND_OUTLINE, BR_LOOT_SOCKETS, BR_MAP, BR_MAP_BLOCKS, BR_NAV_NODES, BR_POIS, BR_ROADS, BR_SECONDARY_LOCATIONS, BR_STORM_PHASES, BR_STRUCTURES, BR_TERRACES, BR_TERRAIN_PATCHES, BR_WEAPONS, applyBrDamage, brApproachPlanarVelocity, brBlockPlanarHalfExtents, brDropVelocity, brFlatDeckCollision, brForcedDropVelocity, brHasStandingClearance, brMantleTopAt, brMuzzlePosition, brNextWaypoint, brPlayerHitDistance, brRarityDamage, brRoadGradeFloorAt, brRoadIntersectsFootprint, brShipPath, isInsideBrIsland, isInsideBrIslandInterior,
   brBlocksNear, brPickupDisposition, createEmptyBrInventory, raySphereDistance, reloadBrItem, stepBrMovement, stormContains, type BrInventoryItem, type BrMotionState
 } from "./index.js";
 
@@ -61,6 +61,13 @@ describe("Battle Royale shared rules", () => {
       const midpoint = { x: (route.start.x + route.end.x) / 2, z: (route.start.z + route.end.z) / 2 };
       expect(Math.hypot(midpoint.x, midpoint.z)).toBeLessThan(BR_MAP.radius);
     }
+  });
+
+  it("distinguishes expanded island reach from a genuinely safe interior inset",()=>{
+    const edge={x:BR_ISLAND_OUTLINE[0][0],y:0,z:BR_ISLAND_OUTLINE[0][1]};
+    expect(isInsideBrIsland(edge,20)).toBe(true);
+    expect(isInsideBrIslandInterior(edge,20)).toBe(false);
+    expect(isInsideBrIslandInterior({x:0,y:0,z:0},20)).toBe(true);
   });
 
   it("validates storm containment and ray intersections deterministically", () => {
@@ -331,6 +338,246 @@ describe("Battle Royale shared rules", () => {
     }
   });
 
+  it("joins the two raised southern districts with one continuous walkable transfer bridge",()=>{
+    const bridge=BR_ROADS.find(road=>road.id==="south-transfer-bridge");
+    const terminal=BR_ROADS.find(road=>road.id==="south-terminal-main");
+    const shipworks=BR_ROADS.find(road=>road.id==="south-shipworks-main");
+    expect(bridge).toEqual({
+      id:"south-transfer-bridge",
+      from:{x:45,y:3.6,z:-415},to:{x:160,y:4.1,z:-400},
+      width:9,color:"#33485d",kind:"arterial"
+    });
+    expect(terminal?.to).toEqual(bridge?.from);
+    expect(shipworks?.from).toEqual(bridge?.to);
+    const surface=BR_MAP_BLOCKS.find(block=>block.id==="south-transfer-bridge-surface");
+    expect(surface?.kind).toBe("ramp");
+    expect(brRoadGradeFloorAt(surface!,bridge!.from)).toBeCloseTo(3.5);
+    expect(brRoadGradeFloorAt(surface!,bridge!.to)).toBeCloseTo(4);
+    expect(brNextWaypoint({x:15,y:3.5,z:-415},{x:190,y:4,z:-400}).y).toBeGreaterThan(3);
+
+    const yaw=Math.atan2(bridge!.to.x-bridge!.from.x,-(bridge!.to.z-bridge!.from.z));
+    let rapierJoinFrames=0;
+    let motion:BrMotionState={position:{x:45,y:3.5,z:-415},velocity:{x:0,y:0,z:0},yaw,grounded:true,crouched:false,deployment:"grounded",downed:false,lastJumpSignal:false,lastCrouchSignal:false,slideEndsAt:0,traversalCooldownUntil:0,lastGroundedAt:0,jumpBufferedUntil:0};
+    for(let tick=0;tick<330;tick++)motion=stepBrMovement(motion,{moveX:0,moveY:1,yaw,jump:false,sprint:true,crouch:false},1/30,tick*1000/30,(position,movement,options)=>{
+      const fast=brFlatDeckCollision(position,movement,options.jumping);
+      if(fast)return fast;
+      // The exact terrace joins intentionally fall through to Rapier in the
+      // real controller. Model a grounded no-op for those few frames here;
+      // the invariant is that the deterministic grade itself never drops the
+      // player through the island or strands them short of Shipworks.
+      rapierJoinFrames++;
+      return{movement:{x:0,y:0,z:0},grounded:true,ceiling:false};
+    });
+    expect(rapierJoinFrames).toBeLessThan(25);
+    expect(motion.position.x).toBeGreaterThan(159);
+    expect(motion.position.y).toBeCloseTo(4.035);
+    expect(motion.grounded).toBe(true);
+  });
+
+  it("connects the western housing and signal districts without crossing their buildings",()=>{
+    const links=["west-neighborhood-link-a","west-neighborhood-link-b","west-neighborhood-link-c"].map(id=>BR_ROADS.find(road=>road.id===id)!);
+    expect(links.every(Boolean)).toBe(true);
+    expect(links[0].from).toEqual({x:-285,y:.1,z:-30});
+    expect(links[0].to).toEqual(links[1].from);
+    expect(links[1].to).toEqual(links[2].from);
+    expect(links[2].to).toEqual({x:-375,y:.1,z:-125});
+    for(const road of links)for(const structure of BR_STRUCTURES){
+      expect(brRoadIntersectsFootprint(road,structure.position,structure.size,1),`${road.id} crosses ${structure.id}`).toBe(false);
+    }
+    const next=brNextWaypoint({x:-285,y:0,z:-30},{x:-405,y:0,z:-125});
+    expect(next.x).toBeLessThan(-340);
+    expect(next.z).toBeLessThan(-100);
+  });
+
+  it("continues the western neighborhood avenue through Signal Station into Nova",()=>{
+    const avenue=BR_ROADS.find(road=>road.id==="west-transit-avenue")!;
+    const signal=BR_ROADS.find(road=>road.id==="signal-station-main")!;
+    const nova=BR_ROADS.find(road=>road.id==="nova-street-a-west")!;
+    expect(avenue.from).toEqual(signal.to);
+    expect({x:avenue.to.x,z:avenue.to.z}).toEqual({x:nova.from.x,z:nova.from.z});
+    expect(avenue.to.y).toBeCloseTo(nova.from.y,1);
+    expect(Math.hypot(avenue.to.x-avenue.from.x,avenue.to.z-avenue.from.z)).toBeGreaterThan(120);
+    for(const structure of BR_STRUCTURES){
+      expect(brRoadIntersectsFootprint(avenue,structure.position,structure.size,1),`avenue crosses ${structure.id}`).toBe(false);
+    }
+  });
+
+  it("closes the North Gardens and Mall Annex street loop with a clear promenade",()=>{
+    const promenade=BR_ROADS.find(road=>road.id==="north-garden-promenade")!;
+    const gardens=BR_ROADS.find(road=>road.id==="north-gardens-main")!;
+    const mall=BR_ROADS.find(road=>road.id==="mall-annex-main")!;
+    expect(promenade.from).toEqual(gardens.from);
+    expect(promenade.to).toEqual(mall.to);
+    expect(Math.hypot(promenade.to.x-promenade.from.x,promenade.to.z-promenade.from.z)).toBeGreaterThan(100);
+    for(const structure of BR_STRUCTURES){
+      expect(brRoadIntersectsFootprint(promenade,structure.position,structure.size,1),`promenade crosses ${structure.id}`).toBe(false);
+    }
+  });
+
+  it("descends from Emergency Depot into Salvage Row through the southwest connective field",()=>{
+    const grade=BR_ROADS.find(road=>road.id==="southwest-salvage-grade")!;
+    const link=BR_ROADS.find(road=>road.id==="southwest-salvage-link")!;
+    const depot=BR_ROADS.find(road=>road.id==="emergency-depot-main")!;
+    const salvage=BR_ROADS.find(road=>road.id==="salvage-row-cross")!;
+    expect(grade.from).toEqual(depot.from);
+    expect(grade.to).toEqual(link.from);
+    expect(link.to).toEqual(salvage.from);
+    const surface=BR_MAP_BLOCKS.find(block=>block.id==="southwest-salvage-grade-surface")!;
+    expect(surface.kind).toBe("ramp");
+    expect(brRoadGradeFloorAt(surface,grade.from)).toBeCloseTo(5.5);
+    expect(brRoadGradeFloorAt(surface,grade.to)).toBeCloseTo(0);
+    for(const road of [grade,link])for(const structure of BR_STRUCTURES){
+      expect(brRoadIntersectsFootprint(road,structure.position,structure.size,1),`${road.id} crosses ${structure.id}`).toBe(false);
+    }
+  });
+
+  it("joins Cargo Spur and Dock Service with a clear freight boulevard",()=>{
+    const boulevard=BR_ROADS.find(road=>road.id==="south-freight-boulevard")!;
+    const cargo=BR_ROADS.find(road=>road.id==="cargo-spur-main")!;
+    const dock=BR_ROADS.find(road=>road.id==="dock-service-main")!;
+    expect(boulevard.from).toEqual(cargo.to);
+    expect(boulevard.to).toEqual(dock.from);
+    expect(Math.hypot(boulevard.to.x-boulevard.from.x,boulevard.to.z-boulevard.from.z)).toBeGreaterThan(125);
+    for(const structure of BR_STRUCTURES){
+      expect(brRoadIntersectsFootprint(boulevard,structure.position,structure.size,1),`boulevard crosses ${structure.id}`).toBe(false);
+    }
+  });
+
+  it("connects Dock Service, Engine Gate and elevated East Freight as one industrial triangle",()=>{
+    const west=BR_ROADS.find(road=>road.id==="dock-engine-link-west")!;
+    const east=BR_ROADS.find(road=>road.id==="dock-engine-link-east")!;
+    const gate=BR_ROADS.find(road=>road.id==="dock-engine-link-gate")!;
+    const freightDeck=BR_ROADS.find(road=>road.id==="east-freight-engine-deck")!;
+    const freightTurn=BR_ROADS.find(road=>road.id==="east-freight-engine-deck-turn")!;
+    const grade=BR_ROADS.find(road=>road.id==="east-freight-engine-grade")!;
+    const dock=BR_ROADS.find(road=>road.id==="dock-service-main")!;
+    const engineMain=BR_ROADS.find(road=>road.id==="engine-gate-main")!;
+    const engineCross=BR_ROADS.find(road=>road.id==="engine-gate-cross")!;
+    const freight=BR_ROADS.find(road=>road.id==="east-freight-main")!;
+    expect(west.from).toEqual(dock.to);
+    expect(west.to).toEqual(east.from);
+    expect(east.to).toEqual(gate.from);
+    expect(gate.to).toEqual(engineMain.from);
+    expect(freightDeck.from).toEqual(freight.to);
+    expect(freightTurn.from).toEqual(freightDeck.to);
+    expect(grade.from).toEqual(freightTurn.to);
+    expect(grade.to).toEqual(engineCross.from);
+    const surface=BR_MAP_BLOCKS.find(block=>block.id==="east-freight-engine-grade-surface")!;
+    expect(surface.kind).toBe("ramp");
+    expect(brRoadGradeFloorAt(surface,grade.from)).toBeCloseTo(8);
+    expect(brRoadGradeFloorAt(surface,grade.to)).toBeCloseTo(0);
+    for(const road of [west,east,gate,freightDeck,freightTurn,grade])for(const structure of BR_STRUCTURES){
+      expect(brRoadIntersectsFootprint(road,structure.position,structure.size,.75),`${road.id} crosses ${structure.id}`).toBe(false);
+    }
+  });
+
+  it("forms a clear outer skywalk between Mall Annex and North Gardens",()=>{
+    const west=BR_ROADS.find(road=>road.id==="north-skywalk-west")!;
+    const east=BR_ROADS.find(road=>road.id==="north-skywalk-east")!;
+    const mall=BR_ROADS.find(road=>road.id==="mall-annex-cross")!;
+    const gardens=BR_ROADS.find(road=>road.id==="north-gardens-main")!;
+    expect(west.from).toEqual(mall.to);
+    expect(west.to).toEqual(east.from);
+    expect(east.to).toEqual(gardens.from);
+    for(const road of [west,east])for(const structure of BR_STRUCTURES){
+      expect(brRoadIntersectsFootprint(road,structure.position,structure.size,1),`${road.id} crosses ${structure.id}`).toBe(false);
+    }
+  });
+
+  it("gives elevated Solar Field a second clear exit into the north ring",()=>{
+    const deck=BR_ROADS.find(road=>road.id==="solar-rim-deck-link")!;
+    const grade=BR_ROADS.find(road=>road.id==="solar-rim-grade")!;
+    const solar=BR_ROADS.find(road=>road.id==="solar-field-main")!;
+    const ring=BR_ROADS.find(road=>road.id==="ring-n")!;
+    expect(deck.from).toEqual(solar.to);
+    expect(grade.from).toEqual(deck.to);
+    expect({x:grade.to.x,z:grade.to.z}).toEqual({x:ring.from.x,z:ring.from.z});
+    expect(grade.to.y).toBeCloseTo(ring.from.y,1);
+    const surface=BR_MAP_BLOCKS.find(block=>block.id==="solar-rim-grade-surface")!;
+    expect(surface.kind).toBe("ramp");
+    expect(brRoadGradeFloorAt(surface,grade.from)).toBeCloseTo(4);
+    expect(brRoadGradeFloorAt(surface,grade.to)).toBeCloseTo(0);
+    for(const road of [deck,grade])for(const structure of BR_STRUCTURES){
+      expect(brRoadIntersectsFootprint(road,structure.position,structure.size,1),`${road.id} crosses ${structure.id}`).toBe(false);
+    }
+  });
+
+  it("joins the southern civic decks with an inner promenade and outer boardwalk",()=>{
+    const ids=["south-rim-promenade","south-rim-boardwalk-west","south-rim-boardwalk-main","south-rim-boardwalk-link"];
+    const [promenade,west,main,link]=ids.map(id=>BR_ROADS.find(road=>road.id===id)!);
+    const depotMain=BR_ROADS.find(road=>road.id==="emergency-depot-main")!;
+    const depotCross=BR_ROADS.find(road=>road.id==="emergency-depot-cross")!;
+    const terminalMain=BR_ROADS.find(road=>road.id==="south-terminal-main")!;
+    const terminalCross=BR_ROADS.find(road=>road.id==="south-terminal-cross")!;
+    expect(promenade.from).toEqual(depotMain.to);
+    expect(promenade.to).toEqual(terminalMain.from);
+    expect(west.from).toEqual(depotCross.from);
+    expect(west.to).toEqual(main.from);
+    expect(main.to).toEqual(link.from);
+    expect(link.to).toEqual(terminalCross.from);
+    for(const road of [promenade,west,main,link])for(const structure of BR_STRUCTURES){
+      expect(brRoadIntersectsFootprint(road,structure.position,structure.size,.75),`${road.id} crosses ${structure.id}`).toBe(false);
+    }
+    const promenadeSurface=BR_MAP_BLOCKS.find(block=>block.id==="south-rim-promenade-surface")!;
+    expect(promenadeSurface.kind).toBe("ramp");
+    expect(brRoadGradeFloorAt(promenadeSurface,promenade.from)).toBeCloseTo(5.5);
+    expect(brRoadGradeFloorAt(promenadeSurface,promenade.to)).toBeCloseTo(3.5);
+  });
+
+  it("connects Central Heights, Relay Market and Comet Hotel at one clear civic junction",()=>{
+    const west=BR_ROADS.find(road=>road.id==="central-market-avenue-west")!;
+    const east=BR_ROADS.find(road=>road.id==="central-market-avenue-east")!;
+    const bend=BR_ROADS.find(road=>road.id==="central-market-avenue-bend")!;
+    const entry=BR_ROADS.find(road=>road.id==="central-market-avenue-entry")!;
+    const hotel=BR_ROADS.find(road=>road.id==="central-hotel-promenade")!;
+    const hotelSouth=BR_ROADS.find(road=>road.id==="central-hotel-promenade-south")!;
+    const hotelEntry=BR_ROADS.find(road=>road.id==="central-hotel-promenade-entry")!;
+    const heights=BR_ROADS.find(road=>road.id==="central-heights-main")!;
+    const market=BR_ROADS.find(road=>road.id==="relay-market-main")!;
+    const hotelStreet=BR_ROADS.find(road=>road.id==="comet-hotel-main")!;
+    expect(west.from).toEqual(heights.to);
+    expect(west.to).toEqual(east.from);
+    expect(hotel.from).toEqual(east.from);
+    expect(east.to).toEqual(bend.from);
+    expect(bend.to).toEqual(entry.from);
+    expect(entry.to).toEqual(market.from);
+    expect(hotel.to).toEqual(hotelSouth.from);
+    expect(hotelSouth.to).toEqual(hotelEntry.from);
+    expect(hotelEntry.to).toEqual(hotelStreet.to);
+    for(const road of [west,east,bend,entry,hotel,hotelSouth,hotelEntry])for(const structure of BR_STRUCTURES){
+      expect(brRoadIntersectsFootprint(road,structure.position,structure.size,.75),`${road.id} crosses ${structure.id}`).toBe(false);
+    }
+  });
+
+  it("builds a clear south-central street grid from Crash through Comet Hotel to Cargo Spur",()=>{
+    const vertical=BR_ROADS.find(road=>road.id==="hotel-south-avenue")!;
+    const west=BR_ROADS.find(road=>road.id==="crash-hotel-avenue")!;
+    const east=BR_ROADS.find(road=>road.id==="hotel-cargo-avenue")!;
+    const hotel=BR_ROADS.find(road=>road.id==="comet-hotel-cross")!;
+    const cargo=BR_ROADS.find(road=>road.id==="cargo-spur-main")!;
+    expect(vertical.from).toEqual(hotel.from);
+    expect(vertical.to.z).toBe(-340);
+    expect(west.to).toEqual(east.from);
+    expect(east.to).toEqual(cargo.from);
+    expect(west.to.x).toBe(vertical.from.x);
+    expect(west.to.z).toBeGreaterThan(vertical.to.z);
+    expect(west.to.z).toBeLessThan(vertical.from.z);
+    for(const road of [vertical,west,east])for(const structure of BR_STRUCTURES){
+      expect(brRoadIntersectsFootprint(road,structure.position,structure.size,.75),`${road.id} crosses ${structure.id}`).toBe(false);
+    }
+  });
+
+  it("routes Zero Point traffic directly through the Coolant Plant district",()=>{
+    const avenue=BR_ROADS.find(road=>road.id==="zero-coolant-avenue")!;
+    const zero=BR_ROADS.find(road=>road.id==="zero-circulation-n")!;
+    const coolant=BR_ROADS.find(road=>road.id==="coolant-plant-cross")!;
+    expect(avenue.from).toEqual(zero.from);
+    expect(avenue.to).toEqual(coolant.from);
+    for(const structure of BR_STRUCTURES){
+      expect(brRoadIntersectsFootprint(avenue,structure.position,structure.size,1),`avenue crosses ${structure.id}`).toBe(false);
+    }
+  });
+
   it("keeps every fixed cover prop clear of roads and building shells",()=>{
     const cover=BR_MAP_BLOCKS.filter(block=>block.kind==="cover");
     expect(cover.length).toBeGreaterThanOrEqual(BR_SECONDARY_LOCATIONS.length+40);
@@ -351,13 +598,16 @@ describe("Battle Royale shared rules", () => {
       "coolant-exchange-cover-west":[-43,125],"coolant-exchange-cover-east":[-7,125],
       "south-orbit-cover-west":[7,-175],"south-orbit-cover-east":[43,-175],
       "crash-transit-cover-west":[-218,-275],"crash-transit-cover-east":[-182,-275],
-      "east-power-cover-west":[157,-25],"east-power-cover-east":[193,-25]
+      "east-power-cover-west":[157,-25],"east-power-cover-east":[193,-25],
+      "west-neighborhood-cover-south":[-307,-76],"west-neighborhood-cover-north":[-328,-58],
+      "south-freight-cover-west":[160,-270],"south-freight-cover-east":[220,-290],
+      "north-skywalk-cover-west":[-187,423],"north-skywalk-cover-east":[-120,435]
     };
     for(const [id,[x,z]] of Object.entries(expected)){
       const block=BR_MAP_BLOCKS.find(candidate=>candidate.id===id);
       expect(block?.kind,id).toBe("cover");
       expect(block?.position,id).toEqual({x,y:1,z});
-      expect(block?.size,id).toEqual({x:7,y:2,z:3});
+      expect(block?.size,id).toEqual(id.startsWith("west-neighborhood")||id.startsWith("north-skywalk")?{x:6,y:2,z:2}:{x:7,y:2,z:3});
     }
   });
 

@@ -141,6 +141,7 @@ export class BattleRoyaleGame {
   private dropPredictionStartedAt = 0;
   private jumpPredictionStartedAt = 0;
   private jumpInputSequence = 0;
+  private shipJumpRequestCount = 0;
   private readonly jumpInputLatch = new BrInputEdgeLatch();
   private readonly reconciliationTracker = new ReconciliationTracker();
   private readonly raycaster = new THREE.Raycaster();
@@ -239,7 +240,7 @@ export class BattleRoyaleGame {
     for (const visual of this.projectiles.values()) { this.scene.remove(visual.mesh, visual.trail); this.disposeObject(visual.mesh); this.disposeObject(visual.trail); }
     for(const entry of this.vehicles.values())disposeBrHoverSkimmer(entry.visual);
     for (const ping of this.pings) { this.scene.remove(ping.group); this.disposeObject(ping.group); }
-    this.players.clear(); this.loot.clear(); this.crates.clear(); this.projectiles.clear();this.vehicles.clear(); this.pings = []; this.localState = null; this.predictedMotion = null; this.spectatorTargetId = null; this.pendingSelectedSlot=null;this.pendingSpectatorTarget=null;this.cameraInitialized=false;this.shipLookInitialized=false;this.cameraBoom=6.15;this.serverClockOffsetMs=0;this.dropPredictionStartedAt=0;this.jumpPredictionStartedAt=0;this.jumpInputSequence=0;this.jumpInputLatch.reset();
+    this.players.clear(); this.loot.clear(); this.crates.clear(); this.projectiles.clear();this.vehicles.clear(); this.pings = []; this.localState = null; this.predictedMotion = null; this.spectatorTargetId = null; this.pendingSelectedSlot=null;this.pendingSpectatorTarget=null;this.cameraInitialized=false;this.shipLookInitialized=false;this.cameraBoom=6.15;this.serverClockOffsetMs=0;this.dropPredictionStartedAt=0;this.jumpPredictionStartedAt=0;this.jumpInputSequence=0;this.shipJumpRequestCount=0;this.jumpInputLatch.reset();
     this.reloadEndsAt = 0; this.useEndsAt = 0; this.activeReviveTargetId=null;this.confirmedReviveTargetId=null;this.reviveConfirmedDuringHold=false;this.lastReviveRequestAt=0;this.reviveStartedAt=0;this.lastFireRequestAt = 0;this.lastAnticipatedFireAt=0;
     this.reloadConfirmed = false; this.useConfirmed = false; this.hitMarkerFeedback.clear();this.damageNumbers.clearNumbers();this.damageIndicatorUntil=0;this.lastLandingFeedbackAt=Number.NEGATIVE_INFINITY;document.getElementById("br-damage-direction")?.classList.remove("visible");
     this.physics.reset(); this.reconciliationTracker.reset(); this.visitedPois.clear(); this.currentPoiId = "";this.clearPoiTitle(); document.body.classList.remove("br-in-void");
@@ -307,7 +308,7 @@ export class BattleRoyaleGame {
       spectatorTargetId: this.spectatorTargetId,
       storm: this.room ? { ...this.room.storm, center: { ...this.room.storm.center }, nextCenter: { ...this.room.storm.nextCenter } } : null,
       camera:{position:{x:this.camera.position.x,y:this.camera.position.y,z:this.camera.position.z},fov:this.camera.fov},
-      input:{jumpInputSequence:this.jumpInputSequence},
+      input:{jumpInputSequence:this.jumpInputSequence,shipJumpRequestCount:this.shipJumpRequestCount},
       reconciliation: this.reconciliationTracker.summary(performance.now()),
       world:{islandObjects:this.island.children.length,shipVisible:this.starliner.visible,...this.world.debugStats()},
       renderer: { calls: this.renderer.info.render.calls, triangles: this.renderer.info.render.triangles }
@@ -522,7 +523,7 @@ export class BattleRoyaleGame {
         predicted.position={x:this.starliner.position.x,y:this.starliner.position.y,z:this.starliner.position.z};
         predicted.velocity=brDropVelocity(this.room.ship,this.yaw);predicted.deployment="freefall";predicted.grounded=false;
         this.pitch=brDropEntryPitch(this.pitch);
-        this.predictedMotion=predicted;this.dropPredictionStartedAt=now;this.audio.brJumpShip();this.onJumpShip?.();
+        this.predictedMotion=predicted;this.dropPredictionStartedAt=now;this.shipJumpRequestCount++;this.audio.brJumpShip();this.onJumpShip?.();
       }else if(activeDeployment==="freefall"){
         if(this.predictedMotion)this.predictedMotion.deployment="chute";
         this.audio.wings();this.onDeploy?.();

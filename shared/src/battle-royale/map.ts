@@ -166,13 +166,78 @@ const BR_ARTERIAL_ROADS:readonly BrRoadSegment[]=[
   { id:"west-collector-rise", from:{x:-430,y:.08,z:150}, to:{x:-380,y:.08,z:240}, width:13, color:"#293b58",kind:"arterial" },
   { id:"west-collector-north", from:{x:-380,y:.08,z:240}, to:{x:-300,y:.08,z:330}, width:13, color:"#293b58",kind:"arterial" },
   { id:"west-collector-link", from:{x:-300,y:.08,z:330}, to:{x:-185,y:.08,z:358}, width:13, color:"#293b58",kind:"arterial" },
+  // A neighborhood avenue gives the western housing and signal districts a
+  // direct street relationship instead of forcing every rotation onto the
+  // remote perimeter collector. The bend is literal level design: it clears
+  // both districts' entrance parcels and frames the previously undefined
+  // west-side deck as an inhabited connective corridor.
+  { id:"west-neighborhood-link-a", from:{x:-285,y:.1,z:-30}, to:{x:-350,y:.1,z:-105}, width:8, color:"#33445d",kind:"arterial" },
+  { id:"west-neighborhood-link-b", from:{x:-350,y:.1,z:-105}, to:{x:-360,y:.1,z:-125}, width:8, color:"#33445d",kind:"arterial" },
+  { id:"west-neighborhood-link-c", from:{x:-360,y:.1,z:-125}, to:{x:-375,y:.1,z:-125}, width:8, color:"#33445d",kind:"arterial" },
+  { id:"west-transit-avenue", from:{x:-375,y:.1,z:-125}, to:{x:-254,y:.1,z:-135}, width:8, color:"#3b4058",kind:"arterial" },
+  // Emergency Depot sits on a 5.5m service deck. This long engineered grade
+  // descends into Salvage Row through the former southwest dead field, giving
+  // both players and bots a visible lower/upper-district rotation.
+  { id:"southwest-salvage-grade", from:{x:-190,y:5.6,z:-420}, to:{x:-250,y:.1,z:-400}, width:8, color:"#4b3d4a",kind:"arterial" },
+  { id:"southwest-salvage-link", from:{x:-250,y:.1,z:-400}, to:{x:-315,y:.1,z:-362}, width:8, color:"#4b3d4a",kind:"arterial" },
+  // Emergency Depot and South Terminal share a civic rim loop. The inner
+  // promenade is the fast rotation; the three-segment outer boardwalk bends
+  // around their service buildings and gives the southern edge a deliberate
+  // observation route instead of an unused strip of deck.
+  { id:"south-rim-promenade", from:{x:-130,y:5.6,z:-420}, to:{x:-15,y:3.6,z:-415}, width:8, color:"#3b4654",kind:"arterial" },
+  { id:"south-rim-boardwalk-west", from:{x:-160,y:5.6,z:-447}, to:{x:-125,y:5.1,z:-462}, width:7, color:"#35434f",kind:"arterial" },
+  { id:"south-rim-boardwalk-main", from:{x:-125,y:5.1,z:-462}, to:{x:15,y:3.6,z:-452}, width:7, color:"#35434f",kind:"arterial" },
+  { id:"south-rim-boardwalk-link", from:{x:15,y:3.6,z:-452}, to:{x:15,y:3.6,z:-442}, width:7, color:"#35434f",kind:"arterial" },
   { id:"ring-wn", from:{x:-185,y:.08,z:358}, to:{x:-190,y:.08,z:154}, width:15, color:"#293b58",kind:"arterial" },
   { id:"ring-west", from:{x:-190,y:.08,z:154}, to:{x:-120,y:.08,z:-50}, width:15, color:"#293b58",kind:"arterial" },
   { id:"ring-central-west", from:{x:-120,y:.08,z:-50}, to:{x:-92,y:.08,z:-60}, width:15, color:"#293b58",kind:"arterial" },
+  // A three-way civic junction turns Central Heights, Relay Market and Comet
+  // Hotel into one walkable neighborhood rather than three isolated sites.
+  { id:"central-market-avenue-west", from:{x:-45,y:.1,z:-82}, to:{x:0,y:.1,z:-80}, width:8, color:"#34455c",kind:"arterial" },
+  // Dogleg around Relay Market's authored loading/waiting pocket instead of
+  // paving through the pedestrian furniture on the district's west edge.
+  { id:"central-market-avenue-east", from:{x:0,y:.1,z:-80}, to:{x:40,y:.1,z:-55}, width:8, color:"#34455c",kind:"arterial" },
+  { id:"central-market-avenue-bend", from:{x:40,y:.1,z:-55}, to:{x:52,y:.1,z:-60}, width:8, color:"#34455c",kind:"arterial" },
+  { id:"central-market-avenue-entry", from:{x:52,y:.1,z:-60}, to:{x:52,y:.1,z:-78}, width:8, color:"#34455c",kind:"arterial" },
+  // Approach Comet Hotel along its west service edge so the avenue frames,
+  // rather than bisects, the small arrival garden north of the building.
+  { id:"central-hotel-promenade", from:{x:0,y:.1,z:-80}, to:{x:-75,y:.1,z:-175}, width:8, color:"#3d4057",kind:"arterial" },
+  { id:"central-hotel-promenade-south", from:{x:-75,y:.1,z:-175}, to:{x:-75,y:.1,z:-214}, width:8, color:"#3d4057",kind:"arterial" },
+  { id:"central-hotel-promenade-entry", from:{x:-75,y:.1,z:-214}, to:{x:-46,y:.1,z:-214}, width:8, color:"#3d4057",kind:"arterial" },
+  // Comet Hotel becomes the north/south anchor of a continuous southern
+  // avenue linking the Crash-side ring to Cargo Spur. This replaces the broad
+  // blank band between three neighborhoods with a readable street grid.
+  { id:"hotel-south-avenue", from:{x:-76,y:.1,z:-241}, to:{x:-76,y:.1,z:-340}, width:8, color:"#41404f",kind:"arterial" },
+  { id:"crash-hotel-avenue", from:{x:-254,y:.1,z:-290}, to:{x:-76,y:.1,z:-290}, width:8, color:"#41404f",kind:"arterial" },
+  { id:"hotel-cargo-avenue", from:{x:-76,y:.1,z:-290}, to:{x:65,y:.1,z:-285}, width:8, color:"#41404f",kind:"arterial" },
   { id:"ring-nova-east", from:{x:-92,y:.08,z:-60}, to:{x:-92,y:.08,z:-215}, width:15, color:"#293b58",kind:"arterial" },
   { id:"ring-nova-south", from:{x:-92,y:.08,z:-215}, to:{x:-254,y:.08,z:-215}, width:15, color:"#293b58",kind:"arterial" },
   { id:"ring-sw", from:{x:-254,y:.08,z:-215}, to:{x:-254,y:.08,z:-340}, width:15, color:"#293b58",kind:"arterial" },
   { id:"ring-s", from:{x:-254,y:.08,z:-340}, to:{x:112,y:.08,z:-340}, width:17, color:"#293b58",kind:"arterial" },
+  // A raised transfer bridge joins South Terminal to South Shipworks instead
+  // of leaving a hundred-metre featureless gap between the two elevated
+  // neighborhoods. Its endpoints meet the authored local streets exactly, so
+  // navigation, rendered paving and the authoritative walkable surface all
+  // describe the same continuous route.
+  { id:"south-transfer-bridge", from:{x:45,y:3.6,z:-415}, to:{x:160,y:4.1,z:-400}, width:9, color:"#33485d",kind:"arterial" },
+  // A freight boulevard carries rotations through the cargo district instead
+  // of making Cargo Spur and Dock Service face one another across a bare deck.
+  // The shallow diagonal preserves both loading yards and leaves shoulder
+  // space for combat cover without narrowing the vehicle-scale carriageway.
+  { id:"south-freight-boulevard", from:{x:125,y:.1,z:-285}, to:{x:255,y:.1,z:-275}, width:9, color:"#453f45",kind:"arterial" },
+  // The southeast freight districts form an industrial triangle: Dock
+  // Service reaches Engine Gate at deck level while elevated East Freight
+  // receives its own descending haul route into the same gate.
+  { id:"dock-engine-link-west", from:{x:315,y:.1,z:-275}, to:{x:340,y:.1,z:-275}, width:8, color:"#493f3a",kind:"arterial" },
+  { id:"dock-engine-link-east", from:{x:340,y:.1,z:-275}, to:{x:340,y:.1,z:-180}, width:8, color:"#493f3a",kind:"arterial" },
+  { id:"dock-engine-link-gate", from:{x:340,y:.1,z:-180}, to:{x:375,y:.1,z:-180}, width:8, color:"#493f3a",kind:"arterial" },
+  { id:"east-freight-engine-deck", from:{x:360,y:8.1,z:-315}, to:{x:375,y:8.1,z:-315}, width:9, color:"#4e433c",kind:"arterial" },
+  // Keep the first leg level beside the freight shell, then descend on a
+  // shorter grade. Besides reading as a proper loading viaduct, this keeps
+  // the entire ramp comfortably traversable within the controller's bounded
+  // service-road traversal budget.
+  { id:"east-freight-engine-deck-turn", from:{x:375,y:8.1,z:-315}, to:{x:375,y:8.1,z:-285}, width:9, color:"#4e433c",kind:"arterial" },
+  { id:"east-freight-engine-grade", from:{x:375,y:8.1,z:-285}, to:{x:405,y:.1,z:-207}, width:9, color:"#4e433c",kind:"arterial" },
   { id:"ring-s-rise", from:{x:112,y:.08,z:-340}, to:{x:112,y:.08,z:-225}, width:15, color:"#293b58",kind:"arterial" },
   { id:"ring-se-south", from:{x:112,y:.08,z:-225}, to:{x:275,y:.08,z:-225}, width:15, color:"#293b58",kind:"arterial" },
   { id:"ring-se-east", from:{x:275,y:.08,z:-225}, to:{x:275,y:.08,z:-130}, width:15, color:"#293b58",kind:"arterial" },
@@ -183,9 +248,20 @@ const BR_ARTERIAL_ROADS:readonly BrRoadSegment[]=[
   { id:"ring-ne", from:{x:345,y:.08,z:155}, to:{x:225,y:.08,z:224}, width:15, color:"#293b58",kind:"arterial" },
   { id:"ring-north-east", from:{x:225,y:.08,z:224}, to:{x:225,y:.08,z:372}, width:15, color:"#293b58",kind:"arterial" },
   { id:"ring-n", from:{x:225,y:.08,z:372}, to:{x:-185,y:.08,z:358}, width:15, color:"#293b58",kind:"arterial" },
+  // The north rim's garden and mall districts share a direct promenade. This
+  // closes their local-street loop and gives the broad observation deck a
+  // legible pedestrian edge instead of leaving it as undefined gray space.
+  { id:"north-garden-promenade", from:{x:-75,y:.1,z:405}, to:{x:-175,y:.1,z:365}, width:7, color:"#35514f",kind:"arterial" },
+  // The outer half of the garden loop turns the broad north observation deck
+  // into a deliberate public promenade while preserving a safe rim apron.
+  { id:"north-skywalk-west", from:{x:-205,y:.1,z:392}, to:{x:-160,y:.1,z:430}, width:7, color:"#35514f",kind:"arterial" },
+  { id:"north-skywalk-east", from:{x:-160,y:.1,z:430}, to:{x:-75,y:.1,z:405}, width:7, color:"#35514f",kind:"arterial" },
+  { id:"solar-rim-deck-link", from:{x:105,y:4.1,z:415}, to:{x:135,y:4.1,z:405}, width:8, color:"#3b5049",kind:"arterial" },
+  { id:"solar-rim-grade", from:{x:135,y:4.1,z:405}, to:{x:225,y:.1,z:372}, width:8, color:"#3b5049",kind:"arterial" },
   { id:"radial-0", from:{x:-70,y:.09,z:-58}, to:{x:-92,y:.09,z:-100}, width:13, color:"#304766",kind:"arterial" },
   { id:"radial-1", from:{x:72,y:.09,z:-58}, to:{x:112,y:.09,z:-225}, width:13, color:"#304766",kind:"arterial" },
   { id:"radial-2", from:{x:70,y:.09,z:58}, to:{x:225,y:.09,z:224}, width:13, color:"#304766",kind:"arterial" },
+  { id:"zero-coolant-avenue", from:{x:70,y:.1,z:58}, to:{x:80,y:.1,z:153}, width:8, color:"#304a58",kind:"arterial" },
   { id:"radial-3", from:{x:-70,y:.09,z:58}, to:{x:-190,y:.09,z:154}, width:13, color:"#304766",kind:"arterial" }
 ];
 
@@ -592,7 +668,7 @@ export const BR_MAP_BLOCKS: readonly BrMapBlock[] = [
   ...authoredCover,...AUTHORED_BR_SECONDARY_COVER,...AUTHORED_BR_CONNECTIVE_COVER
 ];
 
-const brRoadBySurfaceId=new Map(BR_ROADS.filter(road=>road.id.endsWith("-grade")).map(road=>[`${road.id}-surface`,road]));
+const brRoadBySurfaceId=new Map(BR_ROADS.filter(road=>Math.abs(road.to.y-road.from.y)>=.05).map(road=>[`${road.id}-surface`,road]));
 /** Walkable height of an authored service-road grade. This deterministic floor
  * path avoids the KCC choosing the island's overlapping base deck underneath
  * a shallow oriented cuboid; the cuboid remains in both physics worlds for
@@ -677,6 +753,14 @@ export const BR_TRAVERSAL = [
 export function isInsideBrIsland(position: Vec3, margin = 0): boolean {
   if (pointInPolygon(position.x,position.z)) return true;
   return margin > 0 && Math.hypot(position.x,position.z) <= BR_MAP.radius+margin && distanceToOutline(position.x,position.z) <= margin;
+}
+
+/** True only when a point is inside the playable polygon with a real inward
+ * boundary buffer. `isInsideBrIsland(position, margin)` deliberately expands
+ * the accepted area for projectiles and interaction reach; drop/lifecycle
+ * checks that need guaranteed landing room must use this inset predicate. */
+export function isInsideBrIslandInterior(position:Vec3,inset=0):boolean {
+  return pointInPolygon(position.x,position.z)&&distanceToOutline(position.x,position.z)>=Math.max(0,inset);
 }
 
 // The map is immutable. Cache ordered candidates for the small clearance and

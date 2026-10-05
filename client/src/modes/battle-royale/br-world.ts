@@ -57,6 +57,8 @@ import { buildBrAuthoredDistrictProps, type BrDistrictPropPart } from "./br-auth
 import { buildBrNovaStreetscape } from "./br-nova-streetscape";
 import { buildBrEastRimStreetscape } from "./br-east-rim-streetscape";
 import { buildBrAcademyStreetscape } from "./br-academy-streetscape";
+import { buildBrShipworksStreetscape } from "./br-shipworks-streetscape";
+import { buildBrTransferBridgeDressing, type BrTransferBridgePart } from "./br-transfer-bridge-dressing";
 import {
   buildBrAuthoredSecondaryDressing,
   buildBrAuthoredTransitionDressing,
@@ -106,6 +108,7 @@ export class BrWorldRenderer {
   private roadsideDetail: THREE.Group | null = null;
   private southShipworksDetail: THREE.Group | null = null;
   private southTerminalEnhancedDetail: THREE.Group | null = null;
+  private readonly qualityStreetscapes: Array<Record<GraphicsQuality, THREE.Group>> = [];
   private quality: GraphicsQuality;
   private disposed = false;
 
@@ -120,6 +123,7 @@ export class BrWorldRenderer {
     this.buildDistricts();
     this.buildSecondaryLocations();
     this.buildRaisedStreetscapes();
+    this.buildTransferBridgeDressing();
     this.buildConnectiveDressing();
     this.buildSouthShipworksDressing();
     this.buildSouthTerminalDressing();
@@ -144,6 +148,9 @@ export class BrWorldRenderer {
     if (this.roadsideDetail) this.roadsideDetail.visible = quality !== "low";
     if (this.southShipworksDetail) this.southShipworksDetail.visible = quality !== "low";
     if (this.southTerminalEnhancedDetail) this.southTerminalEnhancedDetail.visible = quality !== "low";
+    for (const tiers of this.qualityStreetscapes) for (const tier of ["low", "medium", "high"] as const) {
+      tiers[tier].visible = tier === quality;
+    }
     this.root.traverse((object) => {
       if (object instanceof THREE.Mesh || object instanceof THREE.InstancedMesh) {
         object.castShadow = quality === "high" && object.userData.cameraCollision === true;
@@ -329,7 +336,9 @@ export class BrWorldRenderer {
       const gradeAngle=Math.atan2(dy,length);
       const surfaceY=(t:number)=>road.from.y+dy*t-.065;
       const pavedWidth = road.width;
-      for(const part of buildBrRoadGradeDetails(road)){
+      // South transfer has a dedicated authored structural kit. Rendering the
+      // generic grade girders as well would stack duplicate beams beneath it.
+      for(const part of road.id==="south-transfer-bridge"?[]:buildBrRoadGradeDetails(road)){
         const spec={position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z),rotationY:part.rotationY,rotationZ:part.rotationZ};
         (part.role==="edge"?gradeEdges:part.role==="support"?gradeSupports:gradeLights).push(spec);
       }
@@ -1041,31 +1050,59 @@ export class BrWorldRenderer {
   }
 
   private buildRaisedStreetscapes(): void {
-    this.addRaisedStreetscapeGroup("east-rim-streetscape", buildBrEastRimStreetscape(this.quality), position(418, 12, 105));
-    this.addRaisedStreetscapeGroup("academy-streetscape", buildBrAcademyStreetscape(this.quality), position(-272, 12, 235));
+    this.addRaisedStreetscapeGroup("nova-streetscape", buildBrNovaStreetscape, position(-175, 0, -135));
+    this.addRaisedStreetscapeGroup("east-rim-streetscape", buildBrEastRimStreetscape, position(418, 12, 105));
+    this.addRaisedStreetscapeGroup("academy-streetscape", buildBrAcademyStreetscape, position(-272, 12, 235));
+    this.addRaisedStreetscapeGroup("south-shipworks-streetscape", buildBrShipworksStreetscape, position(190, 6, -392));
   }
 
-  private addRaisedStreetscapeGroup(name: string, compositions: { parts: BrDistrictPropPart[] }[], center: THREE.Vector3): void {
-    const group = new THREE.Group();
-    group.name = name;
-    const batches = new Map<string, BrDistrictPropPart[]>();
-    for (const composition of compositions) for (const part of composition.parts) {
-      const key = `${part.geometry}:${part.finish}:${part.surface}`;
-      const batch = batches.get(key) ?? [];
-      batch.push(part);
-      batches.set(key, batch);
+  private buildTransferBridgeDressing(): void {
+    const name="south-transfer-bridge-dressing",group=new THREE.Group();group.name=name;
+    const tiers={} as Record<GraphicsQuality,THREE.Group>;
+    for(const quality of ["low","medium","high"] as const){
+      const tierGroup=new THREE.Group();tierGroup.name=`${name}-${quality}`;tierGroup.visible=quality===this.quality;
+      const batches=new Map<string,BrTransferBridgePart[]>();
+      for(const part of buildBrTransferBridgeDressing(quality)){
+        const key=`${part.finish}:${part.surface}`;
+        const batch=batches.get(key)??[];batch.push(part);batches.set(key,batch);
+      }
+      for(const [key,batch] of batches){
+        const [finish,surface]=key.split(":") as [BrTransferBridgePart["finish"],string];
+        const material=surface==="true"?this.materials.surface(finish,6):this.materials.get(finish);
+        this.addInstances(tierGroup,this.materials.unitBox,material,batch.map(part=>({
+          position:position(part.position.x,part.position.y,part.position.z),
+          scale:position(part.scale.x,part.scale.y,part.scale.z),rotationY:part.rotationY,rotationZ:part.rotationZ
+        })),false);
+      }
+      tiers[quality]=tierGroup;group.add(tierGroup);
     }
-    for (const [key, batch] of batches) {
-      const [geometryKey, finish, surface] = key.split(":") as [BrDistrictPropPart["geometry"], BrDistrictPropPart["finish"], string];
-      const geometry = geometryKey === "cylinder" ? this.materials.unitCylinder : geometryKey === "octahedron" ? this.materials.unitOctahedron : this.materials.unitBox;
-      const material = finish === "canopy" ? this.materials.canopy() : surface === "true" ? this.materials.surface(finish, 1) : this.materials.get(finish);
-      this.addInstances(group, geometry, material, batch.map(part => ({
-        position: position(part.position.x, part.position.y, part.position.z),
-        scale: position(part.scale.x, part.scale.y, part.scale.z),
-        rotationY: part.rotationY
-      })), false);
+    this.qualityStreetscapes.push(tiers);this.root.add(group);
+    this.districtDetails.push({group,center:position(105,2,-414),visible:true,distanceScale:.85});
+  }
+
+  private addRaisedStreetscapeGroup(name: string, build: (quality: GraphicsQuality) => { parts: BrDistrictPropPart[] }[], center: THREE.Vector3): void {
+    const group = new THREE.Group(); group.name = name;
+    const tiers = {} as Record<GraphicsQuality, THREE.Group>;
+    for (const quality of ["low", "medium", "high"] as const) {
+      const tierGroup = new THREE.Group(); tierGroup.name = `${name}-${quality}`; tierGroup.visible = quality === this.quality;
+      const batches = new Map<string, BrDistrictPropPart[]>();
+      for (const composition of build(quality)) for (const part of composition.parts) {
+        const key = `${part.geometry}:${part.finish}:${part.surface}`;
+        const batch = batches.get(key) ?? []; batch.push(part); batches.set(key, batch);
+      }
+      for (const [key, batch] of batches) {
+        const [geometryKey, finish, surface] = key.split(":") as [BrDistrictPropPart["geometry"], BrDistrictPropPart["finish"], string];
+        const geometry = geometryKey === "cylinder" ? this.materials.unitCylinder : geometryKey === "octahedron" ? this.materials.unitOctahedron : this.materials.unitBox;
+        const material = finish === "canopy" ? this.materials.canopy() : surface === "true" ? this.materials.surface(finish, 1) : this.materials.get(finish);
+        this.addInstances(tierGroup, geometry, material, batch.map(part => ({
+          position: position(part.position.x, part.position.y, part.position.z),
+          scale: position(part.scale.x, part.scale.y, part.scale.z),
+          rotationY: part.rotationY
+        })), false);
+      }
+      tiers[quality] = tierGroup; group.add(tierGroup);
     }
-    this.root.add(group);
+    this.qualityStreetscapes.push(tiers); this.root.add(group);
     this.districtDetails.push({ group, center, visible: true, distanceScale: .8 });
   }
 
@@ -1074,7 +1111,7 @@ export class BrWorldRenderer {
     group.name = `props-${poi.id}`;
     const nexusInsets:MatrixSpec[]=[],nexusEnergy:MatrixSpec[]=[],nexusWarnings:MatrixSpec[]=[];
     const propBatches=new Map<string,BrDistrictPropPart[]>();
-    const authoredProps=[...buildBrAuthoredDistrictProps(poi),...(poi.id==="nova-plaza"?buildBrNovaStreetscape(this.quality):[])];
+    const authoredProps=buildBrAuthoredDistrictProps(poi);
     for(const authored of authoredProps)for(const part of authored.parts){
       const key=`${part.geometry}:${part.finish}:${part.surface}`;
       const batch=propBatches.get(key)??[];batch.push(part);propBatches.set(key,batch);

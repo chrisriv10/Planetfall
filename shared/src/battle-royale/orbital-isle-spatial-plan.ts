@@ -93,7 +93,7 @@ export const AUTHORED_BR_STRUCTURE_PLACEMENTS:ReadonlyMap<string,{position:{x:nu
  * collision props across roads and entrances. */
 const FIXED_SECONDARY_COVER:readonly [string,number,number,number,number][]=[
   ["central-heights",-103,-69,5.5,1.8],
-  ["relay-market",62,-67,5.5,1.8],["relay-market",56,-67,1.8,5.5],
+  ["relay-market",62,-67,5.5,1.8],["relay-market",59,-70,1.8,5.5],
   ["comet-hotel",-62,-197,5.5,1.8],["comet-hotel",-56,-203,1.8,5.5],
   ["horizon-homes",-235,-39,5.5,1.8],["horizon-homes",-241,-39,1.8,5.5],
   ["academy-dorms",-356,142,5.5,1.8],["academy-dorms",-350,136,1.8,5.5],
@@ -137,5 +137,11 @@ export const AUTHORED_BR_CONNECTIVE_COVER:readonly BrMapBlock[]=[
   {id:"crash-transit-cover-west",districtId:"crash-site",position:{x:-218,y:1,z:-275},size:{x:7,y:2,z:3},color:"#344764",kind:"cover"},
   {id:"crash-transit-cover-east",districtId:"crash-site",position:{x:-182,y:1,z:-275},size:{x:7,y:2,z:3},color:"#344764",kind:"cover"},
   {id:"east-power-cover-west",districtId:"helios-reactor",position:{x:157,y:1,z:-25},size:{x:7,y:2,z:3},color:"#344764",kind:"cover"},
-  {id:"east-power-cover-east",districtId:"helios-reactor",position:{x:193,y:1,z:-25},size:{x:7,y:2,z:3},color:"#344764",kind:"cover"}
+  {id:"east-power-cover-east",districtId:"helios-reactor",position:{x:193,y:1,z:-25},size:{x:7,y:2,z:3},color:"#344764",kind:"cover"},
+  {id:"west-neighborhood-cover-south",districtId:"horizon-homes",position:{x:-307,y:1,z:-76},size:{x:6,y:2,z:2},color:"#344764",kind:"cover"},
+  {id:"west-neighborhood-cover-north",districtId:"horizon-homes",position:{x:-328,y:1,z:-58},size:{x:6,y:2,z:2},color:"#344764",kind:"cover"},
+  {id:"south-freight-cover-west",districtId:"cargo-spur",position:{x:160,y:1,z:-270},size:{x:7,y:2,z:3},color:"#344764",kind:"cover"},
+  {id:"south-freight-cover-east",districtId:"dock-service",position:{x:220,y:1,z:-290},size:{x:7,y:2,z:3},color:"#344764",kind:"cover"},
+  {id:"north-skywalk-cover-west",districtId:"mall-annex",position:{x:-187,y:1,z:423},size:{x:6,y:2,z:2},color:"#344764",kind:"cover"},
+  {id:"north-skywalk-cover-east",districtId:"north-gardens",position:{x:-120,y:1,z:435},size:{x:6,y:2,z:2},color:"#344764",kind:"cover"}
 ];

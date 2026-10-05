@@ -23,8 +23,23 @@ export const BR_REVIEW_CAMERAS: Readonly<Record<string, BrReviewCamera>> = {
   "crash-interior": { position: [-304, 2.7, -258], focus: [-341, 4, -258] },
   "foundry-interior": { position: [342, 2.7, -81], focus: [350, 5, -61] },
   "foundry-roof": { position: [342, 24.7, -60], focus: [352, 28, -73] },
-  "roadside-south": { position: [15, 7.15, -380], focus: [15, 5.35, -415] },
+  // The authored ring-s roadside pocket is west of South Terminal. This view
+  // intentionally frames that actual site rather than the terminal's raised
+  // access grade, which used to make the review label misleading.
+  "roadside-south": { position: [-125.9, 3.1, -338], focus: [-125.9, 2.2, -355] },
   "roadside-nova": { position: [-76, 3.1, -178], focus: [-76, 3, -214] },
+  "west-neighborhood-link": { position: [-309, 2.7, -43], focus: [-350, 2.4, -105] },
+  "west-transit-avenue": { position: [-320, 2.7, -165], focus: [-315, 2.5, -131] },
+  "north-garden-promenade": { position: [-108, 2.7, 438], focus: [-135, 2.4, 390] },
+  "southwest-salvage-grade": { position: [-238, 2.7, -442], focus: [-232, 3.4, -399] },
+  "south-freight-boulevard": { position: [188, 2.7, -318], focus: [190, 2.6, -280] },
+  "southeast-industrial-triangle": { position: [414, 3.0, -260], focus: [370, 4.2, -243] },
+  "north-skywalk": { position: [-161, 2.7, 452], focus: [-150, 2.5, 420] },
+  "solar-rim-grade": { position: [163, 5.7, 447], focus: [168, 3.2, 393] },
+  "south-rim-loop": { position: [-72, 7.1, -477], focus: [-70, 4.8, -438] },
+  "central-civic-junction": { position: [18, 2.7, -148], focus: [-4, 2.6, -105] },
+  "south-central-grid": { position: [-78, 2.7, -318], focus: [-76, 2.5, -278] },
+  "zero-coolant-avenue": { position: [42, 2.7, 115], focus: [76, 2.5, 118] },
   "connective-academy": { position: [-265, 9.1, 280], focus: [-265, 7.9, 235] },
   "east-checkpoint-deck": { position: [355, 8.4, 292], focus: [355, 7.2, 250] },
   "academy-commons-grade": { position: [-207, 11.5, 211], focus: [-231, 3.2, 234] },
@@ -34,6 +49,7 @@ export const BR_REVIEW_CAMERAS: Readonly<Record<string, BrReviewCamera>> = {
   "south-terminal-skimmer": { position: [10, 6.15, -377], focus: [2, 4.65, -386] },
   "south-shipworks-grade": { position: [133, 4.1, -347], focus: [183, 6.5, -374] },
   "maintenance-south": { position: [190, 7.65, -360], focus: [190, 5.85, -400] },
+  "south-transfer-bridge": { position: [105, 2.7, -448], focus: [105, 4.1, -407.5] },
   "deck-transition": { position: [-255, 3.2, 8], focus: [-255, 2.2, -30] },
   // East Rim is a full six-metre raised district. Keep this connective-field
   // review at astronaut eye height above that deck rather than inside its

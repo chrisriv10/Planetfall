@@ -26,6 +26,18 @@ const rotatedRectangleDistance=(p:{x:number;z:number},c:{x:number;z:number},w:nu
 };
 
 describe("literal secondary-site presentation", () => {
+  it("keeps Relay Market's waiting pocket on the warehouse-west forecourt away from the new avenue",()=>{
+    const group=buildBrAuthoredSecondaryDressing({id:"relay-market"})!;
+    expect(group.center).toEqual({x:42,y:0,z:-89});
+    expect(group.parts).toHaveLength(8);
+    const warehouse=BR_STRUCTURES.find(s=>s.id==="relay-market-3")!;
+    expect(group.center.x+group.radius).toBeLessThan(warehouse.position.x-warehouse.size.x/2);
+    const avenue=BR_ROADS.filter(r=>r.id.startsWith("central-market-avenue"));
+    expect(avenue.length).toBeGreaterThan(0);
+    for(const road of avenue)expect(segmentDistance(group.center,road.from,road.to)-road.width/2-group.radius).toBeGreaterThan(7);
+    expect(group.parts.find(p=>p.name==="walk-strip")!.position.z).toBeGreaterThan(group.center.z);
+    expect(group.parts.find(p=>p.name==="frame-header")!.position.z).toBeLessThan(group.center.z);
+  });
   it("anchors raised district pockets to their real deck while all four independent route pockets stay on ground",()=>{
     for(const id of ["east-checkpoint","academy-commons","south-terminal","south-shipworks"]){
       const plan=BR_DISTRICT_PLANS.find(plan=>plan.id===id)!;

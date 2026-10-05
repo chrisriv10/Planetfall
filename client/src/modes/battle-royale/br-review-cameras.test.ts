@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import * as THREE from "three";
 import { BR_MAP_BLOCKS, BR_STRUCTURES } from "@planetfall/shared";
 import { BR_REVIEW_CAMERAS } from "./br-review-cameras";
+import { buildRoadsideInfrastructure } from "./br-roadside-infrastructure";
 
 describe("Battle Royale art-review cameras", () => {
   it("stay finite, directed, and outside authoritative solid colliders", () => {
@@ -53,6 +54,119 @@ describe("Battle Royale art-review cameras", () => {
     expect(review.position[0]).toBeLessThan(review.focus[0]);
     expect(review.position[2]).toBeGreaterThan(review.focus[2]);
     expect(Math.abs(review.position[1] - review.focus[1])).toBeLessThan(2);
+  });
+
+  it("frames an actual authored roadside pocket instead of the South Terminal grade", () => {
+    const review = BR_REVIEW_CAMERAS["roadside-south"];
+    const site = buildRoadsideInfrastructure().find(candidate => candidate.roadId === "ring-s");
+    expect(site).toBeDefined();
+    expect(Math.hypot(review.focus[0] - site!.center.x, review.focus[2] - site!.center.z),JSON.stringify(site!.center)).toBeLessThan(1);
+    expect(review.position[1]).toBeGreaterThan(2.5);
+    expect(review.position[2]).toBeGreaterThan(review.focus[2]);
+  });
+
+  it("frames the raised bridge that joins South Terminal and South Shipworks", () => {
+    const review = BR_REVIEW_CAMERAS["south-transfer-bridge"];
+    expect(review).toBeDefined();
+    expect(review.position[1]).toBeGreaterThan(2.5);
+    expect(review.position[1]).toBeLessThan(3);
+    expect(review.focus[0]).toBeGreaterThan(45);
+    expect(review.focus[0]).toBeLessThan(160);
+    expect(review.focus[1]).toBeGreaterThan(3.5);
+    expect(review.focus[2]).toBeGreaterThan(-416);
+    expect(review.focus[2]).toBeLessThan(-399);
+  });
+
+  it("frames the authored west neighborhood avenue at player height", () => {
+    const review=BR_REVIEW_CAMERAS["west-neighborhood-link"];
+    expect(review.position[1]).toBeGreaterThan(2.5);
+    expect(review.position[1]).toBeLessThan(3);
+    expect(review.position[0]).toBeGreaterThan(review.focus[0]);
+    expect(review.position[2]).toBeGreaterThan(review.focus[2]);
+  });
+
+  it("frames the continuous west transit avenue toward Nova", () => {
+    const review=BR_REVIEW_CAMERAS["west-transit-avenue"];
+    expect(review.position[1]).toBeGreaterThan(2.5);
+    expect(review.position[2]).toBeLessThan(review.focus[2]);
+    expect(review.focus[0]).toBeGreaterThan(-375);
+    expect(review.focus[0]).toBeLessThan(-254);
+  });
+
+  it("frames the North Gardens–Mall Annex promenade from its observation edge", () => {
+    const review=BR_REVIEW_CAMERAS["north-garden-promenade"];
+    expect(review.position[1]).toBeGreaterThan(2.5);
+    expect(review.position[2]).toBeGreaterThan(review.focus[2]);
+    expect(review.focus[0]).toBeLessThan(-100);
+    expect(review.focus[0]).toBeGreaterThan(-175);
+  });
+
+  it("frames the southwest salvage grade from its lower service field", () => {
+    const review=BR_REVIEW_CAMERAS["southwest-salvage-grade"];
+    expect(review.position[1]).toBeGreaterThan(2.5);
+    expect(review.focus[1]).toBeGreaterThan(review.position[1]);
+    expect(review.position[2]).toBeLessThan(review.focus[2]);
+  });
+
+  it("frames the Cargo Spur–Dock Service freight boulevard at player height", () => {
+    const review=BR_REVIEW_CAMERAS["south-freight-boulevard"];
+    expect(review.position[1]).toBeGreaterThan(2.5);
+    expect(review.position[1]).toBeLessThan(3);
+    expect(review.position[2]).toBeLessThan(review.focus[2]);
+    expect(review.focus[0]).toBeGreaterThan(125);
+    expect(review.focus[0]).toBeLessThan(255);
+  });
+
+  it("frames the southeast industrial triangle from the outer freight apron", () => {
+    const review=BR_REVIEW_CAMERAS["southeast-industrial-triangle"];
+    expect(review.position[1]).toBeGreaterThan(2.5);
+    expect(review.position[0]).toBeGreaterThan(review.focus[0]);
+    expect(review.focus[1]).toBeGreaterThan(review.position[1]);
+  });
+
+  it("frames the north observation skywalk from its rim apron", () => {
+    const review=BR_REVIEW_CAMERAS["north-skywalk"];
+    expect(review.position[1]).toBeGreaterThan(2.5);
+    expect(review.position[2]).toBeGreaterThan(review.focus[2]);
+    expect(review.focus[0]).toBeGreaterThan(-205);
+    expect(review.focus[0]).toBeLessThan(-75);
+  });
+
+  it("frames the Solar Field grade from its raised rim apron", () => {
+    const review=BR_REVIEW_CAMERAS["solar-rim-grade"];
+    expect(review.position[1]).toBeGreaterThan(5);
+    expect(review.position[2]).toBeGreaterThan(review.focus[2]);
+    expect(review.focus[1]).toBeLessThan(review.position[1]);
+  });
+
+  it("frames the southern civic promenade loop above its raised deck", () => {
+    const review=BR_REVIEW_CAMERAS["south-rim-loop"];
+    expect(review.position[1]).toBeGreaterThan(7);
+    expect(review.position[2]).toBeLessThan(review.focus[2]);
+    expect(review.focus[1]).toBeGreaterThan(3.5);
+  });
+
+  it("frames the central civic junction from its southern approach", () => {
+    const review=BR_REVIEW_CAMERAS["central-civic-junction"];
+    expect(review.position[1]).toBeGreaterThan(2.5);
+    expect(review.position[2]).toBeLessThan(review.focus[2]);
+    expect(review.focus[0]).toBeGreaterThan(-46);
+    expect(review.focus[0]).toBeLessThan(52);
+  });
+
+  it("frames the south-central street grid from the hotel junction", () => {
+    const review=BR_REVIEW_CAMERAS["south-central-grid"];
+    expect(review.position[1]).toBeGreaterThan(2.5);
+    expect(review.position[2]).toBeLessThan(review.focus[2]);
+    expect(Math.abs(review.focus[0]+76)).toBeLessThan(2);
+  });
+
+  it("frames the direct Zero Point–Coolant Plant avenue", () => {
+    const review=BR_REVIEW_CAMERAS["zero-coolant-avenue"];
+    expect(review.position[1]).toBeGreaterThan(2.5);
+    expect(review.position[0]).toBeLessThan(review.focus[0]);
+    expect(review.focus[2]).toBeGreaterThan(58);
+    expect(review.focus[2]).toBeLessThan(153);
   });
 
   it("keeps named interior cameras inside the intended authored structure", () => {

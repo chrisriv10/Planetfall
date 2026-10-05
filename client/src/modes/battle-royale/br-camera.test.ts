@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { stepBrMovement, type BrMotionState } from "@planetfall/shared";
 import { brAimProfile, brCameraGeometry, brCameraMode, brDropEntryPitch, brForcedDropLookYaw, brShipCameraFrame, brShipLookState } from "./br-camera";
 
 describe("Battle Royale camera rig", () => {
@@ -18,6 +19,17 @@ describe("Battle Royale camera rig", () => {
     expect(Math.hypot(backX, backZ)).toBeCloseTo(rig.boom, 6);
     expect(rig.horizontalForward.x).toBeCloseTo(1, 6);
     expect(rig.desired.y).toBeCloseTo(2.42, 6);
+  });
+
+  it("keeps forward movement aligned with the rendered camera at every yaw",()=>{
+    for(const yaw of [-Math.PI,-1.25,-.2,0,.8,Math.PI/2,2.7]){
+      const rig=brCameraGeometry({x:0,y:0,z:0},yaw,-.3,"grounded");
+      let motion:BrMotionState={position:{x:0,y:0,z:0},velocity:{x:0,y:0,z:0},yaw,grounded:true,crouched:false,deployment:"grounded",downed:false,lastJumpSignal:false,lastCrouchSignal:false,slideEndsAt:0,traversalCooldownUntil:0,lastGroundedAt:0,jumpBufferedUntil:0};
+      for(let tick=0;tick<4;tick++)motion=stepBrMovement(motion,{moveX:0,moveY:1,yaw,jump:false,sprint:false,crouch:false},1/30,tick*1000/30);
+      const speed=Math.hypot(motion.velocity.x,motion.velocity.z);
+      const alignment=(motion.velocity.x*rig.horizontalForward.x+motion.velocity.z*rig.horizontalForward.z)/speed;
+      expect(alignment).toBeCloseTo(1,6);
+    }
   });
 
   it("selects separate gameplay camera states", () => {
