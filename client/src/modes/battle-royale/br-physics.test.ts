@@ -3,6 +3,34 @@ import { BR_MAP_BLOCKS,BR_ROADS,stepBrMovement,type BrMotionState } from "@plane
 import { BrPredictionPhysics } from "./br-physics";
 
 describe("Battle Royale prediction support queries",()=>{
+  it("predicts continuous grounded travel into and out of the lowered court",()=>{
+    const physics=new BrPredictionPhysics();
+    try{
+      let feet={x:137.5,y:.035,z:147};
+      for(const targetZ of [100,147]){
+        for(let frame=0;frame<700&&Math.abs(feet.z-targetZ)>.2;frame++){
+          const collision=physics.move(feet,{x:0,y:-.12,z:Math.sign(targetZ-feet.z)*.12},false);
+          feet={x:feet.x+collision.movement.x,y:feet.y+collision.movement.y,z:feet.z+collision.movement.z};
+          expect(collision.grounded,`z=${feet.z}, y=${feet.y}`).toBe(true);
+        }
+        expect(Math.abs(feet.z-targetZ)).toBeLessThan(.2);
+        if(targetZ===100)expect(feet.y).toBeCloseTo(-2.965,2);
+        expect(physics.supportDistance(feet)).toBeCloseTo(.055,2);
+      }
+    }finally{physics.dispose();}
+  });
+  it("predicts movement and drop altitude inside the real lowered Transit Court",()=>{
+    const physics=new BrPredictionPhysics();
+    try{
+      let feet={x:123,y:-2.965,z:100};
+      for(let frame=0;frame<30;frame++){
+        const result=physics.move(feet,{x:.035,y:-.12,z:0},false);
+        feet={x:feet.x+result.movement.x,y:feet.y+result.movement.y,z:feet.z+result.movement.z};
+        expect(result.grounded).toBe(true);expect(feet.y).toBeCloseTo(-2.965);
+      }
+      expect(physics.supportDistance({x:123,y:1,z:100})).toBeCloseTo(4.02);
+    }finally{physics.dispose();}
+  });
   it("keeps the predicted jump airborne in parity with authority",()=>{
     const physics=new BrPredictionPhysics();
     try{
@@ -33,9 +61,13 @@ describe("Battle Royale prediction support queries",()=>{
       try{
         const horizontal=Math.hypot(road.from.x-road.to.x,road.from.z-road.to.z);
         const direction={x:(road.from.x-road.to.x)/horizontal,z:(road.from.z-road.to.z)/horizontal};
-        let feet={x:road.to.x-direction.x*1.2,y:.04,z:road.to.z-direction.z*1.2};
+        const feeder=BR_ROADS.find(other=>other!==road&&[other.from,other.to].some(p=>Math.hypot(p.x-road.to.x,p.z-road.to.z)<.001));
+        const otherEnd=feeder?(Math.hypot(feeder.from.x-road.to.x,feeder.from.z-road.to.z)<.001?feeder.to:feeder.from):road.from;
+        const amount=Math.min(1.2/Math.hypot(otherEnd.x-road.to.x,otherEnd.z-road.to.z),.4);
+        let feet={x:road.to.x+(otherEnd.x-road.to.x)*amount,y:road.to.y+(otherEnd.y-road.to.y)*amount-.1+.04,z:road.to.z+(otherEnd.z-road.to.z)*amount};
         for(let step=0;step<900;step++){
-          const result=physics.move(feet,{x:direction.x*.12,y:-.08,z:direction.z*.12},false);
+          const remaining=Math.hypot(road.from.x-feet.x,road.from.z-feet.z);
+          const result=physics.move(feet,{x:(road.from.x-feet.x)/remaining*.12,y:-.08,z:(road.from.z-feet.z)/remaining*.12},false);
           feet={x:feet.x+result.movement.x,y:feet.y+result.movement.y,z:feet.z+result.movement.z};
           if(Math.hypot(feet.x-road.from.x,feet.z-road.from.z)<2.2&&feet.y>road.from.y-.3)break;
         }

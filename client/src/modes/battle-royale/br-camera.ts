@@ -22,6 +22,13 @@ export interface BrShipLookState { yaw: number; initialized: boolean; }
 export interface BrShipCameraFrame { focus: Vec3; desired: Vec3; }
 export interface BrAimProfile { fov:number; sensitivity:number; scope:"rail"|"pulse"|null; }
 
+/** Mouse deltas and the right-stick X axis are positive toward screen-right.
+ * Keep input mapping explicit beside the canonical camera/aim forward basis. */
+export function brLookAngles(yaw:number,pitch:number,lookX:number,lookY:number,scale:number,invertY=false):{yaw:number;pitch:number} {
+  // Forward=(sin(yaw),0,-cos(yaw)): its yaw derivative IS camera-right.
+  return {yaw:yaw+lookX*scale,pitch:Math.max(-.75,Math.min(1.15,pitch-lookY*scale*(invertY?-1:1)))};
+}
+
 /** Original Planetfall optics: the precision rail optic is a true scope while
  * the Pulse Rifle gets a lighter reflex zoom. Other weapons retain shoulder ADS. */
 export function brAimProfile(weaponId:BrWeaponId|null,aiming:boolean):BrAimProfile {
@@ -49,16 +56,16 @@ const PRESETS: Record<BrCameraMode, BrCameraPreset> = {
   spectator: { boom: 7.15, height: 2.4, focusHeight: 1.02, shoulder: .28, fov: 70 }
 };
 
-/** Centered transport composition. The establishing camera sits on the
- * Starliner's longitudinal axis instead of drifting beside a wing; gameplay
- * code hands control back to free look after the short establishing beat. */
-export function brShipCameraFrame(position:Vec3,route:Vec3,establishing:boolean):BrShipCameraFrame {
-  const length=Math.hypot(route.x,route.z)||1;
-  const forward={x:route.x/length,y:0,z:route.z/length};
-  const distance=establishing?66:104, height=establishing?34:43, lead=establishing?18:27;
+/** The transport uses the SAME yaw/pitch basis as movement and aiming. Route
+ * facing is seeded once by brShipLookState; it does not own the boom afterward.
+ * Orbiting the ship must move the camera, not merely turn a camera still locked
+ * behind the route. Pitch is deliberately part of this large exterior orbit. */
+export function brShipCameraFrame(position:Vec3,yaw:number,pitch:number):BrShipCameraFrame {
+  const distance=78,cosPitch=Math.cos(pitch);
+  const forward={x:Math.sin(yaw)*cosPitch,y:Math.sin(pitch),z:-Math.cos(yaw)*cosPitch};
   return {
-    focus:{x:position.x+forward.x*lead,y:position.y+(establishing?-1:-5),z:position.z+forward.z*lead},
-    desired:{x:position.x-forward.x*distance,y:position.y+height,z:position.z-forward.z*distance}
+    focus:{x:position.x,y:position.y+2,z:position.z},
+    desired:{x:position.x-forward.x*distance,y:position.y+2-forward.y*distance,z:position.z-forward.z*distance}
   };
 }
 

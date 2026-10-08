@@ -412,7 +412,26 @@ body.br-in-void .br-hud::after { opacity:1; animation:void-edge-pulse 1.8s ease-
 .br-damage-direction{position:absolute;left:50%;top:50%;width:170px;height:170px;transform:translate(-50%,-50%) rotate(var(--damage-angle,0deg));opacity:0;transition:opacity .18s;}.br-damage-direction::before{content:"";position:absolute;left:50%;top:0;width:34px;height:7px;transform:translateX(-50%);border-radius:8px;background:#ff607c;box-shadow:0 0 14px #ff315e;}.br-damage-direction.visible{opacity:1;}
 .br-kill-feed { position:absolute; right:18px; top:90px; display:grid; gap:5px; width:280px; }.br-feed-row { padding:7px 10px; border-right:3px solid var(--feed-color,#ff6b8a); border-radius:8px 4px 4px 8px; background:rgba(5,8,28,.76); color:#dfe8ff; font-size:.62rem;font-weight:800; }
 .br-team-hud { position:absolute; left:17px; top:80px; display:grid; gap:6px; width:220px; }.br-team-hud[hidden]{display:none}.br-teammate { position:relative; display:grid; grid-template-columns:8px 1fr auto; gap:3px 7px; padding:8px 10px; border:1px solid rgba(255,255,255,.08); border-left:3px solid var(--mate-color); border-radius:4px 10px 10px 4px; background:linear-gradient(110deg,rgba(5,8,28,.9),rgba(10,21,52,.76)); box-shadow:0 7px 18px rgba(0,0,0,.2); font-size:.59rem; }.br-teammate>i{grid-row:1/4;width:7px;height:7px;margin-top:3px;border-radius:50%;background:var(--mate-color);box-shadow:0 0 8px var(--mate-color)}.br-teammate>b{font-size:.66rem}.br-teammate>span{color:#b8c7e7;font-weight:900;font-size:.5rem;letter-spacing:.08em}.br-teammate>label{grid-column:2/4;display:grid;grid-template-columns:38px 1fr;align-items:center;gap:6px;color:#758ab9;font-size:.45rem;font-weight:900}.br-teammate>label em{height:4px;border-radius:4px;background:linear-gradient(90deg,#49e6ad var(--value),rgba(255,255,255,.09) var(--value));}.br-teammate>label:last-child em{background:linear-gradient(90deg,#5cc9ff var(--value),rgba(255,255,255,.09) var(--value))}.br-teammate.downed{filter:saturate(.55)}.br-teammate.eliminated,.br-teammate.disconnected{opacity:.55}
-.br-altitude{position:absolute;right:188px;top:50%;width:78px;height:250px;transform:translateY(-50%);display:grid;grid-template-rows:auto auto 1fr auto;justify-items:center;gap:5px;padding:10px 7px;border:1px solid rgba(112,245,255,.25);border-radius:18px 7px;background:linear-gradient(180deg,rgba(5,12,38,.78),rgba(3,8,28,.9));box-shadow:0 12px 32px #0007;color:#a9bde1}.br-altitude[hidden]{display:none}.br-altitude>span{color:#70f5ff;font:900 .5rem "Arial Black";letter-spacing:.1em}.br-altitude>strong{color:white;font:900 1rem "Arial Black"}.br-altitude>small{font-size:.52rem;font-weight:900}.br-altitude-rail{position:relative;width:2px;height:100%;min-height:140px;background:linear-gradient(#70f5ff,#58698d);box-shadow:0 0 7px #70f5ff66}.br-altitude-rail::after{content:"GROUND";position:absolute;left:9px;bottom:-3px;color:#7f91b5;font:800 .42rem Arial}.br-altitude-rail i{position:absolute;left:50%;width:17px;height:9px;transform:translate(-50%,50%);clip-path:polygon(0 50%,100% 0,100% 100%);background:#ffd84d;filter:drop-shadow(0 0 5px #ffd84d)}.br-altitude-rail b{position:absolute;right:8px;transform:translateY(50%);color:#c98cff;font:900 .42rem Arial;white-space:nowrap}
+/* Minimap ends at 170px: keep the descent instrument 12px below it, in the
+   same 18px right safe column. Short viewports retain a useful rail length. */
+.br-altitude {
+  position:absolute; right:18px; top:182px; width:60px; height:clamp(180px,24vh,200px);
+  display:grid; grid-template-rows:auto auto minmax(0,1fr) auto; justify-items:center;
+  gap:6px; padding:8px 4px; border:1px solid rgba(112,245,255,.18); border-radius:12px 5px;
+  background:linear-gradient(180deg,rgba(5,12,38,.56),rgba(3,8,28,.68));
+  box-shadow:0 6px 18px #0004; color:#a9bde1;
+}
+.br-altitude[hidden] { display:none; }
+.br-altitude > span { color:#70f5ff; font:900 .46rem "Arial Black"; letter-spacing:.03em; white-space:nowrap; }
+.br-altitude > strong { color:white; font:900 .9rem "Arial Black"; }
+.br-altitude > small { margin-top:9px; font-size:.52rem; font-weight:900; white-space:nowrap; }
+.br-altitude-rail { position:relative; width:2px; height:100%; min-height:0; background:linear-gradient(#70f5ff,#58698d); box-shadow:0 0 5px #70f5ff44; }
+.br-altitude-rail::after { content:"GROUND"; position:absolute; left:50%; bottom:-11px; transform:translateX(-50%); color:#91a2c2; font:800 .42rem Arial; }
+.br-altitude-rail i { position:absolute; left:50%; width:14px; height:8px; transform:translate(-50%,50%); clip-path:polygon(0 50%,100% 0,100% 100%); background:#ffd84d; filter:drop-shadow(0 0 3px #ffd84d); }
+.br-altitude-rail b { position:absolute; right:8px; transform:translateY(50%); color:#c98cff; font:900 .42rem Arial; white-space:nowrap; }
+/* Reserve the gauge lane only during descent; feed placement otherwise stays
+   under the minimap. Specificity also preserves this gap on compact widths. */
+.br-hud:has(.br-altitude:not([hidden])) .br-kill-feed { right:90px; }
 .br-map-button { position:absolute; right:18px; bottom:18px; pointer-events:auto; }
 .br-hud.eliminated .br-map-button,.br-hud.eliminated .br-kill-feed,.br-hud.eliminated .br-event-banner,.br-hud.eliminated .br-void-warning { display:none; }
 .br-map-overlay { overflow:auto; scrollbar-gutter:stable both-edges; }

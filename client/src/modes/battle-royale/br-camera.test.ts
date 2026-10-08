@@ -1,8 +1,30 @@
 import { describe, expect, it } from "vitest";
 import { stepBrMovement, type BrMotionState } from "@planetfall/shared";
-import { brAimProfile, brCameraGeometry, brCameraMode, brDropEntryPitch, brForcedDropLookYaw, brShipCameraFrame, brShipLookState } from "./br-camera";
+import { brAimProfile, brCameraGeometry, brCameraMode, brDropEntryPitch, brForcedDropLookYaw, brLookAngles, brShipCameraFrame, brShipLookState } from "./br-camera";
 
 describe("Battle Royale camera rig", () => {
+  it.each([["mouse",100,.0022],["right stick",.7,2.2/60]] as const)("turns toward screen-right for positive %s look input at every orbit yaw",(_method,delta,scale)=>{
+    for(const yaw of [-Math.PI,-1.25,0,Math.PI/2,Math.PI,5.9]){
+      const before=brCameraGeometry({x:0,y:0,z:0},yaw,0,"grounded");
+      const next=brLookAngles(yaw,0,delta,0,scale);
+      const after=brCameraGeometry({x:0,y:0,z:0},next.yaw,next.pitch,"grounded");
+      expect(after.horizontalForward.x*before.right.x+after.horizontalForward.z*before.right.z).toBeGreaterThan(0);
+      const left=brLookAngles(yaw,0,-delta,0,scale);
+      expect(left.yaw).toBeLessThan(yaw);
+      // The transport must retain that deliberate right turn after its one-time
+      // route initialization, using the same look angles as normal movement.
+      expect(brShipLookState(next.yaw,{x:0,z:-1},true).yaw).toBe(next.yaw);
+    }
+  });
+
+  it("preserves vertical invert, pitch limits and untouched look without wrapping deliberate yaw",()=>{
+    expect(brLookAngles(7,.2,0,0,.0022)).toEqual({yaw:7,pitch:.2});
+    expect(brLookAngles(0,0,0,100,.0022).pitch).toBeCloseTo(-.22);
+    expect(brLookAngles(0,0,0,100,.0022,true).pitch).toBeCloseTo(.22);
+    expect(brLookAngles(0,0,0,1e6,.0022).pitch).toBe(-.75);
+    expect(brLookAngles(0,0,0,-1e6,.0022).pitch).toBe(1.15);
+  });
+
   it("keeps physical camera orbit independent from aim pitch", () => {
     const low = brCameraGeometry({ x: 4, y: 2, z: 8 }, .6, -.8, "grounded");
     const high = brCameraGeometry({ x: 4, y: 2, z: 8 }, .6, .8, "grounded");
@@ -62,13 +84,22 @@ describe("Battle Royale camera rig", () => {
   });
 
   it("centers the establishing Starliner camera on the route axis",()=>{
-    const frame=brShipCameraFrame({x:20,y:185,z:-30},{x:4,y:0,z:0},true);
+    const frame=brShipCameraFrame({x:20,y:185,z:-30},Math.PI/2,-.42);
     expect(frame.desired.z).toBeCloseTo(-30);
     expect(frame.desired.x).toBeLessThan(20);
     expect(frame.focus.z).toBeCloseTo(-30);
-    expect(frame.focus.x).toBeGreaterThan(20);
-    const free=brShipCameraFrame({x:20,y:185,z:-30},{x:4,y:0,z:0},false);
-    expect(free.desired.x).toBeLessThan(frame.desired.x);
+    expect(frame.focus.x).toBe(20);
+    expect(frame.desired.y).toBeGreaterThan(frame.focus.y);
+  });
+
+  it("orbits freely through 360 degrees with the same basis as aim and movement",()=>{
+    for(const yaw of [0,Math.PI/2,Math.PI,Math.PI*1.5,Math.PI*2]){
+      const pitch=-.42,frame=brShipCameraFrame({x:0,y:185,z:0},yaw,pitch);
+      const aim=brCameraGeometry({x:0,y:0,z:0},yaw,pitch,"freefall").aimDirection;
+      const dx=frame.focus.x-frame.desired.x,dy=frame.focus.y-frame.desired.y,dz=frame.focus.z-frame.desired.z,length=Math.hypot(dx,dy,dz);
+      expect(dx/length).toBeCloseTo(aim.x);expect(dy/length).toBeCloseTo(aim.y);expect(dz/length).toBeCloseTo(aim.z);
+      expect(brDropEntryPitch(pitch)).toBe(pitch);
+    }
   });
 
   it("provides functional precision and medium-range optics",()=>{

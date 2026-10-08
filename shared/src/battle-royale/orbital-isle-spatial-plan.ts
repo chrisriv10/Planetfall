@@ -6,6 +6,7 @@ type FixedSite={
   id:string;
   kind:BrDistrictPlanKind;
   elevation:number;
+  origin?:readonly [number,number];
   approach:{x:number;y:number;z:number};
   streets:readonly BrRoadSegment[];
   parcels:readonly [string,number,number,Entrance,BrDistrictParcel["role"],number?,number?][];
@@ -22,11 +23,11 @@ const road=(id:string,x1:number,z1:number,x2:number,z2:number,width=7,color="#30
  * nearest-free-space solver participates in world construction.
  */
 const FIXED_SITES:readonly FixedSite[]=[
-  {id:"central-heights",kind:"neighborhood",elevation:0,approach:{x:-1,y:0,z:0},streets:[road("central-heights-main",-105,-82,-45,-82,8),road("central-heights-cross",-75,-109,-75,-55,7,"#304761",true)],parcels:[["central-heights-parcel-1",-51,-42,"west","anchor"],["central-heights-parcel-2",-55,-98,"west","support"],["central-heights-parcel-3",-119,-82,"east","service"]],openZone:{x:-95,z:-65,radius:8,purpose:"courtyard"}},
+  {id:"central-heights",kind:"neighborhood",elevation:0,origin:[-65,-82],approach:{x:-1,y:0,z:0},streets:[road("central-heights-main",-105,-82,-45,-82,8),road("central-heights-cross",-65,-109,-65,-33,7,"#304761",true)],parcels:[["central-heights-parcel-1",-48,-42,"west","anchor"],["central-heights-parcel-2",-51,-98,"west","support"],["central-heights-parcel-3",-119,-82,"east","service"]],openZone:{x:-95,z:-65,radius:8,purpose:"courtyard"}},
   {id:"relay-market",kind:"commercial",elevation:0,approach:{x:-1,y:0,z:0},streets:[road("relay-market-main",52,-78,112,-78,8),road("relay-market-cross",82,-105,82,-51,8,"#304761",true)],parcels:[["relay-market-parcel-1",102,-52,"west","anchor"],["relay-market-parcel-2",128,-94,"west","support"],["relay-market-parcel-3",60,-98,"east","service"]],openZone:{x:62,z:-61,radius:8,purpose:"courtyard"}},
-  {id:"comet-hotel",kind:"commercial",elevation:0,approach:{x:-1,y:0,z:0},streets:[road("comet-hotel-main",-106,-214,-46,-214,8),road("comet-hotel-cross",-76,-241,-76,-187,7,"#49384f",true)],parcels:[["comet-hotel-parcel-1",-94,-236,"east","anchor"],["comet-hotel-parcel-2",-118,-234,"east","support"],["comet-hotel-parcel-3",-56,-230,"west","service"]],openZone:{x:-56,z:-197,radius:8,purpose:"courtyard"}},
+  {id:"comet-hotel",kind:"commercial",elevation:0,origin:[-65,-214],approach:{x:-1,y:0,z:0},streets:[road("comet-hotel-main",-106,-214,-46,-214,8),road("comet-hotel-cross",-65,-241,-65,-187,7,"#49384f",true)],parcels:[["comet-hotel-parcel-1",-94,-236,"east","anchor"],["comet-hotel-parcel-2",-118,-234,"east","support"],["comet-hotel-parcel-3",-50,-230,"west","service"]],openZone:{x:-56,z:-197,radius:8,purpose:"courtyard"}},
   {id:"horizon-homes",kind:"neighborhood",elevation:0,approach:{x:0,y:0,z:-1},streets:[road("horizon-homes-main",-285,-30,-225,-30,7),road("horizon-homes-cross",-255,-57,-255,-3,7,"#3b3b57",true)],parcels:[["horizon-homes-parcel-1",-275,-13,"east","anchor"],["horizon-homes-parcel-2",-235,-13,"west","support"],["horizon-homes-parcel-3",-275,-47,"east","service"]],openZone:{x:-235,z:-47,radius:8,purpose:"courtyard"}},
-  {id:"academy-dorms",kind:"campus",elevation:0,approach:{x:1,y:0,z:0},streets:[road("academy-dorms-main",-400,125,-340,125,7),road("academy-dorms-cross",-370,98,-370,152,7,"#393650",true)],parcels:[["academy-dorms-parcel-1",-384,167,"east","anchor"],["academy-dorms-parcel-2",-390,107,"east","support"],["academy-dorms-parcel-3",-350,81,"west","service"]],openZone:{x:-350,z:142,radius:8,purpose:"garden"}},
+  {id:"academy-dorms",kind:"campus",elevation:0,origin:[-400,125],approach:{x:1,y:0,z:0},streets:[road("academy-dorms-main",-400,125,-340,125,7),road("academy-dorms-cross",-400,123,-400,185,7,"#393650",true),road("academy-dorms-north",-400,185,-369,185,7,"#393650"),road("academy-dorms-frontage",-369,185,-369,159,7,"#393650",true)],parcels:[["academy-dorms-parcel-1",-384,167,"east","anchor"],["academy-dorms-parcel-2",-390,107,"east","support"],["academy-dorms-parcel-3",-350,81,"west","service"]],openZone:{x:-350,z:142,radius:8,purpose:"garden"}},
   {id:"west-overlook",kind:"civic",elevation:0,approach:{x:-1,y:0,z:0},streets:[road("west-overlook-main",-435,15,-375,15,7),road("west-overlook-cross",-405,-12,-405,42,7,"#33465b",true)],parcels:[["west-overlook-parcel-1",-385,31,"west","anchor"],["west-overlook-parcel-2",-385,-1,"west","support"],["west-overlook-parcel-3",-449,-1,"east","service"]],openZone:{x:-425,z:32,radius:8,purpose:"courtyard"}},
   {id:"signal-station",kind:"workyard",elevation:0,approach:{x:-1,y:0,z:0},streets:[road("signal-station-main",-435,-125,-375,-125,8),road("signal-station-cross",-405,-152,-405,-98,7,"#374351",true)],parcels:[["signal-station-parcel-1",-409,-83,"east","anchor"],["signal-station-parcel-2",-385,-109,"west","support"],["signal-station-parcel-3",-385,-141,"west","service"]],openZone:{x:-425,z:-142,radius:8,purpose:"yard"}},
   {id:"salvage-row",kind:"salvage",elevation:0,approach:{x:0,y:0,z:1},streets:[road("salvage-row-main",-345,-335,-285,-335,8),road("salvage-row-cross",-315,-362,-315,-308,7,"#49363c",true)],parcels:[["salvage-row-parcel-1",-307,-293,"east","anchor",16,14],["salvage-row-parcel-2",-335,-351,"east","support"],["salvage-row-parcel-3",-295,-351,"west","service"]],openZone:{x:-295,z:-318,radius:8,purpose:"salvage"}},
@@ -43,7 +44,7 @@ const FIXED_SITES:readonly FixedSite[]=[
   {id:"north-gardens",kind:"agricultural",elevation:0,approach:{x:0,y:0,z:-1},streets:[road("north-gardens-main",-75,405,-15,405,7),road("north-gardens-cross",-45,378,-45,432,7,"#304b43",true)],parcels:[["north-gardens-parcel-1",-65,422,"east","anchor"],["north-gardens-parcel-2",-65,388,"east","support"],["north-gardens-parcel-3",-25,388,"west","service"]],openZone:{x:-25,z:422,radius:8,purpose:"garden"}},
   {id:"mall-annex",kind:"commercial",elevation:0,approach:{x:1,y:0,z:0},streets:[road("mall-annex-main",-235,365,-175,365,8),road("mall-annex-cross",-205,338,-205,392,8,"#41314f",true)],parcels:[["mall-annex-parcel-1",-225,381,"east","anchor"],["mall-annex-parcel-2",-221,327,"east","support"],["mall-annex-parcel-3",-203,323,"west","service"]],openZone:{x:-185,z:382,radius:8,purpose:"courtyard"}},
   {id:"academy-commons",kind:"campus",elevation:5.5,approach:{x:-1,y:0,z:1},streets:[road("academy-commons-main",-295,235,-235,235,7),road("academy-commons-cross",-265,208,-265,262,7,"#393650",true)],parcels:[["academy-commons-parcel-1",-245,252,"west","anchor"],["academy-commons-parcel-2",-245,218,"west","support"],["academy-commons-parcel-3",-285,218,"east","service"]],openZone:{x:-285,z:252,radius:8,purpose:"garden"}},
-  {id:"west-park",kind:"campus",elevation:0,approach:{x:-1,y:0,z:0},streets:[road("west-park-main",-430,150,-370,150,7),road("west-park-cross",-400,123,-400,177,7,"#393650",true)],parcels:[["west-park-parcel-1",-360,166,"west","anchor"],["west-park-parcel-2",-410,108,"west","support"],["west-park-parcel-3",-448,134,"east","service"]],openZone:{x:-420,z:167,radius:8,purpose:"garden"}},
+  {id:"west-park",kind:"campus",elevation:0,origin:[-400,150],approach:{x:-1,y:0,z:0},streets:[road("west-park-main",-430,150,-365,150,7),road("west-park-cross",-400,123,-400,177,7,"#393650",true)],parcels:[["west-park-parcel-1",-347,174,"west","anchor"],["west-park-parcel-2",-410,108,"west","support"],["west-park-parcel-3",-448,134,"east","service"]],openZone:{x:-420,z:167,radius:8,purpose:"garden"}},
   {id:"coolant-plant",kind:"workyard",elevation:0,approach:{x:1,y:0,z:0},streets:[road("coolant-plant-main",50,180,110,180,8),road("coolant-plant-cross",80,153,80,207,8,"#304a58",true)],parcels:[["coolant-plant-parcel-1",60,197,"east","anchor"],["coolant-plant-parcel-2",60,163,"east","support"],["coolant-plant-parcel-3",100,163,"west","service"]],openZone:{x:100,z:197,radius:8,purpose:"yard"}},
   {id:"central-security",kind:"civic",elevation:0,approach:{x:-1,y:0,z:1},streets:[road("central-security-main",-175,85,-115,85,8),road("central-security-cross",-145,58,-145,112,8,"#374157",true)],parcels:[["central-security-parcel-1",-109,123,"west","anchor"],["central-security-parcel-2",-181,65,"east","support"],["central-security-parcel-3",-125,69,"west","service"]],openZone:{x:-165,z:102,radius:8,purpose:"courtyard"}},
   {id:"south-shipworks",kind:"workyard",elevation:4,approach:{x:0,y:0,z:1},streets:[road("south-shipworks-main",160,-400,220,-400,9),road("south-shipworks-cross",190,-427,190,-373,8,"#463d34",true)],parcels:[["south-shipworks-parcel-1",210,-383,"west","anchor"],["south-shipworks-parcel-2",210,-417,"west","support"],["south-shipworks-parcel-3",170,-417,"east","service"]],openZone:{x:170,z:-383,radius:8,purpose:"yard"}},
@@ -72,7 +73,7 @@ export const AUTHORED_BR_ELEVATED_ACCESS:ReadonlyMap<string,{districtId:string;e
 
 export const AUTHORED_BR_SPATIAL_PLANS:readonly BrDistrictPlan[]=FIXED_SITES.map(site=>({
   id:site.id,
-  origin:{...site.streets[0].from,x:(site.streets[0].from.x+site.streets[0].to.x)/2,z:(site.streets[0].from.z+site.streets[0].to.z)/2,y:site.elevation},
+  origin:{x:site.origin?.[0]??(site.streets[0].from.x+site.streets[0].to.x)/2,z:site.origin?.[1]??(site.streets[0].from.z+site.streets[0].to.z)/2,y:site.elevation},
   elevation:site.elevation,
   kind:site.kind,
   approach:site.approach,
@@ -94,7 +95,7 @@ export const AUTHORED_BR_STRUCTURE_PLACEMENTS:ReadonlyMap<string,{position:{x:nu
 const FIXED_SECONDARY_COVER:readonly [string,number,number,number,number][]=[
   ["central-heights",-103,-69,5.5,1.8],
   ["relay-market",62,-67,5.5,1.8],["relay-market",59,-70,1.8,5.5],
-  ["comet-hotel",-62,-197,5.5,1.8],["comet-hotel",-56,-203,1.8,5.5],
+  ["comet-hotel",-53,-197,5.5,1.8],["comet-hotel",-56,-203,1.8,5.5],
   ["horizon-homes",-235,-39,5.5,1.8],["horizon-homes",-241,-39,1.8,5.5],
   ["academy-dorms",-356,142,5.5,1.8],["academy-dorms",-350,136,1.8,5.5],
   ["west-overlook",-419,32,5.5,1.8],["west-overlook",-421,26,1.8,5.5],

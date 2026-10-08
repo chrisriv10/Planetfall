@@ -1,4 +1,4 @@
-import { BR_DISTRICT_PLANS, type BrDistrictPlan, type Vec3 } from "@planetfall/shared";
+import { BR_DISTRICT_PLANS, brAuthoredDeckHeight, type BrDistrictPlan, type Vec3 } from "@planetfall/shared";
 import type { BrMaterialKey } from "./br-materials";
 
 export interface BrAuthoredSecondaryPart {
@@ -45,15 +45,15 @@ interface Site {
  * The site radius (3m) encloses every part, including tree crowns and surface corners.
  */
 const SITES: readonly Site[] = [
-  { id: "central-heights", family: "neighborhood", context: "East street pocket: tree and residents' bench", center: [-60, -72], parts: [
-    ["paving", "box", "sidewalk", -60, .016, -72, 4, .016, 3, 0, true],
-    ["tree-bed", "box", "soil", -61, .032, -72, 1.35, .016, 1.35, 0, true],
-    ["tree-stem", "cylinder", "structuralDark", -61, 1.62, -72, .09, 3.16, .09],
-    ["tree-crown", "octahedron", "canopy", -61, 3.6, -72, 1.05, 1.1, 1.05],
-    ["bench", "box", "brushedMetal", -59, .36, -72, .65, .12, 1.8],
-    ["bench-foot-a", "box", "structuralDark", -59, .17, -72.6, .48, .26, .12],
-    ["bench-foot-b", "box", "structuralDark", -59, .17, -71.4, .48, .26, .12],
-    ["entry-apron", "box", "concrete", -60, .032, -73.15, 2.4, .016, .38, 0, true],
+  { id: "central-heights", family: "neighborhood", context: "East street pocket: tree and residents' bench", center: [-43, -69], parts: [
+    ["paving", "box", "sidewalk", -43, .016, -69, 4, .016, 3, 0, true],
+    ["tree-bed", "box", "soil", -44, .032, -69, 1.35, .016, 1.35, 0, true],
+    ["tree-stem", "cylinder", "structuralDark", -44, 1.62, -69, .09, 3.16, .09],
+    ["tree-crown", "octahedron", "canopy", -44, 3.6, -69, 1.05, 1.1, 1.05],
+    ["bench", "box", "brushedMetal", -42, .36, -69, .65, .12, 1.8],
+    ["bench-foot-a", "box", "structuralDark", -42, .17, -69.6, .48, .26, .12],
+    ["bench-foot-b", "box", "structuralDark", -42, .17, -68.4, .48, .26, .12],
+    ["entry-apron", "box", "concrete", -43, .032, -70.15, 2.4, .016, .38, 0, true],
   ] },
   // Western warehouse forecourt: separate from the new avenue's entry bend,
   // north-facing waiting frame, with the warehouse's east door left untouched.
@@ -395,7 +395,7 @@ const TRANSITIONS: readonly Site[] = [
 ];
 
 // Decode only: authored X/Z and local heights never depend on road order, a
-// seed or frame time. District elevation is the sole authoritative translation.
+// seed or frame time. The authoritative deck is the sole height translation.
 // Fresh objects protect the authored data.
 function decode(site: Site,elevation=0): BrAuthoredSecondaryDressing {
   return { id: site.id, family: site.family, context: site.context,
@@ -407,7 +407,7 @@ function decode(site: Site,elevation=0): BrAuthoredSecondaryDressing {
 
 export function buildBrAuthoredSecondaryDressing(site: { id: string; position?:Vec3 }): BrAuthoredSecondaryDressing | undefined {
   const authored = SITES.find(entry => entry.id === site.id);
-  const elevation=BR_DISTRICT_PLANS.find(plan=>plan.id===site.id)?.elevation??0;
+  const elevation=authored ? brAuthoredDeckHeight({x:authored.center[0],z:authored.center[1]}) || BR_DISTRICT_PLANS.find(plan=>plan.id===site.id)?.elevation || 0 : 0;
   return authored ? decode(authored,elevation) : undefined;
 }
 

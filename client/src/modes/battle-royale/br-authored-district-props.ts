@@ -28,8 +28,10 @@ type Placement = readonly [context: string, kit: BrDistrictPropKit, x: number, z
 const PLACEMENTS: Readonly<Record<string, readonly Placement[]>> = {
   "zero-point": [["south civic rest", "waiting", -20, -40, 1], ["east civic garden", "garden", 40, 40, 0], ["north service apron", "solar-service", -23, 72, 0]],
   "nova-plaza": [
-    ["north promenade garden", "garden", -155, -75, 0],
-    ["promenade waiting bay", "waiting", -145, -65, 1],
+    // Five metres west of the studio roof-ramp's x=-151.5 edge.
+    ["north promenade garden", "garden", -156.5, -75, 0],
+    // South forecourt of the north ring: 12m from its centerline at z=-56.
+    ["promenade waiting bay", "waiting", -144, -68, 1],
     // Street A's actual shoulders/forecourts: keep the 12m through-road,
     // intersection, storefront approach rectangles and loot pockets empty.
     // These five placements are individually authored; never derive a street

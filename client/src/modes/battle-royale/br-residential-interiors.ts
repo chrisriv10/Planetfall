@@ -1,4 +1,18 @@
-import { BR_LOOT_SOCKETS, BR_MAP_BLOCKS, type BrStructure, type Vec3 } from "@planetfall/shared";
+import { BR_LOOT_SOCKETS, BR_MAP_BLOCKS, BR_STRUCTURES, type BrStructure, type Vec3 } from "@planetfall/shared";
+
+// These helpers emit deck-local heights. Their authored collider/loot inputs
+// remain world-space even when the renderer passes a zero-base visual copy.
+const baseById = new Map(BR_STRUCTURES.map(structure=>[structure.id,structure.position.y]));
+function localBlocks(structure:BrStructure){
+  const base=baseById.get(structure.id)??structure.position.y;
+  return BR_MAP_BLOCKS.filter(block=>block.id.startsWith(`${structure.id}-`))
+    .map(block=>({...block,position:{...block.position,y:block.position.y-base}}));
+}
+function localLoot(structure:BrStructure){
+  const base=baseById.get(structure.id)??structure.position.y;
+  return BR_LOOT_SOCKETS.filter(socket=>socket.structureId===structure.id)
+    .map(socket=>({...socket,position:{...socket.position,y:socket.position.y-base}}));
+}
 
 export type ResidentialPart = { finish: "frame" | "panel" | "glass" | "light" | "accent" | "foliage"; position: Vec3; scale: Vec3; rotationX?: number;
   role?: "lounge-chair" | "lounge-table" | "reception-counter" | "lobby-planter" | "wall-trim" };
@@ -11,7 +25,7 @@ export function buildResidentialLandingMarkers(structure: BrStructure): {parts: 
   // Existing interior wall cassettes project .61m from the wall centre.
   // Mount on that visible skin, not on the collider face behind the cladding.
   const wallZ = structure.position.z - structure.size.z / 2 + .625;
-  for (const landing of BR_MAP_BLOCKS.filter(b => b.id.startsWith(`${structure.id}-deck-`) && b.id.endsWith("-landing"))) {
+  for (const landing of localBlocks(structure).filter(b => b.id.startsWith(`${structure.id}-deck-`) && b.id.endsWith("-landing"))) {
     const width = Math.min(3.6, landing.size.x - .6), x = landing.position.x;
     const floorY = landing.position.y + landing.size.y / 2;
     const floorHeight = structure.size.y / structure.floors;
@@ -36,7 +50,7 @@ export function buildResidentialLandingMarkers(structure: BrStructure): {parts: 
 export function buildResidentialCeiling(structure: BrStructure): ResidentialPart[] {
   if(!structure.enterable||!["apartment","hotel"].includes(structure.archetype))return [];
   const parts:ResidentialPart[]=[];
-  for(const slab of BR_MAP_BLOCKS.filter(b=>b.id.startsWith(`${structure.id}-`)&&b.kind==="platform"&&!b.id.endsWith("-floor"))) {
+  for(const slab of localBlocks(structure).filter(b=>b.kind==="platform"&&!b.id.endsWith("-floor"))) {
     const width=slab.size.x-1.3,depth=slab.size.z-1.3;
     if(width<2.5||depth<3)continue;
     const ceilingY=slab.position.y-slab.size.y/2;
@@ -61,7 +75,7 @@ export function buildResidentialServiceWall(structure: BrStructure): Residential
   const parts:ResidentialPart[]=[];
   const {x,z}=structure.position,width=structure.size.x,depth=structure.size.z;
   const wallFace=x+width/2-.325;
-  const loot=BR_LOOT_SOCKETS.filter(socket=>socket.structureId===structure.id);
+  const loot=localLoot(structure);
   const floorHeight=structure.size.y/structure.floors;
   for(let floor=0;floor<structure.floors;floor++){
     const floorY=floor===0?.36:floor*floorHeight+.175;
@@ -120,7 +134,7 @@ export function buildResidentialEntranceWall(structure: BrStructure): Residentia
 export function buildResidentialRampSkins(structure: BrStructure): ResidentialPart[] {
   if(!structure.enterable||!["apartment","hotel"].includes(structure.archetype))return [];
   const parts:ResidentialPart[]=[];
-  for(const ramp of BR_MAP_BLOCKS.filter(block=>block.kind==="ramp"&&block.id.startsWith(`${structure.id}-stairs-`))){
+  for(const ramp of localBlocks(structure).filter(block=>block.kind==="ramp"&&block.id.startsWith(`${structure.id}-stairs-`))){
     const angle=ramp.rotation?.x;
     if(angle===undefined||!Number.isFinite(angle)||angle<=.05||angle>=1.1||ramp.size.x<1||ramp.size.z<5)continue;
     const cos=Math.cos(angle),sin=Math.sin(angle),underside=-ramp.size.y/2,length=ramp.size.z-1.5;
@@ -146,8 +160,8 @@ export function buildResidentialInterior(structure: BrStructure): {parts: Reside
   if(!structure.enterable || !["apartment","hotel"].includes(structure.archetype))return {parts,signs};
   const {x,z}=structure.position, width=structure.size.x, depth=structure.size.z;
   const wallFace=x-width/2+.325;
-  const blocks=BR_MAP_BLOCKS.filter(b=>b.id.startsWith(`${structure.id}-`));
-  const loot=BR_LOOT_SOCKETS.filter(s=>s.structureId===structure.id);
+  const blocks=localBlocks(structure);
+  const loot=localLoot(structure);
   const clearBay=(center:number,halfWidth:number,floorY:number)=> {
     if(structure.entrance==="west"&&center-halfWidth<z+2.8&&center+halfWidth>z-2.8)return false;
     if(blocks.some(b=>b.id.includes("-room-")&&b.position.y+b.size.y/2>floorY&&

@@ -14,7 +14,10 @@ describe("raised district edge construction",()=>{
     const before=JSON.stringify([BR_TERRACES,BR_ROADS]);
     for(const deck of decks){
       const parts=buildBrRaisedDeckDetails(deck);
-      expect(parts.length).toBeGreaterThan(12);expect(parts.length).toBeLessThanOrEqual(BR_RAISED_DECK_MAX_PARTS);
+      // A road can mask every exposed bay on a real deck. Verify kit richness
+      // without road masks, and keep the production masks/budgets independent.
+      expect(buildBrRaisedDeckDetails(deck,[]).length,deck.id).toBeGreaterThan(12);
+      expect(parts.length).toBeLessThanOrEqual(BR_RAISED_DECK_MAX_PARTS);
       expect(parts.filter(part=>part.role==="light").length).toBeLessThanOrEqual(4);
       expect(new Set(parts.map(part=>part.finish)).size).toBeLessThanOrEqual(3);
       expect(buildBrRaisedDeckDetails(deck)).toEqual(parts);
@@ -45,8 +48,8 @@ describe("raised district edge construction",()=>{
   });
   it("gives tall retaining walls visible vertical structure without increasing the instance budget",()=>{
     for(const deck of decks.filter(deck=>deck.height>=3)){
-      const parts=buildBrRaisedDeckDetails(deck),ribs=parts.filter(part=>part.role==="rib");
-      expect(ribs.length).toBeGreaterThan(4);
+      const parts=buildBrRaisedDeckDetails(deck,[]),ribs=parts.filter(part=>part.role==="rib");
+      expect(ribs.length,deck.id).toBeGreaterThan(4);
       for(const rib of ribs){
         expect(rib.position.y-rib.scale.y/2).toBeCloseTo(.925);
         expect(rib.position.y+rib.scale.y/2).toBeCloseTo(deck.height-.175);
@@ -85,6 +88,16 @@ describe("raised district edge construction",()=>{
     expect(masked.some(part=>part.side==="north"&&part.position.x===armor.position.x)).toBe(false);
     expect(masked.length).toBeLessThan(unmasked.length);
     for(const bad of [{...deck,gradedRoadAccess:false},{...deck,height:NaN},{...deck,height:1},
-      {...deck,size:{x:1,z:70}},{...deck,size:{x:180,z:70}},{...deck,position:{x:Infinity,y:0,z:0}}])expect(buildBrRaisedDeckDetails(bad)).toEqual([]);
+      {...deck,size:{x:1,z:70}},{...deck,size:{x:241,z:70}},{...deck,position:{x:Infinity,y:0,z:0}}])expect(buildBrRaisedDeckDetails(bad)).toEqual([]);
+  });
+  it("never forces decorative bays into an entirely occupied perimeter",()=>{
+    const deck=decks[0];
+    const roads:BrRoadSegment[]=["x","z"].flatMap(axis=>[-1,1].map(side=>({
+      id:`perimeter-${axis}-${side}`,color:"#fff",width:4,
+      from:{x:deck.position.x+(axis==="x"?side*deck.size.x/2:-deck.size.x),y:deck.height,z:deck.position.z+(axis==="z"?side*deck.size.z/2:-deck.size.z)},
+      to:{x:deck.position.x+(axis==="x"?side*deck.size.x/2:deck.size.x),y:deck.height,z:deck.position.z+(axis==="z"?side*deck.size.z/2:deck.size.z)}
+    })));
+    expect(buildBrRaisedDeckDetails(deck,[]).length).toBeGreaterThan(12);
+    expect(buildBrRaisedDeckDetails(deck,roads)).toEqual([]);
   });
 });

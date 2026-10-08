@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { BR_ROAD_ROUTES, brAuthoredDeckHeight, brFloorHeightAt } from "./index.js";
 import {
   BR_BALANCE, BR_BOT_DIFFICULTY, BR_CRATE_SOCKETS, BR_DISTRICT_PLANS, BR_ISLAND_OUTLINE, BR_LOOT_SOCKETS, BR_MAP, BR_MAP_BLOCKS, BR_NAV_NODES, BR_POIS, BR_ROADS, BR_SECONDARY_LOCATIONS, BR_STORM_PHASES, BR_STRUCTURES, BR_TERRACES, BR_TERRAIN_PATCHES, BR_WEAPONS, applyBrDamage, brApproachPlanarVelocity, brBlockPlanarHalfExtents, brDropVelocity, brFlatDeckCollision, brForcedDropVelocity, brHasStandingClearance, brMantleTopAt, brMuzzlePosition, brNextWaypoint, brPlayerHitDistance, brRarityDamage, brRoadGradeFloorAt, brRoadIntersectsFootprint, brShipPath, isInsideBrIsland, isInsideBrIslandInterior,
   brBlocksNear, brPickupDisposition, createEmptyBrInventory, raySphereDistance, reloadBrItem, stepBrMovement, stormContains, type BrInventoryItem, type BrMotionState
@@ -111,7 +112,7 @@ describe("Battle Royale shared rules", () => {
       if(roomWalls.length){
         const storeyHeight=structure.size.y/structure.floors;
         for(let floor=0;floor<structure.floors;floor++)expect(
-          roomWalls.some(wall=>wall.position.y>floor*storeyHeight&&wall.position.y<(floor+1)*storeyHeight),
+          roomWalls.some(wall=>wall.position.y>structure.position.y+floor*storeyHeight&&wall.position.y<structure.position.y+(floor+1)*storeyHeight),
           `${structure.id} has no authored room plan on level ${floor+1}`
         ).toBe(true);
       }
@@ -148,9 +149,9 @@ describe("Battle Royale shared rules", () => {
       const along=-sign*ramp.size[axis]/2;
       const highY=ramp.position.y+(ns?-Math.sin(angle):Math.sin(angle))*along;
       const highAxis=ramp.position[axis]+Math.cos(angle)*along;
-      expect(highY).toBeCloseTo(structure.size.y,8);
+      expect(highY).toBeCloseTo(structure.position.y+structure.size.y,8);
       expect(highAxis).toBeCloseTo(structure.position[axis]+sign*structure.size[axis]/2,8);
-      expect(ramp.position.y-(highY-ramp.position.y)).toBeCloseTo(0,8);
+      expect(ramp.position.y-(highY-ramp.position.y)).toBeCloseTo(structure.position.y,8);
     }
     expect(directions.size).toBe(4);
   });
@@ -182,10 +183,10 @@ describe("Battle Royale shared rules", () => {
 
   it("builds one authored island with nine distinct connected districts and enterable structures", () => {
     expect(BR_POIS).toHaveLength(9);
-    expect(BR_SECONDARY_LOCATIONS).toHaveLength(30);
+    expect(BR_SECONDARY_LOCATIONS).toHaveLength(36);
     expect(BR_ISLAND_OUTLINE.length).toBeGreaterThanOrEqual(16);
-    expect(BR_STRUCTURES).toHaveLength(152);
-    expect(BR_STRUCTURES.filter((structure)=>structure.enterable)).toHaveLength(70);
+    expect(BR_STRUCTURES).toHaveLength(174);
+    expect(BR_STRUCTURES.filter((structure)=>structure.enterable)).toHaveLength(92);
     expect(BR_ROADS.length).toBeGreaterThanOrEqual(46);
     expect(BR_TERRAIN_PATCHES.length).toBeGreaterThanOrEqual(BR_POIS.length);
     for (const poi of BR_POIS) {
@@ -198,14 +199,70 @@ describe("Battle Royale shared rules", () => {
       expect(structures.some((structure) => structure.roofAccess)).toBe(true);
       expect(isInsideBrIsland(poi.position)).toBe(true);
     }
-    for(const location of BR_SECONDARY_LOCATIONS){expect(isInsideBrIsland(location.position)).toBe(true);expect(BR_STRUCTURES.filter((structure)=>structure.districtId===location.id)).toHaveLength(3);}
+    for(const location of BR_SECONDARY_LOCATIONS){expect(isInsideBrIsland(location.position)).toBe(true);expect(BR_STRUCTURES.filter((structure)=>structure.districtId===location.id)).toHaveLength(["transit-court","south-exchange","farm-transfer","ring-service"].includes(location.id)?4:3);}
     for(const structure of BR_STRUCTURES){expect(isInsideBrIsland(structure.position)).toBe(true);for(const [sx,sz] of [[-1,-1],[-1,1],[1,-1],[1,1]] as const)expect(isInsideBrIsland({x:structure.position.x+sx*structure.size.x/2,y:0,z:structure.position.z+sz*structure.size.z/2})).toBe(true);}
     expect(BR_MAP_BLOCKS.filter((block)=>block.kind==="ramp").length).toBeGreaterThanOrEqual(15);
     for(const patch of BR_TERRAIN_PATCHES) expect(isInsideBrIsland(patch.position)).toBe(true);
   });
 
+  it("encloses the south-ring junction with accessible facing buildings, not scattered deck props",()=>{
+    const plan=BR_DISTRICT_PLANS.find(p=>p.id==="south-exchange")!;
+    const structures=BR_STRUCTURES.filter(s=>s.districtId===plan.id);
+    expect(structures).toHaveLength(4);
+    expect(structures.every(s=>s.enterable)).toBe(true);
+    const main=BR_ROAD_ROUTES.find(r=>r.id==="south-exchange-main")!;
+    const ring=BR_ROAD_ROUTES.find(r=>r.id==="ring-s")!;
+    expect(main.from).toEqual({x:-76,y:.1,z:-310});
+    expect(main.to).toEqual({x:-76,y:.1,z:-390});
+    for(const s of structures){
+      expect(s.entrance).toBe(s.position.x<main.from.x?"east":"west");
+      expect(Math.abs(s.position.x-main.from.x)-s.size.x/2).toBe(13);
+      for(const road of BR_ROADS)expect(brRoadIntersectsFootprint(road,s.position,s.size,1),`${s.id}: ${road.id}`).toBe(false);
+      const loot=BR_LOOT_SOCKETS.filter(socket=>socket.structureId===s.id);
+      expect(loot.length).toBeGreaterThan(0);
+      expect(loot.every(socket=>socket.position.y>s.position.y)).toBe(true);
+    }
+    expect(ring.from.z).toBe(-340);
+    expect(main.from.z).toBeGreaterThan(ring.from.z);
+    expect(main.to.z).toBeLessThan(ring.from.z);
+    for(const z of [-330,-340,-350,-357,-366]){
+      const p={x:-76,y:.035,z};
+      const result=brFlatDeckCollision(p,{x:0,y:0,z:.1},false);
+      expect(result?.grounded,`street at ${z}`).toBe(true);
+    }
+  });
+
+  it("replaces the empty Helios–Farms underpass with a raised transfer block and continuous street joins",()=>{
+    const plan=BR_DISTRICT_PLANS.find(p=>p.id==="farm-transfer")!;
+    expect(plan.origin).toEqual({x:189,y:4,z:196});
+    const structures=BR_STRUCTURES.filter(s=>s.districtId===plan.id);
+    expect(structures).toHaveLength(4);
+    expect(structures.every(s=>s.enterable&&s.position.y===4)).toBe(true);
+    expect(new Set(structures.map(s=>s.archetype))).toEqual(new Set(["warehouse","shop","office","utility"]));
+    for(const s of structures)for(const [sx,sz] of [[-1,-1],[-1,1],[1,-1],[1,1]] as const){
+      expect(brAuthoredDeckHeight({x:s.position.x+sx*s.size.x/2,z:s.position.z+sz*s.size.z/2}),s.id).toBe(4);
+    }
+    const links=["transit-farm-boulevard","transit-farm-boulevard-entry","transit-farm-boulevard-middle","transit-farm-boulevard-farm"].map(id=>BR_ROAD_ROUTES.find(r=>r.id===id)!);
+    for(let i=1;i<links.length;i++){
+      expect(links[i-1].to).toEqual(links[i].from);
+      expect(links[i].from.y).toBe(4.1);expect(links[i].to.y).toBe(4.1);
+    }
+    const main=BR_ROAD_ROUTES.find(r=>r.id==="farm-transfer-main")!;
+    expect(main.to).toEqual({x:189,y:4.1,z:220});
+    const farms=BR_ROAD_ROUTES.find(r=>r.id==="farm-circulation-s")!;
+    expect(main.to.z).toBe(farms.from.z);expect(main.to.y).toBe(farms.from.y);
+    expect(main.to.x).toBeGreaterThan(farms.from.x);expect(main.to.x).toBeLessThan(farms.to.x);
+    const p={x:180,y:4.035,z:199};
+    expect(brFloorHeightAt(p,p.y+2.5)).toBe(4);
+    const result=brFlatDeckCollision(p,{x:.03,y:-.1,z:0},false)!;
+    expect(result.grounded).toBe(true);expect(p.y+result.movement.y).toBeCloseTo(4.035);
+    const sockets=BR_LOOT_SOCKETS.filter(s=>s.districtId===plan.id);
+    expect(sockets.length).toBeGreaterThanOrEqual(8);
+    expect(sockets.every(s=>s.position.y>4)).toBe(true);
+  });
+
   it("uses a fixed road-first Nova Plaza plan with a connected four-way intersection",()=>{
-    const streets=BR_ROADS.filter(road=>road.id.startsWith("nova-street-"));
+    const streets=BR_ROAD_ROUTES.filter(road=>road.id.startsWith("nova-street-"));
     expect(streets.map(road=>road.id).sort()).toEqual([
       "nova-street-a-east","nova-street-a-west","nova-street-b-north","nova-street-b-south"
     ]);
@@ -226,10 +283,10 @@ describe("Battle Royale shared rules", () => {
       const platform=BR_MAP_BLOCKS.find(block=>block.id===`${terrace.id}-platform`)!;
       const ramp=BR_MAP_BLOCKS.find(block=>block.id===`${terrace.id}-ramp`)!;
       expect(platform).toBeTruthy();
-      expect(platform.position.y+platform.size.y/2).toBeCloseTo(terrace.height,8);
+      expect(platform.position.y+platform.size.y/2).toBeCloseTo(terrace.height+(terrace.gradedRoadAccess?0:brAuthoredDeckHeight(terrace.position)),8);
       if(terrace.gradedRoadAccess){
         expect(ramp).toBeUndefined();
-        const grade=BR_MAP_BLOCKS.find(block=>block.kind==="ramp"&&block.districtId===terrace.districtId&&block.id.includes("service-"));
+        const grade=BR_MAP_BLOCKS.find(block=>block.kind==="ramp"&&block.districtId===terrace.districtId&&block.id.endsWith("-surface"));
         expect(grade,`${terrace.id} has no road grade`).toBeTruthy();
         for(const structure of BR_STRUCTURES.filter(entry=>entry.districtId===terrace.districtId)){
           expect(structure.position.y).toBe(terrace.height);
@@ -263,8 +320,8 @@ describe("Battle Royale shared rules", () => {
 
   it("keeps every district connected and places loot in authored playable structures",()=>{
     const visited=new Set<string>([BR_NAV_NODES[0].id]),queue=[BR_NAV_NODES[0].id];while(queue.length){const current=queue.shift()!;const node=BR_NAV_NODES.find((entry)=>entry.id===current)!;for(const next of node.neighbors)if(!visited.has(next)){visited.add(next);queue.push(next);}}
-    expect(visited.size).toBe(BR_NAV_NODES.length);expect(BR_LOOT_SOCKETS.length).toBeGreaterThan(BR_STRUCTURES.filter((structure)=>structure.enterable).length);expect(BR_CRATE_SOCKETS).toHaveLength(BR_POIS.length+10);
-    for(const socket of BR_LOOT_SOCKETS){expect(isInsideBrIsland(socket.position)).toBe(true);const structure=BR_STRUCTURES.find((entry)=>entry.id===socket.structureId)!;expect(structure).toBeTruthy();expect(Math.abs(socket.position.x-structure.position.x)).toBeLessThan(structure.size.x/2);expect(Math.abs(socket.position.z-structure.position.z)).toBeLessThan(structure.size.z/2);expect(socket.position.y).toBeGreaterThan(0);}
+    expect(visited.size).toBe(BR_NAV_NODES.length);expect(BR_LOOT_SOCKETS.length).toBeGreaterThan(BR_STRUCTURES.filter((structure)=>structure.enterable).length);expect(BR_CRATE_SOCKETS).toHaveLength(BR_POIS.length+Math.ceil(BR_SECONDARY_LOCATIONS.length/3));
+    for(const socket of BR_LOOT_SOCKETS){expect(isInsideBrIsland(socket.position)).toBe(true);const structure=BR_STRUCTURES.find((entry)=>entry.id===socket.structureId)!;expect(structure).toBeTruthy();expect(Math.abs(socket.position.x-structure.position.x)).toBeLessThan(structure.size.x/2);expect(Math.abs(socket.position.z-structure.position.z)).toBeLessThan(structure.size.z/2);expect(socket.position.y).toBeGreaterThan(structure.position.y);}
     for(const crate of BR_CRATE_SOCKETS)expect(isInsideBrIsland(crate)).toBe(true);
     for(const target of BR_POIS.slice(1))expect(isInsideBrIsland(brNextWaypoint(BR_POIS[0].position,target.position))).toBe(true);
   });
@@ -318,13 +375,17 @@ describe("Battle Royale shared rules", () => {
     for(const plan of BR_DISTRICT_PLANS){
       const location=BR_SECONDARY_LOCATIONS.find(entry=>entry.id===plan.id)!;
       expect(plan.origin).toEqual(location.position);
-      expect(plan.parcels).toHaveLength(3);
+      expect(plan.parcels).toHaveLength(BR_STRUCTURES.filter(structure=>structure.districtId===plan.id).length);
       expect(new Set(plan.parcels.map(parcel=>parcel.role))).toEqual(new Set(["anchor","support","service"]));
       expect(plan.streets.length).toBeGreaterThanOrEqual(2);
       expect(plan.streets.some(street=>distanceToSegment(plan.origin,street.from,street.to)<.01)).toBe(true);
       const serviceId=`service-${BR_SECONDARY_LOCATIONS.findIndex(location=>location.id===plan.id)}`;
-      const service=BR_ROADS.find(road=>road.id===serviceId||road.id===`${serviceId}-grade`)!;
-      expect(Math.min(...arterials.map(road=>distanceToSegment(service.to,road.from,road.to)))).toBeLessThan(.01);
+      const service=BR_ROAD_ROUTES.find(road=>road.id===serviceId||road.id===`${serviceId}-grade`);
+      // These blocks straddle existing collectors at their actual origins;
+      // they do not need duplicate indexed service-road geometry.
+      const connection=["ring-service","west-junction"].includes(plan.id)?plan.origin:service?.to;
+      expect(connection,`${plan.id} arterial access`).toBeDefined();
+      expect(Math.min(...arterials.map(road=>distanceToSegment(connection!,road.from,road.to)))).toBeLessThan(.01);
       for(const endpoint of plan.streets.flatMap(street=>[street.from,street.to]))expect(isInsideBrIsland(endpoint,3)).toBe(true);
       for(const structure of BR_STRUCTURES.filter(entry=>entry.districtId===plan.id)){
         const parcel=plan.parcels.find(entry=>entry.id.replace("-parcel-","-")===structure.id)!;
@@ -339,9 +400,9 @@ describe("Battle Royale shared rules", () => {
   });
 
   it("joins the two raised southern districts with one continuous walkable transfer bridge",()=>{
-    const bridge=BR_ROADS.find(road=>road.id==="south-transfer-bridge");
-    const terminal=BR_ROADS.find(road=>road.id==="south-terminal-main");
-    const shipworks=BR_ROADS.find(road=>road.id==="south-shipworks-main");
+    const bridge=BR_ROAD_ROUTES.find(road=>road.id==="south-transfer-bridge");
+    const terminal=BR_ROAD_ROUTES.find(road=>road.id==="south-terminal-main");
+    const shipworks=BR_ROAD_ROUTES.find(road=>road.id==="south-shipworks-main");
     expect(bridge).toEqual({
       id:"south-transfer-bridge",
       from:{x:45,y:3.6,z:-415},to:{x:160,y:4.1,z:-400},
@@ -375,7 +436,7 @@ describe("Battle Royale shared rules", () => {
   });
 
   it("connects the western housing and signal districts without crossing their buildings",()=>{
-    const links=["west-neighborhood-link-a","west-neighborhood-link-b","west-neighborhood-link-c"].map(id=>BR_ROADS.find(road=>road.id===id)!);
+    const links=["west-neighborhood-link-a","west-neighborhood-link-b","west-neighborhood-link-c"].map(id=>BR_ROAD_ROUTES.find(road=>road.id===id)!);
     expect(links.every(Boolean)).toBe(true);
     expect(links[0].from).toEqual({x:-285,y:.1,z:-30});
     expect(links[0].to).toEqual(links[1].from);
@@ -390,9 +451,9 @@ describe("Battle Royale shared rules", () => {
   });
 
   it("continues the western neighborhood avenue through Signal Station into Nova",()=>{
-    const avenue=BR_ROADS.find(road=>road.id==="west-transit-avenue")!;
-    const signal=BR_ROADS.find(road=>road.id==="signal-station-main")!;
-    const nova=BR_ROADS.find(road=>road.id==="nova-street-a-west")!;
+    const avenue=BR_ROAD_ROUTES.find(road=>road.id==="west-transit-avenue")!;
+    const signal=BR_ROAD_ROUTES.find(road=>road.id==="signal-station-main")!;
+    const nova=BR_ROAD_ROUTES.find(road=>road.id==="nova-street-a-west")!;
     expect(avenue.from).toEqual(signal.to);
     expect({x:avenue.to.x,z:avenue.to.z}).toEqual({x:nova.from.x,z:nova.from.z});
     expect(avenue.to.y).toBeCloseTo(nova.from.y,1);
@@ -403,9 +464,9 @@ describe("Battle Royale shared rules", () => {
   });
 
   it("closes the North Gardens and Mall Annex street loop with a clear promenade",()=>{
-    const promenade=BR_ROADS.find(road=>road.id==="north-garden-promenade")!;
-    const gardens=BR_ROADS.find(road=>road.id==="north-gardens-main")!;
-    const mall=BR_ROADS.find(road=>road.id==="mall-annex-main")!;
+    const promenade=BR_ROAD_ROUTES.find(road=>road.id==="north-garden-promenade")!;
+    const gardens=BR_ROAD_ROUTES.find(road=>road.id==="north-gardens-main")!;
+    const mall=BR_ROAD_ROUTES.find(road=>road.id==="mall-annex-main")!;
     expect(promenade.from).toEqual(gardens.from);
     expect(promenade.to).toEqual(mall.to);
     expect(Math.hypot(promenade.to.x-promenade.from.x,promenade.to.z-promenade.from.z)).toBeGreaterThan(100);
@@ -415,10 +476,10 @@ describe("Battle Royale shared rules", () => {
   });
 
   it("descends from Emergency Depot into Salvage Row through the southwest connective field",()=>{
-    const grade=BR_ROADS.find(road=>road.id==="southwest-salvage-grade")!;
-    const link=BR_ROADS.find(road=>road.id==="southwest-salvage-link")!;
-    const depot=BR_ROADS.find(road=>road.id==="emergency-depot-main")!;
-    const salvage=BR_ROADS.find(road=>road.id==="salvage-row-cross")!;
+    const grade=BR_ROAD_ROUTES.find(road=>road.id==="southwest-salvage-grade")!;
+    const link=BR_ROAD_ROUTES.find(road=>road.id==="southwest-salvage-link")!;
+    const depot=BR_ROAD_ROUTES.find(road=>road.id==="emergency-depot-main")!;
+    const salvage=BR_ROAD_ROUTES.find(road=>road.id==="salvage-row-cross")!;
     expect(grade.from).toEqual(depot.from);
     expect(grade.to).toEqual(link.from);
     expect(link.to).toEqual(salvage.from);
@@ -432,9 +493,9 @@ describe("Battle Royale shared rules", () => {
   });
 
   it("joins Cargo Spur and Dock Service with a clear freight boulevard",()=>{
-    const boulevard=BR_ROADS.find(road=>road.id==="south-freight-boulevard")!;
-    const cargo=BR_ROADS.find(road=>road.id==="cargo-spur-main")!;
-    const dock=BR_ROADS.find(road=>road.id==="dock-service-main")!;
+    const boulevard=BR_ROAD_ROUTES.find(road=>road.id==="south-freight-boulevard")!;
+    const cargo=BR_ROAD_ROUTES.find(road=>road.id==="cargo-spur-main")!;
+    const dock=BR_ROAD_ROUTES.find(road=>road.id==="dock-service-main")!;
     expect(boulevard.from).toEqual(cargo.to);
     expect(boulevard.to).toEqual(dock.from);
     expect(Math.hypot(boulevard.to.x-boulevard.from.x,boulevard.to.z-boulevard.from.z)).toBeGreaterThan(125);
@@ -444,16 +505,16 @@ describe("Battle Royale shared rules", () => {
   });
 
   it("connects Dock Service, Engine Gate and elevated East Freight as one industrial triangle",()=>{
-    const west=BR_ROADS.find(road=>road.id==="dock-engine-link-west")!;
-    const east=BR_ROADS.find(road=>road.id==="dock-engine-link-east")!;
-    const gate=BR_ROADS.find(road=>road.id==="dock-engine-link-gate")!;
-    const freightDeck=BR_ROADS.find(road=>road.id==="east-freight-engine-deck")!;
-    const freightTurn=BR_ROADS.find(road=>road.id==="east-freight-engine-deck-turn")!;
-    const grade=BR_ROADS.find(road=>road.id==="east-freight-engine-grade")!;
-    const dock=BR_ROADS.find(road=>road.id==="dock-service-main")!;
-    const engineMain=BR_ROADS.find(road=>road.id==="engine-gate-main")!;
-    const engineCross=BR_ROADS.find(road=>road.id==="engine-gate-cross")!;
-    const freight=BR_ROADS.find(road=>road.id==="east-freight-main")!;
+    const west=BR_ROAD_ROUTES.find(road=>road.id==="dock-engine-link-west")!;
+    const east=BR_ROAD_ROUTES.find(road=>road.id==="dock-engine-link-east")!;
+    const gate=BR_ROAD_ROUTES.find(road=>road.id==="dock-engine-link-gate")!;
+    const freightDeck=BR_ROAD_ROUTES.find(road=>road.id==="east-freight-engine-deck")!;
+    const freightTurn=BR_ROAD_ROUTES.find(road=>road.id==="east-freight-engine-deck-turn")!;
+    const grade=BR_ROAD_ROUTES.find(road=>road.id==="east-freight-engine-grade")!;
+    const dock=BR_ROAD_ROUTES.find(road=>road.id==="dock-service-main")!;
+    const engineMain=BR_ROAD_ROUTES.find(road=>road.id==="engine-gate-main")!;
+    const engineCross=BR_ROAD_ROUTES.find(road=>road.id==="engine-gate-cross")!;
+    const freight=BR_ROAD_ROUTES.find(road=>road.id==="east-freight-main")!;
     expect(west.from).toEqual(dock.to);
     expect(west.to).toEqual(east.from);
     expect(east.to).toEqual(gate.from);
@@ -472,10 +533,10 @@ describe("Battle Royale shared rules", () => {
   });
 
   it("forms a clear outer skywalk between Mall Annex and North Gardens",()=>{
-    const west=BR_ROADS.find(road=>road.id==="north-skywalk-west")!;
-    const east=BR_ROADS.find(road=>road.id==="north-skywalk-east")!;
-    const mall=BR_ROADS.find(road=>road.id==="mall-annex-cross")!;
-    const gardens=BR_ROADS.find(road=>road.id==="north-gardens-main")!;
+    const west=BR_ROAD_ROUTES.find(road=>road.id==="north-skywalk-west")!;
+    const east=BR_ROAD_ROUTES.find(road=>road.id==="north-skywalk-east")!;
+    const mall=BR_ROAD_ROUTES.find(road=>road.id==="mall-annex-cross")!;
+    const gardens=BR_ROAD_ROUTES.find(road=>road.id==="north-gardens-main")!;
     expect(west.from).toEqual(mall.to);
     expect(west.to).toEqual(east.from);
     expect(east.to).toEqual(gardens.from);
@@ -485,10 +546,10 @@ describe("Battle Royale shared rules", () => {
   });
 
   it("gives elevated Solar Field a second clear exit into the north ring",()=>{
-    const deck=BR_ROADS.find(road=>road.id==="solar-rim-deck-link")!;
-    const grade=BR_ROADS.find(road=>road.id==="solar-rim-grade")!;
-    const solar=BR_ROADS.find(road=>road.id==="solar-field-main")!;
-    const ring=BR_ROADS.find(road=>road.id==="ring-n")!;
+    const deck=BR_ROAD_ROUTES.find(road=>road.id==="solar-rim-deck-link")!;
+    const grade=BR_ROAD_ROUTES.find(road=>road.id==="solar-rim-grade")!;
+    const solar=BR_ROAD_ROUTES.find(road=>road.id==="solar-field-main")!;
+    const ring=BR_ROAD_ROUTES.find(road=>road.id==="ring-n")!;
     expect(deck.from).toEqual(solar.to);
     expect(grade.from).toEqual(deck.to);
     expect({x:grade.to.x,z:grade.to.z}).toEqual({x:ring.from.x,z:ring.from.z});
@@ -496,7 +557,7 @@ describe("Battle Royale shared rules", () => {
     const surface=BR_MAP_BLOCKS.find(block=>block.id==="solar-rim-grade-surface")!;
     expect(surface.kind).toBe("ramp");
     expect(brRoadGradeFloorAt(surface,grade.from)).toBeCloseTo(4);
-    expect(brRoadGradeFloorAt(surface,grade.to)).toBeCloseTo(0);
+    expect(brRoadGradeFloorAt(surface,grade.to)).toBeCloseTo(ring.from.y-.1);
     for(const road of [deck,grade])for(const structure of BR_STRUCTURES){
       expect(brRoadIntersectsFootprint(road,structure.position,structure.size,1),`${road.id} crosses ${structure.id}`).toBe(false);
     }
@@ -504,11 +565,11 @@ describe("Battle Royale shared rules", () => {
 
   it("joins the southern civic decks with an inner promenade and outer boardwalk",()=>{
     const ids=["south-rim-promenade","south-rim-boardwalk-west","south-rim-boardwalk-main","south-rim-boardwalk-link"];
-    const [promenade,west,main,link]=ids.map(id=>BR_ROADS.find(road=>road.id===id)!);
-    const depotMain=BR_ROADS.find(road=>road.id==="emergency-depot-main")!;
-    const depotCross=BR_ROADS.find(road=>road.id==="emergency-depot-cross")!;
-    const terminalMain=BR_ROADS.find(road=>road.id==="south-terminal-main")!;
-    const terminalCross=BR_ROADS.find(road=>road.id==="south-terminal-cross")!;
+    const [promenade,west,main,link]=ids.map(id=>BR_ROAD_ROUTES.find(road=>road.id===id)!);
+    const depotMain=BR_ROAD_ROUTES.find(road=>road.id==="emergency-depot-main")!;
+    const depotCross=BR_ROAD_ROUTES.find(road=>road.id==="emergency-depot-cross")!;
+    const terminalMain=BR_ROAD_ROUTES.find(road=>road.id==="south-terminal-main")!;
+    const terminalCross=BR_ROAD_ROUTES.find(road=>road.id==="south-terminal-cross")!;
     expect(promenade.from).toEqual(depotMain.to);
     expect(promenade.to).toEqual(terminalMain.from);
     expect(west.from).toEqual(depotCross.from);
@@ -525,16 +586,16 @@ describe("Battle Royale shared rules", () => {
   });
 
   it("connects Central Heights, Relay Market and Comet Hotel at one clear civic junction",()=>{
-    const west=BR_ROADS.find(road=>road.id==="central-market-avenue-west")!;
-    const east=BR_ROADS.find(road=>road.id==="central-market-avenue-east")!;
-    const bend=BR_ROADS.find(road=>road.id==="central-market-avenue-bend")!;
-    const entry=BR_ROADS.find(road=>road.id==="central-market-avenue-entry")!;
-    const hotel=BR_ROADS.find(road=>road.id==="central-hotel-promenade")!;
-    const hotelSouth=BR_ROADS.find(road=>road.id==="central-hotel-promenade-south")!;
-    const hotelEntry=BR_ROADS.find(road=>road.id==="central-hotel-promenade-entry")!;
-    const heights=BR_ROADS.find(road=>road.id==="central-heights-main")!;
-    const market=BR_ROADS.find(road=>road.id==="relay-market-main")!;
-    const hotelStreet=BR_ROADS.find(road=>road.id==="comet-hotel-main")!;
+    const west=BR_ROAD_ROUTES.find(road=>road.id==="central-market-avenue-west")!;
+    const east=BR_ROAD_ROUTES.find(road=>road.id==="central-market-avenue-east")!;
+    const bend=BR_ROAD_ROUTES.find(road=>road.id==="central-market-avenue-bend")!;
+    const entry=BR_ROAD_ROUTES.find(road=>road.id==="central-market-avenue-entry")!;
+    const hotel=BR_ROAD_ROUTES.find(road=>road.id==="central-hotel-promenade")!;
+    const hotelSouth=BR_ROAD_ROUTES.find(road=>road.id==="central-hotel-promenade-south")!;
+    const hotelEntry=BR_ROAD_ROUTES.find(road=>road.id==="central-hotel-promenade-entry")!;
+    const heights=BR_ROAD_ROUTES.find(road=>road.id==="central-heights-main")!;
+    const market=BR_ROAD_ROUTES.find(road=>road.id==="relay-market-main")!;
+    const hotelStreet=BR_ROAD_ROUTES.find(road=>road.id==="comet-hotel-main")!;
     expect(west.from).toEqual(heights.to);
     expect(west.to).toEqual(east.from);
     expect(hotel.from).toEqual(east.from);
@@ -550,27 +611,32 @@ describe("Battle Royale shared rules", () => {
   });
 
   it("builds a clear south-central street grid from Crash through Comet Hotel to Cargo Spur",()=>{
-    const vertical=BR_ROADS.find(road=>road.id==="hotel-south-avenue")!;
-    const west=BR_ROADS.find(road=>road.id==="crash-hotel-avenue")!;
-    const east=BR_ROADS.find(road=>road.id==="hotel-cargo-avenue")!;
-    const hotel=BR_ROADS.find(road=>road.id==="comet-hotel-cross")!;
-    const cargo=BR_ROADS.find(road=>road.id==="cargo-spur-main")!;
-    expect(vertical.from).toEqual(hotel.from);
+    const vertical=BR_ROAD_ROUTES.find(road=>road.id==="hotel-south-avenue")!;
+    const arrival=BR_ROAD_ROUTES.find(road=>road.id==="hotel-south-avenue-entry")!;
+    const link=BR_ROAD_ROUTES.find(road=>road.id==="hotel-south-avenue-link")!;
+    const west=BR_ROAD_ROUTES.find(road=>road.id==="crash-hotel-avenue")!;
+    const east=BR_ROAD_ROUTES.find(road=>road.id==="hotel-cargo-avenue")!;
+    const hotel=BR_ROAD_ROUTES.find(road=>road.id==="comet-hotel-cross")!;
+    const cargo=BR_ROAD_ROUTES.find(road=>road.id==="cargo-spur-main")!;
+    expect(arrival.from).toEqual(hotel.from);
+    expect(arrival.to).toEqual(link.from);
+    expect(link.to).toEqual(vertical.from);
     expect(vertical.to.z).toBe(-340);
     expect(west.to).toEqual(east.from);
     expect(east.to).toEqual(cargo.from);
-    expect(west.to.x).toBe(vertical.from.x);
+    expect(west.to.x).toBe(vertical.to.x);
+    expect(BR_ROADS.some(road=>road.id.startsWith("hotel-south-avenue")&&road.from.x===west.to.x&&road.to.x===west.to.x&&road.from.z>=west.to.z&&road.to.z<=west.to.z)).toBe(true);
     expect(west.to.z).toBeGreaterThan(vertical.to.z);
     expect(west.to.z).toBeLessThan(vertical.from.z);
-    for(const road of [vertical,west,east])for(const structure of BR_STRUCTURES){
+    for(const road of [arrival,link,vertical,west,east])for(const structure of BR_STRUCTURES){
       expect(brRoadIntersectsFootprint(road,structure.position,structure.size,.75),`${road.id} crosses ${structure.id}`).toBe(false);
     }
   });
 
   it("routes Zero Point traffic directly through the Coolant Plant district",()=>{
-    const avenue=BR_ROADS.find(road=>road.id==="zero-coolant-avenue")!;
-    const zero=BR_ROADS.find(road=>road.id==="zero-circulation-n")!;
-    const coolant=BR_ROADS.find(road=>road.id==="coolant-plant-cross")!;
+    const avenue=BR_ROAD_ROUTES.find(road=>road.id==="zero-coolant-avenue")!;
+    const zero=BR_ROAD_ROUTES.find(road=>road.id==="zero-circulation-n")!;
+    const coolant=BR_ROAD_ROUTES.find(road=>road.id==="coolant-plant-cross")!;
     expect(avenue.from).toEqual(zero.from);
     expect(avenue.to).toEqual(coolant.from);
     for(const structure of BR_STRUCTURES){

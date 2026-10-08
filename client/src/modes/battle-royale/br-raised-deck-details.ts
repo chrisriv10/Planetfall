@@ -52,7 +52,7 @@ function clearOfRoad(part:BrRaisedDeckPart,road:BrRoadSegment):boolean {
 export function buildBrRaisedDeckDetails(terrace:BrTerrace,roads:readonly BrRoadSegment[]=BR_ROADS,structures:readonly BrStructure[]=BR_STRUCTURES):BrRaisedDeckPart[]{
   const {position,size,height}=terrace;
   if(!terrace.gradedRoadAccess||![position.x,position.y,position.z,size.x,size.z,height].every(Number.isFinite)
-    ||Math.min(size.x,size.z)<30||Math.max(size.x,size.z)>150||height<2.5||height>12)return [];
+    ||Math.min(size.x,size.z)<30||Math.max(size.x,size.z)>240||height<2.5||height>12)return [];
   const validRoads=roads.filter(road=>[...Object.values(road.from),...Object.values(road.to),road.width].every(Number.isFinite)&&road.width>0);
   const parts:BrRaisedDeckPart[]=[];
   for(const side of ["north","south","east","west"] as const){

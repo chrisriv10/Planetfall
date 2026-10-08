@@ -1,6 +1,7 @@
 import { describe,expect,it } from "vitest";
 import { BR_DISTRICT_PLANS,BR_ISLAND_OUTLINE,BR_LOOT_SOCKETS,BR_MAP_BLOCKS,BR_ROADS,BR_STRUCTURES,BR_TERRACES,BR_TRAVERSAL } from "@planetfall/shared";
 import { buildBrShipworksStreetscape } from "./br-shipworks-streetscape";
+import { blockClearance, partHeightBounds } from "./br-presentation-clearance-test-utils";
 
 const segmentDistance=(p:{x:number;z:number},a:{x:number;z:number},b:{x:number;z:number})=>{
   const dx=b.x-a.x,dz=b.z-a.z,sq=dx*dx+dz*dz,t=sq?Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.z-a.z)*dz)/sq)):0;
@@ -32,7 +33,8 @@ describe("fixed South Shipworks maintenance streetscape",()=>{
         const ns=s.entrance==="north"||s.entrance==="south",sign=s.entrance==="north"||s.entrance==="east"?1:-1;
         expect(gap(p,s.position.x+(ns?0:sign*(s.size.x/2+3)),s.position.z+(ns?sign*(s.size.z/2+3):0),ns?2.5:3,ns?3:2.5),`${pocket.id}: ${s.id} door`).toBeGreaterThanOrEqual(r+.5);
       }
-      for(const b of BR_MAP_BLOCKS.filter(b=>["cover","ramp","bridge"].includes(b.kind)))expect(Math.hypot(p.x-b.position.x,p.z-b.position.z),b.id).toBeGreaterThan(r+Math.hypot(b.size.x,b.size.y,b.size.z)/2+1);
+      const {bottom,top}=partHeightBounds(pocket.parts);
+      for(const b of BR_MAP_BLOCKS)expect(blockClearance(p,bottom,top,b),b.id).toBeGreaterThan(r+1);
       for(const l of BR_LOOT_SOCKETS)expect(Math.hypot(p.x-l.position.x,p.z-l.position.z)).toBeGreaterThan(r+1);
       for(const t of BR_TRAVERSAL)expect(Math.hypot(p.x-t.position.x,p.z-t.position.z)).toBeGreaterThan(r+8);
       for(const d of BR_DISTRICT_PLANS)expect(Math.hypot(p.x-d.openZone.position.x,p.z-d.openZone.position.z)).toBeGreaterThan(r+d.openZone.radius);

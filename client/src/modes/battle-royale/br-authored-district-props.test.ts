@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { BR_DISTRICT_PLANS, BR_ISLAND_OUTLINE, BR_LOOT_SOCKETS, BR_MAP_BLOCKS, BR_POIS, BR_ROADS, BR_STRUCTURES, BR_TRAVERSAL } from "@planetfall/shared";
+import { BR_DISTRICT_PLANS, BR_ISLAND_OUTLINE, BR_LOOT_SOCKETS, BR_MAP_BLOCKS, BR_POIS, BR_ROADS, BR_STRUCTURES, BR_TRAVERSAL, brAuthoredDeckHeight } from "@planetfall/shared";
 import { buildBrAuthoredDistrictProps } from "./br-authored-district-props";
+import { blockClearance, partHeightBounds } from "./br-presentation-clearance-test-utils";
 
 const segmentDistance = (p: { x: number; z: number }, a: { x: number; z: number }, b: { x: number; z: number }) => {
   const dx=b.x-a.x,dz=b.z-a.z,squared=dx*dx+dz*dz;
@@ -49,9 +50,11 @@ describe("fixed primary district prop composition",()=>{
           expect(approachGap,`${group.id}: entrance ${structure.id}`).toBeGreaterThanOrEqual(r+1);
         }
       }
+      // Renderer translates each local-height pocket by its own supporting deck.
+      const {bottom,top}=partHeightBounds(group.parts,brAuthoredDeckHeight(p));
       for(const block of BR_MAP_BLOCKS){
-        expect(Math.hypot(p.x-block.position.x,p.z-block.position.z),`${group.id}: ${block.id}`)
-          .toBeGreaterThanOrEqual(Math.hypot(block.size.x,block.size.y,block.size.z)/2+r+2);
+        expect(blockClearance(p,bottom,top,block),`${group.id}: ${block.id}`)
+          .toBeGreaterThanOrEqual(r+2);
       }
       for(const t of BR_TRAVERSAL) expect(Math.hypot(p.x-t.position.x,p.z-t.position.z)).toBeGreaterThanOrEqual(r+9);
       for(const loot of BR_LOOT_SOCKETS) expect(Math.hypot(p.x-loot.position.x,p.z-loot.position.z),`${group.id}: loot ${loot.id}`)
@@ -66,6 +69,19 @@ describe("fixed primary district prop composition",()=>{
         if((z>p.z)!==(pz>p.z)&&p.x<(px-x)*(p.z-z)/(pz-z)+x)inside=!inside;
       }
       expect(inside).toBe(true);
+    }
+  });
+
+  it("anchors the Nova promenade waiting bay in its supported north-ring forecourt",()=>{
+    const waiting=buildBrAuthoredDistrictProps({id:"nova-plaza"})[1];
+    expect(waiting.id).toBe("nova-plaza-props-2");
+    expect(waiting.context).toBe("promenade waiting bay");
+    expect(waiting.kit).toBe("waiting");
+    expect(waiting.center).toEqual({x:-144,y:0,z:-68});
+    expect(waiting.parts[0].rotationY).toBe(Math.PI/2);
+    expect(brAuthoredDeckHeight(waiting.center)).toBe(5);
+    for(const dx of [-waiting.radius,waiting.radius])for(const dz of [-waiting.radius,waiting.radius]){
+      expect(brAuthoredDeckHeight({x:waiting.center.x+dx,z:waiting.center.z+dz})).toBe(5);
     }
   });
 

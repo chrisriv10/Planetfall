@@ -32,6 +32,37 @@ describe("Battle Royale art-review cameras", () => {
     expect(BR_REVIEW_CAMERAS["hotel-lobby"]).toEqual(BR_REVIEW_CAMERAS["hotel-lounge"]);
   });
 
+  it("exposes the Comet Hotel frontage from ground height rather than the old hovering road",()=>{
+    const view=BR_REVIEW_CAMERAS["hotel-frontage"];
+    expect(view.position).toEqual([-70,2.7,-244]);
+    expect(view.focus).toEqual([-81,2.7,-224]);
+  });
+
+  it("reviews the actual lower Academy dorm entrance at player height",()=>{
+    expect(BR_REVIEW_CAMERAS["academy-dorms-frontage"]).toEqual({position:[-369,2.7,182],focus:[-375,2.7,167]});
+  });
+
+  it("exposes West Overlook's shop and lower street from ground height",()=>{
+    expect(BR_REVIEW_CAMERAS["west-overlook-frontage"]).toEqual({position:[-411,2.7,45],focus:[-397,2.7,31]});
+  });
+
+  it("reviews the Solar Service block at player height, not from the raised Farms deck",()=>{
+    expect(BR_REVIEW_CAMERAS["solar-service-street"]).toEqual({position:[180,2.7,434],focus:[180,2.7,400]});
+  });
+
+  it("exposes the south ring enclosure gap from normal player height",()=>{
+    expect(BR_REVIEW_CAMERAS["south-ring-frontage"]).toEqual({position:[-210,2.7,-340],focus:[-210,2.7,-312]});
+  });
+
+  it("reviews the Helios–Farms corridor from player height above its actual transfer deck",()=>{
+    const view=BR_REVIEW_CAMERAS["farm-transfer-corridor"];
+    expect(view.position[1]).toBe(6.7);
+    expect(view.position[0]).toBeLessThan(view.focus[0]);
+    expect(view.position[2]).toBeGreaterThan(164);
+    expect(view.position[2]).toBeLessThan(220);
+    expect(view.focus[1]).toBe(6.7);
+  });
+
   it("frames the South Terminal apron from player height on the elevated deck", () => {
     const review = BR_REVIEW_CAMERAS["south-terminal-apron"];
     expect(review).toBeDefined();
@@ -58,7 +89,7 @@ describe("Battle Royale art-review cameras", () => {
 
   it("frames an actual authored roadside pocket instead of the South Terminal grade", () => {
     const review = BR_REVIEW_CAMERAS["roadside-south"];
-    const site = buildRoadsideInfrastructure().find(candidate => candidate.roadId === "ring-s");
+    const site = buildRoadsideInfrastructure().find(candidate => candidate.roadId === "crash-hotel-avenue");
     expect(site).toBeDefined();
     expect(Math.hypot(review.focus[0] - site!.center.x, review.focus[2] - site!.center.z),JSON.stringify(site!.center)).toBeLessThan(1);
     expect(review.position[1]).toBeGreaterThan(2.5);

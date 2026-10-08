@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BR_ISLAND_OUTLINE } from "@planetfall/shared";
+import { BR_ISLAND_OUTLINE, BR_SUNKEN_REGIONS, brBaseDeckPolygons } from "@planetfall/shared";
 import { buildBrIslandDeckGeometry } from "./br-island-deck";
 
 describe("island deck skin", () => {
@@ -10,8 +10,9 @@ describe("island deck skin", () => {
     let triangleArea = 0;
     for (let vertex = 0; vertex < positions.count; vertex++) {
       const x = positions.getX(vertex), z = positions.getZ(vertex);
-      expect(BR_ISLAND_OUTLINE.some(([px, pz]) => x === px && z === pz)).toBe(true);
-      expect(positions.getY(vertex)).toBeCloseTo(.006, 7);
+      expect(brBaseDeckPolygons(BR_ISLAND_OUTLINE).flat().some(p=>Math.abs(p.x-x)<.0001&&Math.abs(p.z-z)<.0001)).toBe(true);
+      const y=positions.getY(vertex);
+      expect([.006,...BR_SUNKEN_REGIONS.map(region=>region.height+.006)].some(height=>Math.abs(y-height)<1e-6)).toBe(true);
       // The authored outline is convex: every vertex must be on or inside
       // every edge, including the diagonals formerly crossed by square tiles.
       for (let edge = 0; edge < BR_ISLAND_OUTLINE.length; edge++) {
@@ -32,7 +33,7 @@ describe("island deck skin", () => {
       return sum + (x * nz - nx * z) / 2;
     }, 0);
     expect(triangleArea).toBeCloseTo(polygonArea, 5);
-    expect(indices.count / 3).toBe(BR_ISLAND_OUTLINE.length - 2);
+    expect(indices.count / 3).toBe(brBaseDeckPolygons(BR_ISLAND_OUTLINE).reduce((sum,polygon)=>sum+polygon.length-2,0));
     geometry.dispose();
   });
 

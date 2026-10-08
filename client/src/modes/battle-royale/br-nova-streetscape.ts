@@ -1,4 +1,4 @@
-import type { Vec3 } from "@planetfall/shared";
+import { brAuthoredDeckHeight, type Vec3 } from "@planetfall/shared";
 import type { GraphicsQuality } from "../../settings";
 import type { BrDistrictPropPart } from "./br-authored-district-props";
 
@@ -35,13 +35,13 @@ export function buildBrNovaStreetscape(
   const pockets: BrNovaStreetPocket[] = [];
   for (const [id, x, z, turns, context, essential] of POCKETS) {
     if (quality === "low" && !essential) continue;
-    const center = { x, y: 0, z }, radius = 2.1;
+    const center = { x, y: brAuthoredDeckHeight({x,z}), z }, radius = 2.1;
     if (!isClear(center, radius)) continue;
     const parts: BrDistrictPropPart[] = [], yaw = turns * Math.PI / 2;
     const add = (geometry: BrDistrictPropPart["geometry"], finish: BrDistrictPropPart["finish"],
       px: number, py: number, pz: number, sx: number, sy: number, sz: number) => {
       parts.push({ geometry, finish, surface: false, rotationY: yaw,
-        position: { x: x + px * Math.cos(yaw) + pz * Math.sin(yaw), y: py, z: z - px * Math.sin(yaw) + pz * Math.cos(yaw) },
+        position: { x: x + px * Math.cos(yaw) + pz * Math.sin(yaw), y: center.y+py, z: z - px * Math.sin(yaw) + pz * Math.cos(yaw) },
         scale: { x: sx, y: sy, z: sz } });
     };
     // Three-metre-plus stems are readable from ground level; the narrow warm

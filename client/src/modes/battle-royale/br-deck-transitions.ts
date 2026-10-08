@@ -48,13 +48,8 @@ const boxDistance = (p: Vec3, position: Vec3, size: Vec3, rotation = 0) => {
 export function existingDeckTransitionReservations(): TransitionInputs["reserved"] {
   const roadside = buildRoadsideInfrastructure();
   const maintenance = buildMaintenanceStrips({ traversal: [...BR_TRAVERSAL, ...roadside.map(site => ({ position: site.center }))] });
-  const utilityBoxes = BR_ROADS.map(road => {
-    const dx = road.to.x - road.from.x, dz = road.to.z - road.from.z, length = Math.hypot(dx, dz);
-    return { position: { x: road.from.x + dx * .58 - dz / length * road.width * .74, y: 0,
-      z: road.from.z + dz * .58 + dx / length * road.width * .74 }, radius: 1 };
-  });
   return [...roadside.map(site => ({ position: site.center, radius: 4 })),
-    ...maintenance.map(site => ({ position: site.center, radius: 6.5 })), ...utilityBoxes];
+    ...maintenance.map(site => ({ position: site.center, radius: 6.5 }))];
 }
 
 function clear(center: Vec3, inputs: TransitionInputs, sites: DeckTransitionSite[]): boolean {
@@ -112,8 +107,8 @@ function parts(center: Vec3, angle: number, kind: BrTerrainPatch["kind"]): DeckT
  * read-only authored data; existing presentation reservations are computed once
  * per build. Batch by finish+layer with unitBox/materials.surface(finish,layer),
  * cameraCollision=false. Put the global detail group behind quality !== low.
- * Replaces buildConnectiveDressing's legacy floating roadside hatches; utility
- * boxes remain separate and their current placements are reserved above. */
+ * Replaces the removed buildConnectiveDressing floating roadside hatches.
+ * Reservations cover the remaining roadside and maintenance kits only. */
 export function buildDeckTransitions(overrides: Partial<TransitionInputs> = {}): DeckTransitionSite[] {
   const inputs: TransitionInputs = {
     roads: BR_ROADS, structures: BR_STRUCTURES, blocks: BR_MAP_BLOCKS, locations: BR_SECONDARY_LOCATIONS,
@@ -130,7 +125,10 @@ export function buildDeckTransitions(overrides: Partial<TransitionInputs> = {}):
     if (sites.length === 12) break;
     const dx = road.to.x - road.from.x, dz = road.to.z - road.from.z, length = Math.hypot(dx, dz);
     let placed = false;
-    for (const t of [.22, .78, .38, .62]) {
+    // Frontage changes can reserve all four shoulder stations. Try the
+    // corridor midpoint last, with the same full-footprint exclusions; never
+    // force a site into a now-occupied parcel to maintain the detail budget.
+    for (const t of [.22, .78, .38, .62, .5]) {
       for (const side of [-1, 1]) {
         const offset = road.width / 2 + BR_DECK_TRANSITION_RADIUS + 4;
         const center = { x: road.from.x + dx * t - dz / length * offset * side, y: 0, z: road.from.z + dz * t + dx / length * offset * side };

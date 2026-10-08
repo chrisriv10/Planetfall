@@ -1,13 +1,26 @@
+import { BR_ROADS, brAuthoredDeckHeight } from "@planetfall/shared";
 export type BrReviewCamera = { position: readonly [number, number, number]; focus: readonly [number, number, number] };
 
 /** Deterministic development-only framing for screenshot review. Keeping the
  * points outside br-game makes them independently collision-testable after a
  * map-layout change. */
-export const BR_REVIEW_CAMERAS: Readonly<Record<string, BrReviewCamera>> = {
+const BASE_REVIEW_CAMERAS: Readonly<Record<string, BrReviewCamera>> = {
   "zero-plaza": { position: [0, 4.5, -42], focus: [0, 15, 0] },
+  "transit-court": { position: [129.5, 2.7, 127], focus: [129.5, 2.2, 72] },
   "nova-street": { position: [-175, 2.7, -112], focus: [-175, 7, -165] },
   "nova-storefront": { position: [-175, 2.7, -92], focus: [-207, 3.2, -103] },
+  // View the market's real east entrance and the newly separated studio
+  // frontage from road height, rather than hiding their former intersection
+  // with an aerial camera or looking at the opposite cafe block.
+  "nova-east-block": { position: [-96, 2.7, -85], focus: [-145, 3.2, -108] },
   "nova-roof": { position: [-209, 40, -137], focus: [-171, 20, -125] },
+  // Ground-level edge views expose surface patches spanning a retaining wall;
+  // aerial/rooftop views can hide an unsupported decorative overhang.
+  "astra-deck-edge": { position: [-278, 2.7, 3], focus: [-278, 3, 30] },
+  "helios-deck-edge": { position: [262, 2.7, 1], focus: [262, 3, 29] },
+  // Inspect the actual low-level travel gap below the Helios–Farms grade,
+  // rather than hiding the lack of enclosure with an aerial camera.
+  "farm-transfer-corridor": { position: [180, 2.7, 199], focus: [225, 2.7, 200] },
   "mall-interior": { position: [-106, 2.7, 252], focus: [-80, 5, 264] },
   "mall-directory": { position: [-115, 2.5, 253.5], focus: [-124.7, 2.1, 253.5] },
   "mall-ramp": { position: [-86, 2.3, 251.5], focus: [-75.7, 4.5, 263] },
@@ -23,10 +36,9 @@ export const BR_REVIEW_CAMERAS: Readonly<Record<string, BrReviewCamera>> = {
   "crash-interior": { position: [-304, 2.7, -258], focus: [-341, 4, -258] },
   "foundry-interior": { position: [342, 2.7, -81], focus: [350, 5, -61] },
   "foundry-roof": { position: [342, 24.7, -60], focus: [352, 28, -73] },
-  // The authored ring-s roadside pocket is west of South Terminal. This view
-  // intentionally frames that actual site rather than the terminal's raised
-  // access grade, which used to make the review label misleading.
-  "roadside-south": { position: [-125.9, 3.1, -338], focus: [-125.9, 2.2, -355] },
+  // South Exchange now occupies the former ring-s stop. Review the remaining
+  // Crash–Hotel service pocket, not an empty retired location or a deck grade.
+  "roadside-south": { position: [-138.3, 3.1, -284], focus: [-138.3, 2.2, -300.5] },
   "roadside-nova": { position: [-76, 3.1, -178], focus: [-76, 3, -214] },
   "west-neighborhood-link": { position: [-309, 2.7, -43], focus: [-350, 2.4, -105] },
   "west-transit-avenue": { position: [-320, 2.7, -165], focus: [-315, 2.5, -131] },
@@ -35,10 +47,17 @@ export const BR_REVIEW_CAMERAS: Readonly<Record<string, BrReviewCamera>> = {
   "south-freight-boulevard": { position: [188, 2.7, -318], focus: [190, 2.6, -280] },
   "southeast-industrial-triangle": { position: [414, 3.0, -260], focus: [370, 4.2, -243] },
   "north-skywalk": { position: [-161, 2.7, 452], focus: [-150, 2.5, 420] },
-  "solar-rim-grade": { position: [163, 5.7, 447], focus: [168, 3.2, 393] },
+  "solar-rim-grade": { position: [163, 5.7, 447], focus: [168, 1.2, 393] },
+  "solar-service-street": { position: [180, 2.7, 434], focus: [180, 2.7, 400] },
+  "south-ring-frontage": { position: [-210, 2.7, -340], focus: [-210, 2.7, -312] },
   "south-rim-loop": { position: [-72, 7.1, -477], focus: [-70, 4.8, -438] },
   "central-civic-junction": { position: [18, 2.7, -148], focus: [-4, 2.6, -105] },
+  "central-frontage": { position: [-65, 2.7, -72], focus: [-65, 2.7, -100] },
+  "hotel-frontage": { position: [-70, 2.7, -244], focus: [-81, 2.7, -224] },
+  "academy-dorms-frontage": { position: [-369, 2.7, 182], focus: [-375, 2.7, 167] },
+  "west-overlook-frontage": { position: [-411, 2.7, 45], focus: [-397, 2.7, 31] },
   "south-central-grid": { position: [-78, 2.7, -318], focus: [-76, 2.5, -278] },
+  "south-exchange": { position: [-76, 2.7, -365], focus: [-76, 3.2, -310] },
   "zero-coolant-avenue": { position: [42, 2.7, 115], focus: [76, 2.5, 118] },
   "connective-academy": { position: [-265, 9.1, 280], focus: [-265, 7.9, 235] },
   "east-checkpoint-deck": { position: [355, 8.4, 292], focus: [355, 7.2, 250] },
@@ -60,4 +79,18 @@ export const BR_REVIEW_CAMERAS: Readonly<Record<string, BrReviewCamera>> = {
   "storm-final": { position: [-184, 2.7, -96], focus: [-184, 7, -60] },
   "aerial": { position: [-430, 520, 540], focus: [0, 0, 0] }
 };
+export const BR_REVIEW_CAMERAS: Readonly<Record<string, BrReviewCamera>>=Object.fromEntries(Object.entries(BASE_REVIEW_CAMERAS).map(([id,view])=>{
+  const lift=(point:readonly [number,number,number]):[number,number,number]=>{
+    let floor=brAuthoredDeckHeight({x:point[0],z:point[2]});
+    // Street-eye review points also track the actual graded road below them.
+    // Existing elevated review fixtures already include their original deck.
+    if(point[1]<4)for(const road of BR_ROADS){
+      const dx=road.to.x-road.from.x,dz=road.to.z-road.from.z,lengthSq=dx*dx+dz*dz;
+      const t=((point[0]-road.from.x)*dx+(point[2]-road.from.z)*dz)/lengthSq;
+      if(t>=0&&t<=1&&Math.hypot(point[0]-road.from.x-dx*t,point[2]-road.from.z-dz*t)<=road.width/2)floor=Math.max(floor,road.from.y+(road.to.y-road.from.y)*t-.1);
+    }
+    return [point[0],point[1]+floor,point[2]];
+  };
+  return [id,{position:lift(view.position),focus:lift(view.focus)}];
+}));
 

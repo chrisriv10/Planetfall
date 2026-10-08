@@ -1,4 +1,111 @@
-import { BR_STRUCTURES, type BrRoadSegment, type BrStructure } from "@planetfall/shared";
+import { BR_STRUCTURES, type BrRoadSegment, type BrStructure, type Vec3 } from "@planetfall/shared";
+
+export interface BrRoadSurface { sourceRoadId:string; vertices:Vec3[]; junction:boolean; }
+const epsilon=1e-7;
+const side=(a:Vec3,b:Vec3,p:Vec3)=>(b.x-a.x)*(p.z-a.z)-(b.z-a.z)*(p.x-a.x);
+
+/** Clip a convex polygon, retaining its interpolated grade at every new vertex. */
+function halfPlane(polygon:Vec3[],a:Vec3,b:Vec3,inside:boolean):Vec3[]{
+  const result:Vec3[]=[];
+  for(let i=0;i<polygon.length;i++){
+    const p=polygon[i],q=polygon[(i+1)%polygon.length];
+    const dp=side(a,b,p),dq=side(a,b,q);
+    const keepP=inside?dp>=-epsilon:dp<=epsilon,keepQ=inside?dq>=-epsilon:dq<=epsilon;
+    if(keepP)result.push(p);
+    if(keepP!==keepQ){const t=dp/(dp-dq);result.push({x:p.x+(q.x-p.x)*t,y:p.y+(q.y-p.y)*t,z:p.z+(q.z-p.z)*t});}
+  }
+  return result.filter((p,i)=>{const previous=result[(i+result.length-1)%result.length];return Math.hypot(p.x-previous.x,p.z-previous.z)>epsilon;});
+}
+export function brRoadPolygonArea(polygon:readonly Vec3[]):number {
+  return Math.abs(polygon.reduce((sum,p,i)=>{const q=polygon[(i+1)%polygon.length];return sum+p.x*q.z-q.x*p.z;},0))/2;
+}
+/** Exact polygon difference, not centerline clipping. Whole-width clipping
+ * leaves triangular gaps at oblique junctions (the reported asphalt wedges). */
+function subtract(polygon:Vec3[],cut:Vec3[]):Vec3[][]{
+  const pieces:Vec3[][]=[];let remainder=polygon;
+  for(let i=0;i<cut.length&&remainder.length>=3;i++){
+    const a=cut[i],b=cut[(i+1)%cut.length];
+    const outside=halfPlane(remainder,a,b,false);
+    if(outside.length>=3&&brRoadPolygonArea(outside)>.0001)pieces.push(outside);
+    remainder=halfPlane(remainder,a,b,true);
+  }
+  return pieces;
+}
+function hull(points:Vec3[]):Vec3[]{
+  const sorted=points.slice().sort((a,b)=>a.x-b.x||a.z-b.z);
+  const lower:Vec3[]=[],upper:Vec3[]=[];
+  for(const p of sorted){while(lower.length>1&&side(lower.at(-2)!,lower.at(-1)!,p)<=epsilon)lower.pop();lower.push(p);}
+  for(const p of sorted.slice().reverse()){while(upper.length>1&&side(upper.at(-2)!,upper.at(-1)!,p)<=epsilon)upper.pop();upper.push(p);}
+  return [...lower.slice(0,-1),...upper.slice(0,-1)];
+}
+function roadRibbon(road:BrRoadSegment):Vec3[]{
+  const dx=road.to.x-road.from.x,dz=road.to.z-road.from.z,length=Math.hypot(dx,dz);
+  if(length<.001)return[];
+  const nx=-dz/length*road.width/2,nz=dx/length*road.width/2;
+  return [
+    {x:road.from.x-nx,y:road.from.y-.065,z:road.from.z-nz},
+    {x:road.to.x-nx,y:road.to.y-.065,z:road.to.z-nz},
+    {x:road.to.x+nx,y:road.to.y-.065,z:road.to.z+nz},
+    {x:road.from.x+nx,y:road.from.y-.065,z:road.from.z+nz}
+  ];
+}
+function surfaceHeight(surface:BrRoadSurface,p:Vec3):number{
+  const [a,b,c]=surface.vertices;
+  const normalY=(b.z-a.z)*(c.x-a.x)-(b.x-a.x)*(c.z-a.z);
+  if(Math.abs(normalY)<epsilon)return a.y;
+  const normalX=(b.y-a.y)*(c.z-a.z)-(b.z-a.z)*(c.y-a.y);
+  const normalZ=(b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x);
+  return a.y-(normalX*(p.x-a.x)+normalZ*(p.z-a.z))/normalY;
+}
+
+/** One non-overlapping pavement network. Junctions own a chamfered polygon;
+ * approach ribbons are cut against the actual polygon edges. Surfaces at
+ * different heights remain independent (bridges are not holes in the road). */
+export function buildBrRoadSurfaces(roads:readonly BrRoadSegment[]):BrRoadSurface[]{
+  const junctions:BrRoadSurface[]=[];
+  const nodes=new Map<string,{point:Vec3;arms:Array<{road:BrRoadSegment;t:number}>}>();
+  for(let i=0;i<roads.length;i++)for(let j=i+1;j<roads.length;j++){
+    const a=roads[i],b=roads[j],ax=a.to.x-a.from.x,az=a.to.z-a.from.z,bx=b.to.x-b.from.x,bz=b.to.z-b.from.z;
+    const den=ax*bz-az*bx;if(Math.abs(den)<epsilon)continue;
+    const qx=b.from.x-a.from.x,qz=b.from.z-a.from.z,t=(qx*bz-qz*bx)/den,u=(qx*az-qz*ax)/den;
+    if(t<-.0001||t>1.0001||u<-.0001||u>1.0001)continue;
+    const ay=a.from.y+(a.to.y-a.from.y)*t,by=b.from.y+(b.to.y-b.from.y)*u;
+    // Junctions belong to level streets; grade changes keep their exact plane.
+    if(Math.abs(ay-by)>epsilon||Math.abs(a.to.y-a.from.y)>epsilon||Math.abs(b.to.y-b.from.y)>epsilon)continue;
+    const point={x:a.from.x+ax*t,y:ay-.065,z:a.from.z+az*t},key=`${point.x.toFixed(3)}:${point.z.toFixed(3)}:${point.y.toFixed(2)}`;
+    const node=nodes.get(key)??{point,arms:[]};
+    for(const [road,amount] of [[a,t],[b,u]] as const)if(!node.arms.some(arm=>arm.road===road))node.arms.push({road,t:amount});
+    nodes.set(key,node);
+  }
+  for(const node of nodes.values()){
+    const points:Vec3[]=[],reach=Math.max(...node.arms.map(arm=>arm.road.width))*.65;
+    for(const {road,t} of node.arms){
+      const dx=road.to.x-road.from.x,dz=road.to.z-road.from.z,length=Math.hypot(dx,dz),nx=-dz/length*road.width/2,nz=dx/length*road.width/2;
+      for(const sign of [-1,1]){
+        const available=sign<0?t*length:(1-t)*length;if(available<.01)continue;
+        const distance=Math.min(reach,available),cx=node.point.x+dx/length*distance*sign,cz=node.point.z+dz/length*distance*sign;
+        points.push({x:cx+nx,y:node.point.y,z:cz+nz},{x:cx-nx,y:node.point.y,z:cz-nz});
+      }
+    }
+    const vertices=hull(points);if(vertices.length>=3)junctions.push({sourceRoadId:`junction-${junctions.length}`,vertices,junction:true});
+  }
+  const surfaces:BrRoadSurface[]=[];
+  for(const source of [...junctions,...roads.map(road=>({sourceRoadId:road.id,vertices:roadRibbon(road),junction:false}))]){
+    if(source.vertices.length<3)continue;
+    let fragments=[source.vertices];
+    for(const prior of surfaces){
+      // Sharing one endpoint height does not make two grades coplanar. Cutting
+      // based on that one point could erase an entire rising road above a flat
+      // road (or a descending entrance below it). Compare the complete planes.
+      if(source.vertices.some(p=>Math.abs(surfaceHeight(prior,p)-p.y)>epsilon)
+        ||prior.vertices.some(p=>Math.abs(surfaceHeight(source,p)-p.y)>epsilon))continue;
+      const minX=Math.min(...prior.vertices.map(v=>v.x)),maxX=Math.max(...prior.vertices.map(v=>v.x)),minZ=Math.min(...prior.vertices.map(v=>v.z)),maxZ=Math.max(...prior.vertices.map(v=>v.z));
+      fragments=fragments.flatMap(poly=>poly.every(p=>p.x<minX)||poly.every(p=>p.x>maxX)||poly.every(p=>p.z<minZ)||poly.every(p=>p.z>maxZ)?[poly]:subtract(poly,prior.vertices));
+    }
+    for(const vertices of fragments)surfaces.push({...source,vertices});
+  }
+  return surfaces;
+}
 
 export interface BrVisibleRoadSpan {
   sourceRoadId: string;

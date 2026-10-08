@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { BR_DISTRICT_PLANS, BR_ISLAND_OUTLINE, BR_LOOT_SOCKETS, BR_MAP_BLOCKS, BR_ROADS, BR_STRUCTURES, BR_TRAVERSAL } from "@planetfall/shared";
 import { buildBrAuthoredDistrictProps } from "./br-authored-district-props";
 import { buildBrNovaStreetscape } from "./br-nova-streetscape";
+import { blockClearance, partHeightBounds } from "./br-presentation-clearance-test-utils";
 
 const distance = (p: {x:number;z:number}, a: {x:number;z:number}, b: {x:number;z:number}) => {
   const dx=b.x-a.x,dz=b.z-a.z,squared=dx*dx+dz*dz;
@@ -34,9 +35,9 @@ describe("fixed Nova street infill", () => {
         const ns=s.entrance==="north"||s.entrance==="south",sign=s.entrance==="north"||s.entrance==="east"?1:-1;
         expect(gap(p.center,s.position.x+(ns?0:sign*(s.size.x/2+3)),s.position.z+(ns?sign*(s.size.z/2+3):0),ns?2.5:3,ns?3:2.5),`${p.id}: ${s.id} door`).toBeGreaterThanOrEqual(p.radius+1);
       }
+      const {bottom,top}=partHeightBounds(p.parts);
       for(const b of BR_MAP_BLOCKS){
-        if(b.kind!=="cover"&&b.kind!=="ramp"&&b.kind!=="bridge")continue;
-        expect(Math.hypot(p.center.x-b.position.x,p.center.z-b.position.z),`${p.id}: ${b.id}`).toBeGreaterThanOrEqual(Math.hypot(b.size.x,b.size.y,b.size.z)/2+p.radius+2);
+        expect(blockClearance(p.center,bottom,top,b),`${p.id}: ${b.id}`).toBeGreaterThanOrEqual(p.radius+2);
       }
       for(const t of BR_TRAVERSAL)expect(Math.hypot(p.center.x-t.position.x,p.center.z-t.position.z)).toBeGreaterThanOrEqual(p.radius+9);
       for(const l of BR_LOOT_SOCKETS)expect(Math.hypot(p.center.x-l.position.x,p.center.z-l.position.z)).toBeGreaterThanOrEqual(p.radius+1);
@@ -57,15 +58,17 @@ describe("fixed Nova street infill", () => {
       expect([...Object.values(part.position),...Object.values(part.scale),part.rotationY].every(Number.isFinite)).toBe(true);
       expect(Object.values(part.scale).every(v=>v>0)).toBe(true);
       const radial=part.geometry==="octahedron",half=radial?1:.5;
-      expect(part.position.y-part.scale.y*half).toBeGreaterThanOrEqual(0);
+      expect(pocket.center.y).toBe(5);
+      expect(part.position.y-part.scale.y*half).toBeGreaterThanOrEqual(pocket.center.y);
       for(const sx of [-1,1])for(const sz of [-1,1]){
         const dx=part.position.x-pocket.center.x+Math.cos(part.rotationY)*sx*part.scale.x*half+Math.sin(part.rotationY)*sz*part.scale.z*half;
         const dz=part.position.z-pocket.center.z-Math.sin(part.rotationY)*sx*part.scale.x*half+Math.cos(part.rotationY)*sz*part.scale.z*half;
         expect(Math.hypot(dx,dz)).toBeLessThan(pocket.radius);
       }
-      if(part.finish==="windowLit"){expect(part.position.y).toBeGreaterThan(3);expect(part.scale.x*part.scale.z).toBeLessThan(.1);}
-      if(part.position.y<2.6&&part.position.y+part.scale.y*half>.8){expect(part.scale.x).toBeLessThanOrEqual(.42);expect(part.scale.z).toBeLessThanOrEqual(.1);}
-      if(part.scale.x===1.75)expect(part.position.y+part.scale.y/2).toBeCloseTo(.525);
+      const localY=part.position.y-pocket.center.y;
+      if(part.finish==="windowLit"){expect(localY).toBeGreaterThan(3);expect(part.scale.x*part.scale.z).toBeLessThan(.1);}
+      if(localY<2.6&&localY+part.scale.y*half>.8){expect(part.scale.x).toBeLessThanOrEqual(.42);expect(part.scale.z).toBeLessThanOrEqual(.1);}
+      if(part.scale.x===1.75)expect(localY+part.scale.y/2).toBeCloseTo(.525);
     }
   });
 });

@@ -3,6 +3,50 @@ import { BR_BALANCE, BR_LOOT_SOCKETS, BR_MAP_BLOCKS, BR_ROADS, BR_STRUCTURES, st
 import { BrPhysicsWorld } from "./br-physics.js";
 
 describe("Battle Royale Rapier world",()=>{
+  it("blocks walking through a raised district retaining face",()=>{
+    const physics=new BrPhysicsWorld();
+    try{
+      let feet={x:-264,y:.035,z:-170};
+      for(let frame=0;frame<25;frame++){
+        const collision=physics.move("nova-retaining",feet,{x:.18,y:-.08,z:0},false);
+        feet={x:feet.x+collision.movement.x,y:feet.y+collision.movement.y,z:feet.z+collision.movement.z};
+      }
+      expect(feet.x).toBeLessThanOrEqual(-262-BR_BALANCE.playerRadius+.05);
+      expect(feet.y).toBeLessThan(.1);
+    }finally{physics.dispose();}
+  });
+  it("walks the Transit Court entrance down and back up without jumping or losing ground contact",()=>{
+    const physics=new BrPhysicsWorld();
+    try{
+      let feet={x:137.5,y:.035,z:147};
+      for(const targetZ of [100,147]){
+        for(let frame=0;frame<700&&Math.abs(feet.z-targetZ)>.2;frame++){
+          const direction=Math.sign(targetZ-feet.z);
+          const collision=physics.move("court-entrance",feet,{x:0,y:-.12,z:direction*.12},false);
+          feet={x:feet.x+collision.movement.x,y:feet.y+collision.movement.y,z:feet.z+collision.movement.z};
+          expect(collision.grounded,`z=${feet.z}, y=${feet.y}`).toBe(true);
+        }
+        expect(Math.abs(feet.z-targetZ)).toBeLessThan(.2);
+        if(targetZ===100)expect(feet.y).toBeCloseTo(-2.965,2);
+        // The upper end joins a rising boulevard, not a flat y=0 fixture.
+        // Independent ray geometry must agree with the character's contact.
+        expect(physics.rayDistance(feet,{x:0,y:-1,z:0},1)).toBeCloseTo(.035,2);
+      }
+    }finally{physics.dispose();}
+  });
+  it("walks the lower Transit Court without an invisible y=0 floor",()=>{
+    const physics=new BrPhysicsWorld();
+    try{
+      let feet={x:123,y:-2.965,z:100};
+      for(let frame=0;frame<30;frame++){
+        const collision=physics.move("basin",feet,{x:.035,y:-.12,z:0},false);
+        feet={x:feet.x+collision.movement.x,y:feet.y+collision.movement.y,z:feet.z+collision.movement.z};
+        expect(collision.grounded).toBe(true);expect(feet.y).toBeCloseTo(-2.965);
+      }
+      expect(physics.rayDistance({x:123,y:1,z:100},{x:0,y:-1,z:0},10)).toBeCloseTo(4);
+      expect(physics.rayDistance({x:96,y:-1,z:100},{x:-1,y:0,z:0},10)).toBeCloseTo(1);
+    }finally{physics.dispose();}
+  });
   it("keeps a buffered stationary jump airborne through the first authoritative frames",()=>{
     const physics=new BrPhysicsWorld();
     try{
@@ -27,9 +71,13 @@ describe("Battle Royale Rapier world",()=>{
         // Begin on the feeder road just before the ramp. Starting exactly on
         // the end cap places the capsule inside the thin oriented cuboid and
         // tests depenetration rather than normal player traversal.
-        let feet={x:road.to.x-direction.x*1.2,y:.04,z:road.to.z-direction.z*1.2};
+        const feeder=BR_ROADS.find(other=>other!==road&&[other.from,other.to].some(p=>Math.hypot(p.x-road.to.x,p.z-road.to.z)<.001));
+        const otherEnd=feeder?(Math.hypot(feeder.from.x-road.to.x,feeder.from.z-road.to.z)<.001?feeder.to:feeder.from):road.from;
+        const feederLength=Math.hypot(otherEnd.x-road.to.x,otherEnd.z-road.to.z),amount=Math.min(1.2/feederLength,.4);
+        let feet={x:road.to.x+(otherEnd.x-road.to.x)*amount,y:road.to.y+(otherEnd.y-road.to.y)*amount-.1+.04,z:road.to.z+(otherEnd.z-road.to.z)*amount};
         for(let step=0;step<900;step++){
-          const result=physics.move(`grade-${road.id}`,feet,{x:direction.x*.12,y:-.08,z:direction.z*.12},false);
+          const remaining=Math.hypot(road.from.x-feet.x,road.from.z-feet.z);
+          const result=physics.move(`grade-${road.id}`,feet,{x:(road.from.x-feet.x)/remaining*.12,y:-.08,z:(road.from.z-feet.z)/remaining*.12},false);
           feet={x:feet.x+result.movement.x,y:feet.y+result.movement.y,z:feet.z+result.movement.z};
           if(Math.hypot(feet.x-road.from.x,feet.z-road.from.z)<2.2&&feet.y>road.from.y-.3)break;
         }
@@ -69,15 +117,15 @@ describe("Battle Royale Rapier world",()=>{
       const ns=accessSide==="north"||accessSide==="south";
       const sign=accessSide==="north"||accessSide==="east"?1:-1;
       const run=Math.max(10,structure.size.y*2.35);
-      let feet={x:ramp.position.x+(ns?0:sign*(run/2+1)),y:.04,z:ramp.position.z+(ns?sign*(run/2+1):0)};
+      let feet={x:ramp.position.x+(ns?0:sign*(run/2+1)),y:structure.position.y+.04,z:ramp.position.z+(ns?sign*(run/2+1):0)};
       // Character-controller slope projection shortens horizontal movement;
       // stop on arrival, rather than assuming input distance equals travel.
       for(let step=0;step<1000;step++){
         const result=physics.move("roof-walk",feet,{x:ns?0:-sign*.12,y:-.08,z:ns?-sign*.12:0},false);
         feet={x:feet.x+result.movement.x,y:feet.y+result.movement.y,z:feet.z+result.movement.z};
-        if(feet.y>structure.size.y&&Math.abs(feet.x-structure.position.x)<structure.size.x/2-.6&&Math.abs(feet.z-structure.position.z)<structure.size.z/2-.6)break;
+        if(feet.y>structure.position.y+structure.size.y&&Math.abs(feet.x-structure.position.x)<structure.size.x/2-.6&&Math.abs(feet.z-structure.position.z)<structure.size.z/2-.6)break;
       }
-      expect(feet.y).toBeGreaterThan(structure.size.y);
+      expect(feet.y).toBeGreaterThan(structure.position.y+structure.size.y);
       expect(Math.abs(feet.x-structure.position.x)).toBeLessThan(structure.size.x/2);
       expect(Math.abs(feet.z-structure.position.z)).toBeLessThan(structure.size.z/2);
     } finally {physics.dispose();}

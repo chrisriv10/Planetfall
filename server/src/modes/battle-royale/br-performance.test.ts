@@ -1,7 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { BR_WEAPONS, type ClientToServerEvents, type ServerToClientEvents } from "@planetfall/shared";
 import type { Server, Socket } from "socket.io";
 import { BattleRoyaleRoom } from "./br-room.js";
+
+// Bot goals and combat decisions hash participant IDs as well as the map seed.
+// Random UUIDs made successive performance runs exercise different routes.
+// Production identity generation stays unchanged; budgets remain unchanged.
+const identifiers=vi.hoisted(()=>({next:0}));
+vi.mock("node:crypto",async importOriginal=>({
+  ...await importOriginal<typeof import("node:crypto")>(),
+  randomUUID:()=>`${(++identifiers.next).toString(16).padStart(8,"0")}-0000-4000-8000-000000000000`
+}));
+beforeEach(()=>{identifiers.next=0;});
 
 type Metric = { participants: number; averageTickMs: number; p95TickMs: number; worstTickMs: number; averageSnapshotBytes: number; p95SnapshotBytes: number; maximumSnapshotBytes: number; heapDeltaMb: number };
 
@@ -58,10 +68,11 @@ function profile(participants: 10 | 20 | 40): Metric {
 }
 
 describe("Battle Royale server performance", () => {
-  for (const participants of [10, 20, 40] as const) {
-    it(`keeps ${participants}-participant combat ticks and relevance snapshots bounded`, () => {
+  for (const [participants,idOffset] of [[10,0],[20,0],[40,0],[40,1000],[40,5000]] as const) {
+    it(`keeps ${participants}-participant combat ticks and relevance snapshots bounded (identity case ${idOffset})`, () => {
+      identifiers.next=idOffset;
       const metric = profile(participants);
-      console.info(`BR_PERF ${JSON.stringify(metric)}`);
+      console.info(`BR_PERF ${JSON.stringify({idOffset,...metric})}`);
       expect(metric.averageTickMs).toBeLessThan(16);
       expect(metric.p95TickMs).toBeLessThan(45);
       expect(metric.worstTickMs).toBeLessThan(150);

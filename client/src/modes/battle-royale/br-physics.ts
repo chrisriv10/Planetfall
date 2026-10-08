@@ -1,4 +1,5 @@
 import RAPIER from "@dimforge/rapier3d-compat";
+import { BR_BASE_DECK_CELLS } from "@planetfall/shared";
 import { BR_BALANCE, brBlocksForPhysicsSector, brFlatDeckCollision, brHasStandingClearance, brMantleTopAt, brPhysicsSector, isInsideBrIsland, type BrCollisionResult, type BrMapBlock, type Vec3 } from "@planetfall/shared";
 
 await RAPIER.init();
@@ -50,7 +51,7 @@ export class BrPredictionPhysics {
 }
 
 type MovementSector={world:RAPIER.World;collider:RAPIER.Collider;controller:RAPIER.KinematicCharacterController;crouched:boolean};
-function addMovementDeck(world:RAPIER.World):void{world.createCollider(RAPIER.ColliderDesc.cuboid(650,.5,650).setTranslation(0,-.5,0));}
+function addMovementDeck(world:RAPIER.World):void{for(const c of BR_BASE_DECK_CELLS)world.createCollider(RAPIER.ColliderDesc.cuboid((c.maxX-c.minX)/2,10,(c.maxZ-c.minZ)/2).setTranslation((c.minX+c.maxX)/2,c.height-10,(c.minZ+c.maxZ)/2));}
 function addBlocks(world:RAPIER.World,blocks:readonly BrMapBlock[]):void{for(const block of blocks){const collider=RAPIER.ColliderDesc.cuboid(block.size.x/2,block.size.y/2,block.size.z/2).setTranslation(block.position.x,block.position.y,block.position.z);if(block.rotation)collider.setRotation(eulerQuaternion(block.rotation));world.createCollider(collider);}}
 
 /** Quaternion matching Three.js/Rapier's authored XYZ Euler convention. */

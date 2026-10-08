@@ -48,6 +48,16 @@ describe("flush district approach deck transitions", () => {
     }
   });
 
+  it("uses the clear southeast corridor midpoint when its shoulder stations are reserved", () => {
+    const site = buildDeckTransitions().find(site => site.roadId === "ring-se-south")!;
+    expect(site).toBeDefined();
+    const road = BR_ROADS.find(road => road.id === site.roadId)!;
+    const dx = road.to.x - road.from.x, dz = road.to.z - road.from.z;
+    const station = ((site.center.x - road.from.x) * dx + (site.center.z - road.from.z) * dz) / (dx * dx + dz * dz);
+    expect(station).toBeCloseTo(.5, 8);
+    // The unchanged footprint/road/parcel assertions below cover this site too.
+  });
+
   it("reserves full footprints away from roads, entrances and all gameplay blocks", () => {
     const radius = BR_DECK_TRANSITION_RADIUS;
     for (const site of buildDeckTransitions()) {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { BR_DISTRICT_PLANS, BR_ISLAND_OUTLINE, BR_LOOT_SOCKETS, BR_MAP_BLOCKS, BR_ROADS, BR_STRUCTURES, BR_TERRACES, BR_TRAVERSAL } from "@planetfall/shared";
 import { buildBrEastRimStreetscape } from "./br-east-rim-streetscape";
+import { blockClearance } from "./br-presentation-clearance-test-utils";
 
 const deck=BR_TERRACES.find(t=>t.id==="east-rim-deck")!;
 const parts=()=>buildBrEastRimStreetscape("high").flatMap(group=>group.parts);
@@ -52,9 +53,8 @@ describe("authored East Rim street composition",()=>{
         const x=structure.position.x+(ns?0:sign*(structure.size.x/2+3)),z=structure.position.z+(ns?sign*(structure.size.z/2+3):0);
         expect(Math.hypot(Math.max(0,Math.abs(part.position.x-x)-hx-(ns?2.5:3)),Math.max(0,Math.abs(part.position.z-z)-hz-(ns?3:2.5)))).toBeGreaterThanOrEqual(1);
       }
-      for(const block of BR_MAP_BLOCKS.filter(b=>["cover","bridge","ramp"].includes(b.kind))){
-        if(bottom>=block.position.y+Math.hypot(block.size.y,block.size.z)/2+.5)continue;
-        expect(Math.hypot(part.position.x-block.position.x,part.position.z-block.position.z)).toBeGreaterThan(Math.hypot(hx,hz)+Math.hypot(block.size.x,block.size.y,block.size.z)/2+1);
+      for(const block of BR_MAP_BLOCKS){
+        expect(blockClearance(part.position,bottom,top,block),block.id).toBeGreaterThan(Math.hypot(hx,hz)+1);
       }
       for(const loot of BR_LOOT_SOCKETS)expect(Math.hypot(part.position.x-loot.position.x,part.position.z-loot.position.z)).toBeGreaterThan(Math.hypot(hx,hz)+1);
       for(const t of BR_TRAVERSAL)expect(Math.hypot(part.position.x-t.position.x,part.position.z-t.position.z)).toBeGreaterThan(Math.hypot(hx,hz)+8);

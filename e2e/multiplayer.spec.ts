@@ -16,7 +16,7 @@ type DebugState = {
   lobbyAvatarCount: number;
   homeFamily: "planetfall" | "battle-royale";
   homePreview: "planetfall" | "battle-royale" | "loading";
-  matchStats: { playerId: string; damageDealt: number; stolenScrap: number; successfulShoves: number; sabotagesCompleted: number }[];
+  matchStats: { playerId: string; damageDealt: number; stolenScrap: number; successfulShoves: number; timesShoved: number; sabotagesCompleted: number }[];
   gameMode: "classic" | "chaos" | null;
   activeModifier: string | null;
   rules: { gravity: number; maxIntegrity: number; launchCooldownMs: number; shoveForce: number };
@@ -61,16 +61,38 @@ async function moveTo(
   done: (state: DebugState) => boolean = () => false,
 ): Promise<void> {
   await takeControl(page);
-  const settleReleasedInput = () => page.waitForTimeout(Math.ceil(1000 / BALANCE.inputRate) + 20);
+  const settleReleasedInput = async () => {
+    await page.waitForTimeout(Math.ceil(1000 / BALANCE.inputRate) + 20);
+    // Only precision face-to-face approaches require a stopped pose. Ordinary
+    // pad/cannon navigation retains its existing arrival contract and cadence.
+    if (tolerance >= 1) return;
+    // Releasing W is not the same as stopping: both prediction and authority
+    // retain braking momentum. Observe it before declaring a target reached.
+    await expect.poll(async () => {
+      const state = await debugState(page);
+      const velocity = state.players.find(player => player.id === state.localId)!.velocity;
+      return Math.max(state.mechanics.speed, Math.hypot(velocity.x, velocity.y, velocity.z));
+    }, { timeout: 2000 }).toBeLessThan(.5);
+  };
   for (let step = 0; step < maxSteps; step++) {
     if (await page.locator("#results-screen").isVisible()) {
       throw new Error("match reached results before navigation completed");
     }
     const state = await debugState(page);
-    if (done(state)) { await settleReleasedInput(); return; }
+    if (done(state)) {
+      await settleReleasedInput();
+      if (done(await debugState(page))) return;
+      continue;
+    }
     const target = targetFor(state);
     const remaining = pointDistance(state.localPosition, target);
-    if (remaining <= tolerance) { await settleReleasedInput(); return; }
+    if (remaining <= tolerance) {
+      await settleReleasedInput();
+      const stopped = await debugState(page);
+      if (done(stopped)) return;
+      if (pointDistance(stopped.localPosition, targetFor(stopped)) <= tolerance) return;
+      continue;
+    }
     const planet = [...state.planets].sort((a, b) => pointDistance(state.localPosition, a.position) - pointDistance(state.localPosition, b.position))[0];
     const turn = (() => {
       const normalize = (point: Point): Point => {
@@ -201,6 +223,36 @@ test("the home menu previews the Fallbucks shop", async ({ page }) => {
   expect(browserErrors).toEqual([]);
 });
 
+test("Battle Royale lobby stays usable while its renderer module loads", async ({ page }) => {
+  let releaseModule!: () => void;
+  const moduleGate = new Promise<void>((resolve) => { releaseModule = resolve; });
+  let moduleRequested = false;
+  await page.route("**/src/modes/battle-royale/br-game.ts*", async (route) => {
+    moduleRequested = true;
+    await moduleGate;
+    await route.continue();
+  });
+  try {
+    await page.goto("/");
+    await page.getByLabel("Name").fill("Loading Pilot");
+    await page.locator("#family-br").click();
+    await page.getByRole("button", { name: "Create BR Room" }).click();
+    await expect(page.locator("#br-lobby-screen")).toBeVisible();
+    await expect.poll(() => moduleRequested).toBe(true);
+    // Deliberately keep the renderer unavailable until these real room/UI
+    // assertions succeed. This reproduces the blank-roster loading failure.
+    await expect(page.locator("#br-team-list")).toContainText("Loading Pilot");
+    await expect(page.locator("#br-lobby-code")).toHaveText(/[A-Z0-9]{6}/);
+    await page.locator("#br-player-target").selectOption("10");
+    await expect(page.locator("#br-lobby-hint")).toContainText("1 / 10 joined");
+    await page.locator("#br-ready-button").click();
+    await expect(page.locator("#br-team-list")).toContainText("READY");
+    await expect(page.locator("#br-start-button")).toBeEnabled();
+  } finally {
+    releaseModule();
+  }
+});
+
 test("Battle Royale creates an isolated room and enters the Starliner drop", async ({ page }) => {
   test.setTimeout(180_000);
   const browserErrors = collectBrowserErrors(page);
@@ -295,7 +347,10 @@ test("Battle Royale creates an isolated room and enters the Starliner drop", asy
 
 test("Battle Royale Solo requires confirmation and respects quick-play settings",async({page})=>{
   test.setTimeout(90_000);
+  const started=Date.now();
+  const checkpoint=(stage:string)=>console.info(`BR Solo timing: ${stage} ${Date.now()-started}ms`);
   await page.goto("/");
+  checkpoint("home loaded");
   await page.getByLabel("Name").fill("Intentional Pilot");
   await page.locator("#family-br").click();
   await page.locator("#play-solo").click();
@@ -314,11 +369,13 @@ test("Battle Royale Solo requires confirmation and respects quick-play settings"
   await expect(page.locator("#br-quick-players")).toHaveValue("10");
   await expect(page.locator("#br-quick-difficulty")).toHaveValue("easy");
   await page.locator("#br-quick-start").press("Enter");
+  checkpoint("quick-start sent");
   // Closing the confirmation must not hand the same keyboard/gamepad gesture
   // to the Planetfall family card underneath it.
   await expect(page.locator("#family-br")).toHaveClass(/selected/);
   await expect(page.locator("#family-planetfall")).not.toHaveClass(/selected/);
   await expect(page.locator("#br-hud")).toBeVisible({timeout:15_000});
+  checkpoint("HUD visible");
   expect(await page.locator("#br-players-remaining").textContent()).toBe("10 PLAYERS");
   expect(await page.locator("#br-teams-remaining").textContent()).toBe("10 TEAMS");
   expect(await page.locator("#br-hp-meter").getAttribute("style")).toContain("width: 100%");
@@ -329,13 +386,20 @@ test("Battle Royale Solo requires confirmation and respects quick-play settings"
   await expect.poll(()=>page.locator("#br-players-remaining").textContent(),{timeout:12_000}).toBe("10 PLAYERS");
   await expect(page.locator("#br-team-hud")).toBeHidden();
   await expect(page.locator("#br-minimap .br-mini-teammate")).toHaveCount(0);
+  checkpoint("HUD checks complete");
   // Keyboard activation avoids Chromium's software-rendered pointer action
   // being retried after the modal appears and immediately covers its trigger.
   await page.locator("#br-map-button").press("Enter");
   await expect(page.locator("#br-map-overlay")).toBeVisible();
+  checkpoint("map visible");
   await expect(page.locator("#br-map-canvas .br-map-player.teammate")).toHaveCount(0);
+  // A static authored SVG must not be removed/redecoded on each live marker
+  // refresh. Keep an identity handle across the real responsive-layout checks.
+  const mapArt=await page.locator("#br-map-canvas .br-map-art").elementHandle();
+  expect(mapArt).not.toBeNull();
   for (const viewport of [{ width: 1280, height: 720 }, { width: 1920, height: 720 }, { width: 1440, height: 900 }]) {
     await page.setViewportSize(viewport);
+    checkpoint(`viewport ${viewport.width}x${viewport.height} set`);
     await expect(page.locator("#br-map-overlay")).toBeVisible();
     const layout = await page.locator("#br-map-card, .br-map-card").evaluate((card) => {
       const map=card.querySelector<HTMLElement>("#br-map-canvas")!;
@@ -356,7 +420,10 @@ test("Battle Royale Solo requires confirmation and respects quick-play settings"
     expect(layout.titleTop).toBeGreaterThanOrEqual(layout.cardTop);
     expect(layout.closeBottom).toBeLessThanOrEqual(layout.cardBottom);
     expect(layout.overflowing).toBe(false);
+    checkpoint(`viewport ${viewport.width}x${viewport.height} layout read`);
+    expect(await page.locator("#br-map-canvas .br-map-art").evaluate((image,original)=>image===original,mapArt)).toBe(true);
   }
+  await mapArt!.dispose();
 });
 
 test("the cannon guide marks its predicted planet impact", async ({ page }) => {
@@ -471,26 +538,45 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
   // Bring the defender to the invader's actual landing/loot position. A detour
   // through a fixed neutral point makes this real-time match expire while the
   // browser drives both avatars across the planet.
+  const inShoveRange = (state: DebugState): boolean => {
+    const attacker = state.players.find(player => player.id === hostPlayer.id)!;
+    const defender = state.players.find(player => player.id === guestPlayer.id)!;
+    const target = state.localId === hostPlayer.id ? defender : attacker;
+    return attacker.surfacePlanetId === guestPlanetId && defender.surfacePlanetId === guestPlanetId
+      && pointDistance(state.localPosition, target.position) < BALANCE.shove.range
+      && pointDistance(attacker.position, defender.position) < BALANCE.shove.range;
+  };
   for (let approach = 0; approach < 2; approach++) {
-    await moveTo(guest, (state) => state.players.find((player) => player.id === hostPlayer.id)!.position, .9, 100);
-    await moveTo(host, (state) => state.players.find((player) => player.id === guestPlayer.id)!.position, .9, 40);
+    await moveTo(guest, (state) => state.players.find((player) => player.id === hostPlayer.id)!.position, .9, 100, inShoveRange);
+    await moveTo(host, (state) => state.players.find((player) => player.id === guestPlayer.id)!.position, .9, 40, inShoveRange);
     const state = await debugState(host);
     const attacker = state.players.find((player) => player.id === hostPlayer.id)!;
     const target = state.players.find((player) => player.id === guestPlayer.id)!;
     if (attacker.surfacePlanetId === guestPlanetId && target.surfacePlanetId === guestPlanetId
       && pointDistance(state.localPosition, target.position) < BALANCE.shove.range) break;
   }
-  await expect.poll(async () => {
-    const state = await debugState(host);
-    const attacker = state.players.find((player) => player.id === hostPlayer.id)!;
-    const target = state.players.find((player) => player.id === guestPlayer.id)!;
-    return attacker.surfacePlanetId === guestPlanetId && target.surfacePlanetId === guestPlanetId
-      && pointDistance(state.localPosition, target.position) < BALANCE.shove.range;
-  }).toBe(true);
+  try {
+    await expect.poll(async () => {
+      const state = await debugState(host);
+      const attacker = state.players.find((player) => player.id === hostPlayer.id)!;
+      const target = state.players.find((player) => player.id === guestPlayer.id)!;
+      return attacker.surfacePlanetId === guestPlanetId && target.surfacePlanetId === guestPlanetId
+        && pointDistance(state.localPosition, target.position) < BALANCE.shove.range;
+    }).toBe(true);
+  } catch (error) {
+    const [attackerView, defenderView] = await Promise.all([debugState(host), debugState(guest)]);
+    console.log("Raid approach diagnostics", JSON.stringify({
+      attacker: { position: attackerView.localPosition, mechanics: attackerView.mechanics },
+      defender: { position: defenderView.localPosition, mechanics: defenderView.mechanics },
+      authority: attackerView.players.map(player => ({ id: player.id, position: player.position, velocity: player.velocity, surface: player.surfacePlanetId })),
+      expectedSurface: guestPlanetId, range: BALANCE.shove.range
+    }));
+    throw error;
+  }
   for (let aimAttempt = 0; aimAttempt < 3; aimAttempt++) {
     await aimAt(host, (state) => state.players.find((player) => player.id === guestPlayer.id)!.position, "player");
     if (/SHOVE NOVA/i.test(await host.locator("#context-prompt").innerText())) break;
-    await moveTo(host, (state) => state.players.find((player) => player.id === guestPlayer.id)!.position, .8, 60);
+    await moveTo(host, (state) => state.players.find((player) => player.id === guestPlayer.id)!.position, .8, 60, inShoveRange);
   }
   await expect(host.locator("#context-prompt")).toContainText(/SHOVE NOVA/i);
   await host.evaluate(() => {
@@ -510,7 +596,11 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
   try {
     let successfulShoves = 0;
     for (let attempt = 0; attempt < 5 && successfulShoves < 1; attempt++) {
-      await moveTo(host, (state) => state.players.find((player) => player.id === guestPlayer.id)!.position, .7, 14);
+      // Player colliders prevent reaching the defender's centre. Navigation
+      // succeeds only when both views are on the required surface and within
+      // the real shove range; the server acceptance/knockback checks below
+      // still validate the action itself.
+      await moveTo(host, (state) => state.players.find((player) => player.id === guestPlayer.id)!.position, .7, 14, inShoveRange);
       await aimAt(host, (state) => state.players.find((player) => player.id === guestPlayer.id)!.position, "player");
       // The defender continues to settle under prediction/interpolation. Never
       // send a blind retry: the visible prompt is the same client-side range,
@@ -523,6 +613,30 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
       // three consequences concurrently with server acceptance, while the
       // defender's frame-driven presentation owns the foreground tab.
       await guest.bringToFront();
+      // Observe actual frame-driven local motion, not just the shove event's
+      // velocity. A software-rendered CDP poll can arrive after the short peak.
+      // Gate sampling on the defender's authoritative counter so residual
+      // approach movement cannot satisfy the unchanged >4m/s requirement.
+      await guest.evaluate(() => {
+        const probeWindow = window as Window & {
+          __PLANETFALL_DEBUG__: () => DebugState;
+          __planetfallShoveMotion?: { peak: number; frames: number; handle: number };
+        };
+        if (probeWindow.__planetfallShoveMotion) cancelAnimationFrame(probeWindow.__planetfallShoveMotion.handle);
+        const baseline = probeWindow.__PLANETFALL_DEBUG__();
+        const before = baseline.matchStats.find(stats => stats.playerId === baseline.localId)?.timesShoved ?? 0;
+        const probe = { peak: 0, frames: 0, handle: 0 };
+        probeWindow.__planetfallShoveMotion = probe;
+        const sample = () => {
+          const state = probeWindow.__PLANETFALL_DEBUG__();
+          if ((state.matchStats.find(stats => stats.playerId === state.localId)?.timesShoved ?? 0) > before) {
+            probe.peak = Math.max(probe.peak, state.mechanics.speed);
+            probe.frames++;
+          }
+          probe.handle = requestAnimationFrame(sample);
+        };
+        probe.handle = requestAnimationFrame(sample);
+      });
       const shoveFeedObserved = expect(host.locator("#event-feed"))
         .toContainText("Chris shoved Nova", { timeout: 2500 })
         .then(() => true, () => false);
@@ -530,7 +644,8 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
         const target = (await debugState(host)).players.find((player) => player.id === guestPlayer.id)!;
         return pointDistance(target.position, hostBeforeShove);
       }, { timeout: 3000 }).toBeGreaterThan(0.6).then(() => true, () => false);
-      const presentationMotionObserved = expect.poll(async () => (await debugState(guest)).mechanics.speed,
+      const presentationMotionObserved = expect.poll(() => guest.evaluate(() =>
+        (window as Window & { __planetfallShoveMotion?: { peak: number } }).__planetfallShoveMotion?.peak ?? 0),
       { timeout: 3000 }).toBeGreaterThan(4).then(() => true, () => false);
       await host.keyboard.press("e");
       const [shoveAccepted, feedAccepted, authoritativeMotion, presentationMotion] = await Promise.all([
@@ -541,6 +656,10 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
         authoritativeMotionObserved,
         presentationMotionObserved
       ]);
+      await guest.evaluate(() => {
+        const probeWindow = window as Window & { __planetfallShoveMotion?: { handle: number } };
+        if (probeWindow.__planetfallShoveMotion) cancelAnimationFrame(probeWindow.__planetfallShoveMotion.handle);
+      });
       if (shoveAccepted > 0) {
         expect(feedAccepted).toBe(true);
         expect(authoritativeMotion).toBe(true);
@@ -554,7 +673,9 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
     const attacker = state.players.find((player) => player.id === hostPlayer.id)!;
     const target = state.players.find((player) => player.id === guestPlayer.id)!;
     const denials = await host.evaluate(() => (window as Window & { __planetfallToastLog?: string[] }).__planetfallToastLog ?? []);
-    throw new Error(`shove was rejected: ${denials.join(" | ") || "no server reason"}; predicted=${pointDistance(state.localPosition, target.position).toFixed(2)} authoritative=${pointDistance(attacker.position, target.position).toFixed(2)} surfaces=${attacker.surfacePlanetId}/${target.surfacePlanetId}`, { cause: error });
+    const successful = state.matchStats.find(stats => stats.playerId === hostPlayer.id)?.successfulShoves ?? 0;
+    const presentation = await guest.evaluate(() => (window as Window & { __planetfallShoveMotion?: { peak: number; frames: number } }).__planetfallShoveMotion);
+    throw new Error(`shove validation failed: accepted=${successful}; presentation=${JSON.stringify(presentation)}; ${denials.join(" | ") || "no server reason"}; predicted=${pointDistance(state.localPosition, target.position).toFixed(2)} authoritative=${pointDistance(attacker.position, target.position).toFixed(2)} surfaces=${attacker.surfacePlanetId}/${target.surfacePlanetId}`, { cause: error });
   }
   await moveTo(host, (state) => state.repairs.find((repair) => repair.planetId === guestPlanetId)!.position, 2.5);
   await expect(host.locator("#context-prompt")).toContainText("JAM REPAIR");

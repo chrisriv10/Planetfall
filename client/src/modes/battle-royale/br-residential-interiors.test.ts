@@ -1,7 +1,13 @@
 import { describe,expect,it } from "vitest";
-import { BR_STRUCTURES, BR_LOOT_SOCKETS, BR_MAP_BLOCKS } from "@planetfall/shared";
+import { BR_STRUCTURES as WORLD_STRUCTURES, BR_LOOT_SOCKETS, BR_MAP_BLOCKS, type Vec3 } from "@planetfall/shared";
 import { buildResidentialInterior, buildResidentialCeiling, buildResidentialLandingMarkers, buildResidentialServiceWall, buildResidentialEntranceWall, buildResidentialRampSkins } from "./br-residential-interiors";
 import { BR_ENVIRONMENT_SCALE, isWithinBrPresentationScale } from "./br-environment-scale";
+
+// Match the renderer: helpers receive a local-height structure; their output
+// is lifted once by the structure group before comparison with world geometry.
+const BR_STRUCTURES=WORLD_STRUCTURES.map(s=>({...s,position:{...s.position,y:0}}));
+const base=(id:string)=>WORLD_STRUCTURES.find(s=>s.id===id)!.position.y;
+const world=<T extends {position:Vec3}>(part:T,id:string):T=>({...part,position:{...part.position,y:part.position.y+base(id)}});
 
 describe("residential lounge dressing",()=>{
   it("keeps hotel chairs and housing benches proportional to the shared astronaut",()=>{
@@ -82,7 +88,7 @@ describe("residential lounge dressing",()=>{
       }
       for(const loot of BR_LOOT_SOCKETS.filter(socket=>socket.structureId===hotel.id)){
         const overlaps=Math.abs(part.position.x-loot.position.x)<part.scale.x/2+.6&&
-          Math.abs(part.position.y-loot.position.y)<part.scale.y/2+.6&&
+          Math.abs(world(part,hotel.id).position.y-loot.position.y)<part.scale.y/2+.6&&
           Math.abs(part.position.z-loot.position.z)<part.scale.z/2+.6;
         expect(overlaps).toBe(false);
       }
@@ -93,7 +99,8 @@ describe("residential lounge dressing",()=>{
   });
   it("supports every new hotel furniture footprint on real slabs without bridging a stair opening",()=>{
     for(const hotel of BR_STRUCTURES.filter(s=>s.archetype==="hotel"&&s.enterable)){
-      for(const part of buildResidentialInterior(hotel).parts.filter(part=>part.role)){
+      for(const localPart of buildResidentialInterior(hotel).parts.filter(part=>part.role)){
+        const part=world(localPart,hotel.id);
         const slabs=BR_MAP_BLOCKS.filter(block=>block.id.startsWith(`${hotel.id}-`)&&block.kind==="platform"&&!block.id.endsWith("-roof"));
         const below=slabs.filter(slab=>slab.position.y+slab.size.y/2<=part.position.y-part.scale.y/2+1e-8&&
           Math.abs(part.position.x-slab.position.x)+part.scale.x/2<=slab.size.x/2&&
@@ -114,9 +121,9 @@ describe("residential lounge dressing",()=>{
       expect(result.signs.length).toBeLessThanOrEqual(landings.length);
       for(const sign of result.signs) {
         markers++;
-        const landing=landings.find(b=>b.position.x===sign.position.x&&Math.abs(sign.position.y-(b.position.y+b.size.y/2+2.2))<.001)!;
+        const landing=landings.find(b=>b.position.x===sign.position.x&&Math.abs(world(sign,s.id).position.y-(b.position.y+b.size.y/2+2.2))<.001)!;
         expect(landing).toBeDefined();
-        expect(sign.text).toBe(`LEVEL ${String(Math.round(landing.position.y/(s.size.y/s.floors))+1).padStart(2,"0")}`);
+        expect(sign.text).toBe(`LEVEL ${String(Math.round((landing.position.y-base(s.id))/(s.size.y/s.floors))+1).padStart(2,"0")}`);
       }
       for(const part of result.parts) {
         expect(Object.values(part.scale).every(v=>Number.isFinite(v)&&v>0)).toBe(true);
@@ -132,7 +139,8 @@ describe("residential lounge dressing",()=>{
   });
   it("mounts ceiling detail underneath real slabs without bridging stair openings",()=>{
     let count=0;
-    for(const s of BR_STRUCTURES)for(const p of buildResidentialCeiling(s)) {
+    for(const s of BR_STRUCTURES)for(const localPart of buildResidentialCeiling(s)) {
+      const p=world(localPart,s.id);
       count++;
       expect(Object.values(p.scale).every(v=>v>0&&Number.isFinite(v))).toBe(true);
       expect(BR_MAP_BLOCKS.some(b=>b.id.startsWith(`${s.id}-`)&&b.kind==="platform"&&!b.id.endsWith("-floor")&&
@@ -159,7 +167,7 @@ describe("residential lounge dressing",()=>{
         if(s.entrance==="east")expect(Math.abs(part.position.z-s.position.z)-part.scale.z/2).toBeGreaterThan(2.8);
         for(const loot of BR_LOOT_SOCKETS.filter(socket=>socket.structureId===s.id))expect(
           Math.abs(part.position.x-loot.position.x)<part.scale.x/2+.6&&
-          Math.abs(part.position.y-loot.position.y)<part.scale.y/2+.6&&
+          Math.abs(world(part,s.id).position.y-loot.position.y)<part.scale.y/2+.6&&
           Math.abs(part.position.z-loot.position.z)<part.scale.z/2+.6).toBe(false);
       }
     }
@@ -194,7 +202,7 @@ describe("residential lounge dressing",()=>{
         expect(Object.values(part.position).every(Number.isFinite)).toBe(true);
         expect(Object.values(part.scale).every(v=>Number.isFinite(v)&&v>0)).toBe(true);
         const ramp=sourceRamps.find(candidate=>{
-          const angle=candidate.rotation!.x,dy=part.position.y-candidate.position.y,dz=part.position.z-candidate.position.z;
+          const angle=candidate.rotation!.x,dy=world(part,structure.id).position.y-candidate.position.y,dz=part.position.z-candidate.position.z;
           const localY=dy*Math.cos(angle)+dz*Math.sin(angle),localZ=-dy*Math.sin(angle)+dz*Math.cos(angle);
           return Math.abs(part.position.x-candidate.position.x)+part.scale.x/2<candidate.size.x/2+.001
             &&Math.abs(localZ)+part.scale.z/2<candidate.size.z/2+.001&&localY+part.scale.y/2<-candidate.size.y/2+.001;
@@ -221,11 +229,11 @@ describe("residential lounge dressing",()=>{
     for(const s of BR_STRUCTURES)for(const p of buildResidentialInterior(s).parts){
       if(s.entrance==="west")expect(Math.abs(p.position.z-s.position.z)-p.scale.z/2).toBeGreaterThan(2.8);
       for(const b of BR_MAP_BLOCKS.filter(b=>b.id.startsWith(`${s.id}-room-`))) {
-        const overlap=Math.abs(p.position.x-b.position.x)<(p.scale.x+b.size.x)/2&&Math.abs(p.position.y-b.position.y)<(p.scale.y+b.size.y)/2&&Math.abs(p.position.z-b.position.z)<(p.scale.z+b.size.z)/2;
+        const overlap=Math.abs(p.position.x-b.position.x)<(p.scale.x+b.size.x)/2&&Math.abs(world(p,s.id).position.y-b.position.y)<(p.scale.y+b.size.y)/2&&Math.abs(p.position.z-b.position.z)<(p.scale.z+b.size.z)/2;
         expect(overlap).toBe(false);
       }
       for(const l of BR_LOOT_SOCKETS.filter(l=>l.structureId===s.id))expect(
-        Math.abs(p.position.x-l.position.x)<p.scale.x/2+.6&&Math.abs(p.position.y-l.position.y)<p.scale.y/2+.6&&Math.abs(p.position.z-l.position.z)<p.scale.z/2+.6).toBe(false);
+        Math.abs(p.position.x-l.position.x)<p.scale.x/2+.6&&Math.abs(world(p,s.id).position.y-l.position.y)<p.scale.y/2+.6&&Math.abs(p.position.z-l.position.z)<p.scale.z/2+.6).toBe(false);
       expect(p.position.x+p.scale.x/2).toBeLessThan(s.position.x); // stairs are on east side
     }
   });

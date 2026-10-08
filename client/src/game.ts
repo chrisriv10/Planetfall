@@ -381,6 +381,7 @@ export class PlanetfallGame {
     if (this.active === active) return;
     this.active = active;
     if (active) {
+      this.resize();
       this.lastFrame = performance.now();
       this.renderer.setAnimationLoop((now) => this.frame(now));
     } else this.renderer.setAnimationLoop(null);
@@ -449,7 +450,7 @@ export class PlanetfallGame {
   setSettings(settings: UserSettings): void {
     this.settings = settings;
     this.quality = QUALITY_PRESETS[settings.graphicsQuality];
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, this.quality.pixelRatioCap));
+    if (this.active) this.renderer.setPixelRatio(Math.min(devicePixelRatio, this.quality.pixelRatioCap));
     this.audio.setVolumes(settings.musicVolume, settings.sfxVolume);
   }
 
@@ -2975,7 +2976,10 @@ export class PlanetfallGame {
   private resize(): void {
     this.camera.aspect = innerWidth / innerHeight;
     this.camera.updateProjectionMatrix();
-    this.renderer.setSize(innerWidth, innerHeight);
+    // Both modes share one renderer; an inactive mode must not resize its
+    // framebuffer or override the active mode's quality settings.
+    if (!this.active) return;
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, this.quality.pixelRatioCap));
+    this.renderer.setSize(innerWidth, innerHeight);
   }
 }

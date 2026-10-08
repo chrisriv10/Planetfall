@@ -4,7 +4,8 @@ import { createGameSocket } from "./network";
 import { inputLabel, type InputMethod } from "./input";
 import { SETTINGS_STORAGE_KEY, parseStoredSettings, type UserSettings } from "./settings";
 import { brStormReadout } from "./modes/battle-royale/br-feedback";
-import { brMapPercent, createBrMapArt, updateBrMinimapArt } from "./modes/battle-royale/br-map-art";
+import { updateBrMinimapArt } from "./modes/battle-royale/br-map-art";
+import { updateBrTacticalMap } from "./modes/battle-royale/br-tactical-map";
 import { brPresentedTeammates, brTeammateStatus } from "./modes/battle-royale/br-team-presentation";
 import { brItemIconSvg, type BrItemArtId } from "./modes/battle-royale/br-item-art";
 import { createShopCosmeticPreview } from "./shop-cosmetic-preview";
@@ -589,8 +590,13 @@ async function applyBrRoom(nextRoom: BrRoomView): Promise<void> {
   modifierReveal.classList.remove("visible"); countdown.textContent = ""; leaderboard.classList.remove("visible");
   renderInputUi(brGame?.getInputMethod() ?? game.getInputMethod());
   if (nextRoom.phase === "lobby") {
-    if (brGame && previousBrPhase && previousBrPhase !== "lobby") brGame.reset(); pendingBrLoot = []; pendingBrCrates = []; byId("br-kill-feed").replaceChildren(); brInventoryMarkup = ""; brTeammateMarkup = "";lastBrHudPlayer=null;lastBrStormStage=null;lastBrStormPhase=-1;lastBrOutsideVoid=false;nextBrVoidCueAt=0;byId("br-void-warning").hidden=true;byId("br-event-banner").hidden=true;for (const node of brMiniTeammates.values()) node.remove(); brMiniTeammates.clear(); game.setActive(false); showScreen("brLobby"); const instance = await ensureBrGame(nextRoom); instance.setRoom(nextRoom); renderBrLobby();
+    if (brGame && previousBrPhase && previousBrPhase !== "lobby") brGame.reset(); pendingBrLoot = []; pendingBrCrates = []; byId("br-kill-feed").replaceChildren(); brInventoryMarkup = ""; brTeammateMarkup = "";lastBrHudPlayer=null;lastBrStormStage=null;lastBrStormPhase=-1;lastBrOutsideVoid=false;nextBrVoidCueAt=0;byId("br-void-warning").hidden=true;byId("br-event-banner").hidden=true;for (const node of brMiniTeammates.values()) node.remove(); brMiniTeammates.clear(); game.setActive(false); showScreen("brLobby");
+    // The room is already authoritative. Its code, roster and controls must
+    // not wait for a large renderer import/initialization to finish.
+    renderBrLobby();
     if (!shopOverlay.hidden) renderShop(); if (!passOverlay.hidden) renderPass();
+    const instance = await ensureBrGame(nextRoom);
+    if (brRoom === nextRoom && currentFamily === "battle-royale") instance.setRoom(nextRoom);
     return;
   }
   if (nextRoom.phase === "results") { const instance = await ensureBrGame(nextRoom); instance.setRoom(nextRoom); if (nextRoom.matchResult) showBrResults(nextRoom.matchResult); return; }
@@ -763,14 +769,7 @@ function toggleBrInventory(visible:boolean):void{
 function showBrMap(visible: boolean): void { brMapOverlay.hidden = !visible; if (visible) { const me = brRoom?.players.find((player) => player.id === playerId); if (me) renderBrMap(me); focusFirst(brMapOverlay); } else focusFirst(screens[currentScreen]); }
 function toggleBrMap(visible: boolean): void { if(visible&&!brInventoryOverlay.hidden)toggleBrInventory(false);brGame?.setMapVisible(visible); showBrMap(visible); }
 function renderBrMap(player: BrRoomView["players"][number]): void {
-  const map = byId("br-map-canvas"); const toPercent = brMapPercent;
-  const secondary=BR_SECONDARY_LOCATIONS.map((location)=>{const dot=document.createElement("i");dot.className="br-map-secondary";dot.style.left=`${toPercent(location.position.x)}%`;dot.style.top=`${toPercent(location.position.z)}%`;dot.title=location.name;return dot;});
-  map.replaceChildren(createBrMapArt(),...secondary,...BR_POIS.map((poi) => { const label = document.createElement("span"); label.className = "br-map-poi"; label.textContent = poi.name; label.style.left = `${toPercent(poi.position.x)}%`; label.style.top = `${toPercent(poi.position.z)}%`; label.style.setProperty("--poi-color", poi.color); return label; }));
-  if (brRoom) { const circle = document.createElement("i"); circle.className = "br-map-circle"; circle.style.left = `${toPercent(brRoom.storm.center.x)}%`; circle.style.top = `${toPercent(brRoom.storm.center.z)}%`; circle.style.width = `${brRoom.storm.radius / BR_MAP.radius * 96}%`; circle.style.height = circle.style.width; map.append(circle); }
-  if (brRoom) { const next = document.createElement("i"); next.className = "br-map-circle next"; next.style.left = `${toPercent(brRoom.storm.nextCenter.x)}%`; next.style.top = `${toPercent(brRoom.storm.nextCenter.z)}%`; next.style.width = `${brRoom.storm.nextRadius / BR_MAP.radius * 96}%`; next.style.height = next.style.width; map.append(next); }
-  if (brRoom?.ship) { const route = document.createElement("i"); route.className = "br-map-route"; const startX = toPercent(brRoom.ship.start.x); const startY = toPercent(brRoom.ship.start.z); const endX = toPercent(brRoom.ship.end.x); const endY = toPercent(brRoom.ship.end.z); route.style.left = `${startX}%`; route.style.top = `${startY}%`; route.style.width = `${Math.hypot(endX - startX, endY - startY)}%`; route.style.transform = `rotate(${Math.atan2(endY - startY, endX - startX)}rad)`; map.append(route); }
-  const marker = document.createElement("i"); marker.className = "br-map-player"; marker.style.left = `${toPercent(player.position.x)}%`; marker.style.top = `${toPercent(player.position.z)}%`; map.append(marker);
-  for (const teammate of brRoom ? brPresentedTeammates(brRoom.teamMode, player, brRoom.players).filter((entry)=>entry.alive) : []) { const dot = document.createElement("i"); dot.className = "br-map-player teammate"; dot.style.left = `${toPercent(teammate.position.x)}%`; dot.style.top = `${toPercent(teammate.position.z)}%`; dot.style.setProperty("--teammate-color", teammate.color); map.append(dot); }
+  updateBrTacticalMap(byId("br-map-canvas"),player,brRoom,brRoom?brPresentedTeammates(brRoom.teamMode,player,brRoom.players).filter(entry=>entry.alive):[]);
 }
 
 function renderLobby(): void {

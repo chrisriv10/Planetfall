@@ -2,15 +2,22 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   BR_DISTRICT_PLANS, BR_ISLAND_OUTLINE, BR_LOOT_SOCKETS, BR_MAP_BLOCKS,
-  BR_ROADS, BR_SECONDARY_LOCATIONS, BR_STRUCTURES, BR_TRAVERSAL,
+  BR_ROADS, BR_SECONDARY_LOCATIONS, BR_STRUCTURES, BR_TRAVERSAL, brAuthoredDeckHeight,
 } from "@planetfall/shared";
 import {
   buildBrAuthoredSecondaryDressing, buildBrAuthoredTransitionDressing,
   type BrAuthoredSecondaryDressing,
 } from "./br-authored-secondary-dressing";
+import { blockClearance, partHeightBounds } from "./br-presentation-clearance-test-utils";
+
+// These newly authored blocks do not reuse the legacy eight-part civic pocket.
+// Transfer currently uses the existing structure-shell kit; dedicated street
+// dressing remains a separate presentation milestone, not implicit coverage.
+const dedicatedSiteIds=["transit-court","south-exchange","farm-transfer","solar-service","ring-service","west-junction"];
+const legacySites=BR_SECONDARY_LOCATIONS.filter(site=>!dedicatedSiteIds.includes(site.id));
 
 const groups = (): BrAuthoredSecondaryDressing[] => [
-  ...BR_SECONDARY_LOCATIONS.map(site => buildBrAuthoredSecondaryDressing(site)!),
+  ...legacySites.map(site => buildBrAuthoredSecondaryDressing(site)!),
   ...buildBrAuthoredTransitionDressing(),
 ];
 const segmentDistance = (p: { x: number; z: number }, a: { x: number; z: number }, b: { x: number; z: number }) => {
@@ -20,12 +27,15 @@ const segmentDistance = (p: { x: number; z: number }, a: { x: number; z: number 
 };
 const rectangleDistance = (p: { x: number; z: number }, c: { x: number; z: number }, w: number, d: number) =>
   Math.hypot(Math.max(0, Math.abs(p.x - c.x) - w / 2), Math.max(0, Math.abs(p.z - c.z) - d / 2));
-const rotatedRectangleDistance=(p:{x:number;z:number},c:{x:number;z:number},w:number,d:number,yaw=0)=>{
-  const dx=p.x-c.x,dz=p.z-c.z,cos=Math.cos(yaw),sin=Math.sin(yaw);
-  return Math.hypot(Math.max(0,Math.abs(dx*cos-dz*sin)-w/2),Math.max(0,Math.abs(dx*sin+dz*cos)-d/2));
-};
 
 describe("literal secondary-site presentation", () => {
+  it("anchors every fixed pocket to its actual deck, including pockets inside another district",()=>{
+    for(const group of groups()){
+      const deck=brAuthoredDeckHeight(group.center)||BR_DISTRICT_PLANS.find(plan=>plan.id===group.id)?.elevation||0;
+      expect(group.center.y,group.id).toBe(deck);
+      for(const part of group.parts.filter(part=>part.surface))expect(part.position.y+part.scale.y/2-deck).toBeLessThanOrEqual(.041);
+    }
+  });
   it("keeps Relay Market's waiting pocket on the warehouse-west forecourt away from the new avenue",()=>{
     const group=buildBrAuthoredSecondaryDressing({id:"relay-market"})!;
     expect(group.center).toEqual({x:42,y:0,z:-89});
@@ -64,12 +74,16 @@ describe("literal secondary-site presentation", () => {
   it("covers all 30 sites, all seven contexts and four exact route gaps with 272 fixed parts", () => {
     const before = JSON.stringify([BR_SECONDARY_LOCATIONS, BR_DISTRICT_PLANS, BR_MAP_BLOCKS]);
     const all = groups();
-    expect(BR_SECONDARY_LOCATIONS).toHaveLength(30);
+    expect(legacySites).toHaveLength(30);
+    for(const id of dedicatedSiteIds){
+      expect(BR_SECONDARY_LOCATIONS.find(site=>site.id===id),id).toBeDefined();
+      expect(buildBrAuthoredSecondaryDressing({id}),id).toBeUndefined();
+    }
     expect(all).toHaveLength(34);
     expect(new Set(all.map(group => group.id)).size).toBe(34);
     expect(new Set(all.map(group => group.family)).size).toBe(7);
     expect(all.flatMap(group => group.parts)).toHaveLength(272);
-    for (const site of BR_SECONDARY_LOCATIONS) {
+    for (const site of legacySites) {
       const first = buildBrAuthoredSecondaryDressing(site)!;
       expect(first.family).toBe(BR_DISTRICT_PLANS.find(plan => plan.id === site.id)?.kind);
       expect(first.context.length).toBeGreaterThan(20);
@@ -108,14 +122,9 @@ describe("literal secondary-site presentation", () => {
         expect(rectangleDistance(p, doorway, ns ? 5 : 6, ns ? 6 : 5), `${group.id}: approach ${structure.id}`)
           .toBeGreaterThanOrEqual(radius + 1);
       }
-      // Spheres enclose rotated blocks, including ramps, terraces and roof access;
-      // deliberately conservative rather than checking only a decoration's center.
+      const {bottom,top}=partHeightBounds(group.parts);
       for (const block of BR_MAP_BLOCKS) {
-        const supportsPocket=block.kind==="platform"&&Math.abs(p.y-(block.position.y+block.size.y/2))<.01
-          &&Math.abs(p.x-block.position.x)+radius<=block.size.x/2
-          &&Math.abs(p.z-block.position.z)+radius<=block.size.z/2;
-        if(supportsPocket)continue;
-        expect(rotatedRectangleDistance(p,block.position,block.size.x,block.size.z,block.rotation?.y??0),`${group.id}: block ${block.id}`)
+        expect(blockClearance(p,bottom,top,block),`${group.id}: block ${block.id}`)
           .toBeGreaterThanOrEqual(radius+2);
       }
       for (const plan of BR_DISTRICT_PLANS) expect(Math.hypot(p.x - plan.openZone.position.x, p.z - plan.openZone.position.z), `${group.id}: open ${plan.id}`)

@@ -1,4 +1,5 @@
 import RAPIER from "@dimforge/rapier3d-compat";
+import { BR_BASE_DECK_CELLS, brBaseDeckPolygons, brTriangulateDeckPolygon } from "@planetfall/shared";
 import { BR_BALANCE, BR_ISLAND_OUTLINE, BR_MAP_BLOCKS, brBlocksForPhysicsSector, brFlatDeckCollision, brHasStandingClearance, brMantleTopAt, brPhysicsSector, isInsideBrIsland, type BrCollisionResult, type BrMapBlock, type Vec3 } from "@planetfall/shared";
 
 await RAPIER.init();
@@ -52,8 +53,12 @@ export class BrPhysicsWorld {
 }
 
 type MovementSector={world:RAPIER.World;collider:RAPIER.Collider;controller:RAPIER.KinematicCharacterController;crouched:boolean};
-function addIsland(world:RAPIER.World):void{const vertices=new Float32Array((BR_ISLAND_OUTLINE.length+1)*3);vertices.set([0,0,0]);BR_ISLAND_OUTLINE.forEach(([x,z],index)=>vertices.set([x,0,z],(index+1)*3));const indices=new Uint32Array(BR_ISLAND_OUTLINE.length*3);for(let index=0;index<BR_ISLAND_OUTLINE.length;index++)indices.set([0,(index+1)%BR_ISLAND_OUTLINE.length+1,index+1],index*3);world.createCollider(RAPIER.ColliderDesc.trimesh(vertices,indices));}
-function addMovementDeck(world:RAPIER.World):void{world.createCollider(RAPIER.ColliderDesc.cuboid(650,.5,650).setTranslation(0,-.5,0));}
+function addIsland(world:RAPIER.World):void{
+  const vertices:number[]=[],indices:number[]=[];
+  for(const polygon of brBaseDeckPolygons(BR_ISLAND_OUTLINE)){const offset=vertices.length/3;for(const p of polygon)vertices.push(p.x,p.y,p.z);indices.push(...brTriangulateDeckPolygon(polygon).map(index=>index+offset));}
+  world.createCollider(RAPIER.ColliderDesc.trimesh(new Float32Array(vertices),new Uint32Array(indices)));
+}
+function addMovementDeck(world:RAPIER.World):void{for(const c of BR_BASE_DECK_CELLS)world.createCollider(RAPIER.ColliderDesc.cuboid((c.maxX-c.minX)/2,10,(c.maxZ-c.minZ)/2).setTranslation((c.minX+c.maxX)/2,c.height-10,(c.minZ+c.maxZ)/2));}
 function addBlocks(world:RAPIER.World,blocks:readonly BrMapBlock[]):void{for(const block of blocks){const collider=RAPIER.ColliderDesc.cuboid(block.size.x/2,block.size.y/2,block.size.z/2).setTranslation(block.position.x,block.position.y,block.position.z);if(block.rotation)collider.setRotation(eulerQuaternion(block.rotation));world.createCollider(collider);}}
 
 /** Quaternion matching Three.js/Rapier's authored XYZ Euler convention. */

@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import {brWorldDrawDue} from "./br-render-cadence";
+import { brBaseDeckHeight } from "@planetfall/shared";
 import {
   BR_BALANCE, BR_HEALS, BR_POIS, BR_SECONDARY_LOCATIONS, BR_WEAPONS, FREE_EMOTES, SHOP_CATALOG, brDropVelocity,brFloorHeightAt, brMuzzlePosition, brPickupDisposition, brSpectatorPriority, isBrHeal, isBrWeapon, isInsideBrIsland, stepBrMovement,stepBrVehicle,
   type BrCrateState, type BrHealId, type BrInput, type BrLootState, type BrPoi, type BrPlayerSnapshotState, type BrPlayerState, type BrProjectileState, type BrRoomView,type BrVehicleState,
@@ -10,7 +12,7 @@ import { inputLabel, type GameInput, type InputFrame, type InputMethod } from ".
 import type { UserSettings } from "../../settings";
 import { ReconciliationTracker } from "../../reconciliation";
 import { BrPredictionPhysics } from "./br-physics";
-import { brAimProfile, brCameraGeometry, brCameraMode, brDropEntryPitch, brForcedDropLookYaw, brShipCameraFrame, brShipLookState } from "./br-camera";
+import { brAimProfile, brCameraGeometry, brCameraMode, brDropEntryPitch, brForcedDropLookYaw, brLookAngles, brShipCameraFrame, brShipLookState } from "./br-camera";
 import { createBrBackdrop, createStarliner, createVoidStorm, updateStarliner, updateVoidStorm } from "./br-presentation";
 import { BrWorldRenderer, type BrPoiLabel } from "./br-world";
 import { buildBrWeaponModel } from "./br-weapons";
@@ -96,6 +98,7 @@ export class BattleRoyaleGame {
   private pings: Array<{ group: THREE.Group; expiresAt: number }> = [];
   private transients:Array<{group:THREE.Group;expiresAt:number}>=[];
   private lastFrame = performance.now();
+  private lastWorldDrawAt=Number.NEGATIVE_INFINITY;
   private inputAccumulator = 0;
   private sequence = 0;
   private yaw = 0;
@@ -226,7 +229,12 @@ export class BattleRoyaleGame {
 
   activate(room: BrRoomView, localId: string): void {
     if (this.disposed) return;
+    const takingRenderer = !this.active;
     this.room = room; this.localId = localId; this.localState = room.players.find((player) => player.id === localId) ?? null; this.active = true; this.lastFrame = performance.now(); if (room.phase === "ship") this.shipCameraStartedAt = performance.now(); this.syncPlayers(room.players);this.syncVehicles(room.vehicles);
+    if (takingRenderer) {
+      this.renderer.shadowMap.enabled = this.settings.graphicsQuality !== "low";
+      this.resize();
+    }
     this.onInputMethod?.(this.input.method);
     this.renderer.setAnimationLoop((now) => this.frame(now));
   }
@@ -254,7 +262,7 @@ export class BattleRoyaleGame {
     this.settings = settings;
     this.world.setQuality(settings.graphicsQuality);
     this.sun.castShadow = settings.graphicsQuality === "high";
-    this.renderer.shadowMap.enabled = settings.graphicsQuality !== "low";
+    if (this.active) this.renderer.shadowMap.enabled = settings.graphicsQuality !== "low";
     this.resize();
   }
   setUiCaptured(captured: boolean): void { this.uiCaptured = captured; if (captured) document.exitPointerLock?.(); }
@@ -447,7 +455,11 @@ export class BattleRoyaleGame {
     const frame = this.input.sample(); this.processInput(frame, dt, now);
     this.updateVehicles(dt,now);this.updatePlayers(dt, now); this.updateLoot(now); this.updateCrates(now); this.updateProjectiles(); this.updatePings(now);this.updateTransients(now); this.updateShip();this.updateBrAudio(); this.updateCamera(dt); this.updateStorm(now); this.updateWorldPresentation(now);
     this.shotEffects.update(now);this.damageNumbers.update(now);this.updateHitMarker(now);
-    this.renderer.render(this.scene, this.camera);
+    // Keep simulation and HUD above running on every RAF. The full tactical
+    // map needs a readable live UI, not an uncapped covered WebGL workload.
+    if(brWorldDrawDue(now,this.lastWorldDrawAt,this.mapVisible)){
+      this.renderer.render(this.scene, this.camera);this.lastWorldDrawAt=now;
+    }
     this.review?.frame(now,()=>{
       const stats=this.world.debugStats();
       return {calls:this.renderer.info.render.calls,triangles:this.renderer.info.render.triangles,textures:this.renderer.info.memory.textures,materials:stats.materials,instances:stats.visibleInstances,districts:stats.visibleDistricts};
@@ -482,7 +494,8 @@ export class BattleRoyaleGame {
     const scope=document.getElementById("br-scope-overlay");if(scope){scope.hidden=!aimProfile.scope;scope.dataset.scope=aimProfile.scope??"";}
     const mouseScale = .0022 * this.settings.mouseSensitivity*aimProfile.sensitivity; const padScale = 2.2 * this.settings.controllerSensitivity * dt * (local.alive ? this.controllerAimFriction() : 1)*aimProfile.sensitivity;
     const scale = frame.method === "gamepad" ? padScale : mouseScale;
-    this.yaw -= frame.lookX * scale; this.pitch -= frame.lookY * scale * (this.settings.invertY ? -1 : 1); this.pitch = THREE.MathUtils.clamp(this.pitch, -.75, 1.15);
+    const look=brLookAngles(this.yaw,this.pitch,frame.lookX,frame.lookY,scale,this.settings.invertY);
+    this.yaw=look.yaw;this.pitch=look.pitch;
     if (!local.alive) {
       this.syncReviveInput(null,false,now);
       this.aiming = false;
@@ -760,12 +773,14 @@ export class BattleRoyaleGame {
       // direction. Previously the cinematic camera faced the ship while the
       // gameplay yaw stayed at its unrelated default, causing a disorienting
       // turn the instant the astronaut jumped.
+      const initialShipFrame=!this.shipLookInitialized;
       const shipLook=brShipLookState(this.yaw,route,this.shipLookInitialized);this.yaw=shipLook.yaw;this.shipLookInitialized=shipLook.initialized;
-      const establishing = performance.now() - this.shipCameraStartedAt < 1650;
-      const transportFrame=brShipCameraFrame(shipPosition,route,establishing);
+      if(initialShipFrame)this.pitch=-.42;
+      const transportFrame=brShipCameraFrame(shipPosition,this.yaw,this.pitch);
       const focus=vec(transportFrame.focus),desired=vec(transportFrame.desired);
-      this.camera.position.lerp(desired,Math.min(1,dt*5));this.camera.up.set(0,1,0);
-      if(establishing)this.camera.lookAt(focus);else{const look=this.lookDirection();this.cameraProbeOrigin.copy(look).multiplyScalar(260).add(this.camera.position);this.camera.lookAt(this.cameraProbeOrigin);}
+      if(initialShipFrame)this.camera.position.copy(desired);
+      else this.camera.position.lerp(desired,1-Math.exp(-18*dt));
+      this.camera.up.set(0,1,0);this.camera.lookAt(focus);
       this.camera.fov=THREE.MathUtils.lerp(this.camera.fov,70,Math.min(1,dt*4));this.camera.updateProjectionMatrix();return;
     }
     if (!localPlayer) return;
@@ -785,7 +800,8 @@ export class BattleRoyaleGame {
     this.cameraFocus.set(rig.focus.x,rig.focus.y,rig.focus.z);
     this.cameraDesired.set(rig.desired.x,rig.desired.y,rig.desired.z);
     this.cameraRight.set(rig.right.x,0,rig.right.z);
-    if(this.cameraDesired.y<.42&&isInsideBrIsland(this.cameraDesired))this.cameraDesired.y=.42;
+    const cameraFloor=brBaseDeckHeight(this.cameraDesired)+.42;
+    if(this.cameraDesired.y<cameraFloor&&isInsideBrIsland(this.cameraDesired))this.cameraDesired.y=cameraFloor;
     const obstructionDistance=this.cameraObstructionDistance(this.cameraFocus,this.cameraDesired,this.cameraRight);
     const targetBoom=Math.min(rig.boom,Math.max(.55,obstructionDistance-.32));
     const obstructionClosing=targetBoom<this.cameraBoom;
@@ -1228,6 +1244,11 @@ export class BattleRoyaleGame {
     this.resize();
   }
 
-  /** Kept temporarily as a visual-reference implementation while the authored renderer is validated. */
-  private resize(): void { this.camera.aspect = innerWidth / innerHeight; this.camera.updateProjectionMatrix(); this.renderer.setPixelRatio(Math.min(devicePixelRatio, this.settings.graphicsQuality === "low" ? 1 : this.settings.graphicsQuality === "medium" ? 1.35 : 1.8)); this.renderer.setSize(innerWidth, innerHeight); }
+  private resize(): void {
+    this.camera.aspect = innerWidth / innerHeight;
+    this.camera.updateProjectionMatrix();
+    if (!this.active) return;
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio, this.settings.graphicsQuality === "low" ? 1 : this.settings.graphicsQuality === "medium" ? 1.35 : 1.8));
+    this.renderer.setSize(innerWidth, innerHeight);
+  }
 }

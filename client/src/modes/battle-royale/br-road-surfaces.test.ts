@@ -1,6 +1,45 @@
 import { describe, expect, it } from "vitest";
 import type { BrRoadSegment, BrStructure } from "@planetfall/shared";
-import { buildBrVisibleRoadSpans } from "./br-road-surfaces";
+import { brRoadPolygonArea, buildBrRoadSurfaces, buildBrVisibleRoadSpans } from "./br-road-surfaces";
+
+const contains=(polygon:readonly {x:number;z:number}[],x:number,z:number)=>polygon.every((p,i)=>{const q=polygon[(i+1)%polygon.length];return(q.x-p.x)*(z-p.z)-(q.z-p.z)*(x-p.x)>1e-7;});
+describe("continuous road junction pavement",()=>{
+  it("covers an oblique junction without whole-width wedge gaps or stacked polygons",()=>{
+    const diagonal:BrRoadSegment={...road,id:"diagonal",from:{x:-16,y:0,z:-16},to:{x:16,y:0,z:16}};
+    const surfaces=buildBrRoadSurfaces([road,diagonal]);
+    expect(surfaces.some(surface=>surface.junction)).toBe(true);
+    for(let x=-15.9;x<16;x+=.37)for(let z=-15.83;z<16;z+=.41){
+      const inHorizontal=Math.abs(z)<4&&Math.abs(x)<20;
+      const along=(x+z)/Math.SQRT2,across=(z-x)/Math.SQRT2;
+      const inDiagonal=Math.abs(along)<16*Math.SQRT2&&Math.abs(across)<4;
+      const coverage=surfaces.filter(surface=>contains(surface.vertices,x,z)).length;
+      expect(coverage,`${x},${z} overlaps`).toBeLessThanOrEqual(1);
+      if(inHorizontal||inDiagonal)expect(coverage,`${x},${z} pavement gap`).toBe(1);
+    }
+  });
+  it("deduplicates collinear roads without shortening the connected street",()=>{
+    const duplicate={...road,id:"duplicate"};
+    const surfaces=buildBrRoadSurfaces([road,duplicate]);
+    expect(surfaces.reduce((sum,surface)=>sum+brRoadPolygonArea(surface.vertices),0)).toBeCloseTo(320);
+  });
+  it("keeps grade planes and genuine bridges separate",()=>{
+    const upper={...road,id:"bridge",from:{x:0,y:5,z:-20},to:{x:0,y:7,z:20}};
+    const surfaces=buildBrRoadSurfaces([road,upper]);
+    expect(surfaces.some(surface=>surface.junction)).toBe(false);
+    expect(surfaces.filter(surface=>contains(surface.vertices,.2,.3))).toHaveLength(2);
+    expect(surfaces.find(surface=>surface.sourceRoadId==="bridge")!.vertices.map(v=>v.y)).toEqual([4.935,6.935,6.935,4.935]);
+  });
+  it.each([4,-3])("does not erase a %sm grade that shares a flat road's entry height",height=>{
+    const grade={...road,id:"entry-grade",to:{...road.to,y:height}};
+    const surfaces=buildBrRoadSurfaces([road,grade]);
+    for(const id of ["road","entry-grade"]){
+      expect(surfaces.filter(s=>s.sourceRoadId===id).reduce((sum,s)=>sum+brRoadPolygonArea(s.vertices),0)).toBeCloseTo(320);
+    }
+    expect(surfaces.some(s=>s.junction)).toBe(false);
+    expect(surfaces.find(s=>s.sourceRoadId==="entry-grade")!.vertices.map(p=>p.y))
+      .toEqual([-.065,height-.065,height-.065,-.065]);
+  });
+});
 
 const road: BrRoadSegment = { id: "road", from: { x: -20, y: 0, z: 0 }, to: { x: 20, y: 0, z: 0 }, width: 8, color: "#000" };
 const structure: BrStructure = { id: "building", districtId: "test", position: { x: 0, y: 0, z: 0 }, size: { x: 10, y: 8, z: 10 }, style:"city",floors: 1, entrance:"south",roofAccess:false,enterable: false, color: "#fff", archetype: "shop" };

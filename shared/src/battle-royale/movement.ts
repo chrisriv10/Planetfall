@@ -1,6 +1,7 @@
 import { BR_BALANCE } from "./balance.js";
 import { BR_MAP_BLOCKS, BR_TRAVERSAL, brBlockPlanarHalfExtents, brBlocksNear, brRoadGradeFloorAt, isInsideBrIsland } from "./map.js";
 import { brClamp } from "./math.js";
+import { brBaseDeckHeight } from "./orbital-isle-elevation.js";
 import type { BrDeploymentState, BrShipState } from "./types.js";
 import type { Vec3 } from "../index.js";
 
@@ -45,7 +46,7 @@ export function brFlatDeckCollision(feet:Vec3,desiredMovement:Vec3,jumping:boole
   const next={x:feet.x+desiredMovement.x,y:feet.y+desiredMovement.y,z:feet.z+desiredMovement.z};
   const sweptBottom=Math.min(feet.y,next.y),sweptTop=Math.max(feet.y,next.y)+BR_BALANCE.playerHeight;
   const minX=Math.min(feet.x,next.x),maxX=Math.max(feet.x,next.x),minZ=Math.min(feet.z,next.z),maxZ=Math.max(feet.z,next.z);
-  let floorTop=isInsideBrIsland(next)?0:Number.NEGATIVE_INFINITY;
+  let floorTop=isInsideBrIsland(next)?brBaseDeckHeight(next):Number.NEGATIVE_INFINITY;
   for(const block of brBlocksNear(midpoint,horizontal*.5+BR_BALANCE.playerRadius+.25)){
     const planarHalf=brBlockPlanarHalfExtents(block);
     const halfX=planarHalf.x+BR_BALANCE.playerRadius,halfZ=planarHalf.z+BR_BALANCE.playerRadius;
@@ -57,14 +58,22 @@ export function brFlatDeckCollision(feet:Vec3,desiredMovement:Vec3,jumping:boole
     // server. Other rotated ramps remain on Rapier's exact path.
     if(block.rotation){
       const gradeFloor=brRoadGradeFloorAt(block,next,BR_BALANCE.playerRadius);
-      if(gradeFloor!==null&&desiredMovement.y<=0){floorTop=Math.max(floorTop,gradeFloor);continue;}
+      if(gradeFloor!==null&&desiredMovement.y<=0&&feet.y>=gradeFloor-.45){floorTop=Math.max(floorTop,gradeFloor);continue;}
+      if(gradeFloor!==null&&feet.y+BR_BALANCE.playerHeight<gradeFloor-.34)continue;
+      // Diagonal-road broadphase boxes include empty space beside the ribbon.
+      if(block.id.endsWith("-surface")&&gradeFloor===null)continue;
       return null;
     }
     const blockBottom=block.position.y-block.size.y/2,blockTop=block.position.y+block.size.y/2;
     if(block.kind==="platform"||block.kind==="bridge"){
-      const endpointOverlap=next.x>=block.position.x-halfX&&next.x<=block.position.x+halfX&&next.z>=block.position.z-halfZ&&next.z<=block.position.z+halfZ;
+      // Broadphase includes the capsule radius, but a floor plane must end at
+      // the actual deck edge. Extending that plane by the radius held pilots
+      // above descending access roads with no support beneath their feet.
+      // Rapier handles the capsule's partial contact at the edge instead.
+      const endpointOverlap=next.x>=block.position.x-planarHalf.x&&next.x<=block.position.x+planarHalf.x&&next.z>=block.position.z-planarHalf.z&&next.z<=block.position.z+planarHalf.z;
       if(desiredMovement.y>0&&feet.y+BR_BALANCE.playerHeight<=blockBottom&&next.y+BR_BALANCE.playerHeight>=blockBottom)return null;
       if(endpointOverlap&&feet.y>=blockTop-.45)floorTop=Math.max(floorTop,blockTop);
+      else if(sweptTop>blockBottom&&sweptBottom<blockTop)return null;
       continue;
     }
     if(sweptTop>=blockBottom&&sweptBottom<=blockTop)return null;
@@ -109,7 +118,9 @@ export function brApproachPlanarVelocity(current:Vec3,target:Vec3,maximumDelta:n
 }
 
 export function brFloorHeightAt(position: Vec3, previousY: number): number {
-  let floor = 0;
+  // The fallback and vehicle surface queries must use the same real base
+  // cutout as Rapier; y=0 would create a phantom floor above a sunken court.
+  let floor = brBaseDeckHeight(position);
   for (const block of BR_MAP_BLOCKS) {
     if(block.rotation){
       const gradeFloor=brRoadGradeFloorAt(block,position);
