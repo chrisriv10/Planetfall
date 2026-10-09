@@ -1,0 +1,68 @@
+{
+  "host": "DESKTOP-JL99F36",
+  "runtime": "Node 22.23.3",
+  "serial": true,
+  "budgets": {
+    "averageTickMs": 16,
+    "p95TickMs": 45,
+    "worstTickMs": 150,
+    "maximumSnapshotBytes": 160000
+  },
+  "metrics": [
+    {
+      "idOffset": 0,
+      "participants": 10,
+      "averageTickMs": 0.8568424444444432,
+      "p95TickMs": 1.6949999999999363,
+      "worstTickMs": 20.055599999999913,
+      "averageSnapshotBytes": 9921.097662771286,
+      "p95SnapshotBytes": 10492,
+      "maximumSnapshotBytes": 10599,
+      "heapDeltaMb": 5.219940185546875
+    },
+    {
+      "idOffset": 0,
+      "participants": 20,
+      "averageTickMs": 1.8928933333333307,
+      "p95TickMs": 3.5016999999998006,
+      "worstTickMs": 6.772399999999834,
+      "averageSnapshotBytes": 17194.93731218698,
+      "p95SnapshotBytes": 18274,
+      "maximumSnapshotBytes": 18467,
+      "heapDeltaMb": 7.316680908203125
+    },
+    {
+      "idOffset": 0,
+      "participants": 40,
+      "averageTickMs": 5.692537666666665,
+      "p95TickMs": 9.208799999999883,
+      "worstTickMs": 13.988400000000183,
+      "averageSnapshotBytes": 32153.40805509182,
+      "p95SnapshotBytes": 33377,
+      "maximumSnapshotBytes": 34035,
+      "heapDeltaMb": 15.442604064941406
+    },
+    {
+      "idOffset": 1000,
+      "participants": 40,
+      "averageTickMs": 6.024753333333313,
+      "p95TickMs": 9.780399999999645,
+      "worstTickMs": 15.900299999999334,
+      "averageSnapshotBytes": 33212.05008347245,
+      "p95SnapshotBytes": 34031,
+      "maximumSnapshotBytes": 34538,
+      "heapDeltaMb": 4.3760986328125
+    },
+    {
+      "idOffset": 5000,
+      "participants": 40,
+      "averageTickMs": 5.892502444444405,
+      "p95TickMs": 9.685099999998783,
+      "worstTickMs": 15.374399999996967,
+      "averageSnapshotBytes": 32883.45175292154,
+      "p95SnapshotBytes": 33627,
+      "maximumSnapshotBytes": 33999,
+      "heapDeltaMb": 6.858589172363281
+    }
+  ]
+}

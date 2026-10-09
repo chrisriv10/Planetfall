@@ -953,5 +953,28 @@ Classic reached the results/shop after completing the raid, then exceeded the
 unchanged 220s overall deadline at Solar Gold's BUY click. Different failure
 locations suggest timing/load sensitivity but do not prove an unrelated cause.
 These remain explicit PC-reproduction items. The user requested a commit/push
-checkpoint to move work off the laptop; `docs/PC_HANDOFF.md` records setup,
-local routing templates, source/screenshot locations and unfinished acceptance.
+checkpoint to move work off the laptop. The transfer-only setup/templates were
+subsequently removed from the repository; this historical failure record remains.
+
+## DESKTOP-JL99F36 continuation — October 8
+
+See [BR_SPATIAL_CHECKPOINT_OCT08.md](BR_SPATIAL_CHECKPOINT_OCT08.md) for the next preserved
+checkpoint. Transfer Yard addresses the confirmed `(110,-370)` ground gap while
+preserving the raised bridge, island, canonical astronaut and existing sockets.
+Fresh West Junction doorway inspection confirmed the latest paving alignment.
+The subsequent Civic Frontage fills the `(-170,170)` ground gap. Latest PC
+validation passed 841/841 tests and 5/5 server profiles. Full E2E first completed
+10/11 with an unchanged 220s Classic Rematch timeout, then passed an isolated
+traced retry and full traced 11/11 run. The failure is preserved; intermittent
+timing is not proven repaired. Trusted browser input also verified full ship
+and ground camera orbits and a living drop landing. This does not establish the
+laptop failures' root cause or complete human/art acceptance; remaining measured
+gaps and screenshot weaknesses are recorded in the linked checkpoint.
+
+The next working checkpoint also adds Nova Landing's supported descent and
+ground frontage, corrects facade floor counts and Solar belt/glazing overlaps,
+and validates full-width road joins. Final checks passed **865/865 tests,
+11/11 E2E and 5/5 standalone profiles**, without weaker requirements. Transfer-only
+setup documents/templates were removed from Git at the user's request. This
+checkpoint is authorized for commit/push; whole-island art and human acceptance
+remain unfinished. The linked October 8 document contains exact scope and evidence.

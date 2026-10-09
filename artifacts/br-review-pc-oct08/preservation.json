@@ -1,0 +1,40 @@
+{
+  "baselineCommit": "2b9f80552a68dff7cc807fefcc0fea265f6a5429",
+  "checks": {
+    "BR_STRUCTURES": {
+      "baselineCount": 174,
+      "currentCount": 183,
+      "comparison": "Exact preserved prefix"
+    },
+    "BR_LOOT_SOCKETS": {
+      "baselineCount": 246,
+      "currentCount": 267,
+      "comparison": "Exact preserved prefix"
+    },
+    "BR_CRATE_SOCKETS": {
+      "baselineCount": 21,
+      "currentCount": 22,
+      "comparison": "Exact preserved prefix"
+    },
+    "BR_ROAD_ROUTES": {
+      "baselineCount": 228,
+      "currentCount": 236,
+      "comparison": "Exact preserved geometry for every established ID"
+    },
+    "BR_ROADS": {
+      "baselineCount": 311,
+      "currentCount": 319,
+      "comparison": "Exact preserved geometry for every established ID"
+    },
+    "BR_TERRACES": {
+      "baselineCount": 18,
+      "currentCount": 18,
+      "comparison": "Exact preserved geometry for every established ID"
+    },
+    "BR_MAP_BLOCKS": {
+      "baselineCount": 1462,
+      "currentCount": 1557,
+      "comparison": "Exact preserved geometry for every established ID"
+    }
+  }
+}

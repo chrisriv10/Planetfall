@@ -13,7 +13,7 @@ import { blockClearance, partHeightBounds } from "./br-presentation-clearance-te
 // These newly authored blocks do not reuse the legacy eight-part civic pocket.
 // Transfer currently uses the existing structure-shell kit; dedicated street
 // dressing remains a separate presentation milestone, not implicit coverage.
-const dedicatedSiteIds=["transit-court","south-exchange","farm-transfer","solar-service","ring-service","west-junction"];
+const dedicatedSiteIds=["transit-court","south-exchange","farm-transfer","solar-service","ring-service","west-junction","transfer-yard","civic-frontage","nova-landing"];
 const legacySites=BR_SECONDARY_LOCATIONS.filter(site=>!dedicatedSiteIds.includes(site.id));
 
 const groups = (): BrAuthoredSecondaryDressing[] => [

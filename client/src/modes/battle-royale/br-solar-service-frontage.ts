@@ -79,15 +79,29 @@ export function buildBrSolarServiceFrontage(structure:BrStructure):SolarServiceF
       result.facadeParts.push({...panel,finish:"concrete"});
   }
 
-  // A paired, broad service belt occupies the clear spandrel between the
-  // existing glazing rows (above the single clerestory on the utility).
+  // A paired service belt occupies a real solid spandrel. Derive free vertical
+  // intervals from the current facade glazing; authored floor counts and
+  // clerestory proportions must not leave the band across a window.
   // Both halves stop well outside the 4.8m doorway and before corner columns.
   const face=structure.entrance,ns=face==="north"||face==="south";
   const sign=face==="north"||face==="east"?1:-1;
   const span=ns?width:depth,normal=(ns?depth:width)/2;
   const start=3.1,end=span/2-corner-.15,beltWidth=end-start;
   if(beltWidth<.6)return result;
-  const beltY=utility?height*.76:height/2;
+  const glazing=buildFacadeParts(structure).filter(p=>p.face===face&&(p.finish==="glass"||p.finish==="lit"));
+  const occupied=glazing.map(p=>[p.position.y-p.scale.y/2-.4,p.position.y+p.scale.y/2+.2])
+    .sort((a,b)=>a[0]-b[0]);
+  const candidates:number[]=[];
+  let bottom=.85;
+  const top=height-.35;
+  for(const [low,high] of [...occupied,[top,top]]){
+    const gapTop=Math.min(low,top);
+    if(gapTop-bottom>=.5)candidates.push((bottom+gapTop)/2);
+    bottom=Math.max(bottom,high);
+  }
+  if(!candidates.length)return result;
+  const preferred=utility?height:height/2;
+  const beltY=candidates.reduce((best,y)=>Math.abs(y-preferred)<Math.abs(best-preferred)?y:best);
   const add=(finish:FacadePart["finish"],lateral:number,y:number,w:number,h:number,offset:number,thickness:number)=>
     result.facadeParts.push({finish,face,
       position:{x:x+(ns?lateral:sign*(normal+offset)),y,z:z+(ns?sign*(normal+offset):lateral)},

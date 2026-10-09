@@ -1,0 +1,60 @@
+{
+  "host": "DESKTOP-JL99F36",
+  "date": "2026-10-08",
+  "typecheck": "passed",
+  "productionBuild": "passed",
+  "diffCheck": "passed",
+  "unit": {
+    "passed": 841,
+    "files": 145,
+    "durationSeconds": 132.19
+  },
+  "e2e": {
+    "finalFullRun": {
+      "passed": 11,
+      "failed": 0,
+      "durationMinutes": 7.1,
+      "trace": "retain-on-failure"
+    },
+    "precedingFullRun": {
+      "passed": 10,
+      "failed": 1,
+      "durationMinutes": 8.7,
+      "failure": "Classic 220s deadline at Rematch scroll action"
+    },
+    "isolatedTraceRetry": {
+      "passed": 1,
+      "durationMinutes": 3.4
+    },
+    "intermittentTimingProvenRepaired": false,
+    "requirementsChanged": false
+  },
+  "standaloneProfiles": {
+    "passed": 5,
+    "durationSeconds": 19.52,
+    "budgets": {
+      "averageTickMs": 16,
+      "p95TickMs": 45,
+      "worstTickMs": 150,
+      "maximumSnapshotBytes": 160000
+    }
+  },
+  "trustedBrowserInput": {
+    "pointerLock": true,
+    "trusted": true,
+    "shipOrbitDegrees": 362.42060763132343,
+    "groundOrbitDegrees": 363.0260589948903,
+    "landing": {
+      "x": -168.28493780537096,
+      "y": 0.035,
+      "z": -356.16911242504426
+    },
+    "alive": true,
+    "grounded": true,
+    "pageErrors": []
+  },
+  "humanControlFeelAcceptance": "pending",
+  "wholeIslandArtAcceptance": "pending",
+  "pushed": false,
+  "deployed": false
+}

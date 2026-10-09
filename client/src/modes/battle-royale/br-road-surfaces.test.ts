@@ -1,9 +1,26 @@
 import { describe, expect, it } from "vitest";
+import { BR_ROADS } from "@planetfall/shared";
+import * as THREE from "three";
 import type { BrRoadSegment, BrStructure } from "@planetfall/shared";
 import { brRoadPolygonArea, buildBrRoadSurfaces, buildBrVisibleRoadSpans } from "./br-road-surfaces";
 
 const contains=(polygon:readonly {x:number;z:number}[],x:number,z:number)=>polygon.every((p,i)=>{const q=polygon[(i+1)%polygon.length];return(q.x-p.x)*(z-p.z)-(q.z-p.z)*(x-p.x)>1e-7;});
 describe("continuous road junction pavement",()=>{
+  it("covers the full authored network through bends and grade endpoints at the correct height",()=>{
+    const surfaces=buildBrRoadSurfaces(BR_ROADS).map(surface=>({
+      ...surface,plane:new THREE.Plane().setFromCoplanarPoints(...surface.vertices.slice(0,3).map(p=>new THREE.Vector3(p.x,p.y,p.z)) as [THREE.Vector3,THREE.Vector3,THREE.Vector3])
+    }));
+    const covered=(point:THREE.Vector3)=>surfaces.some(s=>Math.abs(s.plane.distanceToPoint(point))<.001
+      &&s.vertices.every((a,i)=>{const b=s.vertices[(i+1)%s.vertices.length];return(b.x-a.x)*(point.z-a.z)-(b.z-a.z)*(point.x-a.x)>=-1e-6;}));
+    for(const road of BR_ROADS){
+      const dx=road.to.x-road.from.x,dz=road.to.z-road.from.z,length=Math.hypot(dx,dz),steps=Math.max(2,Math.ceil(length/2));
+      for(let i=0;i<=steps;i++)for(const side of [-.45,0,.45]){
+        const t=i/steps,point=new THREE.Vector3(road.from.x+dx*t-dz/length*road.width*side,
+          road.from.y+(road.to.y-road.from.y)*t-.065,road.from.z+dz*t+dx/length*road.width*side);
+        expect(covered(point),`${road.id} at ${t}, lateral ${side}`).toBe(true);
+      }
+    }
+  });
   it("covers an oblique junction without whole-width wedge gaps or stacked polygons",()=>{
     const diagonal:BrRoadSegment={...road,id:"diagonal",from:{x:-16,y:0,z:-16},to:{x:16,y:0,z:16}};
     const surfaces=buildBrRoadSurfaces([road,diagonal]);

@@ -1,0 +1,81 @@
+{
+  "host": "DESKTOP-JL99F36",
+  "date": "2026-10-08",
+  "runtime": "Node 22.23.3/npm 10.9.9",
+  "scope": "Transfer Yard, Civic Frontage, Nova Landing with supported descent/threshold, authored-floor facades, Solar belt correction and actual-network road coverage",
+  "typecheck": "passed",
+  "productionBuild": "passed",
+  "diffCheck": "passed",
+  "unit": {
+    "passed": 865,
+    "files": 148,
+    "durationSeconds": 138.19,
+    "initialDraftFullRun": {
+      "passed": 861,
+      "failed": 3,
+      "total": 864,
+      "failures": [
+        "New Nova office overlapped established Horizon garden",
+        "Solar shop belt overlapped revised glazing",
+        "Solar utility belt overlapped revised glazing"
+      ],
+      "correctedWithoutWeakeningAssertions": true
+    }
+  },
+  "e2e": {
+    "fullRun": {
+      "passed": 11,
+      "failed": 0,
+      "duration": "7.0m",
+      "trace": "retain-on-failure"
+    },
+    "previousTwoSiteFullRun": {
+      "passed": 10,
+      "failed": 1,
+      "failure": "Classic 220s deadline at Rematch scroll action; retained in prior checkpoint record"
+    },
+    "intermittentTimingProvenRepaired": false,
+    "requirementsChanged": false
+  },
+  "standaloneProfiles": {
+    "passed": 5,
+    "durationSeconds": 18.24,
+    "budgets": {
+      "averageTickMs": 16,
+      "p95TickMs": 45,
+      "worstTickMs": 150,
+      "maximumSnapshotBytes": 160000
+    }
+  },
+  "roadCoverage": {
+    "pieces": 319,
+    "samples": 27039,
+    "missingPavement": 0,
+    "directedBends": 136,
+    "shape": "Authored straight segments; some turns remain sharp doglegs"
+  },
+  "screenshots": {
+    "views": 15,
+    "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 (0x00002487) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "errors": []
+  },
+  "trustedBrowserInput": {
+    "pointerLock": true,
+    "trusted": true,
+    "shipOrbitDegrees": 362.35277529461706,
+    "groundOrbitDegrees": 363.02605899488975,
+    "landing": {
+      "x": 139.5702593552511,
+      "y": 1.4515009256012659,
+      "z": -349.71018414151
+    },
+    "alive": true,
+    "grounded": true,
+    "pageErrors": []
+  },
+  "preservation": "Exact original structure/loot/crate prefixes and all established roads/terraces/collision-block IDs preserved; see preservation.json",
+  "humanControlFeelAcceptance": "pending",
+  "wholeIslandArtAcceptance": "pending",
+  "checkpointCommitAndPushAuthorized": true,
+  "deploymentRequested": false
+}

@@ -42,6 +42,7 @@ const BASE_REVIEW_CAMERAS: Readonly<Record<string, BrReviewCamera>> = {
   "roadside-nova": { position: [-76, 3.1, -178], focus: [-76, 3, -214] },
   "west-neighborhood-link": { position: [-309, 2.7, -43], focus: [-350, 2.4, -105] },
   "west-transit-avenue": { position: [-320, 2.7, -165], focus: [-315, 2.5, -131] },
+  "west-junction-frontage": { position: [-312, 2.7, -123], focus: [-312, 1.2, -109] },
   "north-garden-promenade": { position: [-108, 2.7, 438], focus: [-135, 2.4, 390] },
   "southwest-salvage-grade": { position: [-238, 2.7, -442], focus: [-232, 3.4, -399] },
   "south-freight-boulevard": { position: [188, 2.7, -318], focus: [190, 2.6, -280] },
@@ -69,6 +70,15 @@ const BASE_REVIEW_CAMERAS: Readonly<Record<string, BrReviewCamera>> = {
   "south-shipworks-grade": { position: [133, 4.1, -347], focus: [183, 6.5, -374] },
   "maintenance-south": { position: [190, 7.65, -360], focus: [190, 5.85, -400] },
   "south-transfer-bridge": { position: [105, 2.7, -448], focus: [105, 4.1, -407.5] },
+  // The density audit's largest remaining gap lies north of the raised bridge.
+  // Observe its real ground approach without moving the authoritative player.
+  "south-transfer-approach": { position: [110, 2.7, -370], focus: [100, 2.7, -405] },
+  "transfer-yard-street": { position: [102, 2.7, -351], focus: [102, 2.7, -389] },
+  "civic-frontage-street": { position: [-145, 2.7, 150], focus: [-145, 2.7, 177] },
+  "nova-north-landing": { position: [-175, 2.7, 5], focus: [-175, 5, -40] },
+  "east-outer-approach": { position: [460, 2.7, -110], focus: [430, 2.7, -110] },
+  "civic-feeder-bend": { position: [-108, 2.7, 60], focus: [-122, 2.7, 85] },
+  "nova-office-threshold": { position: [-198, 2.7, -13], focus: [-198, 1.2, -20] },
   "deck-transition": { position: [-255, 3.2, 8], focus: [-255, 2.2, -30] },
   // East Rim is a full six-metre raised district. Keep this connective-field
   // review at astronaut eye height above that deck rather than inside its

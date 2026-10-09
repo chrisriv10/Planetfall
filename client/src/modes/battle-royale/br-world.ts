@@ -42,6 +42,9 @@ import { buildBrRoadRouteGradeDetails } from "./br-road-grade-details";
 import { buildBrTransitCourtDressing } from "./br-transit-court";
 import { buildBrSouthExchangeDressing } from "./br-south-exchange";
 import { buildBrWestJunctionDressing } from "./br-west-junction";
+import { buildBrTransferYardDressing } from "./br-transfer-yard";
+import { buildBrCivicFrontageDressing } from "./br-civic-frontage";
+import { buildBrNovaLandingDressing } from "./br-nova-landing";
 import { buildBrTerrainSurface } from "./br-terrain-surfaces";
 import { buildMaintenanceStrips } from "./br-maintenance-strips";
 import { buildMallDirectories } from "./br-mall-directories";
@@ -1009,6 +1012,18 @@ export class BrWorldRenderer {
       if(authored)this.addAuthoredSecondaryDressing(group,authored);
       if(location.id==="west-junction"){
         const frontage=buildBrWestJunctionDressing();
+        if(frontage)this.addAuthoredSecondaryDressing(group,frontage);
+      }
+      if(location.id==="transfer-yard"){
+        const frontage=buildBrTransferYardDressing();
+        if(frontage)this.addAuthoredSecondaryDressing(group,frontage);
+      }
+      if(location.id==="civic-frontage"){
+        const frontage=buildBrCivicFrontageDressing();
+        if(frontage)this.addAuthoredSecondaryDressing(group,frontage);
+      }
+      if(location.id==="nova-landing"){
+        const frontage=buildBrNovaLandingDressing();
         if(frontage)this.addAuthoredSecondaryDressing(group,frontage);
       }
       if(location.id==="transit-court"||location.id==="south-exchange"){

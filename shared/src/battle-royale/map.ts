@@ -160,7 +160,10 @@ export const BR_SECONDARY_LOCATIONS:readonly BrSecondaryLocation[]=[
   secondary("farm-transfer","PRODUCTION TRANSFER",189,196,"#79beb3","industrial","orbital-farms"),
   secondary("solar-service","SOLAR SERVICE",180,416,"#79bea1","industrial","orbital-farms"),
   secondary("ring-service","SALVAGE CROSSING",-210,-340,"#b99878","industrial","crash-site"),
-  secondary("west-junction","WEST JUNCTION",-330,-128.71900826446281,"#7bafc3","city","nova-plaza")
+  secondary("west-junction","WEST JUNCTION",-330,-128.71900826446281,"#7bafc3","city","nova-plaza"),
+  secondary("transfer-yard","TRANSFER YARD",102,-340,"#d7ab73","industrial","dockyard-7"),
+  secondary("civic-frontage","CIVIC FRONTAGE",-145,112,"#9badd7","academy","astra-academy"),
+  secondary("nova-landing","NOVA LANDING",-175,-12,"#d09aae","city","nova-plaza")
 ];
 
 const BR_ARTERIAL_ROADS:readonly BrRoadSegment[]=[
@@ -296,7 +299,10 @@ const BR_ARTERIAL_ROADS:readonly BrRoadSegment[]=[
   // A direct east exit would put a 9m rise across the 5m gap between decks.
   {id:"transit-helios-entry",from:{x:190,y:.1,z:166},to:{x:185,y:.1,z:93},width:8,color:"#304766",kind:"local"},
   { id:"zero-coolant-avenue", from:{x:70,y:.1,z:58}, to:{x:80,y:.1,z:153}, width:8, color:"#304a58",kind:"arterial" },
-  { id:"radial-3", from:{x:-70,y:.09,z:58}, to:{x:-190,y:.09,z:154}, width:13, color:"#304766",kind:"arterial" }
+  { id:"radial-3", from:{x:-70,y:.09,z:58}, to:{x:-190,y:.09,z:154}, width:13, color:"#304766",kind:"arterial" },
+  // Continue Nova's preserved elevated north stub down to a literal ground
+  // landing instead of ending its street 4.74m above the open connective field.
+  {id:"nova-north-descent",from:{x:-175,y:4.836842105263158,z:-48},to:{x:-175,y:.1,z:-12},width:12,color:"#44385e",kind:"arterial"}
 ];
 
 const BR_PRIMARY_DISTRICT_ROADS:readonly BrRoadSegment[]=[
@@ -543,6 +549,47 @@ export const BR_DISTRICT_PLANS:readonly BrDistrictPlan[]=[...AUTHORED_BR_SPATIAL
     {id:"west-junction-utility",position:{x:-352,y:0,z:-152},entrance:"east",role:"service"}
   ],
   openZone:{position:{x:-330,y:0,z:-180},radius:3,purpose:"yard"}
+},{
+  // Ground frontage north of the Terminal–Shipworks bridge. The ring arrival
+  // stays on base level; the court deliberately ends before the raised road.
+  id:"transfer-yard",origin:{x:102,y:0,z:-340},elevation:0,kind:"workyard",approach:{x:102,y:0,z:-340},
+  streets:[
+    {id:"transfer-yard-main",from:{x:102,y:.1,z:-340},to:{x:102,y:.1,z:-394},width:8,color:"#453f45",kind:"local"},
+    {id:"transfer-yard-court",from:{x:102,y:.1,z:-394},to:{x:125,y:.1,z:-394},width:8,color:"#453f45",kind:"local",intentionalTerminus:true}
+  ],
+  parcels:[
+    {id:"transfer-yard-shop",position:{x:78,y:0,z:-365},entrance:"east",role:"anchor"},
+    {id:"transfer-yard-office",position:{x:128,y:0,z:-372},entrance:"west",role:"support"},
+    {id:"transfer-yard-utility",position:{x:76,y:0,z:-391},entrance:"east",role:"service"}
+  ],
+  openZone:{position:{x:115,y:0,z:-394},radius:3,purpose:"yard"}
+},{
+  // The lower civic route continues beneath the existing high radial grade,
+  // then frames the Academy–Mall gap without pretending to join the upper ring.
+  id:"civic-frontage",origin:{x:-145,y:0,z:112},elevation:0,kind:"civic",approach:{x:-145,y:0,z:112},
+  streets:[
+    {id:"civic-frontage-main",from:{x:-145,y:.1,z:112},to:{x:-145,y:.1,z:180},width:8,color:"#3b4058",kind:"local"},
+    {id:"civic-frontage-court",from:{x:-145,y:.1,z:180},to:{x:-132,y:.1,z:180},width:6,color:"#3b4058",kind:"local",intentionalTerminus:true}
+  ],
+  parcels:[
+    {id:"civic-frontage-bookshop",position:{x:-165,y:0,z:170},entrance:"east",role:"anchor"},
+    {id:"civic-frontage-clinic",position:{x:-122,y:0,z:166},entrance:"west",role:"support"},
+    {id:"civic-frontage-service",position:{x:-122,y:0,z:145},entrance:"west",role:"service"}
+  ],
+  openZone:{position:{x:-145,y:0,z:180},radius:3,purpose:"courtyard"}
+},{
+  id:"nova-landing",origin:{x:-175,y:0,z:-12},elevation:0,kind:"commercial",approach:{x:-175,y:4.736842105263158,z:-48},
+  streets:[
+    {id:"nova-landing-main",from:{x:-175,y:.1,z:-12},to:{x:-175,y:.1,z:8},width:8,color:"#44385e",kind:"local",intentionalTerminus:true},
+    {id:"nova-landing-office-entry",from:{x:-175,y:.1,z:-12},to:{x:-198,y:.1,z:-12},width:7,color:"#44385e",kind:"local",intentionalTerminus:true},
+    {id:"nova-landing-service-entry",from:{x:-175,y:.1,z:-12},to:{x:-151,y:.1,z:-12},width:7,color:"#44385e",kind:"local",intentionalTerminus:true}
+  ],
+  parcels:[
+    {id:"nova-landing-shop",position:{x:-200,y:0,z:3},entrance:"east",role:"anchor"},
+    {id:"nova-landing-office",position:{x:-198,y:0,z:-27},entrance:"north",role:"support"},
+    {id:"nova-landing-service",position:{x:-151,y:0,z:-27},entrance:"north",role:"service"}
+  ],
+  openZone:{position:{x:-175,y:0,z:8},radius:3,purpose:"courtyard"}
 }];
 // Horizon Homes is a lower street-front neighborhood, not an overpass. The
 // broad Nova apron used to raise its main street 2.37m and its crossing 4.42m
@@ -552,6 +599,14 @@ export const BR_DISTRICT_PLANS:readonly BrDistrictPlan[]=[...AUTHORED_BR_SPATIAL
 // otherwise a pilot meets the old ring's end cap halfway up the new ramp.
 // The short feeder uses that same grade rather than an angled duplicate nub.
 const fixedRoadProfiles=new Map<string,readonly Vec3[]>([
+  ["nova-north-descent",[{x:-175,y:4.836842105263158,z:-48},{x:-175,y:.1,z:-12}]],
+  ["nova-landing-main",[{x:-175,y:.1,z:-12},{x:-175,y:.1,z:8}]],
+  ["nova-landing-office-entry",[{x:-175,y:.1,z:-12},{x:-198,y:.1,z:-12}]],
+  ["nova-landing-service-entry",[{x:-175,y:.1,z:-12},{x:-151,y:.1,z:-12}]],
+  ["civic-frontage-main",[{x:-145,y:.1,z:112},{x:-145,y:.1,z:180}]],
+  ["civic-frontage-court",[{x:-145,y:.1,z:180},{x:-132,y:.1,z:180}]],
+  ["transfer-yard-main",[{x:102,y:.1,z:-340},{x:102,y:.1,z:-394}]],
+  ["transfer-yard-court",[{x:102,y:.1,z:-394},{x:125,y:.1,z:-394}]],
   ["west-transit-avenue",[{x:-375,y:.1,z:-125},{x:-330,y:.1,z:-128.71900826446281},{x:-300,y:.1,z:-131.19834710743802},{x:-262,y:5.1,z:-134.3388429752066},{x:-254,y:5.1,z:-135}]],
   ["west-junction-main",[{x:-330,y:.1,z:-118},{x:-330,y:.1,z:-128.71900826446281},{x:-330,y:.1,z:-142},{x:-330,y:.1,z:-180}]],
   ["west-junction-shop-entry",[{x:-330,y:.1,z:-118},{x:-312,y:.1,z:-118}]],
@@ -684,7 +739,27 @@ const WEST_JUNCTION_STRUCTURES:readonly BrStructure[]=[
   S("west-junction-office","west-junction",-294,-163,20,20,10,"#7bafc3","city",2,"north",false,true,"office"),
   S("west-junction-utility","west-junction",-352,-152,18,18,7,"#8ca7b6","industrial",1,"east",false,true,"utility")
 ];
-export const BR_STRUCTURES:readonly BrStructure[]=[...PRIMARY_BR_STRUCTURES,...FIXED_SECONDARY_STRUCTURES,...SOLAR_SERVICE_STRUCTURES,...SOUTH_RING_STRUCTURES,...WEST_JUNCTION_STRUCTURES];
+const TRANSFER_YARD_STRUCTURES:readonly BrStructure[]=[
+  S("transfer-yard-shop","transfer-yard",78,-365,22,18,6,"#d7ab73","city",1,"east",false,true,"shop"),
+  S("transfer-yard-office","transfer-yard",128,-372,20,18,10,"#81adc6","city",2,"west",false,true,"office"),
+  S("transfer-yard-utility","transfer-yard",76,-391,20,14,6,"#c6a076","industrial",1,"east",false,true,"utility")
+];
+const CIVIC_FRONTAGE_STRUCTURES:readonly BrStructure[]=[
+  S("civic-frontage-bookshop","civic-frontage",-165,170,20,18,6,"#cfa98f","city",1,"east",false,true,"shop"),
+  S("civic-frontage-clinic","civic-frontage",-122,166,20,18,10,"#9badd7","academy",2,"west",false,true,"lab"),
+  S("civic-frontage-service","civic-frontage",-122,145,18,14,6,"#88adaf","industrial",1,"west",false,true,"utility")
+];
+const NOVA_LANDING_STRUCTURES:readonly BrStructure[]=[
+  S("nova-landing-shop","nova-landing",-200,3,22,16,6,"#d09aae","city",1,"east",false,true,"shop"),
+  S("nova-landing-office","nova-landing",-198,-27,18,16,10,"#b28ebc","city",2,"north",false,true,"office"),
+  S("nova-landing-service","nova-landing",-151,-27,18,14,6,"#819cac","industrial",1,"north",false,true,"utility")
+];
+// A real graded doorway threshold, independent of the road/nav graph. Use
+// the same top-face collider and deterministic support query as road grades:
+// Rapier alone can select the overlapping base deck at shallow ramp edges.
+const NOVA_LANDING_OFFICE_THRESHOLD:BrRoadSegment={id:"nova-landing-office-threshold",
+  from:{x:-198,y:.1,z:-17.5},to:{x:-198,y:.46,z:-19},width:4.4,color:"#405978",kind:"local"};
+export const BR_STRUCTURES:readonly BrStructure[]=[...PRIMARY_BR_STRUCTURES,...FIXED_SECONDARY_STRUCTURES,...SOLAR_SERVICE_STRUCTURES,...SOUTH_RING_STRUCTURES,...WEST_JUNCTION_STRUCTURES,...TRANSFER_YARD_STRUCTURES,...CIVIC_FRONTAGE_STRUCTURES,...NOVA_LANDING_STRUCTURES];
 
 /** District surfaces and smaller landscape beds follow the authored deck levels. */
 export const BR_TERRAIN_PATCHES: readonly BrTerrainPatch[] = [
@@ -924,6 +999,7 @@ const authoredCover: BrMapBlock[] = [
 
 export const BR_MAP_BLOCKS: readonly BrMapBlock[] = [
   ...BR_STRUCTURES.flatMap(structureBlocks),...BR_TERRACES.flatMap(terraceBlocks),...roadGradeBlocks(BR_ROADS),
+  ...roadGradeBlocks([NOVA_LANDING_OFFICE_THRESHOLD]).map(block=>({...block,districtId:"nova-landing"})),
   // Match the cutout walls already present in the movement deck, so rays and
   // the visible retaining shell never treat a movement obstruction as open.
   ...BR_SUNKEN_REGIONS.flatMap(region=>[
@@ -938,7 +1014,7 @@ export const BR_MAP_BLOCKS: readonly BrMapBlock[] = [
   {id:"solar-service-yard-cover",districtId:"solar-service",position:{x:168.5,y:.7,z:429},size:{x:3,y:1.4,z:2},color:"#344764",kind:"cover"}
 ];
 
-const brRoadBySurfaceId=new Map(BR_ROADS.filter(road=>Math.abs(road.to.y-road.from.y)>=.05||Math.abs(road.from.y-.1)>=.05).map(road=>[`${road.id}-surface`,road]));
+const brRoadBySurfaceId=new Map([...BR_ROADS,NOVA_LANDING_OFFICE_THRESHOLD].filter(road=>Math.abs(road.to.y-road.from.y)>=.05||Math.abs(road.from.y-.1)>=.05).map(road=>[`${road.id}-surface`,road]));
 /** Walkable height of an authored service-road grade. This deterministic floor
  * path avoids the KCC choosing the island's overlapping base deck underneath
  * a shallow oriented cuboid; the cuboid remains in both physics worlds for
@@ -1027,7 +1103,8 @@ const secondaryCratePlots: readonly [string,number,number,number][] = [
   ["south-shipworks",170,4,-383],
   ["west-salvage",-405,0,-188],
   ["transit-court",122,-3,99.5],
-  ["solar-service",191,0,433]
+  ["solar-service",191,0,433],
+  ["transfer-yard",114,0,-388]
 ];
 export const BR_SECONDARY_CRATE_SOCKETS = secondaryCratePlots.map(([districtId,x,y,z])=>({districtId,position:{x,y:y+.62,z}}));
 

@@ -6,6 +6,7 @@ export function createBrReview(selectView:(id:string|null)=>void, quality:(value
   root.style.cssText="position:fixed;right:12px;bottom:88px;z-index:9999;max-width:300px;background:#0b1528e8;color:#d6eaf5;padding:9px;border:1px solid #57778b;border-radius:8px;font:11px system-ui;pointer-events:auto";
   const select=document.createElement("select");select.setAttribute("aria-label","BR review view");
   const options=[
+    ["west-junction-frontage","West Junction shop approach"],["south-transfer-approach","South transfer ground approach"],["transfer-yard-street","Transfer Yard ground street"],
     ["astra-deck-edge","Academy retaining edge"],["helios-deck-edge","Helios retaining edge"],["farm-transfer-corridor","Helios–Farms transfer corridor"],
     ["central-frontage","Central Heights ground frontage"],
     ["hotel-frontage","Comet Hotel ground frontage"],
@@ -16,6 +17,11 @@ export function createBrReview(selectView:(id:string|null)=>void, quality:(value
     ["","Gameplay camera"],["aerial","Island aerial"],["zero-plaza","Zero Point plaza"],["nova-street","Nova street"],["nova-storefront","Nova storefront"],["nova-east-block","Nova east block"],["nova-roof","Nova rooftop"],
     ["mall-interior","Mall interior"],["mall-directory","Mall directory"],["mall-ramp","Mall ramp"],["mall-ceiling","Mall ceiling edge"],["hotel-lounge","Hotel lounge"],["hotel-service-wall","Hotel service wall"],["housing-lounge","Housing lounge"],["hotel-stairs","Hotel stairs"],["hotel-landing","Hotel upper landing"],["helios-interior","Helios interior"],["crash-exterior","Crash fuselage exterior"],["crash-interior","Crash fuselage interior"],
     ["foundry-interior","Foundry interior"],["foundry-roof","Foundry roof access"],["roadside-south","South ring service bay"],["roadside-nova","Nova corridor grove"],["west-neighborhood-link","West neighborhood avenue"],["west-transit-avenue","West transit avenue"],["north-garden-promenade","North garden promenade"],["north-skywalk","North observation skywalk"],["solar-rim-grade","Solar rim grade"],["south-rim-loop","South rim promenade loop"],["central-civic-junction","Central civic junction"],["south-central-grid","South-central street grid"],["zero-coolant-avenue","Zero–Coolant avenue"],["southwest-salvage-grade","Southwest salvage grade"],["south-freight-boulevard","South freight boulevard"],["southeast-industrial-triangle","Southeast industrial triangle"],["connective-academy","Academy connective pocket"],["south-terminal-apron","South Terminal apron"],["south-terminal-skimmer","South Terminal skimmer"],["maintenance-south","South maintenance strip"],["south-transfer-bridge","South transfer bridge"],["deck-transition","Deck transition field"],["sector-field","East Rim arrival street"],["edge-south","South island perimeter"],
+    ["civic-frontage-street","Lower civic frontage"],
+    ["nova-north-landing","Nova north ground landing"],
+    ["east-outer-approach","East outer ground approach"],
+    ["civic-feeder-bend","Civic feeder road bend"],
+    ["nova-office-threshold","Nova office ground entrance"],
     ["storm-boundary","Storm boundary (art preview)"],["storm-final","Final circle (art preview)"],
     ...BR_POIS.map(p=>[p.id,p.name]),...BR_SECONDARY_LOCATIONS.map(p=>[p.id,p.name])
   ];

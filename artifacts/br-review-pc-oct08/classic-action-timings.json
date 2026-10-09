@@ -1,0 +1,297 @@
+{
+  "kind": "Successful isolated Classic retry, tracing enabled; not a repair or replacement for failed full suite",
+  "longestActions": [
+    {
+      "trace": "test.trace",
+      "callId": "expect@379",
+      "api": "Expect \"poll toBeLessThanOrEqual\"",
+      "method": "expect",
+      "startMs": 83916.421,
+      "endMs": 138843.11,
+      "durationMs": 54926.688999999984,
+      "source": {
+        "file": "C:\\Users\\Chris\\Desktop\\planetfall\\e2e\\multiplayer.spec.ts",
+        "line": 742,
+        "column": 28
+      }
+    },
+    {
+      "trace": "test.trace",
+      "callId": "expect@497",
+      "api": "Expect \"toBeVisible\"",
+      "method": "expect",
+      "startMs": 138844.024,
+      "endMs": 183882.641,
+      "durationMs": 45038.617,
+      "source": {
+        "file": "C:\\Users\\Chris\\Desktop\\planetfall\\e2e\\multiplayer.spec.ts",
+        "line": 743,
+        "column": 49
+      }
+    },
+    {
+      "trace": "1-trace.trace",
+      "callId": "call@743",
+      "api": "Expect \"toBeVisible\"",
+      "selector": "#results-screen",
+      "method": "expect",
+      "startMs": 138845.229,
+      "endMs": 183829.159,
+      "durationMs": 44983.93000000002
+    },
+    {
+      "trace": "test.trace",
+      "callId": "expect@107",
+      "api": "Expect \"toContainText\"",
+      "method": "expect",
+      "startMs": 26363.634,
+      "endMs": 30107.212,
+      "durationMs": 3743.5780000000013,
+      "source": {
+        "file": "C:\\Users\\Chris\\Desktop\\planetfall\\e2e\\multiplayer.spec.ts",
+        "line": 526,
+        "column": 63
+      }
+    },
+    {
+      "trace": "1-trace.trace",
+      "callId": "call@145",
+      "api": "Expect \"toContainText\"",
+      "selector": "#event-feed",
+      "method": "expect",
+      "startMs": 26366.81,
+      "endMs": 30063.933,
+      "durationMs": 3697.1229999999996
+    },
+    {
+      "trace": "test.trace",
+      "callId": "pw:api@43",
+      "api": "Click",
+      "method": "pw:api",
+      "startMs": 7864.92,
+      "endMs": 11340.244,
+      "durationMs": 3475.3240000000005,
+      "source": {
+        "file": "C:\\Users\\Chris\\Desktop\\planetfall\\e2e\\multiplayer.spec.ts",
+        "line": 498,
+        "column": 59
+      }
+    },
+    {
+      "trace": "1-trace.trace",
+      "callId": "call@29",
+      "api": "Frame.click",
+      "selector": "internal:role=button[name=\"Create Room\"i]",
+      "method": "click",
+      "startMs": 7865.484,
+      "endMs": 11154.268,
+      "durationMs": 3288.7839999999997
+    },
+    {
+      "trace": "test.trace",
+      "callId": "expect@341",
+      "api": "Expect \"poll toBeLessThan\"",
+      "method": "expect",
+      "startMs": 75998.109,
+      "endMs": 78809.143,
+      "durationMs": 2811.0339999999997,
+      "source": {
+        "file": "C:\\Users\\Chris\\Desktop\\planetfall\\e2e\\multiplayer.spec.ts",
+        "line": 716,
+        "column": 138
+      }
+    },
+    {
+      "trace": "test.trace",
+      "callId": "expect@337",
+      "api": "Expect \"toContainText\"",
+      "method": "expect",
+      "startMs": 75419.037,
+      "endMs": 78127.543,
+      "durationMs": 2708.5060000000085,
+      "source": {
+        "file": "C:\\Users\\Chris\\Desktop\\planetfall\\e2e\\multiplayer.spec.ts",
+        "line": 710,
+        "column": 60
+      }
+    },
+    {
+      "trace": "1-trace.trace",
+      "callId": "call@531",
+      "api": "Expect \"toContainText\"",
+      "selector": "#event-feed",
+      "method": "expect",
+      "startMs": 75426.592,
+      "endMs": 78021.218,
+      "durationMs": 2594.6259999999893
+    },
+    {
+      "trace": "test.trace",
+      "callId": "expect@286",
+      "api": "Expect \"poll toBe\"",
+      "method": "expect",
+      "startMs": 62073.175,
+      "endMs": 64549.948,
+      "durationMs": 2476.7729999999938,
+      "source": {
+        "file": "C:\\Users\\Chris\\Desktop\\planetfall\\e2e\\multiplayer.spec.ts",
+        "line": 705,
+        "column": 151
+      }
+    },
+    {
+      "trace": "test.trace",
+      "callId": "expect@97",
+      "api": "Expect \"poll toBe\"",
+      "method": "expect",
+      "startMs": 24125.333,
+      "endMs": 26091.445,
+      "durationMs": 1966.112000000001,
+      "source": {
+        "file": "C:\\Users\\Chris\\Desktop\\planetfall\\e2e\\multiplayer.spec.ts",
+        "line": 523,
+        "column": 151
+      }
+    },
+    {
+      "trace": "test.trace",
+      "callId": "expect@245",
+      "api": "Expect \"toContainText\"",
+      "method": "expect",
+      "startMs": 53078.915,
+      "endMs": 54907.229,
+      "durationMs": 1828.3139999999985,
+      "source": {
+        "file": "C:\\Users\\Chris\\Desktop\\planetfall\\e2e\\multiplayer.spec.ts",
+        "line": 682,
+        "column": 61
+      }
+    },
+    {
+      "trace": "1-trace.trace",
+      "callId": "call@375",
+      "api": "Expect \"toContainText\"",
+      "selector": "#event-feed",
+      "method": "expect",
+      "startMs": 53083.317,
+      "endMs": 54896.193,
+      "durationMs": 1812.8759999999966
+    },
+    {
+      "trace": "test.trace",
+      "callId": "pw:api@354",
+      "api": "Wait for timeout",
+      "method": "pw:api",
+      "startMs": 78810.976,
+      "endMs": 79942.574,
+      "durationMs": 1131.5979999999981,
+      "source": {
+        "file": "C:\\Users\\Chris\\Desktop\\planetfall\\e2e\\multiplayer.spec.ts",
+        "line": 719,
+        "column": 15
+      }
+    },
+    {
+      "trace": "3-trace.trace",
+      "callId": "call@549",
+      "api": "Frame.waitForTimeout",
+      "method": "waitForTimeout",
+      "startMs": 78812.895,
+      "endMs": 79919.953,
+      "durationMs": 1107.05799999999
+    },
+    {
+      "trace": "test.trace",
+      "callId": "expect@372",
+      "api": "Expect \"poll toBeGreaterThanOrEqual\"",
+      "method": "expect",
+      "startMs": 82841.167,
+      "endMs": 83915.323,
+      "durationMs": 1074.1560000000027,
+      "source": {
+        "file": "C:\\Users\\Chris\\Desktop\\planetfall\\e2e\\multiplayer.spec.ts",
+        "line": 731,
+        "column": 158
+      }
+    },
+    {
+      "trace": "test.trace",
+      "callId": "pw:api@249",
+      "api": "Wait for timeout",
+      "method": "pw:api",
+      "startMs": 54273.585,
+      "endMs": 55262.72,
+      "durationMs": 989.135000000002,
+      "source": {
+        "file": "C:\\Users\\Chris\\Desktop\\planetfall\\e2e\\multiplayer.spec.ts",
+        "line": 686,
+        "column": 14
+      }
+    },
+    {
+      "trace": "1-trace.trace",
+      "callId": "call@383",
+      "api": "Frame.waitForTimeout",
+      "method": "waitForTimeout",
+      "startMs": 54273.933,
+      "endMs": 55205.85,
+      "durationMs": 931.9170000000013
+    },
+    {
+      "trace": "test.trace",
+      "callId": "pw:api@52",
+      "api": "Click",
+      "method": "pw:api",
+      "startMs": 13805.982,
+      "endMs": 14627.999,
+      "durationMs": 822.0169999999998,
+      "source": {
+        "file": "C:\\Users\\Chris\\Desktop\\planetfall\\e2e\\multiplayer.spec.ts",
+        "line": 507,
+        "column": 53
+      }
+    }
+  ],
+  "lateUiActions": [
+    {
+      "trace": "1-trace.trace",
+      "callId": "call@775",
+      "api": "Frame.click",
+      "selector": "#rematch-button",
+      "method": "click",
+      "startMs": 187109.826,
+      "endMs": 187333.555,
+      "durationMs": 223.72899999999208
+    },
+    {
+      "trace": "3-trace.trace",
+      "callId": "call@763",
+      "api": "Frame.click",
+      "selector": ".shop-item >> internal:has-text=\"Solar Gold\"i >> internal:role=button[name=\"BUY\"i]",
+      "method": "click",
+      "startMs": 185325.853,
+      "endMs": 185777.055,
+      "durationMs": 451.2019999999902
+    },
+    {
+      "trace": "3-trace.trace",
+      "callId": "call@767",
+      "api": "Frame.click",
+      "selector": ".shop-item >> internal:has-text=\"Solar Gold\"i >> internal:role=button[name=\"EQUIP\"i]",
+      "method": "click",
+      "startMs": 185857.647,
+      "endMs": 186341.057,
+      "durationMs": 483.4100000000035
+    },
+    {
+      "trace": "3-trace.trace",
+      "callId": "call@773",
+      "api": "Frame.click",
+      "selector": "#rematch-button",
+      "method": "click",
+      "startMs": 186780.356,
+      "endMs": 187103.749,
+      "durationMs": 323.39300000001094
+    }
+  ]
+}

@@ -3,6 +3,60 @@ import { BR_STRUCTURES } from "@planetfall/shared";
 import { buildFacadeParts, buildDistantFacadeParts, buildExteriorServiceParts } from "./br-facades";
 
 describe("BR architectural skin", () => {
+  it("distinguishes functional facade proportions without inventing shop floors", () => {
+    const source = BR_STRUCTURES.find(s => s.id === "transfer-yard-shop")!;
+    const panes = (archetype: typeof source.archetype) => buildFacadeParts({ ...source, archetype })
+      .filter(p => p.finish === "glass" || p.finish === "lit");
+    for (const archetype of ["shop", "transit", "lab", "academy", "office", "utility", "industrial"] as const) {
+      expect(panes(archetype).length).toBeGreaterThan(0);
+      expect(new Set(panes(archetype).map(p => p.position.y)).size).toBe(1);
+    }
+    expect(panes("shop")[0].scale.y).toBe(3.15);
+    expect(panes("transit")[0].scale.y).toBe(3.15);
+    for (const archetype of ["lab", "academy"] as const) for (const pane of panes(archetype)) {
+      const axis = pane.face === "north" || pane.face === "south" ? "x" : "z";
+      expect(pane.scale.y).toBe(1.25);
+      expect(pane.scale[axis]).toBeGreaterThan(pane.scale.y);
+    }
+    for (const pane of panes("office")) {
+      const axis = pane.face === "north" || pane.face === "south" ? "x" : "z";
+      expect(pane.scale[axis]).toBeLessThanOrEqual(1.65);
+      expect(pane.scale.y).toBeGreaterThan(pane.scale[axis]);
+    }
+    for (const archetype of ["utility", "industrial"] as const) for (const pane of panes(archetype)) {
+      expect(pane.scale.y).toBe(.95);
+      expect(pane.position.y - pane.scale.y / 2).toBeGreaterThan(source.size.y * .6);
+    }
+  });
+  it("preserves floor spacing, shallow supported envelopes and full functional door clearances", () => {
+    const targets = BR_STRUCTURES.filter(s => ["shop", "transit", "lab", "academy", "office", "utility", "industrial"].includes(s.archetype));
+    const before = JSON.stringify(targets);
+    for (const structure of targets) {
+      const parts = buildFacadeParts(structure);
+      const panes = parts.filter(p => p.finish === "glass" || p.finish === "lit");
+      if (["shop", "transit", "lab", "academy", "office"].includes(structure.archetype))
+        expect(new Set(panes.map(p => p.position.y)).size).toBe(structure.floors);
+      for (const part of parts) {
+        const axis = part.face === "north" || part.face === "south" ? "x" : "z";
+        const normal = axis === "x" ? "z" : "x";
+        expect(Math.abs(part.position[axis] - structure.position[axis]) + part.scale[axis] / 2).toBeLessThanOrEqual(structure.size[axis] / 2 + 1e-8);
+        expect(Math.abs(part.position[normal] - structure.position[normal]) + part.scale[normal] / 2).toBeLessThanOrEqual(structure.size[normal] / 2 + 1.12);
+        expect(part.position.y - part.scale.y / 2).toBeGreaterThanOrEqual(0);
+        expect(part.position.y + part.scale.y / 2).toBeLessThanOrEqual(structure.size.y + .04);
+        if (structure.enterable && part.face === structure.entrance)
+          expect(Math.abs(part.position[axis] - structure.position[axis]) - part.scale[axis] / 2).toBeGreaterThanOrEqual(2.4 - 1e-8);
+      }
+    }
+    expect(JSON.stringify(targets)).toBe(before);
+  });
+  it("replaces the old repeated grids within the existing representative part budgets", () => {
+    for (const [id, oldCount] of [["transfer-yard-shop", 140], ["transfer-yard-office", 180],
+      ["transfer-yard-utility", 62], ["civic-frontage-clinic", 145]] as const) {
+      const parts = buildFacadeParts(BR_STRUCTURES.find(s => s.id === id)!);
+      expect(parts.length).toBeLessThan(oldCount);
+      expect(parts.every(p => ["panel", "frame", "glass", "lit", "accent", "foliage", "metal"].includes(p.finish))).toBe(true);
+    }
+  });
   it("gives residences room-sized shaded windows rather than tower curtain glazing", () => {
     const apartment = BR_STRUCTURES.find(s => s.archetype === "apartment")!;
     const panes = buildFacadeParts(apartment).filter(p => p.finish === "glass" || p.finish === "lit");

@@ -32,6 +32,18 @@ describe("Battle Royale art-review cameras", () => {
     expect(BR_REVIEW_CAMERAS["hotel-lobby"]).toEqual(BR_REVIEW_CAMERAS["hotel-lounge"]);
   });
 
+  it("reviews the lower civic route from ground height below the established raised roads",()=>{
+    expect(BR_REVIEW_CAMERAS["civic-frontage-street"]).toEqual({position:[-145,2.7,150],focus:[-145,2.7,177]});
+  });
+
+  it("reviews West Junction's actual south doorway and the remaining south-transfer gap", () => {
+    expect(BR_REVIEW_CAMERAS["west-junction-frontage"]).toEqual({position:[-312,2.7,-123],focus:[-312,1.2,-109]});
+    expect(BR_REVIEW_CAMERAS["south-transfer-approach"].position).toEqual([110,2.7,-370]);
+    // The target is over the retained bridge, so its fixed point follows that
+    // actual road plane while the observer stays at ground height.
+    expect(BR_REVIEW_CAMERAS["south-transfer-approach"].focus).toEqual([100,6.440706319702603,-405]);
+  });
+
   it("exposes the Comet Hotel frontage from ground height rather than the old hovering road",()=>{
     const view=BR_REVIEW_CAMERAS["hotel-frontage"];
     expect(view.position).toEqual([-70,2.7,-244]);

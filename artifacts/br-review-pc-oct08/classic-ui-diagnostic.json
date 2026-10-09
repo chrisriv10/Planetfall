@@ -1,0 +1,136 @@
+{
+  "headless": true,
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "samples": [
+    {
+      "cycle": 0,
+      "player": 0,
+      "activate": false,
+      "openMs": 905.2442000000001,
+      "closeMs": 626.9222999999997,
+      "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "visibility": "visible",
+      "timing": {
+        "frames": 17,
+        "maxFrameMs": 899.9999999999999,
+        "last": 1888.3
+      },
+      "performance": {
+        "fps": 1.7946877243347659,
+        "drawCalls": 128,
+        "triangles": 10508,
+        "particles": 0,
+        "projectiles": 0
+      }
+    },
+    {
+      "cycle": 0,
+      "player": 1,
+      "activate": false,
+      "openMs": 610.9495999999999,
+      "closeMs": 402.3233999999993,
+      "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "visibility": "visible",
+      "timing": {
+        "frames": 19,
+        "maxFrameMs": 883.3,
+        "last": 3631.4
+      },
+      "performance": {
+        "fps": 6.885697422781822,
+        "drawCalls": 139,
+        "triangles": 10555,
+        "particles": 0,
+        "projectiles": 0
+      }
+    },
+    {
+      "cycle": 1,
+      "player": 0,
+      "activate": true,
+      "openMs": 740.1117999999997,
+      "closeMs": 418.71010000000024,
+      "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "visibility": "visible",
+      "timing": {
+        "frames": 40,
+        "maxFrameMs": 899.9999999999999,
+        "last": 5921.4
+      },
+      "performance": {
+        "fps": 5.807200929152147,
+        "drawCalls": 192,
+        "triangles": 13335,
+        "particles": 0,
+        "projectiles": 0
+      }
+    },
+    {
+      "cycle": 1,
+      "player": 1,
+      "activate": true,
+      "openMs": 493.0682000000006,
+      "closeMs": 448.33820000000014,
+      "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "visibility": "visible",
+      "timing": {
+        "frames": 40,
+        "maxFrameMs": 883.3,
+        "last": 6931.3
+      },
+      "performance": {
+        "fps": 5.2947405577126725,
+        "drawCalls": 202,
+        "triangles": 14002,
+        "particles": 0,
+        "projectiles": 0
+      }
+    },
+    {
+      "cycle": 2,
+      "player": 0,
+      "activate": false,
+      "openMs": 424.9912999999997,
+      "closeMs": 324.64769999999953,
+      "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "visibility": "visible",
+      "timing": {
+        "frames": 60,
+        "maxFrameMs": 899.9999999999999,
+        "last": 8854.7
+      },
+      "performance": {
+        "fps": 6.957126706670147,
+        "drawCalls": 225,
+        "triangles": 15912,
+        "particles": 0,
+        "projectiles": 0
+      }
+    },
+    {
+      "cycle": 2,
+      "player": 1,
+      "activate": false,
+      "openMs": 299.3292000000001,
+      "closeMs": 237.57990000000063,
+      "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "visibility": "visible",
+      "timing": {
+        "frames": 57,
+        "maxFrameMs": 883.3,
+        "last": 9514.5
+      },
+      "performance": {
+        "fps": 6.562910181886366,
+        "drawCalls": 227,
+        "triangles": 16072,
+        "particles": 0,
+        "projectiles": 0
+      }
+    }
+  ],
+  "errors": []
+}

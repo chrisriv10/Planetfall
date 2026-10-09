@@ -1,0 +1,1369 @@
+{
+  "scope": "Actual full-width road ribbons including endpoints at authored visible heights; roads are joined straight pieces, not spline arcs.",
+  "roads": 319,
+  "surfaces": 1221,
+  "samples": 27039,
+  "bends": [
+    {
+      "from": "west-collector-south",
+      "to": "west-collector-mid",
+      "position": {
+        "x": -430,
+        "y": 0.1,
+        "z": -80
+      },
+      "turnDegrees": 7.016501744722924
+    },
+    {
+      "from": "west-collector-mid",
+      "to": "west-collector-rise",
+      "position": {
+        "x": -430,
+        "y": 0.1,
+        "z": 150
+      },
+      "turnDegrees": 29.05460409907715
+    },
+    {
+      "from": "west-collector-mid",
+      "to": "west-park-main",
+      "position": {
+        "x": -430,
+        "y": 0.1,
+        "z": 150
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "west-collector-rise-grade-part-4",
+      "to": "west-collector-north",
+      "position": {
+        "x": -380,
+        "y": 0.1,
+        "z": 240
+      },
+      "turnDegrees": 12.578935237493033
+    },
+    {
+      "from": "west-collector-north",
+      "to": "west-collector-link",
+      "position": {
+        "x": -300,
+        "y": 0.1,
+        "z": 330
+      },
+      "turnDegrees": 34.6824409111823
+    },
+    {
+      "from": "west-collector-link",
+      "to": "ring-wn",
+      "position": {
+        "x": -185,
+        "y": 0.1,
+        "z": 358
+      },
+      "turnDegrees": 105.0880469713518
+    },
+    {
+      "from": "west-neighborhood-link-a",
+      "to": "west-neighborhood-link-b",
+      "position": {
+        "x": -350,
+        "y": 0.1,
+        "z": -105
+      },
+      "turnDegrees": 14.349332042947111
+    },
+    {
+      "from": "west-neighborhood-link-b",
+      "to": "west-neighborhood-link-c",
+      "position": {
+        "x": -360,
+        "y": 0.1,
+        "z": -125
+      },
+      "turnDegrees": 63.43494882292201
+    },
+    {
+      "from": "west-neighborhood-link-c",
+      "to": "west-transit-avenue",
+      "position": {
+        "x": -375,
+        "y": 0.1,
+        "z": -125
+      },
+      "turnDegrees": 175.27554830282907
+    },
+    {
+      "from": "west-transit-avenue",
+      "to": "west-junction-main-grade-part-1",
+      "position": {
+        "x": -330,
+        "y": 0.1,
+        "z": -128.71900826446281
+      },
+      "turnDegrees": 85.27554830282911
+    },
+    {
+      "from": "west-transit-avenue-grade-part-3",
+      "to": "nova-street-a-west",
+      "position": {
+        "x": -254,
+        "y": 5.1,
+        "z": -135
+      },
+      "turnDegrees": 4.7244516971708705
+    },
+    {
+      "from": "southwest-salvage-grade-grade-part-1",
+      "to": "southwest-salvage-link",
+      "position": {
+        "x": -250,
+        "y": 0.1,
+        "z": -400
+      },
+      "turnDegrees": 11.876264403759588
+    },
+    {
+      "from": "southwest-salvage-link",
+      "to": "salvage-row-cross",
+      "position": {
+        "x": -315,
+        "y": 0.1,
+        "z": -362
+      },
+      "turnDegrees": 59.688786773318384
+    },
+    {
+      "from": "south-rim-promenade",
+      "to": "south-terminal-main",
+      "position": {
+        "x": -15,
+        "y": 3.6,
+        "z": -415
+      },
+      "turnDegrees": 2.489552921998982
+    },
+    {
+      "from": "south-rim-boardwalk-west",
+      "to": "south-rim-boardwalk-main",
+      "position": {
+        "x": -125,
+        "y": 5.1,
+        "z": -462
+      },
+      "turnDegrees": 27.284207293623062
+    },
+    {
+      "from": "south-rim-boardwalk-main",
+      "to": "south-rim-boardwalk-link",
+      "position": {
+        "x": 15,
+        "y": 3.6,
+        "z": -452
+      },
+      "turnDegrees": 85.91438322002512
+    },
+    {
+      "from": "ring-wn-grade-part-2",
+      "to": "ring-west",
+      "position": {
+        "x": -190,
+        "y": 8.1,
+        "z": 154
+      },
+      "turnDegrees": 20.343031479344734
+    },
+    {
+      "from": "ring-west-grade-part-2",
+      "to": "ring-central-west",
+      "position": {
+        "x": -120,
+        "y": 5.1,
+        "z": -50
+      },
+      "turnDegrees": 51.40717168170663
+    },
+    {
+      "from": "ring-central-west",
+      "to": "ring-nova-east",
+      "position": {
+        "x": -92,
+        "y": 5.1,
+        "z": -60
+      },
+      "turnDegrees": 70.3461759419467
+    },
+    {
+      "from": "central-market-avenue-west",
+      "to": "central-market-avenue-east",
+      "position": {
+        "x": 0,
+        "y": 0.1,
+        "z": -80
+      },
+      "turnDegrees": 29.46057882827039
+    },
+    {
+      "from": "central-market-avenue-west",
+      "to": "central-hotel-promenade",
+      "position": {
+        "x": 0,
+        "y": 0.1,
+        "z": -80
+      },
+      "turnDegrees": 126.92514910365797
+    },
+    {
+      "from": "central-market-avenue-east",
+      "to": "central-market-avenue-bend",
+      "position": {
+        "x": 40,
+        "y": 0.1,
+        "z": -55
+      },
+      "turnDegrees": 54.62524815612392
+    },
+    {
+      "from": "central-market-avenue-bend",
+      "to": "central-market-avenue-entry",
+      "position": {
+        "x": 52,
+        "y": 0.1,
+        "z": -60
+      },
+      "turnDegrees": 67.38013505195957
+    },
+    {
+      "from": "central-market-avenue-entry",
+      "to": "relay-market-main",
+      "position": {
+        "x": 52,
+        "y": 0.1,
+        "z": -78
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "central-hotel-promenade",
+      "to": "central-hotel-promenade-south",
+      "position": {
+        "x": -65,
+        "y": 0.1,
+        "z": -175
+      },
+      "turnDegrees": 34.38034472384487
+    },
+    {
+      "from": "central-hotel-promenade-south",
+      "to": "central-hotel-promenade-entry",
+      "position": {
+        "x": -65,
+        "y": 0.1,
+        "z": -214
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "central-hotel-promenade-south",
+      "to": "service-2",
+      "position": {
+        "x": -65,
+        "y": 0.1,
+        "z": -214
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "hotel-south-avenue-entry",
+      "to": "hotel-south-avenue-link",
+      "position": {
+        "x": -65,
+        "y": 0.1,
+        "z": -270
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "hotel-south-avenue-link",
+      "to": "hotel-south-avenue",
+      "position": {
+        "x": -76,
+        "y": 0.1,
+        "z": -270
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "crash-hotel-avenue",
+      "to": "hotel-cargo-avenue",
+      "position": {
+        "x": -76,
+        "y": 0.1,
+        "z": -290
+      },
+      "turnDegrees": 2.030914236853016
+    },
+    {
+      "from": "hotel-cargo-avenue",
+      "to": "cargo-spur-main",
+      "position": {
+        "x": 65,
+        "y": 0.1,
+        "z": -285
+      },
+      "turnDegrees": 2.030914236853196
+    },
+    {
+      "from": "ring-nova-east",
+      "to": "ring-nova-south",
+      "position": {
+        "x": -92,
+        "y": 5.1,
+        "z": -215
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "ring-nova-south",
+      "to": "ring-sw",
+      "position": {
+        "x": -254,
+        "y": 5.1,
+        "z": -215
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "ring-nova-south",
+      "to": "nova-circulation-w",
+      "position": {
+        "x": -254,
+        "y": 5.1,
+        "z": -215
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "ring-sw-grade-part-2",
+      "to": "ring-s",
+      "position": {
+        "x": -254,
+        "y": 0.1,
+        "z": -340
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "ring-s",
+      "to": "ring-s-rise",
+      "position": {
+        "x": 112,
+        "y": 0.1,
+        "z": -340
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "south-transfer-bridge",
+      "to": "south-shipworks-main",
+      "position": {
+        "x": 160,
+        "y": 4.1,
+        "z": -400
+      },
+      "turnDegrees": 7.43140797117249
+    },
+    {
+      "from": "south-freight-boulevard",
+      "to": "dock-service-main",
+      "position": {
+        "x": 255,
+        "y": 0.1,
+        "z": -275
+      },
+      "turnDegrees": 4.3987053549954265
+    },
+    {
+      "from": "dock-engine-link-west",
+      "to": "dock-engine-link-east",
+      "position": {
+        "x": 340,
+        "y": 0.1,
+        "z": -275
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "dock-engine-link-east",
+      "to": "dock-engine-link-gate",
+      "position": {
+        "x": 340,
+        "y": 0.1,
+        "z": -180
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "east-freight-engine-deck",
+      "to": "east-freight-engine-deck-turn",
+      "position": {
+        "x": 375,
+        "y": 8.1,
+        "z": -315
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "east-freight-engine-deck-turn",
+      "to": "east-freight-engine-grade",
+      "position": {
+        "x": 375,
+        "y": 8.1,
+        "z": -285
+      },
+      "turnDegrees": 21.037511025421825
+    },
+    {
+      "from": "east-freight-engine-grade",
+      "to": "engine-gate-cross",
+      "position": {
+        "x": 405,
+        "y": 0.1,
+        "z": -207
+      },
+      "turnDegrees": 21.037511025421825
+    },
+    {
+      "from": "ring-s-rise",
+      "to": "ring-se-south",
+      "position": {
+        "x": 112,
+        "y": 0.1,
+        "z": -225
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "ring-se-south",
+      "to": "ring-se-east",
+      "position": {
+        "x": 275,
+        "y": 0.1,
+        "z": -225
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "ring-se-east",
+      "to": "ring-thruster-south",
+      "position": {
+        "x": 275,
+        "y": 0.1,
+        "z": -130
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "ring-thruster-south",
+      "to": "ring-thruster-east",
+      "position": {
+        "x": 430,
+        "y": 0.1,
+        "z": -130
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "ring-thruster-east",
+      "to": "ring-helios-south",
+      "position": {
+        "x": 430,
+        "y": 0.1,
+        "z": 40
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "ring-helios-south-grade-part-2",
+      "to": "ring-helios-east",
+      "position": {
+        "x": 345,
+        "y": 6.1,
+        "z": 40
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "ring-helios-east",
+      "to": "ring-ne",
+      "position": {
+        "x": 345,
+        "y": 6.1,
+        "z": 155
+      },
+      "turnDegrees": 60.10109816138547
+    },
+    {
+      "from": "ring-ne-grade-part-2",
+      "to": "ring-north-east",
+      "position": {
+        "x": 225,
+        "y": 4.1,
+        "z": 224
+      },
+      "turnDegrees": 60.10109816138543
+    },
+    {
+      "from": "ring-north-east-grade-part-1",
+      "to": "ring-n",
+      "position": {
+        "x": 225,
+        "y": 3.6555555555555554,
+        "z": 372
+      },
+      "turnDegrees": 91.95568139752288
+    },
+    {
+      "from": "ring-n-grade-part-4",
+      "to": "ring-wn",
+      "position": {
+        "x": -185,
+        "y": 0.1,
+        "z": 358
+      },
+      "turnDegrees": 86.64029138337283
+    },
+    {
+      "from": "north-skywalk-west",
+      "to": "north-skywalk-east",
+      "position": {
+        "x": -160,
+        "y": 0.1,
+        "z": 430
+      },
+      "turnDegrees": 56.56877425594214
+    },
+    {
+      "from": "north-skywalk-east",
+      "to": "north-garden-promenade",
+      "position": {
+        "x": -75,
+        "y": 0.1,
+        "z": 405
+      },
+      "turnDegrees": 141.8090501796134
+    },
+    {
+      "from": "north-skywalk-east",
+      "to": "north-gardens-main",
+      "position": {
+        "x": -75,
+        "y": 0.1,
+        "z": 405
+      },
+      "turnDegrees": 16.389540334034812
+    },
+    {
+      "from": "solar-rim-deck-link",
+      "to": "solar-rim-grade",
+      "position": {
+        "x": 135,
+        "y": 4.1,
+        "z": 405
+      },
+      "turnDegrees": 1.701354605326239
+    },
+    {
+      "from": "solar-rim-grade",
+      "to": "ring-n",
+      "position": {
+        "x": 225,
+        "y": 3.6555555555555554,
+        "z": 372
+      },
+      "turnDegrees": 157.908015174229
+    },
+    {
+      "from": "solar-rim-grade",
+      "to": "solar-service-access",
+      "position": {
+        "x": 225,
+        "y": 3.6555555555555554,
+        "z": 372
+      },
+      "turnDegrees": 110.13630342824814
+    },
+    {
+      "from": "solar-service-access-grade-part-2",
+      "to": "solar-service-arrival",
+      "position": {
+        "x": 225,
+        "y": 0.1,
+        "z": 400
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "solar-service-arrival",
+      "to": "solar-service-main",
+      "position": {
+        "x": 180,
+        "y": 0.1,
+        "z": 400
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "radial-0",
+      "to": "radial-0-grade-part-1",
+      "position": {
+        "x": -65,
+        "y": 0.1,
+        "z": -58
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "radial-0-grade-part-1",
+      "to": "radial-0-grade-part-2",
+      "position": {
+        "x": -65,
+        "y": 0.1,
+        "z": -82
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "radial-0-grade-part-1",
+      "to": "service-0",
+      "position": {
+        "x": -65,
+        "y": 0.1,
+        "z": -82
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "radial-1",
+      "to": "ring-se-south",
+      "position": {
+        "x": 112,
+        "y": 0.1,
+        "z": -225
+      },
+      "turnDegrees": 76.53022177043584
+    },
+    {
+      "from": "radial-1",
+      "to": "dock-circulation-w",
+      "position": {
+        "x": 112,
+        "y": 0.1,
+        "z": -225
+      },
+      "turnDegrees": 166.53022177043587
+    },
+    {
+      "from": "radial-2-grade-part-3",
+      "to": "transit-court-main",
+      "position": {
+        "x": 137.5,
+        "y": -2.3545454545454545,
+        "z": 58
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "transit-court-main-grade-part-2",
+      "to": "transit-court-north-link",
+      "position": {
+        "x": 137.5,
+        "y": 0.1,
+        "z": 145
+      },
+      "turnDegrees": 68.19859051364824
+    },
+    {
+      "from": "transit-court-main-grade-part-2",
+      "to": "service-30",
+      "position": {
+        "x": 137.5,
+        "y": 0.1,
+        "z": 145
+      },
+      "turnDegrees": 68.19859051364824
+    },
+    {
+      "from": "transit-court-north-link-grade-part-3",
+      "to": "transit-farm-boulevard",
+      "position": {
+        "x": 190,
+        "y": 5.814285714285713,
+        "z": 166
+      },
+      "turnDegrees": 49.76364169072618
+    },
+    {
+      "from": "transit-court-north-link-grade-part-3",
+      "to": "transit-helios-entry",
+      "position": {
+        "x": 190,
+        "y": 5.814285714285713,
+        "z": 166
+      },
+      "turnDegrees": 115.71965835041905
+    },
+    {
+      "from": "transit-farm-boulevard",
+      "to": "transit-farm-boulevard-entry",
+      "position": {
+        "x": 194,
+        "y": 4.1,
+        "z": 178
+      },
+      "turnDegrees": 30.96375653207352
+    },
+    {
+      "from": "transit-farm-boulevard-entry",
+      "to": "transit-farm-boulevard-middle",
+      "position": {
+        "x": 201,
+        "y": 4.1,
+        "z": 184
+      },
+      "turnDegrees": 19.14226819146628
+    },
+    {
+      "from": "transit-farm-boulevard-middle",
+      "to": "transit-farm-boulevard-farm",
+      "position": {
+        "x": 215,
+        "y": 4.1,
+        "z": 208
+      },
+      "turnDegrees": 1.7489460445542555
+    },
+    {
+      "from": "transit-farm-boulevard-farm",
+      "to": "ring-north-east",
+      "position": {
+        "x": 225,
+        "y": 4.1,
+        "z": 224
+      },
+      "turnDegrees": 32.005383208083494
+    },
+    {
+      "from": "zero-coolant-avenue",
+      "to": "coolant-plant-cross",
+      "position": {
+        "x": 80,
+        "y": 0.1,
+        "z": 153
+      },
+      "turnDegrees": 6.009005957494473
+    },
+    {
+      "from": "radial-3-grade-part-3",
+      "to": "ring-west",
+      "position": {
+        "x": -190,
+        "y": 8.1,
+        "z": 154
+      },
+      "turnDegrees": 147.5988125143306
+    },
+    {
+      "from": "nova-north-descent",
+      "to": "nova-landing-office-entry",
+      "position": {
+        "x": -175,
+        "y": 0.1,
+        "z": -12
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "nova-north-descent",
+      "to": "nova-landing-service-entry",
+      "position": {
+        "x": -175,
+        "y": 0.1,
+        "z": -12
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "zero-circulation-s",
+      "to": "zero-circulation-e",
+      "position": {
+        "x": 70,
+        "y": 0.1,
+        "z": -58
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "zero-circulation-e",
+      "to": "radial-2",
+      "position": {
+        "x": 70,
+        "y": 0.1,
+        "z": 58
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "zero-circulation-e",
+      "to": "zero-coolant-avenue",
+      "position": {
+        "x": 70,
+        "y": 0.1,
+        "z": 58
+      },
+      "turnDegrees": 6.009005957494473
+    },
+    {
+      "from": "zero-circulation-e",
+      "to": "zero-circulation-n",
+      "position": {
+        "x": 70,
+        "y": 0.1,
+        "z": 58
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "zero-circulation-n",
+      "to": "radial-3",
+      "position": {
+        "x": -70,
+        "y": 0.1,
+        "z": 58
+      },
+      "turnDegrees": 38.659808254090095
+    },
+    {
+      "from": "zero-circulation-n",
+      "to": "zero-circulation-w",
+      "position": {
+        "x": -70,
+        "y": 0.1,
+        "z": 58
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "zero-circulation-w",
+      "to": "radial-0",
+      "position": {
+        "x": -70,
+        "y": 0.1,
+        "z": -58
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "zero-circulation-w",
+      "to": "zero-circulation-s",
+      "position": {
+        "x": -70,
+        "y": 0.1,
+        "z": -58
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "nova-circulation-n",
+      "to": "nova-circulation-ne",
+      "position": {
+        "x": -92,
+        "y": 5.1,
+        "z": -56
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "nova-street-a-west",
+      "to": "nova-street-b-north",
+      "position": {
+        "x": -175,
+        "y": 5.1,
+        "z": -135
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "nova-street-b-south",
+      "to": "nova-street-a-east",
+      "position": {
+        "x": -175,
+        "y": 5.1,
+        "z": -135
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "dock-circulation-w",
+      "to": "dock-circulation-n",
+      "position": {
+        "x": 112,
+        "y": 0.1,
+        "z": -70
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "dock-circulation-n",
+      "to": "dock-circulation-e",
+      "position": {
+        "x": 275,
+        "y": 0.1,
+        "z": -70
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "dock-circulation-e",
+      "to": "ring-thruster-south",
+      "position": {
+        "x": 275,
+        "y": 0.1,
+        "z": -130
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "helios-circulation-w",
+      "to": "helios-circulation-n",
+      "position": {
+        "x": 185,
+        "y": 6.1,
+        "z": 155
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "helios-circulation-n",
+      "to": "ring-ne",
+      "position": {
+        "x": 345,
+        "y": 6.1,
+        "z": 155
+      },
+      "turnDegrees": 150.10109816138547
+    },
+    {
+      "from": "helios-circulation-s",
+      "to": "helios-circulation-w",
+      "position": {
+        "x": 185,
+        "y": 6.1,
+        "z": 40
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "astra-circulation-w",
+      "to": "astra-circulation-n",
+      "position": {
+        "x": -365,
+        "y": 8.1,
+        "z": 150
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "astra-circulation-n",
+      "to": "astra-circulation-e",
+      "position": {
+        "x": -195,
+        "y": 8.1,
+        "z": 150
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "astra-circulation-n",
+      "to": "astra-circulation-link",
+      "position": {
+        "x": -195,
+        "y": 8.1,
+        "z": 150
+      },
+      "turnDegrees": 38.65980825409009
+    },
+    {
+      "from": "astra-circulation-e",
+      "to": "astra-circulation-s",
+      "position": {
+        "x": -195,
+        "y": 8.1,
+        "z": 25
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "astra-circulation-s",
+      "to": "astra-circulation-w",
+      "position": {
+        "x": -365,
+        "y": 8.1,
+        "z": 25
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "astra-circulation-link",
+      "to": "ring-west",
+      "position": {
+        "x": -190,
+        "y": 8.1,
+        "z": 154
+      },
+      "turnDegrees": 109.72080399385001
+    },
+    {
+      "from": "mall-circulation-s-grade-part-2",
+      "to": "mall-circulation-e",
+      "position": {
+        "x": -5,
+        "y": 0.1,
+        "z": 190
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "mall-circulation-e",
+      "to": "mall-circulation-n",
+      "position": {
+        "x": -5,
+        "y": 0.1,
+        "z": 345
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "mall-circulation-n",
+      "to": "mall-circulation-w",
+      "position": {
+        "x": -180,
+        "y": 0.1,
+        "z": 345
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "mall-circulation-w",
+      "to": "mall-circulation-s",
+      "position": {
+        "x": -180,
+        "y": 2.433333333333333,
+        "z": 190
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "mall-circulation-w",
+      "to": "mall-circulation-link",
+      "position": {
+        "x": -180,
+        "y": 2.433333333333333,
+        "z": 190
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "farm-circulation-w",
+      "to": "farm-circulation-n",
+      "position": {
+        "x": 40,
+        "y": 4.1,
+        "z": 360
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "crash-circulation-w",
+      "to": "crash-circulation-w-drop",
+      "position": {
+        "x": -390,
+        "y": 0.1,
+        "z": -245
+      },
+      "turnDegrees": 17.354024636261354
+    },
+    {
+      "from": "crash-circulation-n-grade-part-2",
+      "to": "crash-circulation-e",
+      "position": {
+        "x": -258,
+        "y": 5.1,
+        "z": -195
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "crash-circulation-e-grade-part-2",
+      "to": "crash-circulation-s",
+      "position": {
+        "x": -258,
+        "y": 0.1,
+        "z": -325
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "thruster-circulation-w",
+      "to": "thruster-circulation-n",
+      "position": {
+        "x": 270,
+        "y": 4.814285714285714,
+        "z": 15
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "service-3-grade-part-2",
+      "to": "nova-circulation-n",
+      "position": {
+        "x": -255,
+        "y": 5.1,
+        "z": -56
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "service-11",
+      "to": "ring-se-east",
+      "position": {
+        "x": 275,
+        "y": 0.1,
+        "z": -225
+      },
+      "turnDegrees": 11.309932474020195
+    },
+    {
+      "from": "service-23",
+      "to": "service-23-grade-part-1",
+      "position": {
+        "x": -108,
+        "y": 0.1,
+        "z": 85
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "service-23-grade-part-1",
+      "to": "service-23-grade-part-2",
+      "position": {
+        "x": -108,
+        "y": 0.1,
+        "z": 42
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "service-24-deck",
+      "to": "service-24-grade",
+      "position": {
+        "x": 190,
+        "y": 4.1,
+        "z": -367
+      },
+      "turnDegrees": 70.90650799951439
+    },
+    {
+      "from": "service-24-grade",
+      "to": "ring-s-rise",
+      "position": {
+        "x": 112,
+        "y": 0.1,
+        "z": -340
+      },
+      "turnDegrees": 70.90650799951439
+    },
+    {
+      "from": "service-25-grade",
+      "to": "ring-se-east",
+      "position": {
+        "x": 275,
+        "y": 0.1,
+        "z": -225
+      },
+      "turnDegrees": 31.432292102714516
+    },
+    {
+      "from": "service-30-grade-part-3",
+      "to": "transit-farm-boulevard",
+      "position": {
+        "x": 190,
+        "y": 5.814285714285713,
+        "z": 166
+      },
+      "turnDegrees": 49.76364169072618
+    },
+    {
+      "from": "service-30-grade-part-3",
+      "to": "transit-helios-entry",
+      "position": {
+        "x": 190,
+        "y": 5.814285714285713,
+        "z": 166
+      },
+      "turnDegrees": 115.71965835041905
+    },
+    {
+      "from": "service-33",
+      "to": "solar-service-cross",
+      "position": {
+        "x": 180,
+        "y": 0.1,
+        "z": 400
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "central-heights-main-grade-part-2",
+      "to": "central-market-avenue-west",
+      "position": {
+        "x": -45,
+        "y": 0.1,
+        "z": -82
+      },
+      "turnDegrees": 2.544804379812902
+    },
+    {
+      "from": "academy-dorms-cross",
+      "to": "academy-dorms-north",
+      "position": {
+        "x": -400,
+        "y": 0.1,
+        "z": 185
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "academy-dorms-north",
+      "to": "academy-dorms-frontage",
+      "position": {
+        "x": -369,
+        "y": 0.1,
+        "z": 185
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "signal-station-main",
+      "to": "west-transit-avenue",
+      "position": {
+        "x": -375,
+        "y": 0.1,
+        "z": -125
+      },
+      "turnDegrees": 4.724451697170948
+    },
+    {
+      "from": "emergency-depot-main",
+      "to": "south-rim-promenade",
+      "position": {
+        "x": -130,
+        "y": 5.6,
+        "z": -420
+      },
+      "turnDegrees": 2.489552921998982
+    },
+    {
+      "from": "south-terminal-main",
+      "to": "south-transfer-bridge",
+      "position": {
+        "x": 45,
+        "y": 3.6,
+        "z": -415
+      },
+      "turnDegrees": 7.43140797117249
+    },
+    {
+      "from": "cargo-spur-main",
+      "to": "south-freight-boulevard",
+      "position": {
+        "x": 125,
+        "y": 0.1,
+        "z": -285
+      },
+      "turnDegrees": 4.398705354995508
+    },
+    {
+      "from": "solar-field-main",
+      "to": "solar-rim-deck-link",
+      "position": {
+        "x": 105,
+        "y": 4.1,
+        "z": 415
+      },
+      "turnDegrees": 18.434948822922017
+    },
+    {
+      "from": "mall-annex-cross",
+      "to": "north-skywalk-west",
+      "position": {
+        "x": -205,
+        "y": 0.1,
+        "z": 392
+      },
+      "turnDegrees": 49.82076607809266
+    },
+    {
+      "from": "farm-transfer-arrival",
+      "to": "transit-farm-boulevard-middle",
+      "position": {
+        "x": 201,
+        "y": 4.1,
+        "z": 184
+      },
+      "turnDegrees": 59.74356283647074
+    },
+    {
+      "from": "west-junction-main",
+      "to": "west-transit-avenue-grade-part-1",
+      "position": {
+        "x": -330,
+        "y": 0.1,
+        "z": -128.71900826446281
+      },
+      "turnDegrees": 85.27554830282911
+    },
+    {
+      "from": "west-junction-main-grade-part-1",
+      "to": "west-junction-office-entry",
+      "position": {
+        "x": -330,
+        "y": 0.1,
+        "z": -142
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "transfer-yard-main",
+      "to": "transfer-yard-court",
+      "position": {
+        "x": 102,
+        "y": 0.1,
+        "z": -394
+      },
+      "turnDegrees": 90
+    },
+    {
+      "from": "civic-frontage-main",
+      "to": "civic-frontage-court",
+      "position": {
+        "x": -145,
+        "y": 0.1,
+        "z": 180
+      },
+      "turnDegrees": 90
+    }
+  ],
+  "missingPavement": []
+}

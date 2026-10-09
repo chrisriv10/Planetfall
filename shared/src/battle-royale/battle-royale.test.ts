@@ -183,10 +183,10 @@ describe("Battle Royale shared rules", () => {
 
   it("builds one authored island with nine distinct connected districts and enterable structures", () => {
     expect(BR_POIS).toHaveLength(9);
-    expect(BR_SECONDARY_LOCATIONS).toHaveLength(36);
+    expect(BR_SECONDARY_LOCATIONS).toHaveLength(39);
     expect(BR_ISLAND_OUTLINE.length).toBeGreaterThanOrEqual(16);
-    expect(BR_STRUCTURES).toHaveLength(174);
-    expect(BR_STRUCTURES.filter((structure)=>structure.enterable)).toHaveLength(92);
+    expect(BR_STRUCTURES).toHaveLength(183);
+    expect(BR_STRUCTURES.filter((structure)=>structure.enterable)).toHaveLength(101);
     expect(BR_ROADS.length).toBeGreaterThanOrEqual(46);
     expect(BR_TERRAIN_PATCHES.length).toBeGreaterThanOrEqual(BR_POIS.length);
     for (const poi of BR_POIS) {
@@ -383,7 +383,10 @@ describe("Battle Royale shared rules", () => {
       const service=BR_ROAD_ROUTES.find(road=>road.id===serviceId||road.id===`${serviceId}-grade`);
       // These blocks straddle existing collectors at their actual origins;
       // they do not need duplicate indexed service-road geometry.
-      const connection=["ring-service","west-junction"].includes(plan.id)?plan.origin:service?.to;
+      // Civic Frontage extends the lower Security route, using its established
+      // feeder to Zero rather than duplicating it or joining the upper bridge.
+      const connection=plan.id==="civic-frontage"?BR_ROAD_ROUTES.find(r=>r.id==="service-23")?.to:
+        ["ring-service","west-junction","transfer-yard","nova-landing"].includes(plan.id)?plan.origin:service?.to;
       expect(connection,`${plan.id} arterial access`).toBeDefined();
       expect(Math.min(...arterials.map(road=>distanceToSegment(connection!,road.from,road.to)))).toBeLessThan(.01);
       for(const endpoint of plan.streets.flatMap(street=>[street.from,street.to]))expect(isInsideBrIsland(endpoint,3)).toBe(true);

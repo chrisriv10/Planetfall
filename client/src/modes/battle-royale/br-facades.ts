@@ -21,7 +21,14 @@ export function buildFacadeParts(structure: BrStructure): FacadePart[] {
   const tower = ["tower", "hotel", "apartment"].includes(structure.archetype);
   const residential = structure.archetype === "apartment" || structure.archetype === "hotel";
   const shop = ["shop", "transit", "mall"].includes(structure.archetype);
-  const levels = cargo || fuselage ? 1 : Math.max(1, Math.round(height / (industrial ? 6 : tower ? 4.8 : 4)));
+  const storefront = ["shop", "transit"].includes(structure.archetype);
+  const civic = ["lab", "academy"].includes(structure.archetype);
+  const office = structure.archetype === "office";
+  const service = !cargo && !fuselage && ["industrial", "utility"].includes(structure.archetype);
+  const distinct = storefront || civic || office || service;
+  // Functional skins follow the actual floor count: a six-metre single-floor
+  // shop must not acquire two apparent storeys from height rounding.
+  const levels = cargo || fuselage || service ? 1 : distinct ? structure.floors : Math.max(1, Math.round(height / (industrial ? 6 : tower ? 4.8 : 4)));
   const floor = height / levels;
   for (const face of ["north", "south", "east", "west"] as const) {
     const ns = face === "north" || face === "south";
@@ -47,16 +54,20 @@ export function buildFacadeParts(structure: BrStructure): FacadePart[] {
       const pitch = length / bays;
       for (let bay = 0; bay < bays; bay++) {
         const center = start + pitch * (bay + .5);
-        const windowWidth = fuselage ? Math.min(1.6, pitch - 1) : residential ? Math.min(2.65, pitch - 1.1) : pitch - (industrial ? 1.35 : .65);
+        const windowWidth = fuselage ? Math.min(1.6, pitch - 1) : office ? Math.min(1.65, pitch - 1.1)
+          : civic ? pitch - .9 : service ? pitch - 1.55 : residential ? Math.min(2.65, pitch - 1.1) : pitch - (industrial ? 1.35 : .65);
         for (let level = 0; level < levels; level++) {
-          const y = fuselage ? height * .72 : cargo ? height * .8 : level * floor + floor * .54;
-          const windowHeight = Math.min(floor - 1.15, fuselage ? .72 : cargo ? height * .12 : industrial ? 1.5 : residential ? 2.35 : tower ? 4.2 : shop ? 2.65 : 2.8);
+          const y = fuselage ? height * .72 : cargo ? height * .8
+            : level * floor + floor * (service ? .74 : civic ? .62 : storefront ? .45 : .54);
+          const windowHeight = Math.min(floor - 1.15, fuselage ? .72 : cargo ? height * .12
+            : service ? .95 : civic ? 1.25 : office ? 2.6 : storefront ? 3.15 : industrial ? 1.5 : residential ? 2.35 : tower ? 4.2 : shop ? 2.65 : 2.8);
           if (windowWidth <= .3 || windowHeight <= .3) continue;
           add("frame", center, y, windowWidth + .25, windowHeight + .26, .51, .15);
           const lit = !fuselage && (bay * 3 + level + structure.id.length) % 9 === 0;
           add(lit ? "lit" : "glass", center, y, windowWidth, windowHeight, .605, .06);
-          add("frame", center, y - windowHeight / 2 - .18, windowWidth + .45, .13, .73, .42);
-          if (shop || tower) add("frame", center, y, .09, windowHeight, .66, .06);
+          // Functional facades use a shallow flush sill, not repeated shelves.
+          add(service ? "metal" : "frame", center, y - windowHeight / 2 - .18, windowWidth + (distinct ? .25 : .45), .13, distinct ? .62 : .73, distinct ? .12 : .42);
+          if ((shop && !storefront) || tower) add("frame", center, y, .09, windowHeight, .66, .06);
           if (residential) {
             // Shallow, wall-supported shade cassettes: residential openings
             // read as individual rooms, not another floor-to-ceiling office grid.
@@ -81,7 +92,7 @@ export function buildFacadeParts(structure: BrStructure): FacadePart[] {
           add("frame", center, height * .56, pitch * .8, .12, .61, .06);
         }
         // Recessed window bays framed by broad structural fins, not pinprick windows.
-        if (bay < bays - 1) add(residential ? "panel" : "frame", center + pitch / 2, height / 2, residential ? .38 : .18, height - .4, tower ? .83 : .62, tower ? .9 : .3);
+        if (bay < bays - 1 && !storefront && !civic && !service) add(residential ? "panel" : "frame", center + pitch / 2, height / 2, residential ? .38 : office ? .12 : .18, office ? height * .68 : height - .4, tower ? .83 : .62, tower ? .9 : office ? .12 : .3);
       }
       if (industrial) {
         for (let i = 0; i < 3; i++) add("frame", start + length * .18, 1.5 + i * .22, Math.min(2, length * .25), .09, .59, .16);
@@ -107,7 +118,11 @@ export function buildFacadeParts(structure: BrStructure): FacadePart[] {
             troughWidth / 5 * .85, .32, .75, .38);
         }
       }
-      add("accent", start + length * .2, height - .6, Math.min(length * .35, 4), .14, .76, .09);
+      // Reuse the former accent bar as an archetype cue, all on solid intervals.
+      if (storefront) add("accent", (start + end) / 2, height - .88, Math.min(length - .2, 6), .42, .60, .09);
+      else if (civic) add("accent", start + .3, height * .62, .18, Math.min(1.6, height * .22), .60, .09);
+      else if (service) add("accent", (start + end) / 2, 1.02, Math.min(length * .55, 4), .18, .60, .09);
+      else add("accent", start + length * .2, height - .6, Math.min(length * .35, 4), .14, .76, .09);
     }
   }
   return parts;
