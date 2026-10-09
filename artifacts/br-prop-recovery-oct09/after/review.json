@@ -1,0 +1,107 @@
+{
+  "scope": "Static actual-world assembly, normal materials and BR lighting, no gameplay/HUD/sky/bloom/shadows. Not FPS or human-control validation.",
+  "legacyParkingReconstructed": false,
+  "views": [
+    {
+      "id": "nova-kiosk-apron",
+      "position": [
+        -205,
+        7.7,
+        -134
+      ],
+      "focus": [
+        -192,
+        6.4,
+        -103
+      ],
+      "calls": 546,
+      "triangles": 464871,
+      "textures": 34,
+      "world": {
+        "objects": 2128,
+        "meshes": 1824,
+        "instances": 60098,
+        "visibleInstances": 30952,
+        "materials": 307,
+        "visibleDistricts": 37,
+        "visibleSecondaryLabels": 5
+      }
+    },
+    {
+      "id": "nova-studio-apron",
+      "position": [
+        -150,
+        7.7,
+        -135
+      ],
+      "focus": [
+        -135,
+        6.4,
+        -109
+      ],
+      "calls": 527,
+      "triangles": 455013,
+      "textures": 38,
+      "world": {
+        "objects": 2128,
+        "meshes": 1824,
+        "instances": 60098,
+        "visibleInstances": 31299,
+        "materials": 307,
+        "visibleDistricts": 37,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "thruster-pump-apron",
+      "position": [
+        415,
+        2.7,
+        -119
+      ],
+      "focus": [
+        379,
+        1.5,
+        -88
+      ],
+      "calls": 477,
+      "triangles": 293531,
+      "textures": 43,
+      "world": {
+        "objects": 2128,
+        "meshes": 1824,
+        "instances": 60098,
+        "visibleInstances": 17287,
+        "materials": 307,
+        "visibleDistricts": 12,
+        "visibleSecondaryLabels": 0
+      }
+    },
+    {
+      "id": "dock-service-apron",
+      "position": [
+        235,
+        3.4,
+        -152
+      ],
+      "focus": [
+        221,
+        1.7,
+        -172
+      ],
+      "calls": 257,
+      "triangles": 243171,
+      "textures": 52,
+      "world": {
+        "objects": 2128,
+        "meshes": 1824,
+        "instances": 60098,
+        "visibleInstances": 21195,
+        "materials": 307,
+        "visibleDistricts": 19,
+        "visibleSecondaryLabels": 3
+      }
+    }
+  ],
+  "errors": []
+}

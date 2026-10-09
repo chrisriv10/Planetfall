@@ -27,6 +27,7 @@ import { brPlazaUvScale } from "./br-plaza-finish";
 import { BR_COLONY_DECK_COLOR } from "./br-district-palette";
 import { buildBrConnectiveGreens } from "./br-connective-greens";
 import { buildBrFacadeLeds } from "./br-facade-leds";
+import { buildBrFacadeSign, getBrFacadeSignText } from "./br-facade-signs";
 import { buildBrRoadBends } from "./br-road-bends";
 import { buildNovaEntrancePaving } from "./br-entrance-paving";
 import { buildBrRooftopDetails, type BrRoofPart } from "./br-rooftop-details";
@@ -70,6 +71,7 @@ import { buildBrIslandDeckGeometry } from "./br-island-deck";
 import { buildBrTerraceDetails, type BrTerraceDetailPart } from "./br-terrace-details";
 import { buildBrRaisedDeckDetails, type BrRaisedDeckPart } from "./br-raised-deck-details";
 import { buildBrAuthoredDistrictProps, type BrDistrictPropPart } from "./br-authored-district-props";
+import { buildBrContextVehiclePlacements } from "./br-context-placements";
 import { buildBrNovaStreetscape } from "./br-nova-streetscape";
 import { buildBrEastRimStreetscape } from "./br-east-rim-streetscape";
 import { buildBrAcademyStreetscape } from "./br-academy-streetscape";
@@ -237,6 +239,12 @@ export class BrWorldRenderer {
     this.disposed = true;
     for (const dispose of this.presentationDisposers) dispose();
     this.presentationDisposers.length = 0;
+    // Geometry/material disposal does not release per-object instance buffers.
+    // Helpers remove and dispose their own batches first; release those still
+    // in the world before clearing it so the shared renderer can reclaim them.
+    this.root.traverse(object => {
+      if (object instanceof THREE.InstancedMesh) object.dispose();
+    });
     for (const geometry of this.geometries) geometry.dispose();
     this.materials.dispose();
     this.geometries.clear();
@@ -246,6 +254,15 @@ export class BrWorldRenderer {
     this.animated.length = 0;
     this.energyMaterials.length = 0;
     this.secondaryLabels.length=0;
+    this.qualityStreetscapes.length = 0;
+    this.connectiveClusterDetail = null;
+    this.maintenanceDetail = null;
+    this.deckTransitionDetail = null;
+    this.sectorFieldDetail = null;
+    this.corridorGroveDetail = null;
+    this.roadsideDetail = null;
+    this.southShipworksDetail = null;
+    this.southTerminalEnhancedDetail = null;
     this.root.clear();
   }
 
@@ -653,19 +670,23 @@ export class BrWorldRenderer {
           position:position(part.position.x,part.position.y+structure.position.y-poi.position.y,part.position.z),
           scale:position(part.scale.x,part.scale.y,part.scale.z)
         });
-        const signText = this.facadeSignText(structure);
-        if (signText) {
-          const sign = this.materials.createMountedSign(signText, { border: poi.color });
-          // Short kiosks previously mounted a full sign across the open door.
-          const y = Math.max(5.65, Math.min(structure.size.y - 1.1, 6.4));
-          const offset = .95;
-          sign.position.set(
-            visualStructure.position.x + (visualStructure.entrance === "east" ? visualStructure.size.x / 2 + offset : visualStructure.entrance === "west" ? -visualStructure.size.x / 2 - offset : 0),
-            y,
-            visualStructure.position.z + (visualStructure.entrance === "north" ? visualStructure.size.z / 2 + offset : visualStructure.entrance === "south" ? -visualStructure.size.z / 2 - offset : 0)
-          );
-          sign.rotation.y = structure.entrance === "north" ? 0 : structure.entrance === "south" ? Math.PI : structure.entrance === "east" ? Math.PI / 2 : -Math.PI / 2;
-          sign.scale.set(8.5, 2.15, 1); group.add(sign);
+        const signText = getBrFacadeSignText(structure);
+        const signLayout = signText ? buildBrFacadeSign(structure, signText) : null;
+        if (signLayout) {
+          const sign = this.materials.createMountedSign(signLayout.label.text, { border: poi.color });
+          sign.name = `facade-sign-${structure.id}`;
+          sign.userData.brFacadeSignOwner = structure.id;
+          sign.position.set(signLayout.label.position.x, signLayout.label.position.y - structure.position.y, signLayout.label.position.z);
+          sign.rotation.y = signLayout.label.rotationY;
+          sign.scale.set(signLayout.label.width, signLayout.label.height, 1); group.add(sign);
+          // Existing unit-box batches own the mount. Convert absolute heights
+          // to local before the established per-building elevation pass below.
+          for (const part of signLayout.parts) {
+            (part.finish === "structuralDark" ? roofEdges : roofUnits).push({
+              position: position(part.position.x, part.position.y - structure.position.y, part.position.z),
+              scale: position(part.scale.x, part.scale.y, part.scale.z)
+            });
+          }
         }
         // A district can straddle a retaining edge. Apply each building's real
         // elevation once to all local helpers instead of assuming the center's
@@ -1159,23 +1180,29 @@ export class BrWorldRenderer {
 
   private addContextProps(group: THREE.Group, poi: BrPoi): void {
     const x = poi.position.x, z = poi.position.z;
-    if (poi.style === "city") {
-      for (const [text, ox, oz, y] of [["ORBITAL CAFE", -30, 27, 6], ["ARCADE", 27, 22, 8], ["TRANSIT", 4, -34, 5], ["MARKET", 36, -12, 6]] as const) {
-        const sign = this.materials.createSign(text, { border: poi.color }); sign.position.set(x + ox, y, z + oz); sign.scale.set(12, 3, 1); group.add(sign);
-      }
-      for (const offset of [-22, 22]) group.add(this.makeHoverVehicle(x + offset, z + 36, offset < 0 ? .12 : -.18, poi.color));
-      // Keep the plaza center clear; the smaller metal sculpture supplies the landmark.
-    } else if (poi.style === "dock") {
-      group.add(this.makeCargoMover(x - 31, z - 18, .18, poi.color));
-      group.add(this.makeCargoMover(x + 33, z - 24, -.12, poi.color));
-      const hangarSign = this.materials.createSign("DOCK 07", { border: poi.color, subtitle: "CARGO TRANSFER" }); hangarSign.position.set(x, 15, z - 32); hangarSign.scale.set(20, 6, 1); group.add(hangarSign);
-    } else if (poi.style === "reactor") {
+    // Parking belongs to authored parcels, not offsets from a POI center:
+    // those old offsets embedded Nova taxis and a Thruster rover in buildings.
+    // Keep the model origin relative to this elevated district group while
+    // retaining complete world-space presentation transforms for inspection.
+    for (const placement of buildBrContextVehiclePlacements().filter(p => p.districtId === poi.id)) {
+      const vehicle = placement.kind === "hover-taxi"
+        ? this.makeHoverVehicle(placement.position.x, placement.position.z, placement.rotationY, poi.color)
+        : placement.kind === "cargo-mover"
+          ? this.makeCargoMover(placement.position.x, placement.position.z, placement.rotationY, poi.color)
+          : this.makeMaintenanceRover(placement.position.x, placement.position.z, placement.rotationY, poi.color);
+      vehicle.name = placement.id;
+      vehicle.position.y = placement.position.y - poi.position.y;
+      vehicle.userData.contextVehicleKind = placement.kind;
+      group.add(vehicle);
+    }
+    // Context billboards formerly named the wrong buildings and crossed their
+    // facades. Real named-building mounts and district titles supply wayfinding.
+    if (poi.style === "reactor") {
       for (const offset of [-22, 22]) {
         const conduit = new THREE.Mesh(this.geometry(new THREE.TorusGeometry(12, 1.2, 8, 24, Math.PI)), this.materials.get("industrialOrange"));
         conduit.position.set(x + offset, 2, z); conduit.rotation.y = Math.PI / 2; group.add(conduit);
       }
     } else if (poi.style === "academy") {
-      const academySign = this.materials.createSign("ASTRA ACADEMY", { border: poi.color, subtitle: "OBSERVE · DISCOVER" }); academySign.position.set(x, 10, z - 31); academySign.scale.set(20, 6, 1); group.add(academySign);
       group.add(this.makeEnergyFountain(x, z + 20, poi.color));
     } else if (poi.style === "mall") {
       // Interior signs/displays belong to the real partition walls. Floating
@@ -1187,8 +1214,6 @@ export class BrWorldRenderer {
     } else if (poi.style === "industrial") {
       // Large turbine housings used to intersect the foundry's occupied rooms.
       // Its rooftop engine-test assembly now owns the machinery landmark.
-      group.add(this.makeCargoMover(x - 28, z - 22, .42, poi.color));
-      group.add(this.makeMaintenanceRover(x + 30, z - 16, -.34, poi.color));
     }
   }
 
@@ -1701,16 +1726,6 @@ export class BrWorldRenderer {
       academy: "RESEARCH CAMPUS", mall: "RETAIL CONCOURSE", farm: "LIFE SUPPORT", wreck: "IMPACT ZONE", industrial: "PROPULSION SYSTEMS"
     };
     return subtitles[poi.style];
-  }
-
-  private facadeSignText(structure: BrStructure): string | null {
-    const signs: Record<string, string> = {
-      "zero-spire": "ZERO POINT", "nova-cafe": "ORBITAL CAFE", "nova-arcade": "ARCADE", "nova-market": "MARKET",
-      "dock-hangar": "DOCK 07", "helios-core": "HELIOS", "astra-hall": "ASTRA", "void-anchor": "VOID MALL",
-      "void-food-court": "FOOD COURT", "farm-processing": "GROW LAB", "crash-medbay": "MED BAY", "thruster-foundry": "THRUSTER WORKS"
-    };
-    const secondary=BR_SECONDARY_LOCATIONS.find((location)=>location.id===structure.districtId&&structure.id===`${location.id}-1`);
-    return signs[structure.id] ?? secondary?.name ?? null;
   }
 
   private isReservedForGameplay(x:number,z:number,margin=0):boolean {

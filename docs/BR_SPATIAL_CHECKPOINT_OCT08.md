@@ -564,3 +564,65 @@ BR room/drop and Solo map views, Classic raid/shop/rematch, Chaos and the
 six-participant visual budget. No source edits or concurrent render/test loads
 occurred during E2E. The validated landmark checkpoint is prepared for the
 user-authorized commit and push; `validation.json` records scope and limits.
+
+### October 9 laptop continuation — primary context prop clearance
+
+The desktop landmark checkpoint was pushed as `5503890`. The clean laptop
+checkout was fast-forwarded to it before continuation. The new production
+district-prop scan found eight mesh/building intersections excluded from the
+landmark audit: Nova taxis inside the kiosk/studio and a Thruster rover inside
+Pump B. Six existing vehicles now use explicit authored parking and full-model
+deck/hover offsets. Screenshot iteration rejected a tree-overlapping taxi and
+an equipment-overlapping cargo placement, adding prop-pocket regressions.
+Final production assembly clears all 183 building envelopes and validates the
+six actual factory footprints/ground gaps. No shared map, colliders, sockets,
+state, networking or Classic/Chaos rules changed.
+
+Typecheck/build and 28/28 focused tests pass; four matched static world views
+were inspected. See `artifacts/br-prop-recovery-oct09/README.md` for exact audit
+scope, repeat commands and limitations. No full suite, E2E or human playtest
+is claimed for this step. The preview was stopped afterward to conserve laptop
+resources. Changes remain uncommitted/unpushed. Decorative vehicle cover
+semantics, context billboard mounting, secondary/independent prop review,
+interiors and broader art/control-feel acceptance remain open.
+
+### October 9 laptop continuation — supported signs and world teardown
+
+The next screenshot review reproduced a POI-relative ARCADE billboard partly
+inside the wrong building (Nova studio). Six obsolete context sprites are now
+removed. Existing named low-rise buildings receive supported, outward-facing
+roof-cap crests beside, not across, their entrance/roof-access continuation.
+The preserved catalog has 43 names: 23 mounted and 20 explicit high-roof/narrow-
+frontage omissions, with existing district titles retained for wayfinding.
+All 161 supports are added to existing geometry/material instance batches.
+
+Six matching production-world frontage views were inspected. Actual assembly
+passes the label/mount position, normal, height, material and envelope audit.
+The expanded facade audit passes 27,061 parts and 16,653 building pairs; the
+prior context prop audit still passes. These scopes do not certify all props.
+
+Resource-lifetime inspection found the world disposed its geometry/material
+caches but never dispatched disposal for most per-object instance buffers.
+The before audit reproduced 1,462 missing batch disposals out of 1,466 in both
+High and Low assemblies. Teardown now releases helper-owned batches first,
+then all remaining world batches, and clears retained detail-group references.
+The after audit releases all reachable batches, mesh geometries, materials and
+mapped textures exactly once despite two dispose calls, while preserving the
+borrowed global Sprite geometry. A focused world-lifetime test also passes.
+No GPU memory measurement, audio/socket teardown or human playtest is claimed.
+
+Root typecheck and build pass (existing chunk warning). Frontage tests pass
+35/35 across seven files; teardown passes 1/1. Evidence, fixed-camera metrics,
+commands and open limitations are recorded in
+`artifacts/br-sign-recovery-oct09/README.md`. Shared/server/map/physics/input and
+Classic/Chaos files are unchanged. The whole pass remains open; these changes
+are uncommitted/unpushed, with no deployment.
+
+The subsequent full unit/integration run is not green: 897/897 executed tests
+across 163 files pass, with one unhandled worker-start timeout for the unchanged
+server Solar Service test file. Its isolated recheck passes 8/8 in 1.90s. These
+are 905 passing tests across two runs, not a successful single full-suite run.
+The full command reports 4,142.96s elapsed; the worker-start failure's underlying
+cause is unconfirmed. No deadline or assertion was changed. E2E and a fresh
+human playthrough were not performed for this checkpoint. Preview/test processes
+are stopped; the broader pass remains unfinished.

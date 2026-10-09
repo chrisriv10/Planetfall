@@ -1,0 +1,157 @@
+{
+  "scope": "Static actual-world assembly, normal materials and BR lighting, no gameplay/HUD/sky/bloom/shadows. Not FPS or human-control validation.",
+  "legacyParkingReconstructed": false,
+  "views": [
+    {
+      "id": "nova-studio-context",
+      "position": [
+        -150,
+        7.7,
+        -135
+      ],
+      "focus": [
+        -150,
+        10,
+        -104
+      ],
+      "calls": 426,
+      "triangles": 452467,
+      "textures": 25,
+      "world": {
+        "objects": 2113,
+        "meshes": 1815,
+        "instances": 60259,
+        "visibleInstances": 31348,
+        "materials": 288,
+        "visibleDistricts": 37,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "nova-cafe-entry",
+      "position": [
+        -224,
+        7.7,
+        -136
+      ],
+      "focus": [
+        -220,
+        10,
+        -113
+      ],
+      "calls": 442,
+      "triangles": 462917,
+      "textures": 29,
+      "world": {
+        "objects": 2113,
+        "meshes": 1815,
+        "instances": 60259,
+        "visibleInstances": 30993,
+        "materials": 288,
+        "visibleDistricts": 36,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "nova-arcade-entry",
+      "position": [
+        -252,
+        7.7,
+        -96
+      ],
+      "focus": [
+        -232,
+        11,
+        -84
+      ],
+      "calls": 529,
+      "triangles": 462565,
+      "textures": 35,
+      "world": {
+        "objects": 2113,
+        "meshes": 1815,
+        "instances": 60259,
+        "visibleInstances": 30024,
+        "materials": 288,
+        "visibleDistricts": 34,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "nova-market-entry",
+      "position": [
+        -90,
+        7.7,
+        -99
+      ],
+      "focus": [
+        -102,
+        10,
+        -106
+      ],
+      "calls": 295,
+      "triangles": 347403,
+      "textures": 42,
+      "world": {
+        "objects": 2113,
+        "meshes": 1815,
+        "instances": 60259,
+        "visibleInstances": 27736,
+        "materials": 288,
+        "visibleDistricts": 27,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "dock-hangar-entry",
+      "position": [
+        186,
+        2.7,
+        -215
+      ],
+      "focus": [
+        190,
+        9,
+        -190
+      ],
+      "calls": 378,
+      "triangles": 289855,
+      "textures": 45,
+      "world": {
+        "objects": 2113,
+        "meshes": 1815,
+        "instances": 60259,
+        "visibleInstances": 20306,
+        "materials": 288,
+        "visibleDistricts": 23,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "solar-service-entry",
+      "position": [
+        179,
+        2.7,
+        415
+      ],
+      "focus": [
+        166,
+        6,
+        418
+      ],
+      "calls": 211,
+      "triangles": 229365,
+      "textures": 50,
+      "world": {
+        "objects": 2113,
+        "meshes": 1815,
+        "instances": 60259,
+        "visibleInstances": 17344,
+        "materials": 288,
+        "visibleDistricts": 16,
+        "visibleSecondaryLabels": 2
+      }
+    }
+  ],
+  "errors": []
+}

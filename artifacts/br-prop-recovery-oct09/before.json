@@ -1,0 +1,185 @@
+{
+  "generatedAt": "2026-10-09T13:22:15.718Z",
+  "scope": "Actual primary district props (including context vehicles, reactor conduits, fountain and crops) against all authored building envelopes; 0.4m wall/floor and 0.3m roof-contact margins.",
+  "limits": "One static pose and triangle surfaces, not a closed-volume or collision proof. Excludes sprites, secondary/roadside props, interiors, players and landmark groups. Does not prove prop-to-prop or prop-to-road clearance.",
+  "checked": {
+    "groups": 9,
+    "meshObjects": 100,
+    "instances": 2368,
+    "structures": 183,
+    "broadPhaseCandidates": 8,
+    "triangleChecks": 660
+  },
+  "hits": [
+    {
+      "poi": "nova-plaza",
+      "mesh": 6,
+      "instance": 0,
+      "name": "",
+      "type": "CapsuleGeometry",
+      "structure": "nova-kiosk",
+      "cutTriangles": 53,
+      "bounds": {
+        "min": [
+          -200.27471418860682,
+          4.8999999999999995,
+          -100.59925054695614
+        ],
+        "max": [
+          -193.72528581139318,
+          7.324615740776063,
+          -97.40074945304386
+        ]
+      }
+    },
+    {
+      "poi": "nova-plaza",
+      "mesh": 7,
+      "instance": 0,
+      "name": "",
+      "type": "SphereGeometry",
+      "structure": "nova-kiosk",
+      "cutTriangles": 30,
+      "bounds": {
+        "min": [
+          -198.353884648861,
+          6.152500015497208,
+          -100.18616248298498
+        ],
+        "max": [
+          -195.14971103321207,
+          7.647499984502793,
+          -97.87369362065947
+        ]
+      }
+    },
+    {
+      "poi": "nova-plaza",
+      "mesh": 8,
+      "instance": 0,
+      "name": "",
+      "type": "BoxGeometry",
+      "structure": "nova-kiosk",
+      "cutTriangles": 10,
+      "bounds": {
+        "min": [
+          -198.36794591540306,
+          5.4750000000000005,
+          -100.60804738642187
+        ],
+        "max": [
+          -195.93133460281925,
+          5.7250000000000005,
+          -99.87397420321278
+        ]
+      }
+    },
+    {
+      "poi": "nova-plaza",
+      "mesh": 10,
+      "instance": 0,
+      "name": "",
+      "type": "CapsuleGeometry",
+      "structure": "nova-studio",
+      "cutTriangles": 178,
+      "bounds": {
+        "min": [
+          -156.31949487147824,
+          4.8999999999999995,
+          -100.77506432387543
+        ],
+        "max": [
+          -149.68050512852176,
+          7.324615740776063,
+          -97.22493567612457
+        ]
+      }
+    },
+    {
+      "poi": "nova-plaza",
+      "mesh": 11,
+      "instance": 0,
+      "name": "",
+      "type": "SphereGeometry",
+      "structure": "nova-studio",
+      "cutTriangles": 100,
+      "bounds": {
+        "min": [
+          -154.4011119562785,
+          6.152500015497208,
+          -100.19133191529133
+        ],
+        "max": [
+          -151.10696619732744,
+          7.647499984502793,
+          -97.71915329799575
+        ]
+      }
+    },
+    {
+      "poi": "nova-plaza",
+      "mesh": 12,
+      "instance": 0,
+      "name": "",
+      "type": "BoxGeometry",
+      "structure": "nova-studio",
+      "cutTriangles": 12,
+      "bounds": {
+        "min": [
+          -153.9971071644305,
+          5.4750000000000005,
+          -100.6660049376461
+        ],
+        "max": [
+          -151.55531890200493,
+          5.7250000000000005,
+          -99.7936042943242
+        ]
+      }
+    },
+    {
+      "poi": "nova-plaza",
+      "mesh": 13,
+      "instance": 0,
+      "name": "",
+      "type": "BoxGeometry",
+      "structure": "nova-studio",
+      "cutTriangles": 12,
+      "bounds": {
+        "min": [
+          -154.44468109799507,
+          5.4750000000000005,
+          -98.2063957056758
+        ],
+        "max": [
+          -152.0028928355695,
+          5.7250000000000005,
+          -97.3339950623539
+        ]
+      }
+    },
+    {
+      "poi": "thruster-works",
+      "mesh": 12,
+      "instance": 0,
+      "name": "",
+      "type": "ExtrudeGeometry",
+      "structure": "thruster-pump-b",
+      "cutTriangles": 9,
+      "bounds": {
+        "min": [
+          369.5090808706616,
+          0.12,
+          -87.91211493462022
+        ],
+        "max": [
+          374.4909191293384,
+          1.3199999999999998,
+          -84.08788506537978
+        ]
+      }
+    }
+  ],
+  "errors": [],
+  "passed": false
+}

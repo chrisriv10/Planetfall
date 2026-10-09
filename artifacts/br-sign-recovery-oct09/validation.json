@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-09",
+  "historicalHead": "5503890",
+  "source": "current uncommitted laptop working tree",
+  "typecheck": "passed",
+  "build": "passed; existing chunk-size warning",
+  "focusedFrontage": { "passed": 35, "files": 7 },
+  "focusedWorldLifetime": { "passed": 1, "files": 1 },
+  "fullSuite": {
+    "status": "failed with unhandled worker-start error",
+    "passedTests": 897,
+    "passedFiles": 163,
+    "errors": 1,
+    "reportedDurationSeconds": 4142.96,
+    "error": "vitest-pool-runner Timeout waiting for worker to respond starting server/src/modes/battle-royale/br-solar-service.test.ts"
+  },
+  "solarServiceIsolatedRecheck": { "passedTests": 8, "passedFiles": 1, "durationSeconds": 1.90 },
+  "e2e": "not run for this checkpoint",
+  "humanPlaythrough": "not performed for this checkpoint",
+  "review": "six matching static production-world frontage renders inspected; not integrated gameplay/FPS acceptance",
+  "signAudit": "passed: 23 mounted labels and 161 batched support pieces",
+  "facadeAudit": "passed: 27061 parts and 16653 building pairs",
+  "propRegressionAudit": "passed: 9 groups, 100 meshes, 2368 instances",
+  "cleanupAudit": "passed: two High/Low assemblies release reachable owned resources once, preserve borrowed Sprite quad",
+  "wholePassComplete": false,
+  "committedOrPushed": false,
+  "deployed": false
+}

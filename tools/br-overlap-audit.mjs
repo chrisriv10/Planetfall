@@ -6,6 +6,7 @@ import { buildBrFacadeSkin } from "../client/src/modes/battle-royale/br-facade-s
 import { buildBrDoorwayParts, buildBrFreightPilasters } from "../client/src/modes/battle-royale/br-facade-attachments.ts";
 import { buildBrFacadeLeds } from "../client/src/modes/battle-royale/br-facade-leds.ts";
 import { brFacadeIntersections } from "../client/src/modes/battle-royale/br-facade-intersections.ts";
+import { buildBrFacadeSign, getBrFacadeSignText } from "../client/src/modes/battle-royale/br-facade-signs.ts";
 
 const output=process.argv[2]??"artifacts/br-overlap-audit/report.json";
 const buildingIntersections=[], facadeIntersections=[];
@@ -19,14 +20,16 @@ for(let i=0;i<BR_STRUCTURES.length;i++){
     const y=Math.min(a.position.y+a.size.y,b.position.y+b.size.y)-Math.max(a.position.y,b.position.y);
     if(Math.min(x,y,z)>.01)buildingIntersections.push({a:a.id,b:b.id,overlap:{x,y,z},positions:[a.position,b.position]});
   }
-  const parts=[...buildBrFacadeSkin(a),...buildBrDoorwayParts(a),...buildBrFreightPilasters(a),...buildStorefrontFrameParts(a),...buildBrFacadeLeds(a)];
+  const text=getBrFacadeSignText(a),crest=text?buildBrFacadeSign(a,text):null;
+  const mounts=crest?.parts.map(p=>({...p,face:a.entrance,position:{...p.position,y:p.position.y-a.position.y}}))??[];
+  const parts=[...buildBrFacadeSkin(a),...buildBrDoorwayParts(a),...buildBrFreightPilasters(a),...buildStorefrontFrameParts(a),...buildBrFacadeLeds(a),...mounts];
   facadeBoxes+=parts.length;
   facadeIntersections.push(...brFacadeIntersections(parts).map(issue=>({structure:a.id,...issue,
     paneBox:parts[issue.pane],decorationBox:parts[issue.decoration]})));
 }
 const report={
   generatedAt:new Date().toISOString(),
-  scope:"All authored building envelopes and the production facade skin composition (glazing, service ribs, Nova storefront details and Solar service skins), doorway frames/awnings, freight pilasters, storefront uprights and facade LEDs. Shared physics/route tests separately validate bridge piers and tree trunks.",
+  scope:"All authored building envelopes and the production facade skin composition (glazing, service ribs, Nova storefront details and Solar service skins), doorway frames/awnings, freight pilasters, storefront uprights, facade LEDs and supported sign mounts. Shared physics/route tests separately validate bridge piers and tree trunks.",
   limits:"This does not certify every decorative mesh or animated figure. Bounding envelopes cannot prove triangle-level separation. Plant foliage, thin mullions and backing panels are intentional facade joins; broad boxes penetrating the outward glass face are flagged.",
   checked:{structures:BR_STRUCTURES.length,buildingPairs:pairs,facadeBoxes,bridgePiers:BR_BRIDGE_PIERS.length,greenwayTrees:BR_GREENWAY_TREES.length},
   buildingIntersections,facadeIntersections,

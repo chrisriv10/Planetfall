@@ -1,0 +1,8 @@
+[
+  { "id": "nova-studio-context", "position": [-150, 7.7, -135], "focus": [-150, 10, -104] },
+  { "id": "nova-cafe-entry", "position": [-224, 7.7, -136], "focus": [-220, 10, -113] },
+  { "id": "nova-arcade-entry", "position": [-252, 7.7, -96], "focus": [-232, 11, -84] },
+  { "id": "nova-market-entry", "position": [-90, 7.7, -99], "focus": [-102, 10, -106] },
+  { "id": "dock-hangar-entry", "position": [186, 2.7, -215], "focus": [190, 9, -190] },
+  { "id": "solar-service-entry", "position": [179, 2.7, 415], "focus": [166, 6, 418] }
+]
