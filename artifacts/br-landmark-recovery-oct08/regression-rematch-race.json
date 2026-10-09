@@ -1,0 +1,96 @@
+{
+  "scope": "Read-only diagnostic reproduction of the existing mixed match destruction fixture; no source, server behavior or test condition changes.",
+  "runs": 12,
+  "completedByDestruction": 11,
+  "survivedAfterRepair": 1,
+  "failedRun": {
+    "n": 10,
+    "events": [
+      {
+        "event": "projectile:spawned",
+        "at": 1791514974353,
+        "p": {
+          "id": "shot_1fc24bff49",
+          "ownerId": "player_a3322b94ac",
+          "weapon": "rocket",
+          "position": {
+            "x": 28.220572483335854,
+            "y": 8.878637303708718,
+            "z": 1.0895851062987346E-16
+          },
+          "velocity": {
+            "x": -21.748558537006218,
+            "y": -3.3166551768934487,
+            "z": 1.3317151299206755E-15
+          },
+          "spawnedAt": 1791514974352,
+          "shotId": "shot_1fc24bff49"
+        }
+      },
+      {
+        "event": "planet:repaired",
+        "at": 1791514976567,
+        "p": {
+          "planetId": "planet_bot_519a3583c1",
+          "playerId": "bot_519a3583c1",
+          "integrity": 29,
+          "amount": 15
+        }
+      },
+      {
+        "event": "projectile:exploded",
+        "at": 1791514976659,
+        "p": {
+          "id": "shot_1fc24bff49",
+          "position": {
+            "x": -21.74543346436355,
+            "y": 1.258821396684567,
+            "z": 3.168493973131254E-15
+          },
+          "weapon": "rocket",
+          "planetId": "planet_bot_519a3583c1"
+        }
+      },
+      {
+        "event": "planet:damaged",
+        "at": 1791514976659,
+        "p": {
+          "planetId": "planet_bot_519a3583c1",
+          "integrity": 15,
+          "amount": 14,
+          "hit": {
+            "x": -21.74543346436355,
+            "y": 1.258821396684567,
+            "z": 3.168493973131254E-15
+          }
+        }
+      },
+      {
+        "event": "planet:repaired",
+        "at": 1791514978733,
+        "p": {
+          "planetId": "planet_bot_519a3583c1",
+          "playerId": "bot_519a3583c1",
+          "integrity": 30,
+          "amount": 15
+        }
+      }
+    ],
+    "playerCannonDistance": 2.824164850700713,
+    "botProfile": {
+      "aggression": 0.7359821857418865,
+      "repairThreshold": 54.6349824720528,
+      "aimErrorRadians": 0.2581799503201297,
+      "reactionMs": 1213,
+      "asteroidBias": 0.6128879989497364,
+      "riskTolerance": 0.41830666731111704,
+      "sabotageChance": 0.23081534353084862,
+      "recoveryDelayMs": 0
+    },
+    "passed": false,
+    "integrity": 30,
+    "phase": "playing"
+  },
+  "finding": "Bot repaired from 14 to 29 integrity 92ms before the 14-damage rocket arrived; integrity remained 15, so the unchanged 5s match-end expectation timed out.",
+  "limits": "Explains the reproduced fixture failure, not every historical E2E or timing failure."
+}

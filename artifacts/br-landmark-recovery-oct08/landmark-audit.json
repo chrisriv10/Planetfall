@@ -1,0 +1,43 @@
+{
+  "generatedAt": "2026-10-09T02:57:09.099Z",
+  "scope": "Production landmark triangle surfaces against every authored building envelope; 0.4m wall/floor and 0.3m roof-contact margins.",
+  "limits": "Sampled 90s timeline, not a continuous animation or enclosed-volume proof. Does not cover players, prop groups, landmark-to-landmark contacts or every map mesh.",
+  "checked": {
+    "landmarks": 9,
+    "meshObjects": 141,
+    "structures": 183,
+    "enterableStructures": 101,
+    "poses": [
+      0,
+      3750,
+      7500,
+      11250,
+      15000,
+      18750,
+      22500,
+      26250,
+      30000,
+      33750,
+      37500,
+      41250,
+      45000,
+      48750,
+      52500,
+      56250,
+      60000,
+      63750,
+      67500,
+      71250,
+      75000,
+      78750,
+      82500,
+      86250,
+      90000
+    ],
+    "broadPhaseCandidates": 0,
+    "triangleChecks": 0
+  },
+  "hits": [],
+  "errors": [],
+  "passed": true
+}

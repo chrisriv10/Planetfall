@@ -505,3 +505,62 @@ The box checks do not certify every landmark, roof helper, interior, cylindrical
 mesh, decorative triangle or animated figure. Whole-island art and human
 acceptance remain open. This validated continuation is prepared for the user's
 requested checkpoint commit/push; deployment is outside this pass.
+
+### October 8 continuation — landmark and animated machinery clearance
+
+The facade checkpoint was committed and pushed as
+`8adb2e7fc4988b61be4b86e9cdbe0fe78a9b13ee`. Execution remains on
+DESKTOP-JL99F36. The presentation agent remained unavailable under its usage
+limit; Sol performed the production geometry inspection and mixed-file
+integration, preserving ignored local configuration.
+
+A production-renderer triangle scan found 22 landmark/building intersection
+pairs across 25 animation samples: 19 at Zero Point and three at Crash Site.
+Zero Point's decorative mast occupied the playable spire, its west pylon
+occupied the control room, and its arms/streams crossed building envelopes.
+The energy assembly is now mounted above the actual roof, with four rooftop
+pylons and braces joined into the tapered mast. Three tilted animated rings,
+the pulsing core and the existing single point light remain. Redundant generic
+roof equipment is omitted on this authored crown. Actual roads are unchanged.
+Crash Site's engine rings now clear the full end wall and each other, and its
+tilted tail accounts for rotated corner height rather than unrotated height.
+
+`npm run audit:br-landmarks` imports the actual renderer from a running Vite
+development server. It checks all nine landmark groups (141 mesh objects)
+against all 183 authored building envelopes, including 101 enterable structures,
+at 25 times spanning 90 seconds. Final bounds produce zero candidates and zero
+flagged intersections/page errors, so zero narrow-phase triangle checks are
+needed. The before scan used 52,132 triangle checks to find its 22 pairs.
+The audit retains 0.4m wall/floor and 0.3m roof-contact margins. It samples
+triangle surfaces; it is not a continuous animation or closed-volume proof.
+Players, independent prop groups and landmark-to-landmark contacts remain
+outside its scope. The separate facade audit still passes 26,900 boxes and
+16,653 building pairs. These overlapping scopes are not additive counts.
+
+Ten close production renders and five integrated-game views have zero page
+errors. Before/draft/final images and scoped reports are retained in
+`artifacts/br-landmark-recovery-oct08/`. The final close-view report retains its
+101-enterable scope; the repeatable command's report covers all 183 buildings.
+Focused tests verify rotated crown roof clearance, physical brace joins,
+borrowed resource ownership and wreck wall/tube separation. Shared canonical
+astronaut, authority, networking, physics, island size and Classic/Chaos
+contracts are unchanged. Broader player/prop review and art acceptance remain
+open; no deployment is performed.
+
+Typecheck and production build pass with the existing chunk-size warning.
+The first full suite passed 892/893, with a mixed-match end timeout. The unchanged
+server file passed 16/16 on recheck. A read-only 12-match trace reproduced one
+failure: a bot repaired from 14 to 29 integrity 92ms before the 14-damage rocket
+arrived, survived on 15 integrity, and legitimately kept the match running.
+The fixture's assumption that the weakened planet stays unrepaired is
+intermittent. `regression-rematch-race.json` retains the event sequence.
+No bot behavior, test condition, assertion, deadline or budget was weakened.
+The subsequent unchanged full suite passes **893/893 across 161 files in
+143.12s**. This green rerun does not resolve that fixture's reliability or
+explain every historical E2E failure.
+
+Full E2E passes **11/11 in 5.6 minutes on this exact source state**, including
+BR room/drop and Solo map views, Classic raid/shop/rematch, Chaos and the
+six-participant visual budget. No source edits or concurrent render/test loads
+occurred during E2E. The validated landmark checkpoint is prepared for the
+user-authorized commit and push; `validation.json` records scope and limits.

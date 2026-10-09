@@ -13,6 +13,7 @@
     "test": "npm run build -w @planetfall/shared && vitest run --configLoader native --no-file-parallelism",
     "audit:br-density": "npm run build -w @planetfall/shared && node tools/br-density-audit.mjs",
     "audit:br-overlaps": "npm run build -w @planetfall/shared && node --import tsx tools/br-overlap-audit.mjs",
+    "audit:br-landmarks": "node tools/br-landmark-audit.mjs",
     "test:e2e": "playwright test",
     "pretypecheck": "npm run build -w @planetfall/shared",
     "typecheck": "npm run typecheck --workspaces --if-present"

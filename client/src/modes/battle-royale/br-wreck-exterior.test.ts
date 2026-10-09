@@ -14,7 +14,11 @@ describe("Crash Site exterior silhouette",()=>{
     expect(parts.filter(part=>part.finish==="stripe")).toHaveLength(2);
   });
   it("keeps solid silhouette pieces at or above the real roof",()=>{
-    for(const part of parts.filter(part=>!["scorch","rib","breach","stripe"].includes(part.finish)))expect(part.position.y-part.scale.y/2).toBeGreaterThanOrEqual(fuselage.size.y-.01);
+    for(const part of parts.filter(part=>!["scorch","rib","breach","stripe"].includes(part.finish))){
+      const tilt=part.rotationZ??0;
+      const halfHeight=(part.scale.y*Math.abs(Math.cos(tilt))+part.scale.x*Math.abs(Math.sin(tilt)))/2;
+      expect(part.position.y-halfHeight).toBeGreaterThanOrEqual(fuselage.size.y-.01);
+    }
     expect(parts.flatMap(part=>[...Object.values(part.position),...Object.values(part.scale),part.rotationY??0,part.rotationZ??0]).every(Number.isFinite)).toBe(true);
   });
   it("mounts torn side detail outside the long walls without creating cover-sized depth",()=>{

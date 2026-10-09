@@ -20,6 +20,8 @@ import { layoutBrPoiLabel } from "./br-poi-label-layout";
 import { brPoiLabelPresentation } from "./br-poi-label-presentation";
 import { buildDistantFacadeParts, buildStorefrontFrameParts } from "./br-facades";
 import { buildBrFacadeSkin } from "./br-facade-skin";
+import { createBrNexusCrown } from "./br-nexus-crown";
+import { buildBrWreckEngineMounts } from "./br-wreck-engines";
 import { buildBrDoorwayParts, buildBrFreightPilasters } from "./br-facade-attachments";
 import { brPlazaUvScale } from "./br-plaza-finish";
 import { BR_COLONY_DECK_COLOR } from "./br-district-palette";
@@ -520,7 +522,7 @@ export class BrWorldRenderer {
         const roofLoot=BR_LOOT_SOCKETS.find(socket=>socket.structureId===structure.id&&socket.kind==="roof");
         const visualRoofLoot=roofLoot?{...roofLoot,position:{...roofLoot.position,y:roofLoot.position.y-structure.position.y}}:undefined;
         const roofTargets:Record<BrRoofPart["finish"],MatrixSpec[]>={edge:roofEdges,accent:roofAccents,solar:roofSolar,vent:roofVents};
-        for(const part of buildBrRooftopDetails(visualStructure,visualRoofLoot))roofTargets[part.finish].push({
+        for(const part of structure.id==="zero-spire"?[]:buildBrRooftopDetails(visualStructure,visualRoofLoot))roofTargets[part.finish].push({
           position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z),
           rotationX:part.rotationX,rotationY:part.rotationY
         });
@@ -770,7 +772,7 @@ export class BrWorldRenderer {
     }
     // The facade helper owns clear solid-wall accent intervals. Legacy bars at
     // fixed fractions of the shell crossed those panels and display glazing.
-    if (!["crash-fuselage", "thruster-foundry"].includes(structure.id) && (structure.archetype !== "greenhouse" || structure.roofAccess) && !["warehouse", "hangar"].includes(structure.archetype)) {
+    if (!["crash-fuselage", "thruster-foundry", "zero-spire"].includes(structure.id) && (structure.archetype !== "greenhouse" || structure.roofAccess) && !["warehouse", "hangar"].includes(structure.archetype)) {
     roofUnits.push({ position: position(x - width * .2, height + .7, z + depth * .18), scale: position(Math.min(6, width * .22), 1.4, Math.min(4.5, depth * .2)) });
     roofUnits.push({ position: position(x + width * .22, height + .42, z - depth * .16), scale: position(Math.min(3.5, width * .16), .8, Math.min(5, depth * .24)) });
     roofUnits.push({ position: position(x, height + .32, z), scale: position(width * .58, .58, depth * .36) });
@@ -780,7 +782,7 @@ export class BrWorldRenderer {
       columns.push({position:position(x, height + .25, z + side * depth / 2),scale:position(width,.28,.6)});
       columns.push({position:position(x + side * width / 2, height + .25,z),scale:position(.6,.28,depth)});
     }
-    if (height > 15 && structure.id !== "thruster-foundry") {
+    if (height > 15 && !["thruster-foundry","zero-spire"].includes(structure.id)) {
       roofUnits.push({ position: position(x, height + 1.15, z), scale: position(width * .36, 1.65, depth * .42) });
       const crownWidth = structure.style === "city" ? width * .5 : width * .38;
       roofUnits.push({ position: position(x - width * .12, height + 2.25, z + depth * .06), scale: position(crownWidth, .58, depth * .28) });
@@ -811,7 +813,7 @@ export class BrWorldRenderer {
       trims.push({position:position(x,height+5.9,z),scale:position(3.5,.18,.18)});
     }else if(structure.archetype==="greenhouse"){
       trims.push({position:position(x,height+1.2,z),scale:position(width*.72,.28,depth*.72)});
-    }else if(structure.id!=="thruster-foundry"&&(structure.archetype==="tower"||structure.archetype==="hotel")){
+    }else if(!["thruster-foundry","zero-spire"].includes(structure.id)&&(structure.archetype==="tower"||structure.archetype==="hotel")){
       roofUnits.push({position:position(x,height+3.1,z),scale:position(width*.42,3.8,depth*.4)});
     }
     this.addArchetypeMassing(structure, massing, glassVolumes, accentVolumes, machinery, roofUnits, railings);
@@ -825,7 +827,7 @@ export class BrWorldRenderer {
   ): void {
     // The observatory has an authored dome. Generic tower crowns used to
     // protrude through its glass and obscure the instrument chamber.
-    if (["astra-observatory", "crash-fuselage", "thruster-foundry"].includes(structure.id)) return;
+    if (["astra-observatory", "crash-fuselage", "thruster-foundry", "zero-spire"].includes(structure.id)) return;
     const { x, z } = structure.position;
     const { x: width, y: height, z: depth } = structure.size;
     const northSouth = structure.entrance === "north" || structure.entrance === "south";
@@ -1196,20 +1198,11 @@ export class BrWorldRenderer {
     const accent = this.materials.accent(poi.color, .62);
     const dark = this.materials.get("structuralDark");
     if (poi.style === "nexus") {
-      const tower = new THREE.Mesh(this.geometry(new THREE.CylinderGeometry(5, 9, 62, 10)), dark); tower.position.y = 31; group.add(tower);
-      for (const [radius, y, tilt] of [[18, 35, .25], [14, 48, -.45], [9, 61, .7]] as const) {
-        const ring = new THREE.Mesh(this.geometry(new THREE.TorusGeometry(radius, .72, 9, 42)), accent); ring.position.y = y; ring.rotation.x = Math.PI / 2 + tilt; ring.userData.rotationSpeed = .00014 + y * .000004; group.add(ring); this.animated.push(ring);
-      }
-      // A shaded emissive core retains its faceted shape in bright views; the
-      // former additive/basic material clipped to a flat white silhouette.
-      const core = new THREE.Mesh(this.geometry(new THREE.OctahedronGeometry(7, 2)), accent); core.name = "zero-energy-core"; core.position.y = 48; core.userData.rotationSpeed = .00048; core.userData.pulse = true; core.userData.baseScale = 1; group.add(core); this.animated.push(core);
-      const light = new THREE.PointLight(0x70f5ff, 6.5, 105, 1.6); light.position.y = 48; group.add(light);
-      for (let index = 0; index < 4; index++) {
-        const angle=index*Math.PI/2;const bridge = this.makeBridge(angle, 24, accent); bridge.position.y = 29; group.add(bridge);
-        const pylon=new THREE.Mesh(this.materials.unitChamferedBox,dark);pylon.position.set(Math.cos(angle)*28,18,Math.sin(angle)*28);pylon.scale.set(5.4,36,5.4);group.add(pylon);
-        const cap=new THREE.Mesh(this.geometry(new THREE.OctahedronGeometry(3.6,1)),accent);cap.position.set(Math.cos(angle)*28,38,Math.sin(angle)*28);cap.userData.rotationSpeed=.0002*(index%2?1:-1);group.add(cap);this.animated.push(cap);
-        const stream=new THREE.Mesh(this.geometry(new THREE.CylinderGeometry(.34,.34,38,8)),this.materials.translucent(0x70f5ff,.5,true));stream.position.set(Math.cos(angle)*21,30,Math.sin(angle)*21);stream.rotation.z=Math.PI/2;stream.rotation.y=-angle;stream.userData.pulse=true;stream.userData.baseScale=1;group.add(stream);this.animated.push(stream);
-      }
+      const crown=createBrNexusCrown(BR_STRUCTURES.find(s=>s.id==="zero-spire")!,group.position,{
+        geometry:g=>this.geometry(g),box:this.materials.unitChamferedBox,dark,
+        metal:this.materials.get("brushedMetal"),energy:accent,conduit:this.materials.get("energyCyan")
+      });
+      group.add(crown.group);this.animated.push(...crown.animated);
     } else if (poi.style === "reactor") {
       // Containment hardware sits above the 42m playable core building. The
       // previous tilted conduits pierced its floors and looked like solid
@@ -1515,7 +1508,7 @@ export class BrWorldRenderer {
     this.addInstances(group,this.materials.unitBox,this.materials.get("structuralDark"),exterior.breach,false);
     this.addInstances(group,this.materials.unitBox,this.materials.get("warningRed"),exterior.stripe,false);
     const engineRingGeometry=this.geometry(new THREE.TorusGeometry(3.7,.72,9,28));
-    for(const zOffset of [-4.2,4.2]){const engineRing=new THREE.Mesh(engineRingGeometry,this.materials.get("brushedMetal"));engineRing.name="crash-engine-ring";engineRing.position.set(-fuselage.size.x/2+.8,4.6,zOffset);engineRing.rotation.y=Math.PI/2;group.add(engineRing);const ember=new THREE.Mesh(this.geometry(new THREE.CircleGeometry(2.75,20)),this.materials.get("warningRed"));ember.position.set(-fuselage.size.x/2-.02,4.6,zOffset);ember.rotation.y=-Math.PI/2;group.add(ember);}
+    for(const mount of buildBrWreckEngineMounts(fuselage)){const engineRing=new THREE.Mesh(engineRingGeometry,this.materials.get("brushedMetal"));engineRing.name="crash-engine-ring";engineRing.position.set(mount.x,mount.y,mount.z);engineRing.rotation.y=Math.PI/2;group.add(engineRing);const ember=new THREE.Mesh(this.geometry(new THREE.CircleGeometry(2.75,20)),this.materials.get("warningRed"));ember.position.set(mount.emberX,mount.y,mount.z);ember.rotation.y=-Math.PI/2;group.add(ember);}
     return group;
   }
 
@@ -1669,13 +1662,6 @@ export class BrWorldRenderer {
     const tool = new THREE.Mesh(this.materials.unitCylinder, this.materials.get("brushedMetal")); tool.position.set(1.45, 1.15, 0); tool.scale.set(.34, 1.6, .34); group.add(tool);
     const beacon = new THREE.Mesh(this.materials.unitOctahedron, this.materials.accent(color, .8)); beacon.position.set(1.45, 2.08, 0); beacon.scale.setScalar(.26); group.add(beacon);
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const skid = new THREE.Mesh(this.materials.unitChamferedBox, this.materials.get("structuralDark")); skid.position.set(sx * 1.45, -.55, sz * 1.42); skid.scale.set(1.25, .22, .36); group.add(skid); }
-    return group;
-  }
-
-  private makeBridge(angle: number, length: number, material: THREE.Material): THREE.Group {
-    const group = new THREE.Group(); group.rotation.y = angle;
-    const deck = new THREE.Mesh(this.geometry(new THREE.BoxGeometry(6, .55, length)), this.materials.get("brushedMetal")); deck.position.set(0, 6, -length / 2 - 8); group.add(deck);
-    for (const side of [-1, 1]) { const rail = new THREE.Mesh(this.geometry(new THREE.BoxGeometry(.18, 1.2, length)), material); rail.position.set(side * 2.8, 6.8, -length / 2 - 8); group.add(rail); }
     return group;
   }
 
