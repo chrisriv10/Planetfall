@@ -1,0 +1,104 @@
+{
+  "generatedAt": "2026-10-09T02:36:08.429Z",
+  "host": "DESKTOP-JL99F36",
+  "baseCommit": "281d013e97f0b086c85f0058ac482ea5de713e7a",
+  "git": "Validation snapshot of continuation prepared for the user-authorized checkpoint commit/push; not deployed",
+  "scope": "Presentation-only facade and attachment corrections; no server/shared/input/state/collider changes",
+  "typecheck": {
+    "passed": true,
+    "log": ".local-runtime/overlap-continuation-typecheck.log"
+  },
+  "productionBuild": {
+    "passed": true,
+    "existingLargeChunkWarning": true,
+    "log": ".local-runtime/overlap-continuation-build.log"
+  },
+  "unitSystem": {
+    "passed": true,
+    "tests": 889,
+    "files": 159,
+    "durationSeconds": 142.82,
+    "log": ".local-runtime/overlap-continuation-tests.log"
+  },
+  "serverPerformance": {
+    "passed": true,
+    "source": "Five unchanged performance cases in the full unit/system suite; no separate metrics run claimed"
+  },
+  "e2e": {
+    "passed": true,
+    "tests": 11,
+    "durationMinutes": 5.5,
+    "exactSourceState": true,
+    "sourceEditsFrozen": true,
+    "concurrentRenderOrUnitLoad": false,
+    "testsWeakened": false,
+    "log": ".local-runtime/overlap-continuation-e2e.log"
+  },
+  "overlapAudit": {
+    "generatedAt": "2026-10-09T02:24:53.680Z",
+    "scope": "All authored building envelopes and the production facade skin composition (glazing, service ribs, Nova storefront details and Solar service skins), doorway frames/awnings, freight pilasters, storefront uprights and facade LEDs. Shared physics/route tests separately validate bridge piers and tree trunks.",
+    "limits": "This does not certify every decorative mesh or animated figure. Bounding envelopes cannot prove triangle-level separation. Plant foliage, thin mullions and backing panels are intentional facade joins; broad boxes penetrating the outward glass face are flagged.",
+    "checked": {
+      "structures": 183,
+      "buildingPairs": 16653,
+      "facadeBoxes": 26900,
+      "bridgePiers": 46,
+      "greenwayTrees": 66
+    },
+    "buildingIntersections": [],
+    "facadeIntersections": [],
+    "passed": true
+  },
+  "productionAssemblyScan": {
+    "scope": "Read-only actual architectureMatrices boxes against authored glazing, excluding interiors, plants, cylindrical machinery and roof helper kits.",
+    "structures": 183,
+    "boxes": 20119,
+    "totals": {},
+    "issues": [],
+    "errors": [],
+    "originalCandidates": 858,
+    "intermediateCandidates": 323
+  },
+  "headedReview": {
+    "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 (0x00002487) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "integratedViews": [
+      "nova-storefront",
+      "hotel-frontage",
+      "mall-directory",
+      "west-junction-frontage"
+    ],
+    "integratedErrors": [],
+    "closeViews": [
+      {
+        "id": "nova-tower-a",
+        "face": "north"
+      },
+      {
+        "id": "comet-hotel-1",
+        "face": "east"
+      },
+      {
+        "id": "dock-hangar",
+        "face": "south"
+      },
+      {
+        "id": "zero-control",
+        "face": "west"
+      },
+      {
+        "id": "nova-cafe",
+        "face": "south"
+      },
+      {
+        "id": "void-market",
+        "face": "south"
+      }
+    ],
+    "closeErrors": []
+  },
+  "limits": [
+    "Earlier intermittent E2E failures are not conclusively diagnosed by this passing run.",
+    "Box audits do not certify independent landmarks, roof helpers, interiors, cylindrical machinery, every decorative triangle or animated actors.",
+    "Whole-island art and human acceptance remain open."
+  ]
+}

@@ -8,7 +8,7 @@ export interface BrFacadeIntersection {
  * the intentional backing panel behind each window as an intersection.
  * Thin mullions/edge seals are deliberate joins; broad trim cutting through
  * the glass face needs review. Inputs and geometry are never modified. */
-export function brFacadeIntersections(parts:readonly FacadePart[]):BrFacadeIntersection[]{
+export function brFacadeIntersections(parts:readonly (Omit<FacadePart,"finish">&{finish:string})[]):BrFacadeIntersection[]{
   const issues:BrFacadeIntersection[]=[];
   for(const [paneIndex,pane] of parts.entries()){
     if(pane.finish!=="glass"&&pane.finish!=="lit")continue;

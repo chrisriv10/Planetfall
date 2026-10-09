@@ -1,7 +1,9 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { BR_STRUCTURES, BR_BRIDGE_PIERS, BR_GREENWAY_TREES } from "../shared/dist/index.js";
-import { buildFacadeParts, buildStorefrontFrameParts } from "../client/src/modes/battle-royale/br-facades.ts";
+import { buildStorefrontFrameParts } from "../client/src/modes/battle-royale/br-facades.ts";
+import { buildBrFacadeSkin } from "../client/src/modes/battle-royale/br-facade-skin.ts";
+import { buildBrDoorwayParts, buildBrFreightPilasters } from "../client/src/modes/battle-royale/br-facade-attachments.ts";
 import { buildBrFacadeLeds } from "../client/src/modes/battle-royale/br-facade-leds.ts";
 import { brFacadeIntersections } from "../client/src/modes/battle-royale/br-facade-intersections.ts";
 
@@ -17,14 +19,14 @@ for(let i=0;i<BR_STRUCTURES.length;i++){
     const y=Math.min(a.position.y+a.size.y,b.position.y+b.size.y)-Math.max(a.position.y,b.position.y);
     if(Math.min(x,y,z)>.01)buildingIntersections.push({a:a.id,b:b.id,overlap:{x,y,z},positions:[a.position,b.position]});
   }
-  const parts=[...buildFacadeParts(a),...buildStorefrontFrameParts(a),...buildBrFacadeLeds(a)];
+  const parts=[...buildBrFacadeSkin(a),...buildBrDoorwayParts(a),...buildBrFreightPilasters(a),...buildStorefrontFrameParts(a),...buildBrFacadeLeds(a)];
   facadeBoxes+=parts.length;
   facadeIntersections.push(...brFacadeIntersections(parts).map(issue=>({structure:a.id,...issue,
     paneBox:parts[issue.pane],decorationBox:parts[issue.decoration]})));
 }
 const report={
   generatedAt:new Date().toISOString(),
-  scope:"All authored building envelopes and generated facade/glazing, storefront uprights and facade LEDs. Shared physics/route tests separately validate bridge piers and tree trunks.",
+  scope:"All authored building envelopes and the production facade skin composition (glazing, service ribs, Nova storefront details and Solar service skins), doorway frames/awnings, freight pilasters, storefront uprights and facade LEDs. Shared physics/route tests separately validate bridge piers and tree trunks.",
   limits:"This does not certify every decorative mesh or animated figure. Bounding envelopes cannot prove triangle-level separation. Plant foliage, thin mullions and backing panels are intentional facade joins; broad boxes penetrating the outward glass face are flagged.",
   checked:{structures:BR_STRUCTURES.length,buildingPairs:pairs,facadeBoxes,bridgePiers:BR_BRIDGE_PIERS.length,greenwayTrees:BR_GREENWAY_TREES.length},
   buildingIntersections,facadeIntersections,

@@ -464,3 +464,44 @@ the countdown and the repaired Void Market faces are retained in
 The broader island recovery and human art/control-feel acceptance remain open.
 At the validation snapshot this checkpoint was local. It is now prepared for
 the user's requested commit and push; deployment remains outside this pass.
+
+### October 8 continuation — broader facade attachment review
+
+The preceding bridge/color/neon checkpoint was committed and pushed to `main`
+as `281d013e97f0b086c85f0058ac482ea5de713e7a`. Execution remains on
+DESKTOP-JL99F36. Transfer-only setup and agent configuration remain outside Git;
+ignored local routing/runtime/review files were preserved.
+
+A read-only scan of actual production architecture assembly found 858 candidate
+pane/decoration intersections beyond the earlier helper audit. Close renders
+confirmed broad tower ornaments across Nova Tower's glass. Redundant generic
+body fins and mall shelves are removed; measured facade fins, belt courses and
+roof silhouettes remain. Service ribs now fit measured solid wall gaps.
+Doorway frames preserve the full 4.8m opening below head height. Awnings start
+beyond glazing and meet brackets connected to their jambs. Freight braces end
+0.15m below their actual clerestory. Non-enterable shells receive no false doors.
+
+Pure facade composition and doorway/freight helpers are shared by production
+rendering and `npm run audit:br-overlaps`. The expanded command checks 26,900
+facade/attachment boxes and 16,653 building-envelope pairs with zero flags.
+The final production-assembly browser scan independently checks 20,119 opaque
+boxes against authored glazing across 183 structures, with zero candidates.
+These are overlapping scopes, not additive object counts. Six close scenes and
+four actual integrated-game views have zero page errors. The tower before/after
+and intermediate 323-candidate scan are retained for review in
+`artifacts/br-overlap-continuation-oct08/`.
+
+Final typecheck/build pass with the existing chunk warning. The full suite
+passes **889/889 tests across 159 files in 142.82s**, including all five unchanged
+performance cases. Full E2E passes **11/11 in 5.5 minutes on this exact source
+state**, including BR drop/Solo map views, Classic raid/shop/rematch, Chaos and
+six-player budgets. No source edits or concurrent render/unit loads occurred
+during E2E. No assertions, deadlines, gameplay conditions or budgets were
+weakened. Prior intermittent failures' root cause remains unproven.
+
+This continuation changes presentation only. Authority, networking, island
+dimensions, colliders, sockets and Classic/Chaos contracts are preserved.
+The box checks do not certify every landmark, roof helper, interior, cylindrical
+mesh, decorative triangle or animated figure. Whole-island art and human
+acceptance remain open. This validated continuation is prepared for the user's
+requested checkpoint commit/push; deployment is outside this pass.

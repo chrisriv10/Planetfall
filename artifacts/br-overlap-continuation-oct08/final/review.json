@@ -1,0 +1,29 @@
+{
+  "views": [
+    {
+      "id": "nova-tower-a",
+      "face": "north"
+    },
+    {
+      "id": "comet-hotel-1",
+      "face": "east"
+    },
+    {
+      "id": "dock-hangar",
+      "face": "south"
+    },
+    {
+      "id": "zero-control",
+      "face": "west"
+    },
+    {
+      "id": "nova-cafe",
+      "face": "south"
+    },
+    {
+      "id": "void-market",
+      "face": "south"
+    }
+  ],
+  "errors": []
+}

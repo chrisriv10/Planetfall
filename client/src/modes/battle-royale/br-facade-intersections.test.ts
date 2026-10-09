@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { BR_STRUCTURES } from "@planetfall/shared";
-import { buildFacadeParts, buildStorefrontFrameParts, type FacadePart } from "./br-facades";
+import { buildStorefrontFrameParts, type FacadePart } from "./br-facades";
+import { buildBrFacadeSkin } from "./br-facade-skin";
+import { buildBrDoorwayParts, buildBrFreightPilasters } from "./br-facade-attachments";
 import { buildBrFacadeLeds } from "./br-facade-leds";
 import { brFacadeIntersections } from "./br-facade-intersections";
 
@@ -19,7 +21,7 @@ describe("unintended decorative intersections",()=>{
     }
   });
   it("audits the whole island's facade and LED boxes",()=>{
-    const issues=BR_STRUCTURES.flatMap(s=>brFacadeIntersections([...buildFacadeParts(s),...buildStorefrontFrameParts(s),...buildBrFacadeLeds(s)]).map(issue=>({structure:s.id,...issue})));
+    const issues=BR_STRUCTURES.flatMap(s=>brFacadeIntersections([...buildBrFacadeSkin(s),...buildBrDoorwayParts(s),...buildBrFreightPilasters(s),...buildStorefrontFrameParts(s),...buildBrFacadeLeds(s)]).map(issue=>({structure:s.id,...issue})));
     expect(issues).toEqual([]);
   });
 });

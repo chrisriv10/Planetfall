@@ -18,13 +18,14 @@ import type { GraphicsQuality } from "../../settings";
 import { BrMaterialLibrary } from "./br-materials";
 import { layoutBrPoiLabel } from "./br-poi-label-layout";
 import { brPoiLabelPresentation } from "./br-poi-label-presentation";
-import { buildFacadeParts, buildDistantFacadeParts, buildExteriorServiceParts, buildStorefrontFrameParts } from "./br-facades";
+import { buildDistantFacadeParts, buildStorefrontFrameParts } from "./br-facades";
+import { buildBrFacadeSkin } from "./br-facade-skin";
+import { buildBrDoorwayParts, buildBrFreightPilasters } from "./br-facade-attachments";
 import { brPlazaUvScale } from "./br-plaza-finish";
 import { BR_COLONY_DECK_COLOR } from "./br-district-palette";
 import { buildBrConnectiveGreens } from "./br-connective-greens";
 import { buildBrFacadeLeds } from "./br-facade-leds";
 import { buildBrRoadBends } from "./br-road-bends";
-import { buildNovaStorefrontParts } from "./br-storefronts";
 import { buildNovaEntrancePaving } from "./br-entrance-paving";
 import { buildBrRooftopDetails, type BrRoofPart } from "./br-rooftop-details";
 import { buildReactorInterior } from "./br-reactor-interior";
@@ -764,8 +765,7 @@ export class BrWorldRenderer {
     for(const part of solarFrontage.cornerParts)solarCorners[part.finish].push({position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z)});
     for(const part of solarFrontage.shellParts)solarShells[part.finish].push({position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z)});
     const facadeTargets = { panel: facadePanels, frame: columns, glass: darkWindows, lit: litWindows, accent: trims, foliage: facadePlants, metal: roofUnits, concrete: solarBacking };
-    const facade=buildFacadeParts(structure).filter(part=>!solarFrontage.replaceGenericFacadePanels||part.finish!=="panel");
-    for (const part of [...facade, ...buildExteriorServiceParts(structure), ...buildNovaStorefrontParts(structure),...solarFrontage.facadeParts]) {
+    for (const part of buildBrFacadeSkin(structure,solarFrontage)) {
       facadeTargets[part.finish].push({position: position(part.position.x, part.position.y, part.position.z), scale: position(part.scale.x, part.scale.y, part.scale.z)});
     }
     // The facade helper owns clear solid-wall accent intervals. Legacy bars at
@@ -782,38 +782,16 @@ export class BrWorldRenderer {
     }
     if (height > 15 && structure.id !== "thruster-foundry") {
       roofUnits.push({ position: position(x, height + 1.15, z), scale: position(width * .36, 1.65, depth * .42) });
-      for (const side of [-1, 1]) columns.push({ position: position(x + side * (width / 2 + .52), height * .72, z), scale: position(.65, height * .42, depth * .22) });
       const crownWidth = structure.style === "city" ? width * .5 : width * .38;
       roofUnits.push({ position: position(x - width * .12, height + 2.25, z + depth * .06), scale: position(crownWidth, .58, depth * .28) });
       trims.push({ position: position(x + width * .19, height + 2.62, z - depth * .08), scale: position(width * .22, .2, depth * .2) });
-      for (const side of [-1, 1]) {
-        const finHeight = Math.min(8, height * .22);
-        trims.push({ position: position(x + side * (width / 2 + .7), height - finHeight * .52, z + side * depth * .14), scale: position(.38, finHeight, depth * .26) });
-      }
     }
-    if (structure.style === "city" && height > 20) {
-      for (const side of [-1, 1]) {
-        roofUnits.push({ position: position(x + side * width * .34, height * .77, z - depth / 2 - .5), scale: position(width * .12, height * .18, .72) });
-        roofUnits.push({ position: position(x + side * width * .34, height * .57, z + depth / 2 + .5), scale: position(width * .12, height * .15, .72) });
-      }
-    }
+    // The facade helper supplies measured bay fins and belt courses. Generic
+    // broad fins at fractional shell coordinates pierced the glazing skin.
 
-    const doorHalf = 2.7;
-    const shopCanopy = structure.archetype === "shop" || structure.archetype === "transit";
-    const northSouth = structure.entrance === "north" || structure.entrance === "south";
-    const doorX = northSouth ? x : x + (structure.entrance === "east" ? width / 2 + .48 : -width / 2 - .48);
-    const doorZ = northSouth ? z + (structure.entrance === "north" ? depth / 2 + .48 : -depth / 2 - .48) : z;
-    if (northSouth) {
-      doorFrames.push({ position: position(doorX - doorHalf, 2.1, doorZ), scale: position(.42, 4.2, .5) });
-      doorFrames.push({ position: position(doorX + doorHalf, 2.1, doorZ), scale: position(.42, 4.2, .5) });
-      doorFrames.push({ position: position(doorX, 4.05, doorZ), scale: position(5.8, .38, .55) });
-      doorFrames.push({ position: position(doorX, 4.45, doorZ + (structure.entrance === "north" ? .75 : -.75)), scale: position(shopCanopy ? Math.max(7.4,width*.72) : 7.4, .22, shopCanopy ? 2.4 : 1.8) });
-    } else {
-      doorFrames.push({ position: position(doorX, 2.1, doorZ - doorHalf), scale: position(.5, 4.2, .42) });
-      doorFrames.push({ position: position(doorX, 2.1, doorZ + doorHalf), scale: position(.5, 4.2, .42) });
-      doorFrames.push({ position: position(doorX, 4.05, doorZ), scale: position(.55, .38, 5.8) });
-      doorFrames.push({ position: position(doorX + (structure.entrance === "east" ? .75 : -.75), 4.45, doorZ), scale: position(shopCanopy ? 2.4 : 1.8, .22, shopCanopy ? Math.max(7.4,depth*.72) : 7.4) });
-    }
+    for(const part of buildBrDoorwayParts(structure))doorFrames.push({
+      position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z)
+    });
     // Do not scatter generic freestanding boxes through enterable rooms. They
     // looked like heavy counters but had no authoritative collider, making the
     // player appear to phase through furniture. Archetype-specific helpers and
@@ -852,8 +830,6 @@ export class BrWorldRenderer {
     const { x: width, y: height, z: depth } = structure.size;
     const northSouth = structure.entrance === "north" || structure.entrance === "south";
     const frontSign = structure.entrance === "north" || structure.entrance === "east" ? 1 : -1;
-    const frontX = northSouth ? x : x + frontSign * (width / 2 + .34);
-    const frontZ = northSouth ? z + frontSign * (depth / 2 + .34) : z;
     const facadeScale = (wide: number, tall: number, thick: number): THREE.Vector3 => northSouth ? position(wide, tall, thick) : position(thick, tall, wide);
 
     // Shallow masses create readable silhouettes while staying visually tied to
@@ -875,30 +851,20 @@ export class BrWorldRenderer {
         const tierHeight = Math.min(4.6, height * .15);
         massing.push({ position: position(x + (tier ? width * .08 : -width * .05), height + tierHeight * (tier + .5), z + (tier ? -depth * .06 : depth * .05)), scale: position(width * (.66 - tier * .12), tierHeight, depth * (.68 - tier * .1)) });
       }
-      for (const side of [-1, 1]) {
-        const lateral = side * (northSouth ? width : depth) * .34;
-        accents.push({ position: position(frontX + (northSouth ? lateral : 0), height * .62, frontZ + (northSouth ? 0 : lateral)), scale: facadeScale(Math.max(1.8, (northSouth ? width : depth) * .12), Math.min(7.5, height * .24), .55) });
-      }
       machinery.push({ position: position(x, height + (structure.archetype === "tower" ? 5.1 : 3.8), z), scale: position(width * .28, structure.archetype === "tower" ? 5.8 : 3.2, depth * .28) });
       accents.push({ position: position(x, height + (structure.archetype === "tower" ? 8.15 : 5.55), z), scale: position(width * .35, .32, depth * .35) });
     } else if (structure.archetype === "warehouse" || structure.archetype === "hangar") {
-      for (const side of [-1, 1]) {
-        const offset = side * (northSouth ? width : depth) * .39;
-        massing.push({ position: position(frontX + (northSouth ? offset : 0), height * .52, frontZ + (northSouth ? 0 : offset)), scale: facadeScale(1.15, height * .92, 1.25) });
-      }
+      for(const part of buildBrFreightPilasters(structure))massing.push({
+        position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z)
+      });
     } else if (structure.archetype === "mall") {
       const facadeSpan = (northSouth ? width : depth) * .62;
       const facadeHeight = Math.min(9, height * .68);
       const backX = northSouth ? x : x - frontSign * (width / 2 + .34);
       const backZ = northSouth ? z - frontSign * (depth / 2 + .34) : z;
       glass.push({ position: position(backX, Math.min(5.2, height * .48), backZ), scale: facadeScale(facadeSpan * .72, facadeHeight * .7, .28) });
-      for (const side of [-1, 1]) {
-        const offset = side * (northSouth ? width : depth) * .38;
-        accents.push({
-          position: position(frontX + (northSouth ? offset : 0), 4.8, frontZ + (northSouth ? 0 : offset)),
-          scale: facadeScale(Math.max(3.2, facadeSpan * .14), .34, 2.25)
-        });
-      }
+      // The measured doorway awning owns entrance shading; the old two
+      // fractionally placed shelves pierced the mall's front glazing.
       massing.push({ position: position(x, height + 1.4, z), scale: position(width * .55, 2.8, depth * .5) });
       glass.push({ position: position(x, height + 2.65, z), scale: position(width * .34, 1.7, depth * .3) });
       accents.push({ position: position(x, height + 3.65, z), scale: position(width * .42, .35, depth * .38) });

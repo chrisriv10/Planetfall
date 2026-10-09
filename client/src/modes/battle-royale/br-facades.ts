@@ -209,8 +209,28 @@ export function buildExteriorServiceParts(structure: BrStructure): FacadePart[] 
       scale: { x: ns ? width : thickness, y: height, z: ns ? thickness : width }
     });
   };
+  // Reserve full-height solid wall lanes from the actual glazing. Fixed .34
+  // offsets placed broad ribs through office and clerestory window faces.
+  const along = ns ? "x" : "z";
+  const ribWidth = greenhouse ? .22 : industrial ? 1.35 : .7;
+  const occupied = buildFacadeParts(structure)
+    .filter(p => p.face === face && (p.finish === "glass" || p.finish === "lit"))
+    .map(p => [p.position[along] - structure.position[along] - p.scale[along] / 2 - .08,
+      p.position[along] - structure.position[along] + p.scale[along] / 2 + .08])
+    .sort((a,b) => a[0] - b[0]);
+  const gaps:number[][] = [];
+  let cursor = -span / 2 + 1.6;
+  const edge = span / 2 - 1.6;
+  for (const [low,high] of [...occupied,[edge,edge]]) {
+    if (Math.min(low,edge) - cursor >= ribWidth) gaps.push([cursor,Math.min(low,edge)]);
+    cursor = Math.max(cursor,high);
+  }
   for (const side of [-1, 1]) {
-    const lateral = side * span * .34;
+    const preferred = side * span * .34;
+    const choices = gaps.map(([low,high]) => Math.max(low + ribWidth / 2,Math.min(high - ribWidth / 2,preferred)))
+      .filter(center => center * side >= ribWidth / 2 + .1);
+    if (!choices.length) continue;
+    const lateral = choices.reduce((best,center) => Math.abs(center-preferred) < Math.abs(best-preferred) ? center : best);
     add("frame", lateral, structure.size.y * .5, greenhouse ? .22 : industrial ? 1.05 : .7, structure.size.y - .4, .48);
     if (industrial) {
       for (let band = 0; band < 4; band++) add("panel", lateral, 1.2 + band * .38, 1.35, .15, .55);
