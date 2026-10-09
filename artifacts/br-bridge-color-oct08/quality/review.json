@@ -1,0 +1,1475 @@
+{
+  "errors": [],
+  "presets": [
+    {
+      "quality": "high",
+      "stats": {
+        "localId": "br-player-2d431166",
+        "phase": "ship",
+        "localPlayer": {
+          "id": "br-player-2d431166",
+          "name": "Neon quality revie",
+          "isBot": false,
+          "connected": true,
+          "ready": true,
+          "color": "#70f5ff",
+          "teamId": "team-1",
+          "alive": true,
+          "downed": false,
+          "deployment": "attached",
+          "hp": 100,
+          "shield": 0,
+          "downedHp": 100,
+          "bleedoutEndsAt": null,
+          "position": {
+            "x": 576.4118310885186,
+            "y": 195,
+            "z": -11.27930912791786
+          },
+          "velocity": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "w": 1
+          },
+          "yaw": 0,
+          "pitch": 0,
+          "grounded": false,
+          "crouched": false,
+          "selectedSlot": 0,
+          "inventory": [
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "ammo": {
+            "light": 90,
+            "heavy": 20,
+            "plasma": 12
+          },
+          "lastInputSequence": 38,
+          "kills": 0,
+          "damageDealt": 0,
+          "revives": 0,
+          "placement": null,
+          "crowns": 0,
+          "fallbucks": 0,
+          "sessionLevel": 1,
+          "sessionXp": 0,
+          "sessionTotalXp": 0,
+          "unlockedPassRewards": [
+            "default"
+          ],
+          "ownedCosmetics": [],
+          "equippedCosmetics": {
+            "suit": "default",
+            "trail": "default",
+            "victory": "default",
+            "planet": "default"
+          },
+          "vehicleId": null
+        },
+        "players": [
+          {
+            "id": "br-player-2d431166",
+            "teamId": "team-1",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 576.4118310885186,
+              "y": 195,
+              "z": -11.27930912791786
+            }
+          },
+          {
+            "id": "br-bot-6f3b1101",
+            "teamId": "team-2",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 579.4118310885186,
+              "y": 195,
+              "z": -10.27930912791786
+            }
+          },
+          {
+            "id": "br-bot-d9ef9f16",
+            "teamId": "team-3",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 579.4118310885186,
+              "y": 195,
+              "z": -9.27930912791786
+            }
+          },
+          {
+            "id": "br-bot-5d913b6e",
+            "teamId": "team-4",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 582.4118310885186,
+              "y": 195,
+              "z": -10.27930912791786
+            }
+          },
+          {
+            "id": "br-bot-0571fab1",
+            "teamId": "team-5",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 578.4118310885186,
+              "y": 195,
+              "z": -10.27930912791786
+            }
+          },
+          {
+            "id": "br-bot-da7467df",
+            "teamId": "team-6",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 576.4118310885186,
+              "y": 195,
+              "z": -12.27930912791786
+            }
+          },
+          {
+            "id": "br-bot-dc611824",
+            "teamId": "team-7",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 582.4118310885186,
+              "y": 195,
+              "z": -9.27930912791786
+            }
+          },
+          {
+            "id": "br-bot-58fed858",
+            "teamId": "team-8",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 580.4118310885186,
+              "y": 195,
+              "z": -9.27930912791786
+            }
+          },
+          {
+            "id": "br-bot-7f40415d",
+            "teamId": "team-9",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 582.4118310885186,
+              "y": 195,
+              "z": -12.27930912791786
+            }
+          },
+          {
+            "id": "br-bot-5daddcf3",
+            "teamId": "team-10",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 577.4118310885186,
+              "y": 195,
+              "z": -11.27930912791786
+            }
+          }
+        ],
+        "lootCount": 0,
+        "crateCount": 22,
+        "projectileCount": 0,
+        "spectatorTargetId": null,
+        "storm": {
+          "phaseIndex": 0,
+          "center": {
+            "x": 0,
+            "z": 0
+          },
+          "radius": 500,
+          "nextCenter": {
+            "x": 0,
+            "z": 0
+          },
+          "nextRadius": 330,
+          "stage": "waiting",
+          "stageEndsAt": null,
+          "damagePerSecond": 1
+        },
+        "camera": {
+          "position": {
+            "x": -175,
+            "y": 7.7,
+            "z": -92
+          },
+          "fov": 60
+        },
+        "input": {
+          "jumpInputSequence": 0,
+          "shipJumpRequestCount": 0
+        },
+        "reconciliation": {
+          "averageCorrection": 5.710366635889522,
+          "p95Correction": 4.4225995,
+          "maximumCorrection": 620.629985102662,
+          "snapCount": 5,
+          "correctionCount": 124,
+          "correctionsPerMinute": 3261.441346660718
+        },
+        "world": {
+          "islandObjects": 315,
+          "shipVisible": true,
+          "objects": 2179,
+          "meshes": 1872,
+          "instances": 60763,
+          "visibleInstances": 30519,
+          "materials": 312,
+          "visibleDistricts": 35,
+          "visibleSecondaryLabels": 4
+        },
+        "renderer": {
+          "calls": 354,
+          "triangles": 362273
+        }
+      },
+      "metrics": "60.0 FPS · 354 calls\n362,273 triangles · 55 textures\n312 world materials · 30,519 enabled instances\n35 active detail sectors"
+    },
+    {
+      "quality": "medium",
+      "stats": {
+        "localId": "br-player-2d431166",
+        "phase": "ship",
+        "localPlayer": {
+          "id": "br-player-2d431166",
+          "name": "Neon quality revie",
+          "isBot": false,
+          "connected": true,
+          "ready": true,
+          "color": "#70f5ff",
+          "teamId": "team-1",
+          "alive": true,
+          "downed": false,
+          "deployment": "attached",
+          "hp": 100,
+          "shield": 0,
+          "downedHp": 100,
+          "bleedoutEndsAt": null,
+          "position": {
+            "x": 495.2947074751254,
+            "y": 195,
+            "z": -19.123914407862245
+          },
+          "velocity": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "w": 1
+          },
+          "yaw": 0,
+          "pitch": 0,
+          "grounded": false,
+          "crouched": false,
+          "selectedSlot": 0,
+          "inventory": [
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "ammo": {
+            "light": 90,
+            "heavy": 20,
+            "plasma": 12
+          },
+          "lastInputSequence": 70,
+          "kills": 0,
+          "damageDealt": 0,
+          "revives": 0,
+          "placement": null,
+          "crowns": 0,
+          "fallbucks": 0,
+          "sessionLevel": 1,
+          "sessionXp": 0,
+          "sessionTotalXp": 0,
+          "unlockedPassRewards": [
+            "default"
+          ],
+          "ownedCosmetics": [],
+          "equippedCosmetics": {
+            "suit": "default",
+            "trail": "default",
+            "victory": "default",
+            "planet": "default"
+          },
+          "vehicleId": null
+        },
+        "players": [
+          {
+            "id": "br-player-2d431166",
+            "teamId": "team-1",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 495.2947074751254,
+              "y": 195,
+              "z": -19.123914407862245
+            }
+          },
+          {
+            "id": "br-bot-6f3b1101",
+            "teamId": "team-2",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 498.2947074751254,
+              "y": 195,
+              "z": -18.123914407862245
+            }
+          },
+          {
+            "id": "br-bot-d9ef9f16",
+            "teamId": "team-3",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 498.2947074751254,
+              "y": 195,
+              "z": -17.123914407862245
+            }
+          },
+          {
+            "id": "br-bot-5d913b6e",
+            "teamId": "team-4",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 501.2947074751254,
+              "y": 195,
+              "z": -18.123914407862245
+            }
+          },
+          {
+            "id": "br-bot-0571fab1",
+            "teamId": "team-5",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 497.2947074751254,
+              "y": 195,
+              "z": -18.123914407862245
+            }
+          },
+          {
+            "id": "br-bot-da7467df",
+            "teamId": "team-6",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 495.2947074751254,
+              "y": 195,
+              "z": -20.123914407862245
+            }
+          },
+          {
+            "id": "br-bot-dc611824",
+            "teamId": "team-7",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 501.2947074751254,
+              "y": 195,
+              "z": -17.123914407862245
+            }
+          },
+          {
+            "id": "br-bot-58fed858",
+            "teamId": "team-8",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 499.2947074751254,
+              "y": 195,
+              "z": -17.123914407862245
+            }
+          },
+          {
+            "id": "br-bot-7f40415d",
+            "teamId": "team-9",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 501.2947074751254,
+              "y": 195,
+              "z": -20.123914407862245
+            }
+          },
+          {
+            "id": "br-bot-5daddcf3",
+            "teamId": "team-10",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 496.2947074751254,
+              "y": 195,
+              "z": -19.123914407862245
+            }
+          }
+        ],
+        "lootCount": 0,
+        "crateCount": 22,
+        "projectileCount": 0,
+        "spectatorTargetId": null,
+        "storm": {
+          "phaseIndex": 0,
+          "center": {
+            "x": 0,
+            "z": 0
+          },
+          "radius": 500,
+          "nextCenter": {
+            "x": 0,
+            "z": 0
+          },
+          "nextRadius": 330,
+          "stage": "waiting",
+          "stageEndsAt": null,
+          "damagePerSecond": 1
+        },
+        "camera": {
+          "position": {
+            "x": -175,
+            "y": 7.7,
+            "z": -92
+          },
+          "fov": 60
+        },
+        "input": {
+          "jumpInputSequence": 0,
+          "shipJumpRequestCount": 0
+        },
+        "reconciliation": {
+          "averageCorrection": 5.1593118222300856,
+          "p95Correction": 4.896094498888884,
+          "maximumCorrection": 620.629985102662,
+          "snapCount": 12,
+          "correctionCount": 171,
+          "correctionsPerMinute": 2232.424552317285
+        },
+        "world": {
+          "islandObjects": 315,
+          "shipVisible": true,
+          "objects": 2179,
+          "meshes": 1872,
+          "instances": 60763,
+          "visibleInstances": 25961,
+          "materials": 312,
+          "visibleDistricts": 22,
+          "visibleSecondaryLabels": 4
+        },
+        "renderer": {
+          "calls": 239,
+          "triangles": 286517
+        }
+      },
+      "metrics": "25.1 FPS · 239 calls\n286,517 triangles · 42 textures\n312 world materials · 25,961 enabled instances\n22 active detail sectors"
+    },
+    {
+      "quality": "low",
+      "stats": {
+        "localId": "br-player-2d431166",
+        "phase": "ship",
+        "localPlayer": {
+          "id": "br-player-2d431166",
+          "name": "Neon quality revie",
+          "isBot": false,
+          "connected": true,
+          "ready": true,
+          "color": "#70f5ff",
+          "teamId": "team-1",
+          "alive": true,
+          "downed": false,
+          "deployment": "attached",
+          "hp": 100,
+          "shield": 0,
+          "downedHp": 100,
+          "bleedoutEndsAt": null,
+          "position": {
+            "x": 416.4403607672622,
+            "y": 195,
+            "z": -26.749692997833534
+          },
+          "velocity": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "w": 1
+          },
+          "yaw": 0,
+          "pitch": 0,
+          "grounded": false,
+          "crouched": false,
+          "selectedSlot": 0,
+          "inventory": [
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "ammo": {
+            "light": 90,
+            "heavy": 20,
+            "plasma": 12
+          },
+          "lastInputSequence": 139,
+          "kills": 0,
+          "damageDealt": 0,
+          "revives": 0,
+          "placement": null,
+          "crowns": 0,
+          "fallbucks": 0,
+          "sessionLevel": 1,
+          "sessionXp": 0,
+          "sessionTotalXp": 0,
+          "unlockedPassRewards": [
+            "default"
+          ],
+          "ownedCosmetics": [],
+          "equippedCosmetics": {
+            "suit": "default",
+            "trail": "default",
+            "victory": "default",
+            "planet": "default"
+          },
+          "vehicleId": null
+        },
+        "players": [
+          {
+            "id": "br-player-2d431166",
+            "teamId": "team-1",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 416.4403607672622,
+              "y": 195,
+              "z": -26.749692997833534
+            }
+          },
+          {
+            "id": "br-bot-6f3b1101",
+            "teamId": "team-2",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 419.4403607672622,
+              "y": 195,
+              "z": -25.749692997833534
+            }
+          },
+          {
+            "id": "br-bot-d9ef9f16",
+            "teamId": "team-3",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 419.4403607672622,
+              "y": 195,
+              "z": -24.749692997833534
+            }
+          },
+          {
+            "id": "br-bot-5d913b6e",
+            "teamId": "team-4",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 422.4403607672622,
+              "y": 195,
+              "z": -25.749692997833534
+            }
+          },
+          {
+            "id": "br-bot-0571fab1",
+            "teamId": "team-5",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 418.4403607672622,
+              "y": 195,
+              "z": -25.749692997833534
+            }
+          },
+          {
+            "id": "br-bot-da7467df",
+            "teamId": "team-6",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 416.4403607672622,
+              "y": 195,
+              "z": -27.749692997833534
+            }
+          },
+          {
+            "id": "br-bot-dc611824",
+            "teamId": "team-7",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 422.4403607672622,
+              "y": 195,
+              "z": -24.749692997833534
+            }
+          },
+          {
+            "id": "br-bot-58fed858",
+            "teamId": "team-8",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 420.4403607672622,
+              "y": 195,
+              "z": -24.749692997833534
+            }
+          },
+          {
+            "id": "br-bot-7f40415d",
+            "teamId": "team-9",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 422.4403607672622,
+              "y": 195,
+              "z": -27.749692997833534
+            }
+          },
+          {
+            "id": "br-bot-5daddcf3",
+            "teamId": "team-10",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 417.4403607672622,
+              "y": 195,
+              "z": -26.749692997833534
+            }
+          }
+        ],
+        "lootCount": 0,
+        "crateCount": 22,
+        "projectileCount": 0,
+        "spectatorTargetId": null,
+        "storm": {
+          "phaseIndex": 0,
+          "center": {
+            "x": 0,
+            "z": 0
+          },
+          "radius": 500,
+          "nextCenter": {
+            "x": 0,
+            "z": 0
+          },
+          "nextRadius": 330,
+          "stage": "waiting",
+          "stageEndsAt": null,
+          "damagePerSecond": 1
+        },
+        "camera": {
+          "position": {
+            "x": -175,
+            "y": 7.7,
+            "z": -92
+          },
+          "fov": 60
+        },
+        "input": {
+          "jumpInputSequence": 0,
+          "shipJumpRequestCount": 0
+        },
+        "reconciliation": {
+          "averageCorrection": 4.800901363042553,
+          "p95Correction": 4.902243047499983,
+          "maximumCorrection": 620.629985102662,
+          "snapCount": 19,
+          "correctionCount": 217,
+          "correctionsPerMinute": 1890.6830855012452
+        },
+        "world": {
+          "islandObjects": 315,
+          "shipVisible": true,
+          "objects": 2179,
+          "meshes": 1872,
+          "instances": 60763,
+          "visibleInstances": 17019,
+          "materials": 312,
+          "visibleDistricts": 11,
+          "visibleSecondaryLabels": 4
+        },
+        "renderer": {
+          "calls": 206,
+          "triangles": 257677
+        }
+      },
+      "metrics": "60.0 FPS · 206 calls\n257,677 triangles · 42 textures\n312 world materials · 17,019 enabled instances\n11 active detail sectors"
+    },
+    {
+      "quality": "high",
+      "stats": {
+        "localId": "br-player-2d431166",
+        "phase": "ship",
+        "localPlayer": {
+          "id": "br-player-2d431166",
+          "name": "Neon quality revie",
+          "isBot": false,
+          "connected": true,
+          "ready": true,
+          "color": "#70f5ff",
+          "teamId": "team-1",
+          "alive": true,
+          "downed": false,
+          "deployment": "attached",
+          "hp": 100,
+          "shield": 0,
+          "downedHp": 100,
+          "bleedoutEndsAt": null,
+          "position": {
+            "x": 339.848790964929,
+            "y": 195,
+            "z": -34.15664489783174
+          },
+          "velocity": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "w": 1
+          },
+          "yaw": 0,
+          "pitch": 0,
+          "grounded": false,
+          "crouched": false,
+          "selectedSlot": 0,
+          "inventory": [
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "ammo": {
+            "light": 90,
+            "heavy": 20,
+            "plasma": 12
+          },
+          "lastInputSequence": 206,
+          "kills": 0,
+          "damageDealt": 0,
+          "revives": 0,
+          "placement": null,
+          "crowns": 0,
+          "fallbucks": 0,
+          "sessionLevel": 1,
+          "sessionXp": 0,
+          "sessionTotalXp": 0,
+          "unlockedPassRewards": [
+            "default"
+          ],
+          "ownedCosmetics": [],
+          "equippedCosmetics": {
+            "suit": "default",
+            "trail": "default",
+            "victory": "default",
+            "planet": "default"
+          },
+          "vehicleId": null
+        },
+        "players": [
+          {
+            "id": "br-player-2d431166",
+            "teamId": "team-1",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 339.848790964929,
+              "y": 195,
+              "z": -34.15664489783174
+            }
+          },
+          {
+            "id": "br-bot-6f3b1101",
+            "teamId": "team-2",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 342.848790964929,
+              "y": 195,
+              "z": -33.15664489783174
+            }
+          },
+          {
+            "id": "br-bot-d9ef9f16",
+            "teamId": "team-3",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 342.848790964929,
+              "y": 195,
+              "z": -32.15664489783174
+            }
+          },
+          {
+            "id": "br-bot-5d913b6e",
+            "teamId": "team-4",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 345.848790964929,
+              "y": 195,
+              "z": -33.15664489783174
+            }
+          },
+          {
+            "id": "br-bot-0571fab1",
+            "teamId": "team-5",
+            "alive": true,
+            "deployment": "freefall",
+            "position": {
+              "x": 377.9321657086777,
+              "y": 139.32155198111707,
+              "z": -1.140080494705202
+            }
+          },
+          {
+            "id": "br-bot-da7467df",
+            "teamId": "team-6",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 339.848790964929,
+              "y": 195,
+              "z": -35.15664489783174
+            }
+          },
+          {
+            "id": "br-bot-dc611824",
+            "teamId": "team-7",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 345.848790964929,
+              "y": 195,
+              "z": -32.15664489783174
+            }
+          },
+          {
+            "id": "br-bot-58fed858",
+            "teamId": "team-8",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 343.848790964929,
+              "y": 195,
+              "z": -32.15664489783174
+            }
+          },
+          {
+            "id": "br-bot-7f40415d",
+            "teamId": "team-9",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 345.848790964929,
+              "y": 195,
+              "z": -35.15664489783174
+            }
+          },
+          {
+            "id": "br-bot-5daddcf3",
+            "teamId": "team-10",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 340.848790964929,
+              "y": 195,
+              "z": -34.15664489783174
+            }
+          }
+        ],
+        "lootCount": 0,
+        "crateCount": 22,
+        "projectileCount": 0,
+        "spectatorTargetId": null,
+        "storm": {
+          "phaseIndex": 0,
+          "center": {
+            "x": 0,
+            "z": 0
+          },
+          "radius": 500,
+          "nextCenter": {
+            "x": 0,
+            "z": 0
+          },
+          "nextRadius": 330,
+          "stage": "waiting",
+          "stageEndsAt": null,
+          "damagePerSecond": 1
+        },
+        "camera": {
+          "position": {
+            "x": -175,
+            "y": 7.7,
+            "z": -92
+          },
+          "fov": 60
+        },
+        "input": {
+          "jumpInputSequence": 0,
+          "shipJumpRequestCount": 0
+        },
+        "reconciliation": {
+          "averageCorrection": 4.575397455842709,
+          "p95Correction": 4.919392075277799,
+          "maximumCorrection": 620.629985102662,
+          "snapCount": 27,
+          "correctionCount": 262,
+          "correctionsPerMinute": 1708.8070961145488
+        },
+        "world": {
+          "islandObjects": 315,
+          "shipVisible": true,
+          "objects": 2179,
+          "meshes": 1872,
+          "instances": 60763,
+          "visibleInstances": 28076,
+          "materials": 312,
+          "visibleDistricts": 28,
+          "visibleSecondaryLabels": 4
+        },
+        "renderer": {
+          "calls": 336,
+          "triangles": 344505
+        }
+      },
+      "metrics": "60.0 FPS · 336 calls\n344,505 triangles · 55 textures\n312 world materials · 28,076 enabled instances\n28 active detail sectors"
+    },
+    {
+      "quality": "low",
+      "stats": {
+        "localId": "br-player-2d431166",
+        "phase": "ship",
+        "localPlayer": {
+          "id": "br-player-2d431166",
+          "name": "Neon quality revie",
+          "isBot": false,
+          "connected": true,
+          "ready": true,
+          "color": "#70f5ff",
+          "teamId": "team-1",
+          "alive": true,
+          "downed": false,
+          "deployment": "attached",
+          "hp": 100,
+          "shield": 0,
+          "downedHp": 100,
+          "bleedoutEndsAt": null,
+          "position": {
+            "x": 258.69738285296717,
+            "y": 195,
+            "z": -42.0045657336848
+          },
+          "velocity": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "w": 1
+          },
+          "yaw": 0,
+          "pitch": 0,
+          "grounded": false,
+          "crouched": false,
+          "selectedSlot": 0,
+          "inventory": [
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "ammo": {
+            "light": 90,
+            "heavy": 20,
+            "plasma": 12
+          },
+          "lastInputSequence": 277,
+          "kills": 0,
+          "damageDealt": 0,
+          "revives": 0,
+          "placement": null,
+          "crowns": 0,
+          "fallbucks": 0,
+          "sessionLevel": 1,
+          "sessionXp": 0,
+          "sessionTotalXp": 0,
+          "unlockedPassRewards": [
+            "default"
+          ],
+          "ownedCosmetics": [],
+          "equippedCosmetics": {
+            "suit": "default",
+            "trail": "default",
+            "victory": "default",
+            "planet": "default"
+          },
+          "vehicleId": null
+        },
+        "players": [
+          {
+            "id": "br-player-2d431166",
+            "teamId": "team-1",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 258.69738285296717,
+              "y": 195,
+              "z": -42.0045657336848
+            }
+          },
+          {
+            "id": "br-bot-6f3b1101",
+            "teamId": "team-2",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 261.69738285296717,
+              "y": 195,
+              "z": -41.0045657336848
+            }
+          },
+          {
+            "id": "br-bot-d9ef9f16",
+            "teamId": "team-3",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 261.69738285296717,
+              "y": 195,
+              "z": -40.0045657336848
+            }
+          },
+          {
+            "id": "br-bot-5d913b6e",
+            "teamId": "team-4",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 264.69738285296717,
+              "y": 195,
+              "z": -41.0045657336848
+            }
+          },
+          {
+            "id": "br-bot-0571fab1",
+            "teamId": "team-5",
+            "alive": true,
+            "deployment": "chute",
+            "position": {
+              "x": 330.08154379774857,
+              "y": 86.30205198111709,
+              "z": 34.75240783103457
+            }
+          },
+          {
+            "id": "br-bot-da7467df",
+            "teamId": "team-6",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 258.69738285296717,
+              "y": 195,
+              "z": -43.0045657336848
+            }
+          },
+          {
+            "id": "br-bot-dc611824",
+            "teamId": "team-7",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 264.69738285296717,
+              "y": 195,
+              "z": -40.0045657336848
+            }
+          },
+          {
+            "id": "br-bot-58fed858",
+            "teamId": "team-8",
+            "alive": true,
+            "deployment": "freefall",
+            "position": {
+              "x": 299.9967241746479,
+              "y": 161.69012799999987,
+              "z": -66.6279159359843
+            }
+          },
+          {
+            "id": "br-bot-7f40415d",
+            "teamId": "team-9",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 264.69738285296717,
+              "y": 195,
+              "z": -43.0045657336848
+            }
+          },
+          {
+            "id": "br-bot-5daddcf3",
+            "teamId": "team-10",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 259.69738285296717,
+              "y": 195,
+              "z": -42.0045657336848
+            }
+          }
+        ],
+        "lootCount": 0,
+        "crateCount": 22,
+        "projectileCount": 0,
+        "spectatorTargetId": null,
+        "storm": {
+          "phaseIndex": 0,
+          "center": {
+            "x": 0,
+            "z": 0
+          },
+          "radius": 500,
+          "nextCenter": {
+            "x": 0,
+            "z": 0
+          },
+          "nextRadius": 330,
+          "stage": "waiting",
+          "stageEndsAt": null,
+          "damagePerSecond": 1
+        },
+        "camera": {
+          "position": {
+            "x": -175,
+            "y": 7.7,
+            "z": -92
+          },
+          "fov": 60
+        },
+        "input": {
+          "jumpInputSequence": 0,
+          "shipJumpRequestCount": 0
+        },
+        "reconciliation": {
+          "averageCorrection": 4.42861781926972,
+          "p95Correction": 4.920252872083379,
+          "maximumCorrection": 620.629985102662,
+          "snapCount": 34,
+          "correctionCount": 309,
+          "correctionsPerMinute": 1612.3842240292213
+        },
+        "world": {
+          "islandObjects": 315,
+          "shipVisible": true,
+          "objects": 2179,
+          "meshes": 1872,
+          "instances": 60763,
+          "visibleInstances": 17019,
+          "materials": 312,
+          "visibleDistricts": 11,
+          "visibleSecondaryLabels": 4
+        },
+        "renderer": {
+          "calls": 206,
+          "triangles": 257677
+        }
+      },
+      "metrics": "60.0 FPS · 206 calls\n257,677 triangles · 42 textures\n312 world materials · 17,019 enabled instances\n11 active detail sectors"
+    },
+    {
+      "quality": "high",
+      "stats": {
+        "localId": "br-player-2d431166",
+        "phase": "ship",
+        "localPlayer": {
+          "id": "br-player-2d431166",
+          "name": "Neon quality revie",
+          "isBot": false,
+          "connected": true,
+          "ready": true,
+          "color": "#70f5ff",
+          "teamId": "team-1",
+          "alive": true,
+          "downed": false,
+          "deployment": "attached",
+          "hp": 100,
+          "shield": 0,
+          "downedHp": 100,
+          "bleedoutEndsAt": null,
+          "position": {
+            "x": 179.94588964080987,
+            "y": 195,
+            "z": -49.62039765593004
+          },
+          "velocity": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "w": 1
+          },
+          "yaw": 0,
+          "pitch": 0,
+          "grounded": false,
+          "crouched": false,
+          "selectedSlot": 0,
+          "inventory": [
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "ammo": {
+            "light": 90,
+            "heavy": 20,
+            "plasma": 12
+          },
+          "lastInputSequence": 345,
+          "kills": 0,
+          "damageDealt": 0,
+          "revives": 0,
+          "placement": null,
+          "crowns": 0,
+          "fallbucks": 0,
+          "sessionLevel": 1,
+          "sessionXp": 0,
+          "sessionTotalXp": 0,
+          "unlockedPassRewards": [
+            "default"
+          ],
+          "ownedCosmetics": [],
+          "equippedCosmetics": {
+            "suit": "default",
+            "trail": "default",
+            "victory": "default",
+            "planet": "default"
+          },
+          "vehicleId": null
+        },
+        "players": [
+          {
+            "id": "br-player-2d431166",
+            "teamId": "team-1",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 179.94588964080987,
+              "y": 195,
+              "z": -49.62039765593004
+            }
+          },
+          {
+            "id": "br-bot-6f3b1101",
+            "teamId": "team-2",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 182.94588964080987,
+              "y": 195,
+              "z": -48.62039765593004
+            }
+          },
+          {
+            "id": "br-bot-d9ef9f16",
+            "teamId": "team-3",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 182.94588964080987,
+              "y": 195,
+              "z": -47.62039765593004
+            }
+          },
+          {
+            "id": "br-bot-5d913b6e",
+            "teamId": "team-4",
+            "alive": true,
+            "deployment": "freefall",
+            "position": {
+              "x": 212.91518609735124,
+              "y": 149.03610399999994,
+              "z": -21.46458011477576
+            }
+          },
+          {
+            "id": "br-bot-0571fab1",
+            "teamId": "team-5",
+            "alive": true,
+            "deployment": "chute",
+            "position": {
+              "x": 271.28180365303365,
+              "y": 66.77755198159376,
+              "z": 78.85776997424352
+            }
+          },
+          {
+            "id": "br-bot-da7467df",
+            "teamId": "team-6",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 179.94588964080987,
+              "y": 195,
+              "z": -50.62039765593004
+            }
+          },
+          {
+            "id": "br-bot-dc611824",
+            "teamId": "team-7",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 185.94588964080987,
+              "y": 195,
+              "z": -47.62039765593004
+            }
+          },
+          {
+            "id": "br-bot-58fed858",
+            "teamId": "team-8",
+            "alive": true,
+            "deployment": "chute",
+            "position": {
+              "x": 290.91998654559933,
+              "y": 92.81562799999983,
+              "z": -97.55706103833221
+            }
+          },
+          {
+            "id": "br-bot-7f40415d",
+            "teamId": "team-9",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 185.94588964080987,
+              "y": 195,
+              "z": -50.62039765593004
+            }
+          },
+          {
+            "id": "br-bot-5daddcf3",
+            "teamId": "team-10",
+            "alive": true,
+            "deployment": "attached",
+            "position": {
+              "x": 180.94588964080987,
+              "y": 195,
+              "z": -49.62039765593004
+            }
+          }
+        ],
+        "lootCount": 0,
+        "crateCount": 22,
+        "projectileCount": 0,
+        "spectatorTargetId": null,
+        "storm": {
+          "phaseIndex": 0,
+          "center": {
+            "x": 0,
+            "z": 0
+          },
+          "radius": 500,
+          "nextCenter": {
+            "x": 0,
+            "z": 0
+          },
+          "nextRadius": 330,
+          "stage": "waiting",
+          "stageEndsAt": null,
+          "damagePerSecond": 1
+        },
+        "camera": {
+          "position": {
+            "x": -175,
+            "y": 7.7,
+            "z": -92
+          },
+          "fov": 60
+        },
+        "input": {
+          "jumpInputSequence": 0,
+          "shipJumpRequestCount": 0
+        },
+        "reconciliation": {
+          "averageCorrection": 4.302602989494766,
+          "p95Correction": 4.920252872083379,
+          "maximumCorrection": 620.629985102662,
+          "snapCount": 42,
+          "correctionCount": 355,
+          "correctionsPerMinute": 1544.7543622991238
+        },
+        "world": {
+          "islandObjects": 315,
+          "shipVisible": true,
+          "objects": 2179,
+          "meshes": 1872,
+          "instances": 60763,
+          "visibleInstances": 28076,
+          "materials": 312,
+          "visibleDistricts": 28,
+          "visibleSecondaryLabels": 4
+        },
+        "renderer": {
+          "calls": 336,
+          "triangles": 344505
+        }
+      },
+      "metrics": "60.0 FPS · 336 calls\n344,505 triangles · 55 textures\n312 world materials · 28,076 enabled instances\n28 active detail sectors"
+    }
+  ]
+}

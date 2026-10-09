@@ -790,7 +790,10 @@ export class GameRoom {
       const position = { x: Math.cos(angle) * BALANCE.arenaRadius, y: 0, z: Math.sin(angle) * BALANCE.arenaRadius };
       const planetId = `planet_${player.id}`;
       player.planetId = planetId;
-      player.position = add(position, { x: 0, y: BALANCE.planetRadius + 1.15, z: 0 });
+      // The polar cannon occupies the old spawn. Start beside its side brace,
+      // still within interaction range and at the same radial surface height.
+      const spawnRadius = BALANCE.planetRadius + 1.15;
+      player.position = add(position, { x: 2.8, y: Math.sqrt(spawnRadius ** 2 - 2.8 ** 2), z: 0 });
       player.velocity = { x: 0, y: 0, z: 0 };
       player.surfacePlanetId = planetId;
       player.gravityPlanetId = planetId;

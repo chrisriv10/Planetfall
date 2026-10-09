@@ -1,4 +1,5 @@
 import { BR_STRUCTURES, type BrRoadSegment, type BrStructure, type Vec3 } from "@planetfall/shared";
+import { buildBrRoadBends } from "./br-road-bends";
 
 export interface BrRoadSurface { sourceRoadId:string; vertices:Vec3[]; junction:boolean; }
 const epsilon=1e-7;
@@ -89,8 +90,9 @@ export function buildBrRoadSurfaces(roads:readonly BrRoadSegment[]):BrRoadSurfac
     }
     const vertices=hull(points);if(vertices.length>=3)junctions.push({sourceRoadId:`junction-${junctions.length}`,vertices,junction:true});
   }
+  const bends=buildBrRoadBends(roads).flatMap(bend=>[bend.vertices,...bend.insideFans].map(vertices=>({sourceRoadId:bend.id,vertices,junction:true})));
   const surfaces:BrRoadSurface[]=[];
-  for(const source of [...junctions,...roads.map(road=>({sourceRoadId:road.id,vertices:roadRibbon(road),junction:false}))]){
+  for(const source of [...bends,...junctions,...roads.map(road=>({sourceRoadId:road.id,vertices:roadRibbon(road),junction:false}))]){
     if(source.vertices.length<3)continue;
     let fragments=[source.vertices];
     for(const prior of surfaces){

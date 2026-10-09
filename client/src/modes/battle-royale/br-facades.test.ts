@@ -1,8 +1,28 @@
 import { describe, expect, it } from "vitest";
 import { BR_STRUCTURES } from "@planetfall/shared";
-import { buildFacadeParts, buildDistantFacadeParts, buildExteriorServiceParts } from "./br-facades";
+import { buildFacadeParts, buildDistantFacadeParts, buildExteriorServiceParts, buildStorefrontFrameParts } from "./br-facades";
 
 describe("BR architectural skin", () => {
+  it("replaces storefront bars with two shallow full-height pane-edge uprights", () => {
+    for (const s of BR_STRUCTURES) {
+      const frames = buildStorefrontFrameParts(s);
+      if (!["shop", "transit"].includes(s.archetype) || !s.enterable) { expect(frames).toEqual([]); continue; }
+      expect(frames).toHaveLength(2);
+      const along = s.entrance === "north" || s.entrance === "south" ? "x" : "z";
+      const normal = along === "x" ? "z" : "x";
+      const panes = buildFacadeParts(s).filter(p => p.face === s.entrance && (p.finish === "glass" || p.finish === "lit"));
+      for (const frame of frames) {
+        expect(frame.scale[normal]).toBe(.12);
+        expect(frame.scale[along]).toBe(.18);
+        expect(Math.abs(frame.position[along] - s.position[along]) - frame.scale[along] / 2).toBeGreaterThan(2.4);
+        expect(Math.abs(frame.position[along] - s.position[along]) + frame.scale[along] / 2).toBeLessThan(s.size[along] / 2);
+        for (const pane of panes) expect(Math.abs(frame.position[along] - pane.position[along]) + 1e-8)
+          .toBeGreaterThanOrEqual((frame.scale[along] + pane.scale[along]) / 2);
+        expect(frame.position.y - frame.scale.y / 2).toBeCloseTo(Math.min(...panes.map(p => p.position.y - p.scale.y / 2)) - .13);
+        expect(frame.position.y + frame.scale.y / 2).toBeCloseTo(Math.max(...panes.map(p => p.position.y + p.scale.y / 2)) + .13);
+      }
+    }
+  });
   it("distinguishes functional facade proportions without inventing shop floors", () => {
     const source = BR_STRUCTURES.find(s => s.id === "transfer-yard-shop")!;
     const panes = (archetype: typeof source.archetype) => buildFacadeParts({ ...source, archetype })

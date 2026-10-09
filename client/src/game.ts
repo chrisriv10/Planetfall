@@ -1131,9 +1131,12 @@ export class PlanetfallGame {
     b.group.scale.setScalar(0.7);
     this.demo.add(a.group, b.group);
     const astronaut = this.makePlayer({ id: "demo", name: "", isBot: false, color: "#ffdc4f", planetId: "", connected: true, ready: true, alive: true, scrap: 0, position: { x: 13, y: 9.5, z: -4 }, velocity: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, lastInputSequence: 0, surfacePlanetId: "demo-a", gravityPlanetId: "demo-a", launchCooldownUntil: 0, shoveCooldownUntil: 0, crowns: 0, fallbucks: 0, ownedCosmetics: [], equippedCosmetics: { suit: "default", trail: "default", victory: "default", planet: "default" }, overchargeUntil: 0, launchBoostUntil: 0, grappleTargetPlayerId: null, sessionLevel: 1, sessionXp: 0, sessionTotalXp: 0, unlockedPassRewards: ["default"] });
-    astronaut.group.position.set(13, 9.4, -4);
-    astronaut.group.scale.setScalar(1.2);
-    this.demo.add(astronaut.group);
+    // Mount the preview character on the planet beside its polar cannon.
+    // Parenting keeps the surface normal and separation stable as it rotates.
+    const previewNormal = new THREE.Vector3(-.42, .82, .38).normalize();
+    astronaut.group.position.copy(previewNormal).multiplyScalar(BALANCE.planetRadius + .33);
+    astronaut.group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), previewNormal);
+    a.group.add(astronaut.group);
     this.scene.add(this.demo);
   }
 

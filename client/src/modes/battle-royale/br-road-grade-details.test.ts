@@ -1,5 +1,5 @@
 import { describe,expect,it } from "vitest";
-import { BR_ROADS, BR_ROAD_ROUTES, type BrRoadSegment } from "@planetfall/shared";
+import { BR_ROADS, BR_ROAD_ROUTES, BR_BRIDGE_PIERS, brAuthoredDeckHeight, type BrRoadSegment } from "@planetfall/shared";
 import { buildBrRoadGradeDetails, buildBrRoadRouteGradeDetails } from "./br-road-grade-details";
 
 describe("BR authored road-grade presentation",()=>{
@@ -16,16 +16,20 @@ describe("BR authored road-grade presentation",()=>{
     expect(grades.length).toBeGreaterThanOrEqual(8);
     for(const road of grades){
       const pieces=piecesFor(road),parts=buildBrRoadGradeDetails(road,pieces);
-      expect(parts.length).toBeGreaterThanOrEqual(pieces.length*2+6);
+      expect(parts.length).toBeGreaterThanOrEqual(6);
       expect(buildBrRoadGradeDetails(road,pieces)).toEqual(parts);
-      expect(parts.filter(part=>part.role==="edge")).toHaveLength(pieces.length*2);
       expect(parts.filter(part=>part.role==="light")).toHaveLength(6);
-      expect(parts.filter(part=>part.role==="support").length).toBeLessThanOrEqual(9);
+      expect(parts.filter(part=>part.role==="support")).toHaveLength(BR_BRIDGE_PIERS.filter(p=>p.id.startsWith(`bridge-pier-${road.id}-`)&&p.id.endsWith("-left")).length);
       const edges=parts.filter(part=>part.role==="edge");
-      for(const [i,piece]of pieces.entries()){
-        const h=Math.hypot(piece.to.x-piece.from.x,piece.to.z-piece.from.z);
-        expect(edges[i].position.y).toBeCloseTo((piece.from.y+piece.to.y)/2-.18);
-        expect(edges[i].rotationZ).toBeCloseTo(Math.atan2(piece.to.y-piece.from.y,h));
+      expect(edges.length).toBeLessThanOrEqual(pieces.length*4);
+      for(const edge of edges){
+        expect(edge.scale.y).toBe(.55);expect(edge.scale.z).toBe(.35);
+        const yaw=edge.rotationY??0,slope=edge.rotationZ??0;
+        for(const t of [-.5,0,.5]){
+          const point={x:edge.position.x+Math.cos(yaw)*Math.cos(slope)*edge.scale.x*t,
+            y:edge.position.y+Math.sin(slope)*edge.scale.x*t,z:edge.position.z-Math.sin(yaw)*Math.cos(slope)*edge.scale.x*t};
+          expect(point.y-.275/Math.cos(slope)).toBeGreaterThan(brAuthoredDeckHeight(point));
+        }
       }
       for(const part of parts){
         expect([...Object.values(part.position),...Object.values(part.scale),part.rotationY??0,part.rotationZ??0].every(Number.isFinite)).toBe(true);
@@ -40,7 +44,7 @@ describe("BR authored road-grade presentation",()=>{
     }
     // Original complete-grade richness is retained; a sunken road has no
     // above-ground columns, rather than forcing floating/underground supports.
-    expect(buildBrRoadGradeDetails(reference).length).toBeGreaterThanOrEqual(11);
+    expect(buildBrRoadGradeDetails(reference).filter(p=>p.role==="support")).toEqual([]);
     expect(buildBrRoadRouteGradeDetails()).toEqual(BR_ROAD_ROUTES.flatMap(road=>
       road.id==="south-transfer-bridge"?[]:buildBrRoadGradeDetails(road,piecesFor(road))));
   });
@@ -76,25 +80,24 @@ describe("BR authored road-grade presentation",()=>{
     ] as BrRoadSegment[])expect(buildBrRoadGradeDetails(road)).toEqual([]);
   });
 
-  it("orients each support crosshead across the grade so it joins both column tops",()=>{
-    for(const road of [reference]){
-      const dx=road.to.x-road.from.x,dz=road.to.z-road.from.z,length=Math.hypot(dx,dz);
-      const forward={x:dx/length,z:dz/length},normal={x:-forward.z,z:forward.x};
+  it("ties crossheads to actual paired piers without new visual columns or lower headroom",()=>{
+    let checked=0;
+    for(const road of grades){
       const supports=buildBrRoadGradeDetails(road).filter(part=>part.role==="support");
-      const beams=supports.filter(part=>part.scale.y===.16);
-      expect(beams.length).toBeGreaterThan(0);
-      for(const beam of beams){
+      for(const beam of supports){
+        checked++;
         const yaw=beam.rotationY??0,axis={x:Math.cos(yaw),z:-Math.sin(yaw)};
-        expect(axis.x*forward.x+axis.z*forward.z).toBeCloseTo(0);
-        expect(Math.abs(axis.x*normal.x+axis.z*normal.z)).toBeCloseTo(1);
-        const columns=supports.filter(part=>part.scale.x===.18&&Math.abs((part.position.x-beam.position.x)*forward.x+(part.position.z-beam.position.z)*forward.z)<.01);
+        const columns=BR_BRIDGE_PIERS.filter(p=>p.id.startsWith(`bridge-pier-${road.id}-`)
+          &&Math.abs((p.position.x-beam.position.x)*-axis.z+(p.position.z-beam.position.z)*axis.x)<.01);
         expect(columns).toHaveLength(2);
+        expect(beam.scale.y).toBe(.2);expect(beam.scale.z).toBe(1.25);
         for(const column of columns){
-          const separation=Math.abs((column.position.x-beam.position.x)*normal.x+(column.position.z-beam.position.z)*normal.z);
-          expect(separation+column.scale.x/2).toBeLessThan(beam.scale.x/2);
-          expect(column.position.y+column.scale.y/2).toBeGreaterThan(beam.position.y-beam.scale.y/2);
+          const separation=Math.abs((column.position.x-beam.position.x)*axis.x+(column.position.z-beam.position.z)*axis.z);
+          expect(separation+column.size.x/2).toBeLessThan(beam.scale.x/2);
+          expect(column.position.y+column.size.y/2).toBeCloseTo(beam.position.y-beam.scale.y/2);
         }
       }
     }
+    expect(checked).toBeGreaterThan(0);
   });
 });

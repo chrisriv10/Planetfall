@@ -8,6 +8,35 @@ export interface FacadePart {
   face: BrStructure["entrance"];
 }
 
+/** Replace the two legacy storefront massing bars with pane-edge uprights.
+ * Use these in the existing massing batch instead of the legacy mid-pane bars;
+ * two parts maximum.
+ */
+export function buildStorefrontFrameParts(structure: BrStructure): FacadePart[] {
+  if (!["shop", "transit"].includes(structure.archetype) || !structure.enterable) return [];
+  const face = structure.entrance;
+  const along = face === "north" || face === "south" ? "x" : "z";
+  const normal = along === "x" ? "z" : "x";
+  const sign = face === "north" || face === "east" ? 1 : -1;
+  const panes = buildFacadeParts(structure).filter(p => p.face === face && (p.finish === "glass" || p.finish === "lit"));
+  const result: FacadePart[] = [];
+  for (const side of [-1, 1]) {
+    const half = panes.filter(p => Math.sign(p.position[along] - structure.position[along]) === side);
+    if (!half.length) continue;
+    const bottom = Math.min(...half.map(p => p.position.y - p.scale.y / 2)) - .13;
+    const top = Math.max(...half.map(p => p.position.y + p.scale.y / 2)) + .13;
+    const edge = side < 0 ? Math.min(...half.map(p => p.position[along] - p.scale[along] / 2))
+      : Math.max(...half.map(p => p.position[along] + p.scale[along] / 2));
+    const position = { ...structure.position, y: (bottom + top) / 2 };
+    position[along] = edge + side * .09;
+    position[normal] = structure.position[normal] + sign * (structure.size[normal] / 2 + .65);
+    const scale = { x: .18, y: top - bottom, z: .18 };
+    scale[normal] = .12;
+    result.push({ finish: "panel", face, position, scale });
+  }
+  return result;
+}
+
 /** Skin dimensions use the same .65m wall and 4.8m entrance as the map.
  * All layers sit OUTSIDE the wall, and the full authoritative door slit stays
  * open. No renderer-only lintel, pane, or plinth can masquerade as collision. */
@@ -119,7 +148,13 @@ export function buildFacadeParts(structure: BrStructure): FacadePart[] {
         }
       }
       // Reuse the former accent bar as an archetype cue, all on solid intervals.
-      if (storefront) add("accent", (start + end) / 2, height - .88, Math.min(length - .2, 6), .42, .60, .09);
+      if (storefront) {
+        const windowTop=Math.max(0,...parts.filter(p=>p.face===face&&(p.finish==="glass"||p.finish==="lit")).map(p=>p.position.y+p.scale.y/2));
+        const barHeight=Math.min(.42,height-windowTop-.5);
+        // Multi-floor shops need a real clear interval above their upper pane,
+        // not a fixed-height panel that cuts through that window.
+        if(barHeight>=.12)add("accent",(start+end)/2,Math.max(height-.88,windowTop+.15+barHeight/2),Math.min(length-.2,6),barHeight,.60,.09);
+      }
       else if (civic) add("accent", start + .3, height * .62, .18, Math.min(1.6, height * .22), .60, .09);
       else if (service) add("accent", (start + end) / 2, 1.02, Math.min(length * .55, 4), .18, .60, .09);
       else add("accent", start + length * .2, height - .6, Math.min(length * .35, 4), .14, .76, .09);

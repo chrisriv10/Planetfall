@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { BrNeonRenderer } from "./br-neon";
 import {brWorldDrawDue} from "./br-render-cadence";
 import { brBaseDeckHeight } from "@planetfall/shared";
 import {
@@ -197,6 +198,7 @@ export class BattleRoyaleGame {
   private lastLandingFeedbackAt = Number.NEGATIVE_INFINITY;
   private lastFootstepAt=0;
   private review: ReturnType<typeof createBrReview> | null = null;
+  private neon:BrNeonRenderer|null=null;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -207,6 +209,7 @@ export class BattleRoyaleGame {
   ) {
     this.settings = settings;
     this.world = new BrWorldRenderer(settings.graphicsQuality);
+    this.neon=new BrNeonRenderer(this.renderer,this.scene,this.camera);
     this.island = this.world.root;
     this.islandMeshes = this.world.collidableMeshes;
     this.poiLabels = this.world.poiLabels;
@@ -233,13 +236,14 @@ export class BattleRoyaleGame {
     this.room = room; this.localId = localId; this.localState = room.players.find((player) => player.id === localId) ?? null; this.active = true; this.lastFrame = performance.now(); if (room.phase === "ship") this.shipCameraStartedAt = performance.now(); this.syncPlayers(room.players);this.syncVehicles(room.vehicles);
     if (takingRenderer) {
       this.renderer.shadowMap.enabled = this.settings.graphicsQuality !== "low";
+      this.neon?.setQuality(this.settings.graphicsQuality);
       this.resize();
     }
     this.onInputMethod?.(this.input.method);
     this.renderer.setAnimationLoop((now) => this.frame(now));
   }
 
-  deactivate(): void { this.active = false; this.audio.stopBrLoops();this.renderer.setAnimationLoop(null); this.shotEffects.clear();this.clearTransients();this.clearPoiTitle(); this.uiCaptured = false; this.mapVisible = false; this.review?.dispose();this.review=null;document.body.classList.remove("br-in-void");document.getElementById("br-crosshair")?.classList.remove("hit","shield-break","blocked","aiming");document.getElementById("br-damage-direction")?.classList.remove("visible");const scope=document.getElementById("br-scope-overlay");if(scope)scope.hidden=true; document.exitPointerLock?.(); }
+  deactivate(): void { this.neon?.dispose(); this.active = false; this.audio.stopBrLoops();this.renderer.setAnimationLoop(null); this.shotEffects.clear();this.clearTransients();this.clearPoiTitle(); this.uiCaptured = false; this.mapVisible = false; this.review?.dispose();this.review=null;document.body.classList.remove("br-in-void");document.getElementById("br-crosshair")?.classList.remove("hit","shield-break","blocked","aiming");document.getElementById("br-damage-direction")?.classList.remove("visible");const scope=document.getElementById("br-scope-overlay");if(scope)scope.hidden=true; document.exitPointerLock?.(); }
   reset(): void {
     this.shotEffects.clear();this.clearTransients();
     for (const visual of this.players.values()) { this.scene.remove(visual.group); this.disposeObject(visual.group); }
@@ -261,6 +265,7 @@ export class BattleRoyaleGame {
   setSettings(settings: UserSettings): void {
     this.settings = settings;
     this.world.setQuality(settings.graphicsQuality);
+    if(this.active)this.neon?.setQuality(settings.graphicsQuality);
     this.sun.castShadow = settings.graphicsQuality === "high";
     if (this.active) this.renderer.shadowMap.enabled = settings.graphicsQuality !== "low";
     this.resize();
@@ -458,7 +463,7 @@ export class BattleRoyaleGame {
     // Keep simulation and HUD above running on every RAF. The full tactical
     // map needs a readable live UI, not an uncapped covered WebGL workload.
     if(brWorldDrawDue(now,this.lastWorldDrawAt,this.mapVisible)){
-      this.renderer.render(this.scene, this.camera);this.lastWorldDrawAt=now;
+      this.neon?.render();this.lastWorldDrawAt=now;
     }
     this.review?.frame(now,()=>{
       const stats=this.world.debugStats();
@@ -1241,6 +1246,7 @@ export class BattleRoyaleGame {
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.08;
+    if(this.active)this.neon?.setQuality(this.settings.graphicsQuality);
     this.resize();
   }
 
@@ -1250,5 +1256,6 @@ export class BattleRoyaleGame {
     if (!this.active) return;
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, this.settings.graphicsQuality === "low" ? 1 : this.settings.graphicsQuality === "medium" ? 1.35 : 1.8));
     this.renderer.setSize(innerWidth, innerHeight);
+    this.neon?.resize();
   }
 }

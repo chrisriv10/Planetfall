@@ -38,6 +38,18 @@ export interface BrMotionResult extends BrMotionState {
 export interface BrCollisionResult { movement: Vec3; grounded: boolean; ceiling: boolean; crouched?: boolean; }
 export type BrCollisionResolver = (position: Vec3, desiredMovement: Vec3, options: { jumping: boolean; downed: boolean; crouched: boolean }) => BrCollisionResult;
 
+/** A wall/floor corner can make Rapier's autostep return a small downward
+ * penetration into the solid base deck. Preserve the resolved horizontal
+ * collision and constrain only that floor contact, identically on both peers.
+ * The lower service basin keeps its actual -3m floor; outside the outline
+ * there is no floor constraint. */
+export function brConstrainBaseDeckMovement(feet:Vec3,movement:Vec3):number {
+  const next={x:feet.x+movement.x,y:feet.y+movement.y,z:feet.z+movement.z};
+  if(movement.y>0||!isInsideBrIsland(next))return movement.y;
+  const floor=brBaseDeckHeight(next);
+  return feet.y>=floor-.1&&next.y<floor+.035?floor+.035-feet.y:movement.y;
+}
+
 /** Fast, deterministic collision result for unobstructed flat deck. Returning
  * null means authored geometry is nearby and Rapier must resolve the move. */
 export function brFlatDeckCollision(feet:Vec3,desiredMovement:Vec3,jumping:boolean):BrCollisionResult|null {

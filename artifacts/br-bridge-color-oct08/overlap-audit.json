@@ -1,0 +1,15 @@
+{
+  "generatedAt": "2026-10-09T02:00:10.112Z",
+  "scope": "All authored building envelopes and generated facade/glazing, storefront uprights and facade LEDs. Shared physics/route tests separately validate bridge piers and tree trunks.",
+  "limits": "This does not certify every decorative mesh or animated figure. Bounding envelopes cannot prove triangle-level separation. Plant foliage, thin mullions and backing panels are intentional facade joins; broad boxes penetrating the outward glass face are flagged.",
+  "checked": {
+    "structures": 183,
+    "buildingPairs": 16653,
+    "facadeBoxes": 25804,
+    "bridgePiers": 46,
+    "greenwayTrees": 66
+  },
+  "buildingIntersections": [],
+  "facadeIntersections": [],
+  "passed": true
+}

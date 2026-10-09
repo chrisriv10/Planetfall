@@ -335,3 +335,132 @@ maximum snapshot <160,000 bytes.
 The user authorized committing and pushing this working checkpoint to `main`.
 No deployment was requested or invoked. The full spatial/art recovery is still
 open despite this checkpoint's passing automated validation.
+
+## Facade and plaza continuation after `7ee0ef3`
+
+This subsequent local presentation step replaces the two thick storefront
+massing bars with shallow uprights aligned to the actual outer display-pane
+edges. It uses the existing massing batch and leaves door openings clear.
+Lit facade glazing now has shaded edges and reflected detail in one shared
+64×64 texture/material; the existing lamp/interior-light material is unchanged.
+
+The terrain renderer previously discarded the five authored plaza colors and
+stretched normalized surface-detail UVs across each whole plaza. These plazas
+now use restrained district tints and eight-metre texture repeats (1.5m joints
+in the existing pavement grid). Five cached material clones reuse the existing
+sidewalk detail textures. Height partitions, patch footprints, roads and all
+authoritative geometry are unchanged. No lights, props, pattern meshes or draw
+batches were added. Material and texture disposal is checked by focused tests.
+
+Nine integrated fixed-camera screenshots were reviewed at normal High quality
+in headed Chromium on the RTX 3060, with no page errors. West Junction no longer
+has trim ending inside its display panes; Solar frontage belts remain clear of
+glazing; Nova, Academy, Hotel, aerial, Civic feeder and Nova threshold views
+retain their established layout. Evidence and matched-reference locations are
+in `artifacts/br-presentation-oct08/README.md`.
+
+Root typecheck and production build passed, retaining the existing large-chunk
+warning. The full unit/system suite passed **871/871 across 150 files in
+132.04s**. Shared map, server and E2E source have no diff from `7ee0ef3`.
+
+The first E2E attempt was interrupted after a comment-only cleanup landed in a
+watched presentation module. It had three passing tests and a BR room-start
+failure: the HUD stayed hidden for the unchanged 15s deadline. Its retained
+trace shows an unexpected home navigation/Vite reconnection during Start,
+coinciding with the edit. This is a contaminated run, not a successful full
+suite or evidence that the historical timing issue was repaired. The log,
+error context and trace are preserved locally as
+`.local-runtime/presentation-e2e-interrupted.log`,
+`.local-runtime/presentation-interrupted-context.md` and
+`.local-runtime/presentation-interrupted-trace.zip`.
+
+With source edits stopped, the subsequent complete E2E run passed **11/11 in
+6.9 minutes**. BR room/drop passed in 1.6 minutes, Solo completed all three
+responsive-map views in 53.3s (HUD visible at 16.296s, after quick-start at
+8.732s), and Classic raid/shop/equip/rematch passed in 3.2 minutes. Chaos,
+multiplayer lifecycle and the six-participant rendering budget also passed.
+No test source, timeout, assertion or gameplay/performance budget was weakened.
+These successes do not establish the root cause of earlier intermittent
+Classic/BR timing failures. The previous standalone server profile remains the
+baseline; no new standalone profile is claimed for this presentation step.
+
+Fresh headed trusted-input smoke also passed pointer lock, a **362.4162°** ship
+orbit, **363.0261°** ground orbit, freefall/Ion Wings and a living grounded
+landing at `(272.2182,.0350,242.5702)`, with zero page errors. Its screenshots
+and full state are in `artifacts/br-presentation-oct08/playability/`. This
+checks actual input and mechanical transitions; it does not establish human
+camera/control-feel acceptance around every wall, route or district.
+
+Large plaza footprints, repeated architectural shells and broad interdistrict
+openings remain visible. This step is not completion of island recovery or
+human control-feel/art acceptance. Changes remain local after the previously
+pushed checkpoint; no new push or deployment was performed.
+
+## Bridge, greenway, neon and overlap continuation
+
+Execution remains on DESKTOP-JL99F36. The map appends 46 paired 1.25m bridge
+piers and 66 trees in 15 interdistrict planting bands. Each tree has a real
+0.7m trunk collider at every graphics quality. The map now has 1,669 solids;
+183 structures, 267 loot sockets and 22 crate sockets retain their identities
+and placement. Supports exclude lower streets, structures, sockets and
+retaining transitions; canopies reserve clearance around travel and buildings.
+
+Bridge girders follow the actual exposed grade planes and join real piers;
+the old narrow decorative support sticks are removed. Supported level elbows
+gain round outer caps and tangent inside fillets without shortening their
+original road corridors or extending beyond the island. Grades and the large
+island silhouette are preserved.
+
+Eight cached dark exterior paint families, district plaza tints and circuit
+detail extend color across the colony. Interior finishes remain readable.
+Exterior LEDs are placed above measured glazing with door, sign and corner
+gaps. High quality uses HDR bloom with native-resolution scene rendering;
+Low/Medium retain bright LED cores. Repeated High/Medium/Low transitions release
+the render targets; three High samples at the same view each used 55 textures.
+Every postprocessing draw is included in renderer statistics.
+
+The new `npm run audit:br-overlaps` checks all 16,653 pairs of building
+envelopes and 25,804 generated facade, storefront-upright and LED boxes. It
+found and repaired two Void Market accent panels penetrating upper glazing.
+The subsequent audit has zero flagged building/facade intersections. Close
+production-world renders additionally revealed a generic balcony/railing kit
+crossing the south upper facade. That kit had no authoritative playable slab
+and is removed across the map. The saved north/south renders show the repair.
+The audit excludes intentional backing panels and narrow mullions; it does
+not certify every decorative triangle or animated figure. Screenshot review
+remains necessary, as the balcony finding demonstrates.
+
+New physics checks traverse into every new pier/trunk and enforce authority /
+prediction parity and grounded floor contact. They exposed Rapier autostep
+returning small base-floor penetrations at some wall contacts. Both peers now
+share a base-deck contact constraint, preserving the -3m service basin and
+unconstrained falling outside the island.
+
+Planetfall's home astronaut is parented beside the rotating preview cannon.
+Its authoritative match spawn now starts 2.8m beside the polar cannon at the
+same radial surface height and within the unchanged interaction range. The
+desktop and compact countdown captures show separate silhouettes. Classic /
+Chaos isolation and the canonical shared astronaut remain intact.
+
+Final root typecheck and production build pass with the existing large-chunk
+warning. The full unit/system suite passes **886/886 across 158 files in
+141.06s**, including all five unchanged 10/20/40-participant server performance
+cases. The full E2E run passes **11/11 in 7.3 minutes**, including BR room/drop,
+Solo's three responsive-map views, Classic raid/shop/equip/rematch, Chaos and
+the six-participant visual budget. That E2E run preceded the final visual-only
+balcony removal. Typecheck/build, the full unit suite, direct renders and
+trusted-input smoke were repeated afterward; no subsequent authoritative,
+state, networking or input changes were made. No test assertion, deadline,
+gameplay condition or performance budget was weakened. Earlier intermittent
+timing failures are not declared conclusively diagnosed by these green runs.
+
+The final headed RTX 3060 smoke passes pointer lock, trusted mouse events,
+**362.3453°** ship orbit, **363.0261°** ground orbit, freefall / Ion Wings and a
+living grounded landing at `(-179.5423,1.1084,330.4792)`, with zero page errors.
+Nine integrated island views, repeated quality changes, final mall/Nova views,
+the countdown and the repaired Void Market faces are retained in
+`artifacts/br-bridge-color-oct08/`; `validation.json` records scope and limits.
+
+The broader island recovery and human art/control-feel acceptance remain open.
+At the validation snapshot this checkpoint was local. It is now prepared for
+the user's requested commit and push; deployment remains outside this pass.

@@ -1,4 +1,6 @@
 import type { Vec3 } from "../index.js";
+import { buildBrBridgePiers } from "./orbital-isle-bridge-piers.js";
+import { buildBrGreenwayTrees, brGreenwayTrunk } from "./orbital-isle-greenways.js";
 import { BR_ELEVATION_REGIONS, BR_SUNKEN_REGIONS, brAuthoredDeckHeight, brGradeAuthoredRoad, brJoinServiceGrades } from "./orbital-isle-elevation.js";
 import {
   AUTHORED_BR_SECONDARY_STRUCTURE_BLUEPRINTS,
@@ -997,7 +999,7 @@ const authoredCover: BrMapBlock[] = [
   [288,-70,10,3,"thruster-works"],[411,-72,10,3,"thruster-works"],[319,-5,4,9,"thruster-works"],[374,-10,4,9,"thruster-works"]
 ].map(([x,z,w,d,districtId], index) => ({ id:`cover-${index}`, districtId:String(districtId), position:{x:Number(x),y:1+brAuthoredDeckHeight({x:Number(x),z:Number(z)}),z:Number(z)}, size:{x:Number(w),y:2,z:Number(d)}, color:"#344764", kind:"cover" }));
 
-export const BR_MAP_BLOCKS: readonly BrMapBlock[] = [
+const baseMapBlocks: readonly BrMapBlock[] = [
   ...BR_STRUCTURES.flatMap(structureBlocks),...BR_TERRACES.flatMap(terraceBlocks),...roadGradeBlocks(BR_ROADS),
   ...roadGradeBlocks([NOVA_LANDING_OFFICE_THRESHOLD]).map(block=>({...block,districtId:"nova-landing"})),
   // Match the cutout walls already present in the movement deck, so rays and
@@ -1046,11 +1048,11 @@ function upperLootSocketPosition(structure:BrStructure,inward:{x:number;z:number
   ];
   for(const [fx,fz] of candidates){
     const position={x:structure.position.x+structure.size.x*fx,y:supportY+.58,z:structure.position.z+structure.size.z*fz};
-    const supported=BR_MAP_BLOCKS.some(block=>block.districtId===structure.districtId&&block.kind==="platform"
+    const supported=baseMapBlocks.some(block=>block.districtId===structure.districtId&&block.kind==="platform"
       &&Math.abs(block.position.y+block.size.y/2-supportY)<.3
       &&Math.abs(position.x-block.position.x)<=block.size.x/2-.5
       &&Math.abs(position.z-block.position.z)<=block.size.z/2-.5);
-    const blocked=BR_MAP_BLOCKS.some(block=>block.districtId===structure.districtId&&(block.kind==="wall"||block.kind==="cover")
+    const blocked=baseMapBlocks.some(block=>block.districtId===structure.districtId&&(block.kind==="wall"||block.kind==="cover")
       &&Math.abs(position.x-block.position.x)<block.size.x/2+.38
       &&Math.abs(position.z-block.position.z)<block.size.z/2+.38
       &&position.y+.38>block.position.y-block.size.y/2&&position.y-.38<block.position.y+block.size.y/2);
@@ -1120,6 +1122,19 @@ export const BR_TRAVERSAL = [
   { id:"jump-east", kind:"jump-pad" as const, position:{x:112,y:0,z:28}, target:{x:238,y:24,z:75} },
   { id:"jump-west", kind:"jump-pad" as const, position:{x:-112,y:0,z:24}, target:{x:-252,y:23,z:77} }
 ].map(device=>({...device,position:{...device.position,y:device.position.y+brAuthoredDeckHeight(device.position)},target:{...device.target,y:device.target.y+brAuthoredDeckHeight(device.target)}}));
+
+export const BR_BRIDGE_PIERS: readonly BrMapBlock[] = buildBrBridgePiers({
+  roads:BR_ROADS,blocks:baseMapBlocks,structures:BR_STRUCTURES,
+  reserved:[...BR_LOOT_SOCKETS.map(s=>s.position),...BR_CRATE_SOCKETS,...BR_TRAVERSAL.map(t=>t.position)],
+  deckHeight:brAuthoredDeckHeight,inside:isInsideBrIslandInterior,
+});
+export const BR_GREENWAY_TREES = buildBrGreenwayTrees({
+  roads:BR_ROADS,blocks:[...baseMapBlocks,...BR_BRIDGE_PIERS],structures:BR_STRUCTURES,patches:BR_TERRAIN_PATCHES,
+  reserved:[...BR_LOOT_SOCKETS.map(s=>s.position),...BR_CRATE_SOCKETS,...BR_TRAVERSAL.map(t=>t.position)],
+  deckHeight:brAuthoredDeckHeight,inside:isInsideBrIslandInterior,
+});
+/** Existing map solids retain their exact order; bridge supports append. */
+export const BR_MAP_BLOCKS: readonly BrMapBlock[] = [...baseMapBlocks,...BR_BRIDGE_PIERS,...BR_GREENWAY_TREES.map(brGreenwayTrunk)];
 
 export function isInsideBrIsland(position: Vec3, margin = 0): boolean {
   if (pointInPolygon(position.x,position.z)) return true;

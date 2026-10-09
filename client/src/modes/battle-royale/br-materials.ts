@@ -1,5 +1,8 @@
 import * as THREE from "three";
 import { createBrCanopyMaterial } from "./br-canopy-material";
+import { createBrLitGlazingTexture } from "./br-lit-glazing";
+import { BR_PLAZA_COLORS, brPlazaTint } from "./br-plaza-finish";
+import { brDistrictPalette } from "./br-district-palette";
 
 export type BrMaterialKey =
   | "structuralWhite"
@@ -9,6 +12,7 @@ export type BrMaterialKey =
   | "glass"
   | "windowDark"
   | "windowLit"
+  | "facadeWindowLit"
   | "growGlass"
   | "road"
   | "concrete"
@@ -67,6 +71,12 @@ export class BrMaterialLibrary {
     const growGlazing = glazing.clone(); growGlazing.color.set(0xa5d6ac); growGlazing.emissive.set(0x204332); growGlazing.emissiveIntensity = .24;
     this.materials.set("growGlass", growGlazing);
     this.materials.set("windowLit", this.standard(0xdcc7a3, .38, .1, 0xffbc79, .3));
+    const litGlassTexture = createBrLitGlazingTexture();
+    this.textures.add(litGlassTexture);
+    const litGlazing = this.standard(0xdbe3dd, .25, .18, 0xd6b68c, .22);
+    litGlazing.map = litGlassTexture;
+    litGlazing.emissiveMap = litGlassTexture;
+    this.materials.set("facadeWindowLit", litGlazing);
     this.materials.set("road", this.standard(0x1c2939, .84, .14));
     this.materials.set("concrete", this.standard(0x64727b, .78, .06));
     this.materials.set("sidewalk", this.standard(0xa9b7bc, .74, .1));
@@ -105,6 +115,19 @@ export class BrMaterialLibrary {
     const material=this.get(key).clone();material.polygonOffset=true;
     material.polygonOffsetFactor=-layer;material.polygonOffsetUnits=-layer;
     this.materials.set(cacheKey,material);return material;
+  }
+
+  /** Five authored plaza tints, reusing sidewalk maps. Unknown colors preserve
+   * the normal sidewalk surface instead of growing an arbitrary material cache.
+   */
+  plazaSurface(color: string, layer: number): THREE.Material {
+    if (!BR_PLAZA_COLORS.includes(color as typeof BR_PLAZA_COLORS[number])) return this.surface("sidewalk", layer);
+    const cacheKey = `plaza:${color}:${layer}`;
+    const cached = this.materials.get(cacheKey); if (cached) return cached;
+    const material = this.surface("sidewalk", layer).clone() as THREE.MeshStandardMaterial;
+    material.color.copy(brPlazaTint(color));
+    this.materials.set(cacheKey, material);
+    return material;
   }
 
   own<T extends THREE.Material>(material: T): T {
@@ -177,8 +200,35 @@ export class BrMaterialLibrary {
     const key = `architecture-paint:${String(color)}`;
     const cached = this.materials.get(key);
     if (cached) return cached as THREE.MeshStandardMaterial;
-    const tint = new THREE.Color(0xb8c9d0).lerp(new THREE.Color(color), .16);
+    const tint = new THREE.Color(0xb8c9d0).lerp(new THREE.Color(color), .74);
     const material = this.standard(tint, .52, .22);
+    this.materials.set(key, material);
+    return material;
+  }
+
+  led(color:THREE.ColorRepresentation):THREE.MeshStandardMaterial{
+    const palette=brDistrictPalette(color),key=`led:${palette.id}`;
+    const cached=this.materials.get(key);if(cached)return cached as THREE.MeshStandardMaterial;
+    const material=this.standard(color,.3,.2,color,3.4);
+    this.materials.set(key,material);return material;
+  }
+
+  /** Exterior-only paint; eight cached families reuse existing panel/grid maps. */
+  districtShell(color: THREE.ColorRepresentation): THREE.MeshStandardMaterial {
+    return this.districtFinish(color, "shell");
+  }
+
+  districtFacade(color: THREE.ColorRepresentation): THREE.MeshStandardMaterial {
+    return this.districtFinish(color, "facade");
+  }
+
+  private districtFinish(color: THREE.ColorRepresentation, finish: "shell" | "facade"): THREE.MeshStandardMaterial {
+    const palette = brDistrictPalette(color), key = `district:${palette.id}:${finish}`;
+    const cached = this.materials.get(key); if (cached) return cached as THREE.MeshStandardMaterial;
+    const material = this.get(finish === "shell" ? "structuralWhite" : "interiorWall").clone() as THREE.MeshStandardMaterial;
+    material.color.copy(palette[finish]);
+    material.roughness = finish === "shell" ? .62 : .72;
+    material.metalness = .08;
     this.materials.set(key, material);
     return material;
   }
@@ -197,14 +247,21 @@ export class BrMaterialLibrary {
     const canvas = document.createElement("canvas");
     canvas.width = canvas.height = 256;
     const context = canvas.getContext("2d")!;
-    context.fillStyle = "#e3ecef";
+    context.fillStyle = "#abb9cf";
     context.fillRect(0, 0, 256, 256);
-    context.strokeStyle = "rgba(35, 55, 75, .23)";
+    context.strokeStyle = "rgba(35, 55, 75, .4)";
     context.lineWidth = 3;
     for (let position = 0; position <= 256; position += 64) {
       context.beginPath(); context.moveTo(position, 0); context.lineTo(position, 256); context.stroke();
       context.beginPath(); context.moveTo(0, position); context.lineTo(256, position); context.stroke();
     }
+    // Small paired circuit traces run through the whole colony floor, linking
+    // the district lighting without bleaching the pavement into a neon slab.
+    context.lineWidth = 2;
+    context.strokeStyle = "rgba(76, 245, 255, .66)";
+    context.beginPath();context.moveTo(8,18);context.lineTo(40,18);context.lineTo(47,25);context.lineTo(47,48);context.stroke();
+    context.strokeStyle = "rgba(223, 76, 255, .58)";
+    context.beginPath();context.moveTo(142,137);context.lineTo(175,137);context.lineTo(183,145);context.lineTo(183,176);context.stroke();
     context.fillStyle = "rgba(13, 33, 54, .2)";
     for (let y = 12; y < 256; y += 64) for (let x = 12; x < 256; x += 64) context.fillRect(x, y, 5, 5);
     const texture = new THREE.CanvasTexture(canvas);

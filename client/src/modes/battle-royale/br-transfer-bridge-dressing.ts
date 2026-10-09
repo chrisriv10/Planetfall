@@ -39,9 +39,9 @@ export function buildBrTransferBridgeDressing(
   };
   const at=(t:number,offset:number)=>({x:road.from.x+dx*t+nx*offset,y:road.from.y+dy*t,z:road.from.z+dz*t+nz*offset});
   for(const side of [-1,1]){
-    const p=at(.5,side*4.72);
+    const p=at(.5,side*4.8);
     // Stop eight metres before each district join; no ledge protrudes on top.
-    add("girder","brushedMetal",p.x,p.y-.37,p.z,length-16,.28,.26,yaw,slope);
+    add("girder","brushedMetal",p.x,p.y-.53,p.z,length-16,.6,.36,yaw,slope);
   }
   for(const t of quality==="low"?[.25,.5,.75]:[.17,.25,.5,.75,.83]){
     const p=at(t,0);

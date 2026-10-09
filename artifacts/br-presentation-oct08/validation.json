@@ -1,0 +1,92 @@
+{
+  "timestampUtc": "2026-10-09T01:08:55.9557372+00:00",
+  "host": "DESKTOP-JL99F36",
+  "baselineCommit": "7ee0ef30e3d3c9e23053915f80b7ea8de5c6702d",
+  "status": "Validated local presentation checkpoint; full spatial recovery remains open",
+  "sourcePreservation": {
+    "sharedServerE2eUnchanged": true,
+    "diff": []
+  },
+  "typecheck": {
+    "passed": true,
+    "log": ".local-runtime/presentation-typecheck.log"
+  },
+  "build": {
+    "passed": true,
+    "log": ".local-runtime/presentation-build.log",
+    "warning": "Existing chunk above 1600kB warning retained"
+  },
+  "units": {
+    "passed": 871,
+    "failed": 0,
+    "files": 150,
+    "log": ".local-runtime/presentation-tests.log",
+    "durationSeconds": 132.04
+  },
+  "e2e": {
+    "soloTotalMs": 53300,
+    "sourceAndLimitsUnchanged": true,
+    "soloFinalLayoutMs": 53004,
+    "log": ".local-runtime/presentation-e2e.log",
+    "soloHudVisibleMs": 16296,
+    "passed": 11,
+    "classicDuration": "3.2 minutes",
+    "tracing": "retain-on-failure",
+    "soloQuickStartMs": 8732,
+    "duration": "6.9 minutes",
+    "failed": 0
+  },
+  "interruptedE2e": {
+    "trace": ".local-runtime/presentation-interrupted-trace.zip",
+    "passesBeforeInterruption": 3,
+    "failure": "BR room start HUD hidden at unchanged 15s limit",
+    "log": ".local-runtime/presentation-e2e-interrupted.log",
+    "historicalTimingRepairProven": false,
+    "failuresBeforeInterruption": 1,
+    "completed": false,
+    "context": ".local-runtime/presentation-interrupted-context.md",
+    "causeEvidence": "Unexpected home navigation and Vite reconnect during Start coincided with a comment edit; possible live-reload contamination"
+  },
+  "screenshots": {
+    "headless": false,
+    "path": "integrated/review.json",
+    "views": 9,
+    "errors": [],
+    "quality": "high",
+    "gpu": "ANGLE/NVIDIA GeForce RTX 3060/D3D11"
+  },
+  "trustedInput": {
+    "evidence": "playability/playability.json",
+    "pointerLock": true,
+    "shipOrbitDegrees": 362.41623692654156,
+    "alive": true,
+    "grounded": true,
+    "passed": true,
+    "groundOrbitDegrees": 363.02605899489004,
+    "landing": {
+      "x": 272.2181549049032,
+      "y": 0.035,
+      "z": 242.57022811591455
+    },
+    "errors": [],
+    "trustedMouse": true
+  },
+  "resourceAdditions": {
+    "extraLights": 0,
+    "cachedPlazaMaterialClones": 5,
+    "textures": 1,
+    "textureSize": "64x64",
+    "facadeMaterials": 1,
+    "extraDrawBatches": 0
+  },
+  "serverStandaloneProfileRerun": false,
+  "remaining": [
+    "Large plaza footprints and broad interdistrict composition",
+    "Repeated architecture silhouettes",
+    "Human control-feel and all-route camera acceptance",
+    "Historical intermittent E2E timing root cause"
+  ],
+  "committed": false,
+  "pushed": false,
+  "deployed": false
+}

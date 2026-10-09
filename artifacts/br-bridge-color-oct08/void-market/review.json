@@ -1,0 +1,4 @@
+{
+  "kind": "Isolated production world renderer, fixed close cameras and BR light values; no gameplay state changes. Shadows/backdrop and animated figures omitted.",
+  "errors": []
+}

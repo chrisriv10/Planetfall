@@ -1,4 +1,4 @@
-import { BR_ROADS, BR_ROAD_ROUTES, type BrRoadSegment, type Vec3 } from "@planetfall/shared";
+import { BR_ROADS, BR_ROAD_ROUTES, BR_BRIDGE_PIERS, brAuthoredDeckHeight, type BrMapBlock, type BrRoadSegment, type Vec3 } from "@planetfall/shared";
 
 export type BrRoadGradeFinish = "structuralDark" | "brushedMetal" | "energyCyan";
 export interface BrRoadGradeDetailPart {
@@ -15,7 +15,7 @@ export interface BrRoadGradeDetailPart {
  * and its collider remain owned by shared map data; these narrow pieces sit
  * outside the driving lane or beneath it and cannot read as usable cover.
  */
-export function buildBrRoadGradeDetails(road: BrRoadSegment, pieces: readonly BrRoadSegment[] = [road]): BrRoadGradeDetailPart[] {
+export function buildBrRoadGradeDetails(road: BrRoadSegment, pieces: readonly BrRoadSegment[] = [road], piers: readonly BrMapBlock[] = BR_BRIDGE_PIERS): BrRoadGradeDetailPart[] {
   const dx=road.to.x-road.from.x,dy=road.to.y-road.from.y,dz=road.to.z-road.from.z;
   const horizontal=Math.hypot(dx,dz);
   if(![dx,dy,dz,road.width,...Object.values(road.from),...Object.values(road.to)].every(Number.isFinite)
@@ -38,12 +38,28 @@ export function buildBrRoadGradeDetails(road: BrRoadSegment, pieces: readonly Br
   // Low edge girders make the grade read as engineered structure without
   // falsely suggesting a waist-high collision rail.
   for(const side of [-1,1]){
-    const offset=side*(road.width/2+.12);
+    const offset=side*(road.width/2+.2);
     for(const piece of pieces){
       const px=piece.to.x-piece.from.x,py=piece.to.y-piece.from.y,pz=piece.to.z-piece.from.z;
       const h=Math.hypot(px,pz);if(h<1e-6)continue;
-      parts.push({role:"edge",finish:"brushedMetal",position:{x:(piece.from.x+piece.to.x)/2-pz/h*offset,y:(piece.from.y+piece.to.y)/2-.18,z:(piece.from.z+piece.to.z)/2+px/h*offset},
-        scale:{x:Math.hypot(h,py),y:.2,z:.18},rotationY:-Math.atan2(pz,px),rotationZ:Math.atan2(py,h)});
+      // Only expose girders above real ground/decks. One-metre conservative
+      // samples partition each authored plane into continuous supported spans.
+      const count=Math.ceil(h),slope=Math.atan2(py,h),halfDepth=.275/Math.cos(slope);
+      const exposed=(t:number)=>[-.175,.175].every(cross=>{
+        const p={x:piece.from.x+px*t-pz/h*(offset+cross),z:piece.from.z+pz*t+px/h*(offset+cross)};
+        return piece.from.y+py*t-.4-halfDepth>brAuthoredDeckHeight(p)+.02;
+      });
+      let start:number|undefined;
+      for(let step=0;step<=count;step++){
+        const t=step/count,clear=step<count&&exposed(t)&&exposed((step+1)/count);
+        if(clear&&start===undefined)start=t;
+        if(!clear&&start!==undefined){
+          const mid=(start+t)/2;
+          parts.push({role:"edge",finish:"brushedMetal",position:{x:piece.from.x+px*mid-pz/h*offset,y:piece.from.y+py*mid-.4,z:piece.from.z+pz*mid+px/h*offset},
+            scale:{x:Math.hypot(h,py)*(t-start),y:.55,z:.35},rotationY:-Math.atan2(pz,px),rotationZ:slope});
+          start=undefined;
+        }
+      }
     }
     for(const t of [.18,.5,.82]){
       const point=surface(t),lightOffset=side*(road.width/2+.225);
@@ -51,19 +67,16 @@ export function buildBrRoadGradeDetails(road: BrRoadSegment, pieces: readonly Br
         scale:{x:.65,y:.035,z:.08},rotationY:point.rotationY,rotationZ:point.rotationZ});
     }
   }
-  // Exposed braces only appear where there is enough height to see them.
-  for(const t of [.28,.52,.76]){
-    const point=surface(t),height=point.y-.12;
-    if(height<.8)continue;
-    for(const side of [-1,1]){
-      const offset=side*Math.max(.9,road.width*.34);
-      parts.push({role:"support",finish:"structuralDark",position:{x:point.x+point.nx*offset,y:height/2,z:point.z+point.nz*offset},
-        scale:{x:.18,y:height,z:.18}});
-    }
-    parts.push({role:"support",finish:"structuralDark",position:{x:point.x,y:Math.max(.16,point.y-.28),z:point.z},
-      // This crosshead joins the two side columns across the road, not along
-      // its heading. Longitudinal beams left both supports visibly disconnected.
-      scale:{x:Math.max(2.2,road.width*.8),y:.16,z:.24},rotationY:point.rotationY+Math.PI/2});
+  // Crossheads belong to real paired piers, never synthetic visual columns.
+  // Their bottoms touch pier tops, inside the existing slab envelope, so they
+  // do not lower the clear opening beneath an otherwise traversable span.
+  for(const left of piers.filter(p=>p.id.startsWith(`bridge-pier-${road.id}-`)&&p.id.endsWith("-left"))){
+    const right=piers.find(p=>p.id===left.id.replace(/-left$/,"-right"));if(!right)continue;
+    const x=(left.position.x+right.position.x)/2,z=(left.position.z+right.position.z)/2;
+    const top=left.position.y+left.size.y/2;
+    const angle=-Math.atan2(right.position.z-left.position.z,right.position.x-left.position.x);
+    parts.push({role:"support",finish:"structuralDark",position:{x,y:top+.1,z},
+      scale:{x:road.width+.7,y:.2,z:1.25},rotationY:angle});
   }
   return parts;
 }

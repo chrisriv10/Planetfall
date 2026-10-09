@@ -1,5 +1,5 @@
 import RAPIER from "@dimforge/rapier3d-compat";
-import { BR_BASE_DECK_CELLS } from "@planetfall/shared";
+import { BR_BASE_DECK_CELLS, brConstrainBaseDeckMovement } from "@planetfall/shared";
 import { BR_BALANCE, brBlocksForPhysicsSector, brFlatDeckCollision, brHasStandingClearance, brMantleTopAt, brPhysicsSector, isInsideBrIsland, type BrCollisionResult, type BrMapBlock, type Vec3 } from "@planetfall/shared";
 
 await RAPIER.init();
@@ -29,7 +29,7 @@ export class BrPredictionPhysics {
     const movement=sector.controller.computedMovement();
     if(jumping&&Math.hypot(movement.x,movement.z)<Math.hypot(desiredMovement.x,desiredMovement.z)*.45){const mantle=brMantleTopAt(feet,desiredMovement);if(mantle!==null)return{movement:{x:desiredMovement.x,y:mantle-feet.y+.03,z:desiredMovement.z},grounded:false,ceiling:false,crouched:false};}
     const next={x:feet.x+movement.x,y:feet.y+movement.y,z:feet.z+movement.z};const inside=isInsideBrIsland(next);
-    const movementY=!inside&&downwardContact(desiredMovement,movement)?desiredMovement.y:movement.y;next.y=feet.y+movementY;
+    const movementY=!inside&&downwardContact(desiredMovement,movement)?desiredMovement.y:brConstrainBaseDeckMovement(feet,movement);next.y=feet.y+movementY;
     sector.collider.setTranslation({x:next.x,y:next.y+centerY(actualCrouch),z:next.z});
     return {movement:{x:movement.x,y:movementY,z:movement.z},grounded:inside&&!jumping&&(sector.controller.computedGrounded()||downwardContact(desiredMovement,movement)),ceiling:desiredMovement.y>0&&movementY<desiredMovement.y-.01,crouched:actualCrouch};
   }

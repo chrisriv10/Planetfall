@@ -1,0 +1,138 @@
+{
+  "generatedAt": "2026-10-09T02:08:48.886Z",
+  "host": "DESKTOP-JL99F36",
+  "git": "Validation snapshot of the working tree after 7ee0ef3, recorded before the subsequently authorized checkpoint commit/push; not deployed",
+  "typecheck": {
+    "passed": true,
+    "log": ".local-runtime/bridge-final-typecheck4.log"
+  },
+  "productionBuild": {
+    "passed": true,
+    "existingLargeChunkWarning": true,
+    "log": ".local-runtime/bridge-final-build4.log"
+  },
+  "unitSystem": {
+    "files": 158,
+    "tests": 886,
+    "durationSeconds": 141.06,
+    "passed": true,
+    "log": ".local-runtime/bridge-final-tests4.log"
+  },
+  "e2e": {
+    "tests": 11,
+    "passed": true,
+    "summary": "  11 passed (7.3m)",
+    "log": ".local-runtime/bridge-final-e2e.log",
+    "sourceEditsFrozen": true,
+    "testsWeakened": false,
+    "scope": "Full E2E preceded the final removal of a visual-only generic balcony kit. Final typecheck/build, full unit/system suite, direct renders and trusted-input smoke repeated afterward; no later server/shared/input/state changes."
+  },
+  "serverPerformance": {
+    "source": "Five unchanged performance cases in the full unit/system suite",
+    "cases": [
+      [
+        10,
+        0
+      ],
+      [
+        20,
+        0
+      ],
+      [
+        40,
+        0
+      ],
+      [
+        40,
+        1000
+      ],
+      [
+        40,
+        5000
+      ]
+    ],
+    "budgets": {
+      "averageTickMs": 16,
+      "p95TickMs": 45,
+      "worstTickMs": 150,
+      "maximumSnapshotBytes": 160000
+    },
+    "passed": true,
+    "standaloneMetricsNotClaimed": true
+  },
+  "overlapAudit": {
+    "generatedAt": "2026-10-09T02:00:10.112Z",
+    "scope": "All authored building envelopes and generated facade/glazing, storefront uprights and facade LEDs. Shared physics/route tests separately validate bridge piers and tree trunks.",
+    "limits": "This does not certify every decorative mesh or animated figure. Bounding envelopes cannot prove triangle-level separation. Plant foliage, thin mullions and backing panels are intentional facade joins; broad boxes penetrating the outward glass face are flagged.",
+    "checked": {
+      "structures": 183,
+      "buildingPairs": 16653,
+      "facadeBoxes": 25804,
+      "bridgePiers": 46,
+      "greenwayTrees": 66
+    },
+    "buildingIntersections": [],
+    "facadeIntersections": [],
+    "passed": true
+  },
+  "headedReview": {
+    "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 (0x00002487) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "views": [
+      "aerial",
+      "nova-storefront",
+      "hotel-frontage",
+      "civic-feeder-bend",
+      "south-transfer-bridge",
+      "southwest-salvage-grade",
+      "north-garden-promenade",
+      "farm-transfer-corridor",
+      "west-junction-frontage"
+    ],
+    "errors": [],
+    "finalViews": [
+      "mall-directory",
+      "mall-interior",
+      "nova-storefront"
+    ],
+    "finalErrors": []
+  },
+  "qualityRoundTrip": {
+    "sequence": [
+      "high",
+      "medium",
+      "low",
+      "high",
+      "low",
+      "high"
+    ],
+    "errors": [],
+    "highTextureCounts": [
+      55,
+      55,
+      55
+    ]
+  },
+  "trustedInput": {
+    "passed": true,
+    "errors": [],
+    "shipOrbitDegrees": 362.3452691565111,
+    "groundOrbitDegrees": 363.02605899489026,
+    "landing": {
+      "x": -179.54232213198918,
+      "y": 1.108354831451748,
+      "z": 330.4792428607827
+    }
+  },
+  "correctedDraftFindings": [
+    "Half-resolution composer softened the scene; scene rendering now retains native resolution.",
+    "Curve vertices outside the island are excluded.",
+    "Rapier wall autostep could push feet into the base deck; authority and prediction share a floor-contact constraint.",
+    "Void Market accent panels cut upper glazing on two faces; panels now fit the measured clear interval.",
+    "A narrowed-face comparison in the new audit test failed typecheck; corrected before final typecheck/build and E2E.",
+    "Direct renders revealed a generic balcony kit crossing the upper facade; removed the decorative kit without changing authoritative floors."
+  ],
+  "limits": [
+    "Full island recovery and human art/control-feel acceptance remain open.",
+    "The box audit covers all building envelopes and generated facades/LEDs, not every decorative triangle or animated figure."
+  ]
+}

@@ -82,6 +82,18 @@ function padStandingPosition(planet: Awaited<ReturnType<typeof duel>>["hostPlane
 }
 
 describe("planet raids", () => {
+  it("starts beside the cannon at surface height with immediate interaction range",async()=>{
+    const {host,guest,hostPlanet,guestPlanet}=await duel();
+    for(const [player,planet] of [[host,hostPlanet],[guest,guestPlanet]] as const){
+      expect(distance(player.position,planet.position)).toBeCloseTo(BALANCE.planetRadius+1.15);
+      expect(distance(player.position,cannonPosition(planet))).toBeGreaterThan(2.8);
+      expect(distance(player.position,cannonPosition(planet))).toBeLessThan(BALANCE.cannonRange);
+      expect(player.position.x-planet.position.x).toBeCloseTo(2.8);
+      expect(player.position.z).toBe(planet.position.z);
+      expect(player.grounded).toBe(true);
+      expect(player.surfacePlanetId).toBe(planet.id);
+    }
+  });
   it("validates launch-pad distance and enforces an authoritative per-player cooldown", async () => {
     const { room, host, hostPlanet, guestPlanet } = await duel();
     const now = Date.now();
