@@ -185,8 +185,8 @@ describe("Battle Royale shared rules", () => {
     expect(BR_POIS).toHaveLength(9);
     expect(BR_SECONDARY_LOCATIONS).toHaveLength(39);
     expect(BR_ISLAND_OUTLINE.length).toBeGreaterThanOrEqual(16);
-    expect(BR_STRUCTURES).toHaveLength(183);
-    expect(BR_STRUCTURES.filter((structure)=>structure.enterable)).toHaveLength(101);
+    expect(BR_STRUCTURES).toHaveLength(185);
+    expect(BR_STRUCTURES.filter((structure)=>structure.enterable)).toHaveLength(103);
     expect(BR_ROADS.length).toBeGreaterThanOrEqual(46);
     expect(BR_TERRAIN_PATCHES.length).toBeGreaterThanOrEqual(BR_POIS.length);
     for (const poi of BR_POIS) {

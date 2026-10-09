@@ -1,0 +1,132 @@
+{
+  "scope": "Static actual-world assembly, normal materials and BR lighting, no gameplay/HUD/sky/bloom/shadows. Not FPS or human-control validation.",
+  "legacyParkingReconstructed": false,
+  "views": [
+    {
+      "id": "industrial-south-gap",
+      "position": [
+        320,
+        2.7,
+        -180
+      ],
+      "focus": [
+        365,
+        4.5,
+        -130
+      ],
+      "calls": 183,
+      "triangles": 247602,
+      "textures": 9,
+      "world": {
+        "objects": 2129,
+        "meshes": 1831,
+        "instances": 60596,
+        "visibleInstances": 21833,
+        "materials": 288,
+        "visibleDistricts": 21,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "engine-gate-frontage",
+      "position": [
+        344,
+        2.7,
+        -180
+      ],
+      "focus": [
+        318,
+        3,
+        -180
+      ],
+      "calls": 438,
+      "triangles": 306236,
+      "textures": 22,
+      "world": {
+        "objects": 2129,
+        "meshes": 1831,
+        "instances": 60596,
+        "visibleInstances": 20225,
+        "materials": 288,
+        "visibleDistricts": 17,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "workshop-door",
+      "position": [
+        334,
+        2.2,
+        -198
+      ],
+      "focus": [
+        318,
+        2.3,
+        -198
+      ],
+      "calls": 438,
+      "triangles": 301868,
+      "textures": 22,
+      "world": {
+        "objects": 2129,
+        "meshes": 1831,
+        "instances": 60596,
+        "visibleInstances": 18045,
+        "materials": 288,
+        "visibleDistricts": 15,
+        "visibleSecondaryLabels": 1
+      }
+    },
+    {
+      "id": "relay-door",
+      "position": [
+        334,
+        2.2,
+        -162
+      ],
+      "focus": [
+        318,
+        2.3,
+        -162
+      ],
+      "calls": 422,
+      "triangles": 295676,
+      "textures": 22,
+      "world": {
+        "objects": 2129,
+        "meshes": 1831,
+        "instances": 60596,
+        "visibleInstances": 17762,
+        "materials": 288,
+        "visibleDistricts": 13,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "workshop-interior",
+      "position": [
+        322,
+        2.2,
+        -198
+      ],
+      "focus": [
+        313,
+        2.35,
+        -198
+      ],
+      "calls": 397,
+      "triangles": 295486,
+      "textures": 22,
+      "world": {
+        "objects": 2129,
+        "meshes": 1831,
+        "instances": 60596,
+        "visibleInstances": 17762,
+        "materials": 288,
+        "visibleDistricts": 13,
+        "visibleSecondaryLabels": 1
+      }
+    }
+  ],
+  "errors": []
+}

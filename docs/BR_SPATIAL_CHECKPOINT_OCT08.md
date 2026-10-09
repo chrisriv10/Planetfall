@@ -626,3 +626,19 @@ The full command reports 4,142.96s elapsed; the worker-start failure's underlyin
 cause is unconfirmed. No deadline or assertion was changed. E2E and a fresh
 human playthrough were not performed for this checkpoint. Preview/test processes
 are stopped; the broader pass remains unfinished.
+
+### October 9 transfer checkpoint — Dock–Engine occupied approach
+
+The preceding laptop checkpoint was committed and pushed as `68fda42`.
+The next authorized transfer checkpoint adds two real enterable street-facing
+workshops, their connected through-road, authoritative/prediction traversal
+tests, loot and restrained supported frontage presentation. Current totals:
+185 structures, 103 enterable, 271 loot sockets and 39 secondary locations.
+
+Typecheck/build pass; the final integrated focused run passes 121 tests across
+18 files in 17.53s. Five static integrated views were reviewed, along with
+six baseline secondary/route views. No fresh full-suite/E2E or human gameplay
+acceptance is claimed. The larger spatial/art pass remains unfinished.
+Complete transfer notes, measured costs, resolved draft failures and next steps
+are in `BR_DESKTOP_HANDOFF_OCT09.md`, with evidence in
+`artifacts/br-secondary-recovery-oct09/`.

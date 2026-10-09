@@ -1,0 +1,8 @@
+[
+  { "id": "central-heights-frontage", "position": [-70, 2.7, -58], "focus": [-48, 4.5, -42] },
+  { "id": "transit-court-street", "position": [129.5, -0.3, 127], "focus": [129.5, 2.2, 72] },
+  { "id": "hotel-lounge", "position": [-94, 2.2, -236], "focus": [-104.8, 2.35, -236] },
+  { "id": "coolant-east-gap", "position": [50, 2.7, 100], "focus": [110, 3.5, 100] },
+  { "id": "north-civic-gap", "position": [-20, 2.7, 180], "focus": [50, 3.5, 180] },
+  { "id": "industrial-south-gap", "position": [320, 2.7, -180], "focus": [365, 4.5, -130] }
+]

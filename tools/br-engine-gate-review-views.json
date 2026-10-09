@@ -1,0 +1,7 @@
+[
+  { "id": "industrial-south-gap", "position": [320, 2.7, -180], "focus": [365, 4.5, -130] },
+  { "id": "engine-gate-frontage", "position": [344, 2.7, -180], "focus": [318, 3.0, -180] },
+  { "id": "workshop-door", "position": [334, 2.2, -198], "focus": [318, 2.3, -198] },
+  { "id": "relay-door", "position": [334, 2.2, -162], "focus": [318, 2.3, -162] },
+  { "id": "workshop-interior", "position": [322, 2.2, -198], "focus": [313, 2.35, -198] }
+]

@@ -247,6 +247,7 @@ const BR_ARTERIAL_ROADS:readonly BrRoadSegment[]=[
   { id:"dock-engine-link-west", from:{x:315,y:.1,z:-275}, to:{x:340,y:.1,z:-275}, width:8, color:"#493f3a",kind:"arterial" },
   { id:"dock-engine-link-east", from:{x:340,y:.1,z:-275}, to:{x:340,y:.1,z:-180}, width:8, color:"#493f3a",kind:"arterial" },
   { id:"dock-engine-link-gate", from:{x:340,y:.1,z:-180}, to:{x:375,y:.1,z:-180}, width:8, color:"#493f3a",kind:"arterial" },
+  { id:"engine-gate-approach-through", from:{x:340,y:.1,z:-180}, to:{x:340,y:.08,z:-130}, width:8, color:"#493f3a",kind:"arterial" },
   { id:"east-freight-engine-deck", from:{x:360,y:8.1,z:-315}, to:{x:375,y:8.1,z:-315}, width:9, color:"#4e433c",kind:"arterial" },
   // Keep the first leg level beside the freight shell, then descend on a
   // shorter grade. Besides reading as a proper loading viaduct, this keeps
@@ -761,7 +762,13 @@ const NOVA_LANDING_STRUCTURES:readonly BrStructure[]=[
 // Rapier alone can select the overlapping base deck at shallow ramp edges.
 const NOVA_LANDING_OFFICE_THRESHOLD:BrRoadSegment={id:"nova-landing-office-threshold",
   from:{x:-198,y:.1,z:-17.5},to:{x:-198,y:.46,z:-19},width:4.4,color:"#405978",kind:"local"};
-export const BR_STRUCTURES:readonly BrStructure[]=[...PRIMARY_BR_STRUCTURES,...FIXED_SECONDARY_STRUCTURES,...SOLAR_SERVICE_STRUCTURES,...SOUTH_RING_STRUCTURES,...WEST_JUNCTION_STRUCTURES,...TRANSFER_YARD_STRUCTURES,...CIVIC_FRONTAGE_STRUCTURES,...NOVA_LANDING_STRUCTURES];
+const ENGINE_GATE_APPROACH_STRUCTURES:readonly BrStructure[]=[
+  // Southern Thruster Works approach, not parcels in the compact Engine Gate
+  // secondary block 87m east. Preserve that block's circulation/open yard.
+  S("engine-gate-approach-workshop","thruster-works",318,-198,16,18,6,"#579edf","industrial",1,"east",false,true,"utility"),
+  S("engine-gate-approach-relay","thruster-works",318,-162,16,16,8,"#579edf","industrial",1,"east",false,true,"industrial")
+];
+export const BR_STRUCTURES:readonly BrStructure[]=[...PRIMARY_BR_STRUCTURES,...FIXED_SECONDARY_STRUCTURES,...SOLAR_SERVICE_STRUCTURES,...SOUTH_RING_STRUCTURES,...WEST_JUNCTION_STRUCTURES,...TRANSFER_YARD_STRUCTURES,...CIVIC_FRONTAGE_STRUCTURES,...NOVA_LANDING_STRUCTURES,...ENGINE_GATE_APPROACH_STRUCTURES];
 
 /** District surfaces and smaller landscape beds follow the authored deck levels. */
 export const BR_TERRAIN_PATCHES: readonly BrTerrainPatch[] = [

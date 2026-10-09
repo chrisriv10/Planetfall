@@ -7,31 +7,40 @@ import { dirname } from "node:path";
 // Vite page and disposes the world/browser afterward.
 const origin = process.env.PLANETFALL_AUDIT_URL ?? "http://127.0.0.1:5173";
 const output = process.argv[2] ?? "artifacts/br-prop-audit/report.json";
+const secondary = process.argv.includes("--secondary");
+const connective = process.argv.includes("--connective");
+if (secondary && connective) throw new Error("Choose one prop scope per run");
 const browser = await chromium.launch({ headless: true });
 try {
   const page = await browser.newPage(), errors = [];
   page.on("pageerror", error => errors.push(error.message));
   await page.route("**/__prop_audit__", route => route.fulfill({ contentType: "text/html", body: "<html><body></body></html>" }));
   await page.goto(new URL("/__prop_audit__", origin).href);
-  const report = await page.evaluate(async () => {
+  const report = await page.evaluate(async ({ secondary, connective }) => {
     const source = await (await fetch("/src/modes/battle-royale/br-world.ts")).text();
     const threePath = source.match(/import \* as THREE from "([^"]+)"/)?.[1];
     const sharedPath = source.match(/from "([^"]*shared[^"]*)"/)?.[1];
     if (!threePath || !sharedPath) throw new Error("Vite renderer imports could not be resolved");
-    const THREE = await import(threePath), { BR_POIS, BR_STRUCTURES } = await import(sharedPath);
+    const THREE = await import(threePath), { BR_POIS, BR_SECONDARY_LOCATIONS, BR_STRUCTURES } = await import(sharedPath);
     const { BrWorldRenderer } = await import("/src/modes/battle-royale/br-world.ts");
     const { buildBrContextVehiclePlacements, brContextVehicleFootprint, BR_CONTEXT_VEHICLE_BOUNDS } = await import("/src/modes/battle-royale/br-context-placements.ts");
     const world = new BrWorldRenderer("high");
     try {
       world.root.updateMatrixWorld(true);
-      const groups = BR_POIS.map(poi => ({ poi, group: world.root.children.find(g => g.name === `props-${poi.id}`) }));
+      const groups = connective
+        ? ["roadside-service-pockets", "connective-micro-clusters", "roadside-maintenance-strips", "corridor-space-tree-groves"]
+          .map(name => ({ poi: { id: name }, group: world.root.getObjectByName(name) }))
+        : secondary
+        ? [...BR_SECONDARY_LOCATIONS.map(poi => ({ poi, group: world.root.getObjectByName(`secondary-${poi.id}`) })),
+          ...world.root.children.filter(g => g.name.startsWith("transition-")).map(group => ({ poi: { id: group.name }, group }))]
+        : BR_POIS.map(poi => ({ poi, group: world.root.children.find(g => g.name === `props-${poi.id}`) }));
       if (groups.some(g => !g.group)) throw new Error("Expected district prop assembly is missing");
       const targets = BR_STRUCTURES.map(s => ({ s, box: new THREE.Box3(
         new THREE.Vector3(s.position.x - s.size.x / 2 + .4, s.position.y + .4, s.position.z - s.size.z / 2 + .4),
         new THREE.Vector3(s.position.x + s.size.x / 2 - .4, s.position.y + s.size.y - .3, s.position.z + s.size.z / 2 - .4)) }));
       const triangle = new THREE.Triangle(), bounds = new THREE.Box3(), local = new THREE.Matrix4(), matrix = new THREE.Matrix4();
       const hits = [], vehicles = [], vehicleErrors = []; let meshObjects = 0, instances = 0, broadPhaseCandidates = 0, triangleChecks = 0;
-      for (const placement of buildBrContextVehiclePlacements()) {
+      for (const placement of secondary || connective ? [] : buildBrContextVehiclePlacements()) {
         const parent = groups.find(g => g.poi.id === placement.districtId)?.group;
         const vehicle = parent?.children.find(g => g.name === placement.id);
         if (!vehicle) { vehicleErrors.push(`${placement.id}: missing production vehicle`); continue; }
@@ -75,12 +84,12 @@ try {
         });
       }
       return {
-        scope: "Actual primary district props (including context vehicles, reactor conduits, fountain and crops) against all authored building envelopes; 0.4m wall/floor and 0.3m roof-contact margins.",
-        limits: "One static pose and triangle surfaces, not a closed-volume or collision proof. Excludes sprites, secondary/roadside props, interiors, players and landmark groups. Does not prove prop-to-prop or prop-to-road clearance.",
+        scope: `${connective ? "Actual roadside pockets, micro-clusters, maintenance strips and corridor groves" : secondary ? "Actual secondary-location and transition props" : "Actual primary district props (including context vehicles, reactor conduits, fountain and crops)"} against all authored building envelopes; 0.4m wall/floor and 0.3m roof-contact margins.`,
+        limits: "One static pose and triangle surfaces, not a closed-volume or collision proof. Excludes sprites, other prop groups, interiors, players and landmark groups. Does not prove prop-to-prop or prop-to-road clearance. Intentional building-mounted detail must be reviewed rather than silently filtered.",
         checked: { groups: groups.length, meshObjects, instances, structures: targets.length, broadPhaseCandidates, triangleChecks }, hits, vehicles, vehicleErrors
       };
     } finally { world.dispose(); }
-  });
+  }, { secondary, connective });
   const result = { generatedAt: new Date().toISOString(), ...report, errors, passed: report.hits.length === 0 && report.vehicleErrors.length === 0 && errors.length === 0 };
   await mkdir(dirname(output), { recursive: true }); await writeFile(output, JSON.stringify(result, null, 2) + "\n");
   console.log(JSON.stringify({ checked: result.checked, hits: result.hits.length, vehicleErrors: result.vehicleErrors, errors, passed: result.passed, output }));

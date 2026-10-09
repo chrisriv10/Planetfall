@@ -1,0 +1,18 @@
+{
+  "generatedAt": "2026-10-09T21:08:01.012Z",
+  "scope": "Actual roadside pockets, micro-clusters, maintenance strips and corridor groves against all authored building envelopes; 0.4m wall/floor and 0.3m roof-contact margins.",
+  "limits": "One static pose and triangle surfaces, not a closed-volume or collision proof. Excludes sprites, other prop groups, interiors, players and landmark groups. Does not prove prop-to-prop or prop-to-road clearance. Intentional building-mounted detail must be reviewed rather than silently filtered.",
+  "checked": {
+    "groups": 4,
+    "meshObjects": 35,
+    "instances": 1062,
+    "structures": 185,
+    "broadPhaseCandidates": 0,
+    "triangleChecks": 0
+  },
+  "hits": [],
+  "vehicles": [],
+  "vehicleErrors": [],
+  "errors": [],
+  "passed": true
+}
