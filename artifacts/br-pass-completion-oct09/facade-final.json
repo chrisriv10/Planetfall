@@ -1,0 +1,15 @@
+{
+  "generatedAt": "2026-10-10T16:11:13.899Z",
+  "scope": "All authored building envelopes and the production facade skin composition (glazing, service ribs, Nova storefront details and Solar service skins), doorway frames/awnings, freight pilasters, storefront uprights, facade LEDs and supported sign mounts. Shared physics/route tests separately validate bridge piers and tree trunks.",
+  "limits": "This does not certify every decorative mesh or animated figure. Bounding envelopes cannot prove triangle-level separation. Plant foliage, thin mullions and backing panels are intentional facade joins; broad boxes penetrating the outward glass face are flagged.",
+  "checked": {
+    "structures": 189,
+    "buildingPairs": 17766,
+    "facadeBoxes": 28138,
+    "bridgePiers": 46,
+    "greenwayTrees": 66
+  },
+  "buildingIntersections": [],
+  "facadeIntersections": [],
+  "passed": true
+}

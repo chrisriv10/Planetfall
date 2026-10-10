@@ -1,5 +1,6 @@
 import { BR_ROADS, BR_ROAD_ROUTES, type BrRoadSegment, type Vec3 } from "@planetfall/shared";
 import { brRoadDetailClear, brRoadRouteId } from "./br-road-detail";
+import { buildBrRoadBends } from "./br-road-bends";
 
 export type BrRoadMarkingRole="curb"|"edge-light"|"dash"|"crossing"|"lamp-post"|"lamp-bulb";
 export interface BrRoadMarking {
@@ -24,6 +25,8 @@ export function buildBrRoadMarkings(
   isClear:Clear=brRoadDetailClear,
 ):BrRoadMarking[]{
   const result:BrRoadMarking[]=[];
+  const elbows=buildBrRoadBends(pieces).filter(b=>b.arms.length===2
+    &&brRoadRouteId({id:b.arms[0].roadId})!==brRoadRouteId({id:b.arms[1].roadId}));
   const byRoute=new Map<string,BrRoadSegment[]>();
   for(const piece of pieces){const id=brRoadRouteId(piece),list=byRoute.get(id)??[];list.push(piece);byRoute.set(id,list);}
   for(const route of routes){
@@ -56,6 +59,17 @@ export function buildBrRoadMarkings(
       const inset=offset*turn+width/2*Math.abs(turn);
       return inset>0?inset+.075:0;
     };
+    const endpointInset=(segment:typeof segments[number],start:boolean,offset:number,width:number,role:BrRoadMarkingRole)=>{
+      const endpoint=start?segment.piece.from:segment.piece.to;
+      const bend=elbows.find(b=>Math.hypot(b.center.x-endpoint.x,b.center.z-endpoint.z)<.001&&Math.abs(b.center.y-endpoint.y)<.001
+        &&b.arms.some(a=>a.roadId===segment.piece.id));
+      if(!bend)return 0;
+      const other=bend.arms.find(a=>a.roadId!==segment.piece.id)!,arm=bend.arms.find(a=>a.roadId===segment.piece.id)!;
+      const inside=offset*(-segment.uz*other.direction.x+segment.ux*other.direction.z)>0;
+      const dot=arm.direction.x*other.direction.x+arm.direction.z*other.direction.z,cot=Math.sqrt((1+dot)/(1-dot));
+      if(inside&&(role==="curb"||role==="edge-light"))return Math.max(0,arm.tangent+(Math.abs(offset)-bend.radius)*cot)+.075;
+      return inside?(Math.abs(offset)+width/2)*cot+.075:width/2*cot+.075;
+    };
     const point=(segment:typeof segments[number],distance:number,offset:number)=>({
       x:segment.piece.from.x+segment.ux*(distance-segment.from)-segment.uz*offset,
       z:segment.piece.from.z+segment.uz*(distance-segment.from)+segment.ux*offset});
@@ -81,8 +95,8 @@ export function buildBrRoadMarkings(
       if(!clear(from,to,offset,width))return;
       for(const segment of segments){
         const run=runs[segment.run];
-        const a=Math.max(from,segment.from,run.from+cornerInset(run.startTurn,offset,width));
-        const b=Math.min(to,segment.to,run.to-cornerInset(run.endTurn,offset,width));
+        const a=Math.max(from,segment.from+endpointInset(segment,true,offset,width,role),run.from+cornerInset(run.startTurn,offset,width));
+        const b=Math.min(to,segment.to-endpointInset(segment,false,offset,width,role),run.to-cornerInset(run.endTurn,offset,width));
         if(b-a<1e-6)continue;
         const d=(a+b)/2,p=point(segment,d,offset);
         result.push({role,routeId:route.id,pieceId:segment.piece.id,

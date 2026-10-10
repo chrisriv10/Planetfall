@@ -1,0 +1,158 @@
+{
+  "recordedAt": "2026-10-10T15:46:07.9260594-05:00",
+  "host": "DESKTOP-JL99F36",
+  "head": "d64d771ef62d519b8bd31324d6b1736c541ef761",
+  "typecheck": "passed",
+  "build": "passed; existing chunk warning",
+  "fullSuite": {
+    "passed": 1009,
+    "seconds": 174.69,
+    "log": "full-suite-final-v4-recheck.log",
+    "files": 184
+  },
+  "e2e": {
+    "passed": 11,
+    "minutes": 5.8,
+    "log": "e2e-final-v4.log"
+  },
+  "live": [
+    {
+      "site": "coolant",
+      "passed": true,
+      "routes": 23,
+      "pickups": 3,
+      "input": {
+        "mouse": 63,
+        "keys": 274,
+        "trusted": true
+      },
+      "errors": []
+    },
+    {
+      "site": "civic",
+      "passed": true,
+      "routes": 34,
+      "pickups": 3,
+      "input": {
+        "mouse": 65,
+        "keys": 377,
+        "trusted": true
+      },
+      "errors": []
+    }
+  ],
+  "audits": [
+    {
+      "report": "props-primary-final-v4.json",
+      "passed": true,
+      "scope": "Actual primary district props (including context vehicles, reactor conduits, fountain and crops) against all authored building envelopes; 0.4m wall/floor and 0.3m roof-contact margins."
+    },
+    {
+      "report": "props-secondary-final-v4.json",
+      "passed": true,
+      "scope": "Actual secondary-location and transition props against all authored building envelopes; 0.4m wall/floor and 0.3m roof-contact margins."
+    },
+    {
+      "report": "props-connective-final-v4.json",
+      "passed": true,
+      "scope": "Actual roadside pockets, micro-clusters, maintenance strips and corridor groves against all authored building envelopes; 0.4m wall/floor and 0.3m roof-contact margins."
+    },
+    {
+      "report": "landmarks-final-v4.json",
+      "passed": true,
+      "scope": "Production landmark triangle surfaces against every authored building envelope; 0.4m wall/floor and 0.3m roof-contact margins."
+    },
+    {
+      "report": "signs-final-v4.json",
+      "passed": true,
+      "scope": "Actual fixed building labels and all seven batch-assembled mount pieces, world elevation/facing/materials and building-envelope clearance. Legacy POI-relative context billboards must be absent."
+    },
+    {
+      "report": "cleanup-final-v4.json",
+      "passed": true,
+      "scope": "Two complete production world assemblies; each reachable instance batch, geometry, material and mapped texture releases exactly once despite repeated dispose calls."
+    }
+  ],
+  "performance": [
+    {
+      "idOffset": 0,
+      "participants": 10,
+      "averageTickMs": 0.9149157777777842,
+      "p95TickMs": 1.7870000000000346,
+      "worstTickMs": 33.10369999999989,
+      "averageSnapshotBytes": 10162.694657762939,
+      "p95SnapshotBytes": 10626,
+      "maximumSnapshotBytes": 10765,
+      "heapDeltaMb": 13.72119140625
+    },
+    {
+      "idOffset": 0,
+      "participants": 20,
+      "averageTickMs": 2.126715841584158,
+      "p95TickMs": 4.5002000000004045,
+      "worstTickMs": 9.003499999999804,
+      "averageSnapshotBytes": 17573.73482142857,
+      "p95SnapshotBytes": 18242,
+      "maximumSnapshotBytes": 19200,
+      "heapDeltaMb": 13.160697937011719
+    },
+    {
+      "idOffset": 0,
+      "participants": 40,
+      "averageTickMs": 5.6497477777777645,
+      "p95TickMs": 9.152799999999843,
+      "worstTickMs": 14.734599999999773,
+      "averageSnapshotBytes": 32289.098539232054,
+      "p95SnapshotBytes": 33558,
+      "maximumSnapshotBytes": 33867,
+      "heapDeltaMb": 14.542999267578125
+    },
+    {
+      "idOffset": 1000,
+      "participants": 40,
+      "averageTickMs": 5.673840888888883,
+      "p95TickMs": 9.51680000000124,
+      "worstTickMs": 14.754400000001624,
+      "averageSnapshotBytes": 31676.253631051753,
+      "p95SnapshotBytes": 33639,
+      "maximumSnapshotBytes": 33983,
+      "heapDeltaMb": 9.820747375488281
+    },
+    {
+      "idOffset": 5000,
+      "participants": 40,
+      "averageTickMs": 5.7641066666666605,
+      "p95TickMs": 9.142099999999118,
+      "worstTickMs": 15.729100000000471,
+      "averageSnapshotBytes": 32823.3918196995,
+      "p95SnapshotBytes": 33608,
+      "maximumSnapshotBytes": 34089,
+      "heapDeltaMb": 3.8709259033203125
+    }
+  ],
+  "sourceVerification": {
+    "VerifiedAt": "2026-10-10T15:45:19.1970343-05:00",
+    "Host": "DESKTOP-JL99F36",
+    "Head": "d64d771ef62d519b8bd31324d6b1736c541ef761",
+    "SourceCount": 372,
+    "SourceChanges": 0,
+    "RoutingChanges": 0,
+    "IndexEntries": 0
+  },
+  "preservedFailures": [
+    "full-suite-final.log",
+    "full-suite-final-v4.log",
+    "active-civic-final",
+    "active-civic-contact-fixed",
+    "active-coolant-stable-final"
+  ],
+  "limits": [
+    "Trusted automated gameplay is not human art/control-feel acceptance",
+    "Server performance profiles are not forty browser clients or FPS",
+    "Overlap and screenshot evidence has each report's recorded scope",
+    "Existing Classic rematch fixture intermittency remains unresolved"
+  ],
+  "commit": false,
+  "push": false,
+  "deployment": false
+}

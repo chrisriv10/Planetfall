@@ -1,7 +1,8 @@
 import {
-  BR_HEALS, BR_WEAPONS, brItemMagazine, isBrHeal, seededRandom,
+  BR_HEALS, BR_WEAPONS, brFloorHeightAt, brItemMagazine, isBrHeal, seededRandom,
   type BrItemId, type BrLootSocket, type BrLootState, type BrRarity, type BrWeaponId,
 } from "@planetfall/shared";
+import type { BrLootPlacement } from "./br-loot-placement.js";
 
 const WEAPONS = Object.keys(BR_WEAPONS) as BrWeaponId[];
 const HEALS = Object.keys(BR_HEALS) as BrItemId[];
@@ -18,6 +19,10 @@ export function generateBrLoot(
   sockets: readonly BrLootSocket[],
   seed: number,
   idFactory: (kind: "loot" | "ammo") => string,
+  place: (origin: BrLootSocket["position"], requested: BrLootSocket["position"]) => BrLootPlacement = (_origin, position) => {
+    const surfaceY=brFloorHeightAt(position,position.y);
+    return {position:{...position,y:surfaceY+.58},surfaceY};
+  },
 ): BrLootState[] {
   const random = seededRandom(seed);
   const seenStructures = new Set<string>();
@@ -32,13 +37,11 @@ export function generateBrLoot(
     const previous = lastItemByStructure.get(socket.structureId);
     if (itemId === previous && pool.length > 1) itemId = pool[(pool.indexOf(itemId) + 1 + Math.floor(random() * (pool.length - 1))) % pool.length];
     lastItemByStructure.set(socket.structureId, itemId);
-    const surfaceY = socket.position.y - (socket.kind === "roof" ? .65 : .58);
     const item: BrLootState = {
       id: idFactory("loot"), itemId, rarity: rarity(random),
       count: isBrHeal(itemId) ? 1 + Math.floor(random() * 2) : 1,
       magazine: brItemMagazine(itemId),
-      position: { x: socket.position.x + (random() - .5) * .8, y: socket.position.y, z: socket.position.z + (random() - .5) * .8 },
-      surfaceY,
+      ...place(socket.position,{ x: socket.position.x + (random() - .5) * .8, y: socket.position.y, z: socket.position.z + (random() - .5) * .8 }),
     };
     output.push(item);
     if (itemId in BR_WEAPONS) {
@@ -46,7 +49,7 @@ export function generateBrLoot(
       if (ammoType && (primary || random() < .78)) output.push({
         id: idFactory("ammo"), ammoType, rarity: "common",
         count: ammoType === "light" ? 36 : ammoType === "heavy" ? 12 : 8,
-        position: { x: item.position.x + .95, y: socket.position.y, z: item.position.z - .72 }, surfaceY,
+        ...place(item.position,{ x: item.position.x + .95, y: item.position.y, z: item.position.z - .72 }),
       });
     }
   }

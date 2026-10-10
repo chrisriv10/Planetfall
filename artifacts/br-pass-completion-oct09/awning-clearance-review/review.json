@@ -1,0 +1,284 @@
+{
+  "scope": "Static actual-world assembly, normal materials and BR lighting, no gameplay/HUD/sky/bloom/shadows. Not FPS or human-control validation.",
+  "legacyParkingReconstructed": false,
+  "views": [
+    {
+      "id": "crash-salvage-oblique",
+      "position": [
+        -297.7,
+        5,
+        -317
+      ],
+      "focus": [
+        -296.5,
+        4,
+        -301
+      ],
+      "structureId": "crash-salvage",
+      "calls": 482,
+      "triangles": 370599,
+      "textures": 26,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 23169,
+        "materials": 297,
+        "visibleDistricts": 22,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "salvage-row-1-oblique",
+      "position": [
+        -297.7,
+        6,
+        -277
+      ],
+      "focus": [
+        -299,
+        7,
+        -293
+      ],
+      "structureId": "salvage-row-1",
+      "calls": 156,
+      "triangles": 214743,
+      "textures": 26,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 23169,
+        "materials": 297,
+        "visibleDistricts": 22,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "crash-salvage-alley-upper",
+      "position": [
+        -297.75,
+        10,
+        -309
+      ],
+      "focus": [
+        -296.5,
+        4.45,
+        -301
+      ],
+      "calls": 383,
+      "triangles": 358601,
+      "textures": 26,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 23169,
+        "materials": 297,
+        "visibleDistricts": 22,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "salvage-row-alley-upper",
+      "position": [
+        -297.75,
+        10,
+        -282
+      ],
+      "focus": [
+        -299,
+        4.45,
+        -293
+      ],
+      "calls": 152,
+      "triangles": 216415,
+      "textures": 26,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 23169,
+        "materials": 297,
+        "visibleDistricts": 22,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "void-west-alley",
+      "position": [
+        -126.5,
+        6,
+        241
+      ],
+      "focus": [
+        -127.5,
+        4.5,
+        260
+      ],
+      "calls": 188,
+      "triangles": 270155,
+      "textures": 38,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 22013,
+        "materials": 297,
+        "visibleDistricts": 20,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "void-east-alley",
+      "position": [
+        -59.5,
+        6,
+        242
+      ],
+      "focus": [
+        -58.5,
+        4.5,
+        260
+      ],
+      "calls": 192,
+      "triangles": 298855,
+      "textures": 41,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 24480,
+        "materials": 297,
+        "visibleDistricts": 24,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "void-west-header-upper",
+      "position": [
+        -126.5,
+        10,
+        253
+      ],
+      "focus": [
+        -128,
+        5.5,
+        260
+      ],
+      "calls": 180,
+      "triangles": 269961,
+      "textures": 42,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 24480,
+        "materials": 297,
+        "visibleDistricts": 24,
+        "visibleSecondaryLabels": 6
+      }
+    },
+    {
+      "id": "void-east-header-upper",
+      "position": [
+        -59.5,
+        10,
+        253
+      ],
+      "focus": [
+        -58,
+        5.5,
+        260
+      ],
+      "calls": 173,
+      "triangles": 291725,
+      "textures": 42,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 22041,
+        "materials": 297,
+        "visibleDistricts": 22,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "zero-control-roof-west",
+      "position": [
+        -66,
+        18,
+        15
+      ],
+      "focus": [
+        -38,
+        4,
+        10.4
+      ],
+      "calls": 374,
+      "triangles": 316965,
+      "textures": 55,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 32644,
+        "materials": 297,
+        "visibleDistricts": 28,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "comet-passage-north",
+      "position": [
+        -107,
+        3,
+        -218
+      ],
+      "focus": [
+        -107,
+        3,
+        -236
+      ],
+      "calls": 244,
+      "triangles": 292909,
+      "textures": 69,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 28860,
+        "materials": 297,
+        "visibleDistricts": 31,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "comet-passage-south",
+      "position": [
+        -107,
+        5,
+        -252
+      ],
+      "focus": [
+        -107,
+        3,
+        -234
+      ],
+      "calls": 581,
+      "triangles": 452363,
+      "textures": 76,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 29598,
+        "materials": 297,
+        "visibleDistricts": 33,
+        "visibleSecondaryLabels": 2
+      }
+    }
+  ],
+  "errors": []
+}

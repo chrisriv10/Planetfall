@@ -13,6 +13,7 @@ import {
 import { SpatialGrid } from "./spatial-grid.js";
 import { BrPhysicsWorld } from "./br-physics.js";
 import { generateBrLoot } from "./br-loot-generation.js";
+import { placeBrLoot } from "./br-loot-placement.js";
 
 type GameSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 type GameServer = Server<ClientToServerEvents, ServerToClientEvents>;
@@ -302,7 +303,9 @@ export class BattleRoyaleRoom {
     const item = player.inventory[slot];
     if (!item) return;
     if (slot === player.selectedSlot || slot === player.useSlot || slot === player.reloadSlot) this.cancelTimedActions(player);
-    const loot: BrLootState = { id: id("loot"), itemId: item.itemId, rarity: item.rarity, count: item.count, magazine: item.magazine, position: { x: player.position.x + Math.sin(player.yaw) * 1.2, y: player.position.y + .5, z: player.position.z - Math.cos(player.yaw) * 1.2 },surfaceY:player.position.y };
+    const origin={...player.position,y:player.position.y+.58};
+    const placement=placeBrLoot(origin,{x:origin.x+Math.sin(player.yaw)*1.2,y:origin.y,z:origin.z-Math.cos(player.yaw)*1.2},(start,direction,maximum)=>this.physics.rayDistance(start,direction,maximum));
+    const loot: BrLootState = { id: id("loot"), itemId: item.itemId, rarity: item.rarity, count: item.count, magazine: item.magazine, ...placement };
     this.loot.set(loot.id, loot); this.lootGridDirty = true; player.inventory[slot] = null; this.io.to(this.code).emit("br:loot:spawned", [loot]);
   }
 
@@ -312,7 +315,9 @@ export class BattleRoyaleRoom {
     crate.opened = true; const random = seededRandom(this.seed ^ this.hash(crate.id)); const drops: BrLootState[] = [];
     for (let index = 0; index < 3; index++) {
       const itemId = ITEM_IDS[Math.floor(random() * ITEM_IDS.length)]; const rarityRoll = random(); const rarity: BrRarity = rarityRoll > .9 ? "legendary" : rarityRoll > .55 ? "epic" : "rare";
-      const angle = index / 3 * Math.PI * 2; const drop: BrLootState = { id: id("crate-loot"), itemId, rarity, count: isBrHeal(itemId) ? 2 : 1, magazine: brItemMagazine(itemId), position: { x: crate.position.x + Math.cos(angle) * 1.6, y: crate.position.y + .45, z: crate.position.z + Math.sin(angle) * 1.6 },surfaceY:crate.position.y-.62 };
+      const angle = index / 3 * Math.PI * 2;
+      const placement=placeBrLoot(crate.position,{x:crate.position.x+Math.cos(angle)*1.6,y:crate.position.y,z:crate.position.z+Math.sin(angle)*1.6},(start,direction,maximum)=>this.physics.rayDistance(start,direction,maximum));
+      const drop: BrLootState = { id: id("crate-loot"), itemId, rarity, count: isBrHeal(itemId) ? 2 : 1, magazine: brItemMagazine(itemId), ...placement };
       this.loot.set(drop.id, drop); drops.push(drop);
     }
     this.lootGridDirty = true;
@@ -742,7 +747,7 @@ export class BattleRoyaleRoom {
   private initialStorm(): BrStormState { return { phaseIndex: 0, center: { x: 0, z: 0 }, radius: BR_MAP.radius, nextCenter: { x: 0, z: 0 }, nextRadius: BR_STORM_PHASES[0].radius, stage: "waiting", stageEndsAt: null, damagePerSecond: BR_STORM_PHASES[0].damage }; }
 
   private spawnLoot(): void {
-    for (const loot of generateBrLoot(BR_LOOT_SOCKETS,this.seed,(kind)=>id(kind))) this.loot.set(loot.id,loot);
+    for (const loot of generateBrLoot(BR_LOOT_SOCKETS,this.seed,(kind)=>id(kind),(origin,requested)=>placeBrLoot(origin,requested,(start,direction,maximum)=>this.physics.rayDistance(start,direction,maximum)))) this.loot.set(loot.id,loot);
     this.lootGrid.rebuild(this.loot.values()); this.lootGridDirty = false;
     const crates = BR_CRATE_SOCKETS.map((position, index) => ({ id: `crate-${this.seed}-${index}`, position: { ...position }, opened: false }));
     for (const crate of crates) this.crates.set(crate.id, crate);

@@ -1,0 +1,236 @@
+{
+  "date": "2026-10-09",
+  "machine": "DESKTOP-JL99F36",
+  "head": "d64d771ef62d519b8bd31324d6b1736c541ef761",
+  "workingTree": "local, uncommitted",
+  "pushed": false,
+  "deployed": false,
+  "typecheck": {
+    "passed": true,
+    "log": "typecheck-final.log"
+  },
+  "build": {
+    "passed": true,
+    "log": "build-final.log"
+  },
+  "focused": {
+    "passed": true,
+    "tests": 65,
+    "files": 9,
+    "log": "focused-final.log"
+  },
+  "fullSuite": {
+    "passed": true,
+    "tests": 991,
+    "files": 178,
+    "durationSeconds": 156.73,
+    "log": "full-suite-final.log"
+  },
+  "serverPerformance": {
+    "passed": true,
+    "includedInFullSuite": true,
+    "cases": [
+      {
+        "players": 10,
+        "identityOffset": 0
+      },
+      {
+        "players": 20,
+        "identityOffset": 0
+      },
+      {
+        "players": 40,
+        "identityOffset": 0
+      },
+      {
+        "players": 40,
+        "identityOffset": 1000
+      },
+      {
+        "players": 40,
+        "identityOffset": 5000
+      }
+    ],
+    "unchangedLimits": {
+      "averageTickMs": 16,
+      "p95TickMs": 45,
+      "worstTickMs": 150,
+      "maximumSnapshotBytes": 160000
+    },
+    "scope": "Thirty production-rate seconds per case, authoritative simulation and relevance snapshots with hard bots; not forty browser clients.",
+    "metrics": null,
+    "metricsNote": "All five unchanged cases included in the passing full suite; default reporter suppresses successful console output."
+  },
+  "e2e": {
+    "passed": true,
+    "tests": 11,
+    "duration": "5.6m",
+    "log": "e2e-final.log",
+    "sourceEditsDuringRun": false,
+    "concurrentRenderOrUnitJobs": false
+  },
+  "live": {
+    "passed": true,
+    "routes": 34,
+    "pickups": 3,
+    "dropRecoveryCycles": 3,
+    "input": {
+      "mouse": 64,
+      "keys": 383,
+      "trusted": true
+    },
+    "pageErrors": [],
+    "initialFixture": {
+      "position": {
+        "x": -5,
+        "y": 0.035,
+        "z": 58
+      },
+      "placementCount": 1,
+      "generatedLoot": 423
+    },
+    "briefDoorwayDescentSamples": 1,
+    "evidence": "live-final/playthrough.json",
+    "scope": "Active production player/camera walkthrough in an isolated local match. One initial authoritative fixture placement, then trusted browser mouse/keyboard only. Not human gameplay acceptance.",
+    "firstRun": {
+      "passed": false,
+      "completedRoutes": 24,
+      "pickups": 3,
+      "failure": "AssertionError [ERR_ASSERTION]: civic-street-north: blocked at {\"x\":-17.720809897086298,\"y\":0.035,\"z\":154.31680079305426}",
+      "evidence": "live/playthrough.json",
+      "diagnosis": "Player grounded and moving in the failed street segment. Native cursor probe confirms review harness retained stale accumulated mouse coordinate after inventory recenter. Coordinate synchronization corrected; original assertions/deadlines unchanged.",
+      "probe": "pointer-return-probe.json"
+    }
+  },
+  "authoritativeMountSupport": {
+    "queries": 1062,
+    "scope": "Nine ray samples per mounted part footprint on actual Rapier walls/floors/ceilings.",
+    "test": "server/src/modes/battle-royale/br-civic-identity-support.test.ts"
+  },
+  "assembly": {
+    "passed": true,
+    "parts": 118,
+    "buildings": [
+      {
+        "id": "north-civic-archive",
+        "expected": 96,
+        "matched": 96,
+        "priorHelperPartsRemoved": 48,
+        "attachments": [
+          "wall",
+          "floor",
+          "ceiling"
+        ]
+      },
+      {
+        "id": "north-civic-exchange",
+        "expected": 22,
+        "matched": 22,
+        "priorHelperPartsRemoved": 50,
+        "attachments": [
+          "wall",
+          "floor",
+          "ceiling"
+        ]
+      }
+    ],
+    "evidence": "assembly-final.json"
+  },
+  "signs": {
+    "passed": true,
+    "checked": {
+      "namedCatalog": 45,
+      "mountedLabels": 25,
+      "matchedMounts": 175,
+      "buildings": 189
+    },
+    "evidence": "signs-final.json"
+  },
+  "cleanup": {
+    "passed": true,
+    "cycles": [
+      {
+        "quality": "high",
+        "counts": {
+          "geometry": 198,
+          "material": 363,
+          "texture": 136,
+          "instance-batch": 1512
+        },
+        "missing": {},
+        "repeated": {},
+        "rootChildren": 0,
+        "collidableMeshes": 0,
+        "poiLabels": 0,
+        "borrowedDisposals": 0
+      },
+      {
+        "quality": "low",
+        "counts": {
+          "geometry": 198,
+          "material": 363,
+          "texture": 136,
+          "instance-batch": 1512
+        },
+        "missing": {},
+        "repeated": {},
+        "rootChildren": 0,
+        "collidableMeshes": 0,
+        "poiLabels": 0,
+        "borrowedDisposals": 0
+      }
+    ],
+    "scope": "Two complete production world assemblies; each reachable instance batch, geometry, material and mapped texture releases exactly once despite repeated dispose calls.",
+    "limitations": "No WebGL allocation/memory measurement, live match, audio, sockets, players or Classic scene. Global borrowed Sprite geometry is retained. Does not prove every unreachable library resource is freed.",
+    "evidence": "cleanup-final.json"
+  },
+  "preservation": {
+    "passed": true,
+    "baseline": "Validated road checkpoint local source",
+    "baselineFiles": 344,
+    "unchangedFiles": 337,
+    "changed": [
+      "client/src/modes/battle-royale/br-facade-signs.test.ts",
+      "client/src/modes/battle-royale/br-facade-signs.ts",
+      "client/src/modes/battle-royale/br-road-bends.test.ts",
+      "client/src/modes/battle-royale/br-road-detail.test.ts",
+      "client/src/modes/battle-royale/br-road-markings.test.ts",
+      "client/src/modes/battle-royale/br-world.ts",
+      "tools/br-active-spatial-review.mjs"
+    ],
+    "added": [
+      "client/src/modes/battle-royale/br-north-civic-identity.test.ts",
+      "client/src/modes/battle-royale/br-north-civic-identity.ts",
+      "server/src/modes/battle-royale/br-civic-identity-support.test.ts",
+      "tools/br-civic-identity-audit.mjs",
+      "tools/br-civic-identity-review-views.json"
+    ],
+    "sharedAndServerProductionUnchanged": true,
+    "classicAndChaosUnchanged": true,
+    "roadImplementationsUnchanged": true,
+    "lootAndFrontageHelpersUnchanged": true,
+    "additionalRoadTests": "Four presentation regressions appended when visuals resumed; all prior test code preserved.",
+    "mapHash": "028da755785ff50a783252577b0c44f19f4e1ff04fffba84aa39dc554d625716"
+  },
+  "sourceManifest": {
+    "files": 349,
+    "allHashesVerified": true,
+    "localRoutingVerified": true,
+    "file": "source-manifest.json"
+  },
+  "staticViews": {
+    "beforeMatched": 6,
+    "final": 8,
+    "addedWiderFrontageCameras": 2,
+    "scope": "Static world only, no player/HUD/sky/bloom/shadows; not FPS or human acceptance.",
+    "evidence": "final/review.json"
+  },
+  "limitations": [
+    "Whole-island spatial recovery remains unfinished.",
+    "Dark archive massing, repetitive exterior shells, white partitions and mall grade composition remain open.",
+    "Native input is automated with one initial fixture; no human art/control-feel acceptance claimed.",
+    "Mounted details do not add physical illumination or freestanding cover.",
+    "Assembly/resource audits do not certify every world overlap or GPU-memory/FPS budget.",
+    "No original assertion, timeout, gameplay behavior or performance budget was weakened."
+  ]
+}

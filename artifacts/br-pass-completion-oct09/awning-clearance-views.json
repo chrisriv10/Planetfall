@@ -1,0 +1,147 @@
+[
+  {
+    "id": "crash-salvage-oblique",
+    "position": [
+      -297.7,
+      5,
+      -317
+    ],
+    "focus": [
+      -296.5,
+      4,
+      -301
+    ],
+    "structureId": "crash-salvage"
+  },
+  {
+    "id": "salvage-row-1-oblique",
+    "position": [
+      -297.7,
+      6,
+      -277
+    ],
+    "focus": [
+      -299,
+      7,
+      -293
+    ],
+    "structureId": "salvage-row-1"
+  },
+  {
+    "id": "crash-salvage-alley-upper",
+    "position": [
+      -297.75,
+      10,
+      -309
+    ],
+    "focus": [
+      -296.5,
+      4.45,
+      -301
+    ]
+  },
+  {
+    "id": "salvage-row-alley-upper",
+    "position": [
+      -297.75,
+      10,
+      -282
+    ],
+    "focus": [
+      -299,
+      4.45,
+      -293
+    ]
+  },
+  {
+    "id": "void-west-alley",
+    "position": [
+      -126.5,
+      6,
+      241
+    ],
+    "focus": [
+      -127.5,
+      4.5,
+      260
+    ]
+  },
+  {
+    "id": "void-east-alley",
+    "position": [
+      -59.5,
+      6,
+      242
+    ],
+    "focus": [
+      -58.5,
+      4.5,
+      260
+    ]
+  },
+  {
+    "id": "void-west-header-upper",
+    "position": [
+      -126.5,
+      10,
+      253
+    ],
+    "focus": [
+      -128,
+      5.5,
+      260
+    ]
+  },
+  {
+    "id": "void-east-header-upper",
+    "position": [
+      -59.5,
+      10,
+      253
+    ],
+    "focus": [
+      -58,
+      5.5,
+      260
+    ]
+  },
+  {
+    "id": "zero-control-roof-west",
+    "position": [
+      -66,
+      18,
+      15
+    ],
+    "focus": [
+      -38,
+      4,
+      10.4
+    ]
+  },
+  {
+    "id": "comet-passage-north",
+    "position": [
+      -107,
+      3,
+      -218
+    ],
+    "focus": [
+      -107,
+      3,
+      -236
+    ]
+  },
+  {
+    "id": "comet-passage-south",
+    "position": [
+      -107,
+      5,
+      -252
+    ],
+    "focus": [
+      -107,
+      3,
+      -234
+    ]
+  }
+]

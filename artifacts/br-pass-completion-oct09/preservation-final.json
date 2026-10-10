@@ -1,0 +1,54 @@
+{
+  "generatedAt": "2026-10-10T20:11:49.548Z",
+  "head": "d64d771ef62d519b8bd31324d6b1736c541ef761",
+  "scope": "Read-only Git HEAD reconstruction in a separate ignored local module; existing checkout and index are never changed. Authored dependency files are current, so this is not a full historical-world reconstruction.",
+  "baseline": {
+    "structures": 185,
+    "loot": 271
+  },
+  "current": {
+    "structures": 189,
+    "loot": 281
+  },
+  "islandOutlinePreserved": true,
+  "primaryPoisPreserved": true,
+  "canonicalAstronautPreserved": true,
+  "removedStructures": [],
+  "structureChanges": [],
+  "roofAccessChanges": [
+    {
+      "id": "dock-office",
+      "key": "roofAccessSide",
+      "after": "north"
+    },
+    {
+      "id": "astra-hall",
+      "key": "roofAccessSide",
+      "after": "west"
+    },
+    {
+      "id": "farm-processing",
+      "key": "roofAccessSide",
+      "after": "south"
+    },
+    {
+      "id": "thruster-control",
+      "key": "roofAccessSide",
+      "after": "east"
+    },
+    {
+      "id": "south-relay",
+      "key": "roofAccessSide",
+      "after": "west"
+    }
+  ],
+  "removedLoot": [],
+  "movedLoot": [],
+  "addedStructures": [
+    "coolant-frontage-office",
+    "coolant-frontage-maintenance",
+    "north-civic-archive",
+    "north-civic-exchange"
+  ],
+  "passed": true
+}

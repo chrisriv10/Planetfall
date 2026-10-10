@@ -1,0 +1,578 @@
+{
+  "scope": "Static actual-world assembly, normal materials and BR lighting, no gameplay/HUD/sky/bloom/shadows. Not FPS or human-control validation.",
+  "legacyParkingReconstructed": false,
+  "views": [
+    {
+      "id": "south-boardwalk-supported",
+      "position": [
+        -70,
+        7.112193298339844,
+        -460
+      ],
+      "focus": [
+        -70,
+        5,
+        -415
+      ],
+      "cameraSupportY": 4.412193298339844,
+      "calls": 593,
+      "triangles": 309507,
+      "textures": 35,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 17951,
+        "materials": 297,
+        "visibleDistricts": 20,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "engine-east-rim-supported",
+      "position": [
+        460,
+        2.699992370605469,
+        -110
+      ],
+      "focus": [
+        405,
+        4,
+        -160
+      ],
+      "cameraSupportY": -0.00000762939453125,
+      "calls": 298,
+      "triangles": 235289,
+      "textures": 36,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 15176,
+        "materials": 297,
+        "visibleDistricts": 6,
+        "visibleSecondaryLabels": 0
+      }
+    },
+    {
+      "id": "west-campus-edge-supported",
+      "position": [
+        -410,
+        2.7,
+        230
+      ],
+      "focus": [
+        -350,
+        7,
+        220
+      ],
+      "cameraSupportY": 0,
+      "calls": 538,
+      "triangles": 313083,
+      "textures": 41,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 17706,
+        "materials": 297,
+        "visibleDistricts": 16,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "south-central-ring-supported",
+      "position": [
+        10,
+        2.7,
+        -340
+      ],
+      "focus": [
+        100,
+        5,
+        -350
+      ],
+      "cameraSupportY": 0,
+      "calls": 209,
+      "triangles": 204901,
+      "textures": 45,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 17440,
+        "materials": 297,
+        "visibleDistricts": 19,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "west-overlook-edge-supported",
+      "position": [
+        -460,
+        2.699992370605469,
+        70
+      ],
+      "focus": [
+        -405,
+        4,
+        30
+      ],
+      "cameraSupportY": -0.00000762939453125,
+      "calls": 592,
+      "triangles": 340077,
+      "textures": 50,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 18513,
+        "materials": 297,
+        "visibleDistricts": 15,
+        "visibleSecondaryLabels": 1
+      }
+    },
+    {
+      "id": "shipworks-freight-transition-supported",
+      "position": [
+        270,
+        2.7,
+        -380
+      ],
+      "focus": [
+        300,
+        6,
+        -315
+      ],
+      "cameraSupportY": 0,
+      "calls": 325,
+      "triangles": 251483,
+      "textures": 52,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 17160,
+        "materials": 297,
+        "visibleDistricts": 14,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "east-thruster-transition-supported",
+      "position": [
+        460,
+        2.7,
+        -50
+      ],
+      "focus": [
+        395,
+        5,
+        -20
+      ],
+      "cameraSupportY": 0,
+      "calls": 528,
+      "triangles": 320695,
+      "textures": 53,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 17830,
+        "materials": 297,
+        "visibleDistricts": 11,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "south-transfer-edge-supported",
+      "position": [
+        110,
+        2.699992370605469,
+        -440
+      ],
+      "focus": [
+        110,
+        5,
+        -405
+      ],
+      "cameraSupportY": -0.00000762939453125,
+      "calls": 511,
+      "triangles": 266711,
+      "textures": 54,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 15095,
+        "materials": 297,
+        "visibleDistricts": 12,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "engine-freight-edge-supported",
+      "position": [
+        400,
+        2.7,
+        -260
+      ],
+      "focus": [
+        375,
+        6,
+        -290
+      ],
+      "cameraSupportY": 0,
+      "calls": 211,
+      "triangles": 238419,
+      "textures": 54,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 18647,
+        "materials": 297,
+        "visibleDistricts": 12,
+        "visibleSecondaryLabels": 1
+      }
+    },
+    {
+      "id": "east-helios-transition-supported",
+      "position": [
+        450,
+        2.7,
+        30
+      ],
+      "focus": [
+        395,
+        6,
+        100
+      ],
+      "cameraSupportY": 0,
+      "calls": 359,
+      "triangles": 297051,
+      "textures": 55,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 18542,
+        "materials": 297,
+        "visibleDistricts": 13,
+        "visibleSecondaryLabels": 1
+      }
+    },
+    {
+      "id": "mall-farm-transition-supported",
+      "position": [
+        30,
+        2.699992370605469,
+        340
+      ],
+      "focus": [
+        100,
+        10,
+        330
+      ],
+      "cameraSupportY": -0.00000762939453125,
+      "calls": 309,
+      "triangles": 272119,
+      "textures": 62,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 23308,
+        "materials": 297,
+        "visibleDistricts": 17,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "campus-commons-transition-supported",
+      "position": [
+        -360,
+        2.7,
+        230
+      ],
+      "focus": [
+        -285,
+        6,
+        245
+      ],
+      "cameraSupportY": 0,
+      "calls": 504,
+      "triangles": 367293,
+      "textures": 77,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 21806,
+        "materials": 297,
+        "visibleDistricts": 20,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "nova-retaining-supported",
+      "position": [
+        -80,
+        2.7,
+        -180
+      ],
+      "focus": [
+        -120,
+        10,
+        -170
+      ],
+      "cameraSupportY": 0,
+      "calls": 312,
+      "triangles": 349265,
+      "textures": 85,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 26363,
+        "materials": 297,
+        "visibleDistricts": 23,
+        "visibleSecondaryLabels": 1
+      }
+    },
+    {
+      "id": "academy-retaining-supported",
+      "position": [
+        -270,
+        10.7,
+        90
+      ],
+      "focus": [
+        -310,
+        15,
+        140
+      ],
+      "cameraSupportY": 8,
+      "calls": 233,
+      "triangles": 249961,
+      "textures": 87,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 25339,
+        "materials": 297,
+        "visibleDistricts": 28,
+        "visibleSecondaryLabels": 8
+      }
+    },
+    {
+      "id": "helios-retaining-supported",
+      "position": [
+        280,
+        8.7,
+        80
+      ],
+      "focus": [
+        320,
+        12,
+        110
+      ],
+      "cameraSupportY": 6,
+      "calls": 179,
+      "triangles": 235401,
+      "textures": 89,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 20711,
+        "materials": 297,
+        "visibleDistricts": 20,
+        "visibleSecondaryLabels": 5
+      }
+    },
+    {
+      "id": "farm-retaining-supported",
+      "position": [
+        60,
+        2.699992370605469,
+        210
+      ],
+      "focus": [
+        100,
+        8,
+        250
+      ],
+      "cameraSupportY": -0.00000762939453125,
+      "calls": 243,
+      "triangles": 324873,
+      "textures": 91,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 30838,
+        "materials": 297,
+        "visibleDistricts": 26,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "farms-west-grade",
+      "position": [
+        250,
+        5.4,
+        330
+      ],
+      "focus": [
+        205,
+        7,
+        330
+      ],
+      "calls": 355,
+      "triangles": 293605,
+      "textures": 91,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 23559,
+        "materials": 297,
+        "visibleDistricts": 23,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "crash-salvage-envelope",
+      "position": [
+        -317,
+        29,
+        -276
+      ],
+      "focus": [
+        -282,
+        3.5,
+        -301
+      ],
+      "structureId": "crash-salvage",
+      "calls": 274,
+      "triangles": 310989,
+      "textures": 94,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 21164,
+        "materials": 297,
+        "visibleDistricts": 17,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "salvage-row-1-envelope",
+      "position": [
+        -272,
+        39,
+        -268
+      ],
+      "focus": [
+        -307,
+        8.5,
+        -293
+      ],
+      "structureId": "salvage-row-1",
+      "calls": 163,
+      "triangles": 219569,
+      "textures": 94,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 23169,
+        "materials": 297,
+        "visibleDistricts": 22,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "void-east-envelope",
+      "position": [
+        -79,
+        30,
+        285
+      ],
+      "focus": [
+        -44,
+        4,
+        260
+      ],
+      "structureId": "void-east",
+      "calls": 376,
+      "triangles": 311785,
+      "textures": 94,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 22000,
+        "materials": 297,
+        "visibleDistricts": 21,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "void-west-envelope",
+      "position": [
+        -107,
+        30,
+        285
+      ],
+      "focus": [
+        -142,
+        4,
+        260
+      ],
+      "structureId": "void-west",
+      "calls": 314,
+      "triangles": 313145,
+      "textures": 96,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 22041,
+        "materials": 297,
+        "visibleDistricts": 22,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "zero-control-envelope",
+      "position": [
+        -3,
+        30,
+        16
+      ],
+      "focus": [
+        -38,
+        4,
+        -9
+      ],
+      "structureId": "zero-control",
+      "calls": 328,
+      "triangles": 381551,
+      "textures": 99,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 28106,
+        "materials": 297,
+        "visibleDistricts": 23,
+        "visibleSecondaryLabels": 5
+      }
+    }
+  ],
+  "errors": []
+}

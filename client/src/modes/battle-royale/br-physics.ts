@@ -1,5 +1,5 @@
 import RAPIER from "@dimforge/rapier3d-compat";
-import { BR_BASE_DECK_CELLS, brConstrainBaseDeckMovement } from "@planetfall/shared";
+import { BR_BASE_DECK_CELLS, brConstrainBaseDeckMovement, brInteriorStairSubsteps, brInteriorStairProbeY } from "@planetfall/shared";
 import { BR_BALANCE, brBlocksForPhysicsSector, brFlatDeckCollision, brHasStandingClearance, brMantleTopAt, brPhysicsSector, isInsideBrIsland, type BrCollisionResult, type BrMapBlock, type Vec3 } from "@planetfall/shared";
 
 await RAPIER.init();
@@ -21,6 +21,17 @@ export class BrPredictionPhysics {
 
   move(feet:Vec3,desiredMovement:Vec3,jumping:boolean,crouched=false):BrCollisionResult {
     const flat=brFlatDeckCollision(feet,desiredMovement,jumping);if(flat)return{...flat,crouched};
+    const steps=brInteriorStairSubsteps(feet,desiredMovement,jumping);
+    if(steps>1){
+      let position={...feet},grounded=false,ceiling=false,actualCrouch=crouched;
+      const desired={x:desiredMovement.x/steps,y:desiredMovement.y/steps,z:desiredMovement.z/steps};
+      for(let step=0;step<steps;step++){
+        const result=this.move(position,{...desired,y:brInteriorStairProbeY(position,desired)},jumping,actualCrouch);
+        position={x:position.x+result.movement.x,y:position.y+result.movement.y,z:position.z+result.movement.z};
+        grounded=result.grounded;ceiling ||= result.ceiling;actualCrouch=result.crouched??actualCrouch;
+      }
+      return{movement:{x:position.x-feet.x,y:position.y-feet.y,z:position.z-feet.z},grounded,ceiling,crouched:actualCrouch};
+    }
     const sector=this.sector(feet);const actualCrouch=crouched||(sector.crouched&&!brHasStandingClearance(feet));
     if(sector.crouched!==actualCrouch){sector.crouched=actualCrouch;sector.collider.setHalfHeight(actualCrouch?CROUCHED_HALF_HEIGHT:STANDING_HALF_HEIGHT);}
     sector.collider.setTranslation({x:feet.x,y:feet.y+centerY(actualCrouch),z:feet.z});

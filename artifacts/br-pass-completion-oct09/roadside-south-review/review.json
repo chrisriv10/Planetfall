@@ -1,0 +1,32 @@
+{
+  "scope": "Static actual-world assembly, normal materials and BR lighting, no gameplay/HUD/sky/bloom/shadows. Not FPS or human-control validation.",
+  "legacyParkingReconstructed": false,
+  "views": [
+    {
+      "id": "roadside-south",
+      "position": [
+        -154,
+        2.7,
+        -284
+      ],
+      "focus": [
+        -154,
+        2.2,
+        -300.5
+      ],
+      "calls": 183,
+      "triangles": 220039,
+      "textures": 14,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 26456,
+        "materials": 297,
+        "visibleDistricts": 33,
+        "visibleSecondaryLabels": 4
+      }
+    }
+  ],
+  "errors": []
+}

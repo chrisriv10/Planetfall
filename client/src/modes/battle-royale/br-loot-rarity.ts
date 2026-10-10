@@ -52,7 +52,7 @@ export class BrLootRarityVisual extends THREE.Group {
   private readonly phase: number;
   private readonly itemBaseY:number;
 
-  constructor(model: THREE.Object3D, id: string, surfaceOffsetY: number, itemLift:number,
+  constructor(model: THREE.Object3D, id: string, readonly surfaceOffsetY: number, itemLift:number,
     geometries: readonly [THREE.BufferGeometry, THREE.BufferGeometry, THREE.BufferGeometry],
     materials: FieldMaterials, height: number, private readonly onRelease: () => void) {
     super(); this.name = "loot-rarity-visual";

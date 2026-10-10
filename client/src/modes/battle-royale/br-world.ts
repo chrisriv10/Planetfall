@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { brAuthoredDeckHeight } from "@planetfall/shared";
 import {
   BR_ISLAND_OUTLINE,
+  BR_ENTRANCE_HEADERS,
   BR_LOOT_SOCKETS,
   BR_MAP_BLOCKS,
   BR_POIS,
@@ -19,12 +20,14 @@ import { BrMaterialLibrary } from "./br-materials";
 import { layoutBrPoiLabel } from "./br-poi-label-layout";
 import { brPoiLabelPresentation } from "./br-poi-label-presentation";
 import { buildDistantFacadeParts, buildStorefrontFrameParts } from "./br-facades";
+import { buildBrEntranceHeaderFinish } from "./br-entrance-header-finish";
 import { buildBrFacadeSkin } from "./br-facade-skin";
 import { createBrNexusCrown } from "./br-nexus-crown";
 import { buildBrWreckEngineMounts } from "./br-wreck-engines";
 import { buildBrDoorwayParts, buildBrFreightPilasters } from "./br-facade-attachments";
 import { brPlazaUvScale } from "./br-plaza-finish";
 import { BR_COLONY_DECK_COLOR } from "./br-district-palette";
+import { brAuthoredWallFinish } from "./br-authored-wall-finish";
 import { buildBrConnectiveGreens } from "./br-connective-greens";
 import { buildBrFacadeLeds } from "./br-facade-leds";
 import { buildBrFacadeSign, getBrFacadeSignText } from "./br-facade-signs";
@@ -55,6 +58,9 @@ import { buildBrTransferYardDressing } from "./br-transfer-yard";
 import { buildBrCivicFrontageDressing } from "./br-civic-frontage";
 import { buildBrNovaLandingDressing } from "./br-nova-landing";
 import { buildBrEngineGateFrontage } from "./br-engine-gate-frontage";
+import { buildBrCoolantFrontage } from "./br-coolant-frontage";
+import { buildBrNorthCivicFrontage } from "./br-north-civic-frontage";
+import { buildBrNorthCivicIdentity } from "./br-north-civic-identity";
 import { buildBrTerrainSurface } from "./br-terrain-surfaces";
 import { buildMaintenanceStrips } from "./br-maintenance-strips";
 import { buildMallDirectories } from "./br-mall-directories";
@@ -388,8 +394,8 @@ export class BrWorldRenderer {
       const spec={position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z),rotationY:part.rotationY,rotationZ:part.rotationZ};
       (part.role==="edge"?gradeEdges:part.role==="support"?gradeSupports:gradeLights).push(spec);
     }
-    for(const bend of buildBrRoadBends(BR_ROADS))for(let i=1;i<bend.edge.length;i++){
-      const a=bend.edge[i-1],b=bend.edge[i],dx=b.x-a.x,dz=b.z-a.z;
+    for(const bend of buildBrRoadBends(BR_ROADS))for(const edge of [bend.edge,bend.outerEdge])for(let i=1;i<edge.length;i++){
+      const a=edge[i-1],b=edge[i],dx=b.x-a.x,dz=b.z-a.z;
       curbs.push({position:position((a.x+b.x)/2,a.y+.039,(a.z+b.z)/2),scale:position(Math.hypot(dx,dz),.07,.24),rotationY:-Math.atan2(dz,dx)});
       if(i%2===1)edgeLights.push({position:position((a.x+b.x)/2,a.y+.08,(a.z+b.z)/2),scale:position(Math.hypot(dx,dz)*.7,.018,.07),rotationY:-Math.atan2(dz,dx)});
     }
@@ -419,34 +425,41 @@ export class BrWorldRenderer {
   }
 
   private buildGameplayGeometry(): void {
-    // One vertex-colored slab batch: navy walkable tops, pale composite
-    // soffits/edges. This keeps interiors readable without extra light or
-    // draw calls, and uses the exact authoritative platform dimensions.
-    const slabGeometry = this.geometry(this.materials.unitBox.clone());
-    const normals = slabGeometry.getAttribute("normal");
-    const colors = new Float32Array(normals.count * 3);
-    const top = new THREE.Color(0x263548), underside = new THREE.Color(0xb7c6cb);
-    for (let index = 0; index < normals.count; index++) {
-      const color = normals.getY(index) > .5 ? top : underside;
-      colors.set([color.r,color.g,color.b], index * 3);
-    }
-    slabGeometry.setAttribute("color",new THREE.BufferAttribute(colors,3));
-    const slabMaterial = this.materials.own((this.materials.get("interiorFloor") as THREE.MeshStandardMaterial).clone());
-    slabMaterial.color.set(0xffffff);slabMaterial.vertexColors = true;
-    const batches = new Map<string, typeof BR_MAP_BLOCKS[number][]>();
+    // Literal solids remain identical. Nine bounded vertex-color box finishes
+    // distinguish exposed district retaining faces from readable room slabs.
+    const slabGeometries=new Map<string,THREE.BufferGeometry>();
+    const batches=new Map<string,{geometry:THREE.BufferGeometry;material:THREE.Material;blocks:typeof BR_MAP_BLOCKS[number][]}>();
     for (const block of BR_MAP_BLOCKS) {
       const bridgePier=block.id.startsWith("bridge-pier-");
       const greenwayTrunk=block.id.startsWith("greenway-")&&block.id.endsWith("-trunk");
       const authoredVisible=bridgePier||greenwayTrunk||block.kind==="platform"||block.kind==="ramp"||block.kind==="cover"||(block.kind==="wall"&&(block.id.includes("-room-")||block.id.includes("-retaining-")));
       if(!authoredVisible)continue;
-      const materialKey = bridgePier||greenwayTrunk ? "structuralDark" : block.kind === "platform" || block.kind === "ramp" ? "interiorFloor" : block.kind === "cover" ? "paintedMetal" : "structuralWhite";
-      const key = `${block.kind}:${materialKey}`;
-      const batch = batches.get(key) ?? [];
-      batch.push(block);
-      batches.set(key, batch);
+      const finish=brAuthoredWallFinish(block),slab=block.kind==="platform"||block.kind==="ramp";
+      let geometry=this.materials.unitBox as THREE.BufferGeometry;
+      let material=bridgePier||greenwayTrunk?this.materials.get("structuralDark"):block.kind==="cover"?this.materials.get("paintedMetal"):this.materials.get("structuralWhite");
+      let finishKey="default";
+      if(slab){
+        finishKey=finish.kind==="district-slab"?`district:${finish.family}`:"interior";
+        let cached=slabGeometries.get(finishKey);
+        if(!cached){
+          cached=this.geometry(this.materials.unitBox.clone());
+          const normals=cached.getAttribute("normal"),colors=new Float32Array(normals.count*3);
+          for(let index=0;index<normals.count;index++){
+            const normal=normals.getY(index),color=normal>.5?finish.slab.top:normal<-.5?finish.slab.underside:finish.slab.side;
+            colors.set([color.r,color.g,color.b],index*3);
+          }
+          cached.setAttribute("color",new THREE.BufferAttribute(colors,3));slabGeometries.set(finishKey,cached);
+        }
+        geometry=cached;material=this.materials.authoredSlabMaterial();
+      }else if(finish.kind==="room-wall"){
+        finishKey=`room:${finish.family}`;material=this.materials.authoredRoomWall(finish.sourceColor);
+      }else if(finish.kind==="retaining-wall"){
+        finishKey=`retaining:${finish.family}`;material=this.materials.districtShell(finish.sourceColor);
+      }
+      const key=`${block.kind}:${finishKey}`;
+      const batch=batches.get(key)??{geometry,material,blocks:[]};batch.blocks.push(block);batches.set(key,batch);
     }
-    for (const [key, blocks] of batches) {
-      const material = this.materials.get(key.split(":")[1] as "interiorFloor" | "paintedMetal" | "structuralWhite" | "structuralDark");
+    for (const {geometry,material,blocks} of batches.values()) {
       const matrices = blocks.map((block) => ({
         position: position(block.position.x, block.position.y, block.position.z),
         scale: position(block.size.x, block.size.y, block.size.z),
@@ -454,8 +467,7 @@ export class BrWorldRenderer {
         rotationY: block.rotation?.y,
         rotationZ: block.rotation?.z
       }));
-      const slab = key.startsWith("platform:") || key.startsWith("ramp:");
-      this.addInstances(this.root, slab ? slabGeometry : this.materials.unitBox, slab ? slabMaterial : material, matrices, true);
+      this.addInstances(this.root,geometry,material,matrices,true);
     }
   }
 
@@ -568,7 +580,16 @@ export class BrWorldRenderer {
         for(const part of buildInteriorSurfaces(structure)) (part.finish==="seam"?floorSeams:floorTrim).push({
           position:position(part.position.x,part.position.y-structure.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z),rotationX:part.rotationX
         });
-        const retail=buildRetailInterior(structure);
+        const civicIdentity=buildBrNorthCivicIdentity(structure);
+        const identityTargets={structuralDark:roofEdges,interiorWall:interiorProps,windowDark:displayGlass,
+          brushedMetal:roofUnits,energyCyan:mallEnergyCyan,energyPurple:mallEnergyPurple,
+          industrialOrange:reactorWarnings,windowLit:interiorLights};
+        for(const part of civicIdentity.parts){
+          const target=identityTargets[part.finish];
+          target.push({position:position(part.position.x,part.position.y,part.position.z),
+            scale:position(part.scale.x,part.scale.y,part.scale.z)});
+        }
+        const retail=civicIdentity.supported?{parts:[],signs:[]}:buildRetailInterior(structure);
         const retailTargets={frame:interiorDark,panel:interiorProps,glass:displayGlass,light:interiorLights,accent:accentVolumes,foliage:facadePlants};
         for(const part of retail.parts) retailTargets[part.finish].push({
           // Retail helpers already return height relative to the structure's
@@ -766,6 +787,9 @@ export class BrWorldRenderer {
     const { x: width, y: height, z: depth } = structure.size;
     const wall=.65,door=4.8;
     const solarFrontage=buildBrSolarServiceFrontage(structure);
+    const entranceHeader=BR_ENTRANCE_HEADERS.find(block=>block.id===`${structure.id}-entrance-header`);
+    if(entranceHeader)shells.push({position:position(entranceHeader.position.x,entranceHeader.position.y-sourceStructure.position.y,entranceHeader.position.z),
+      scale:position(entranceHeader.size.x,entranceHeader.size.y,entranceHeader.size.z)});
     const wallSpec=(px:number,pz:number,sx:number,sz:number)=>{if(!solarFrontage.replaceGenericShell)shells.push({
       position:position(px,height/2,pz),
       scale:position(sx,height,sz)
@@ -789,6 +813,10 @@ export class BrWorldRenderer {
     for(const part of solarFrontage.cornerParts)solarCorners[part.finish].push({position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z)});
     for(const part of solarFrontage.shellParts)solarShells[part.finish].push({position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z)});
     const facadeTargets = { panel: facadePanels, frame: columns, glass: darkWindows, lit: litWindows, accent: trims, foliage: facadePlants, metal: roofUnits, concrete: solarBacking };
+    for (const part of buildBrEntranceHeaderFinish(sourceStructure)) {
+      facadeTargets[part.finish].push({position: position(part.position.x, part.position.y-sourceStructure.position.y, part.position.z),
+        scale: position(part.scale.x,part.scale.y,part.scale.z)});
+    }
     for (const part of buildBrFacadeSkin(structure,solarFrontage)) {
       facadeTargets[part.finish].push({position: position(part.position.x, part.position.y, part.position.z), scale: position(part.scale.x, part.scale.y, part.scale.z)});
     }
@@ -911,6 +939,9 @@ export class BrWorldRenderer {
 
   private addInteriorKit(structure: BrStructure, light: MatrixSpec[], dark: MatrixSpec[], emissive: MatrixSpec[], sourceStructure: BrStructure): void {
     if (!structure.enterable) return;
+    // Complete, geometry-supported replacements own these two interiors.
+    // Declined layouts keep the established kit rather than becoming bare.
+    if(buildBrNorthCivicIdentity(sourceStructure).supported)return;
     if (structure.id === "crash-fuselage") {
       const targets={panel:light,frame:dark,light:emissive};
       for(const part of buildWreckInterior(structure)) targets[part.finish].push({
@@ -1178,6 +1209,8 @@ export class BrWorldRenderer {
     this.addInstances(group,this.materials.unitBox,this.materials.get("energyCyan"),nexusEnergy,false);
     this.addInstances(group,this.materials.unitBox,this.materials.get("industrialOrange"),nexusWarnings,false);
     this.addContextProps(group, poi);
+    if(poi.id==="zero-point")for(const frontage of buildBrCoolantFrontage())this.addAuthoredSecondaryDressing(group,frontage);
+    if(poi.id==="void-mall")for(const frontage of buildBrNorthCivicFrontage())this.addAuthoredSecondaryDressing(group,frontage);
     this.root.add(group);
     this.districtDetails.push({ group, center: position(poi.position.x, 0, poi.position.z), visible: true });
   }

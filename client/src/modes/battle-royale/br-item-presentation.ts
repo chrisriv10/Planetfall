@@ -1,5 +1,6 @@
 import { isBrHeal, isBrWeapon, type BrLootState, type BrWeaponId } from "@planetfall/shared";
 import * as THREE from "three";
+import { BR_LOOT_FLOAT } from "./br-loot-rarity";
 
 export type BrLootCategory = "weapon" | "ammo" | "health" | "shield" | "unknown";
 
@@ -44,7 +45,7 @@ export function brLootModelSupportLift(model:THREE.Object3D,clearance=.07):numbe
   model.updateWorldMatrix(true,true);
   const bounds=new THREE.Box3().setFromObject(model);
   if(bounds.isEmpty()||!Number.isFinite(bounds.min.y))return .42;
-  return Math.max(.42,-bounds.min.y+Math.max(0,clearance));
+  return Math.max(BR_LOOT_FLOAT.lift,-bounds.min.y+Math.max(0,clearance)+BR_LOOT_FLOAT.amplitude);
 }
 
 /** Relative Y from the authoritative pickup origin to its supporting surface. */

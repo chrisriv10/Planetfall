@@ -1,6 +1,7 @@
 import { BR_ROAD_ROUTES, BR_STRUCTURES, type BrRoadSegment, type BrStructure, type Vec3 } from "@planetfall/shared";
 import type { BrAuthoredSecondaryPart } from "./br-authored-secondary-dressing";
 import type { BrTransitCourtSign } from "./br-transit-court";
+import { buildBrDoorwayParts } from "./br-facade-attachments";
 
 export interface BrSouthExchangeDressing {
   center:Vec3;
@@ -51,8 +52,12 @@ export function buildBrSouthExchangeDressing(input:{structures:readonly BrStruct
     add(`${id}-tree-crown-top`,"octahedron","canopy",furnitureX+.18,floor+6.45,treeAt,1.05,1.2,1.05);
     for(const dx of [-.2,0,.2])add(`${id}-seat-slat-${dx}`,"box","brushedMetal",furnitureX+dx,floor+.46,seatAt,.15,.09,1.8);
     for(const dz of [-.6,.6])add(`${id}-seat-foot-${dz}`,"box","structuralDark",furnitureX,floor+.21,seatAt+dz,.5,.42,.1);
-    // Flush to the actual exterior wall (the authoritative wall is .65m thick).
-    signs.push({text,subtitle,position:{x:facade+direction*.36,y:floor+3.65,z:s.position.z},rotationY:direction*Math.PI/2,width:4.4,height:.7});
+    // Mount on the literal canopy front, clear of its silhouette and the
+    // doorway lintel. Doorway descriptors use local Y and world X/Z.
+    const canopy=buildBrDoorwayParts(s).filter(p=>p.face===s.entrance&&p.scale.z>=4.4)
+      .sort((a,b)=>direction*(b.position.x-a.position.x))[0]!;
+    signs.push({text,subtitle,position:{x:canopy.position.x+direction*(canopy.scale.x/2+.04),
+      y:floor+canopy.position.y,z:s.position.z},rotationY:direction*Math.PI/2,width:4.4,height:.7});
   }
   const batches=new Map<string,BrSouthExchangeDressing["batches"][number]>();
   for(const part of parts){

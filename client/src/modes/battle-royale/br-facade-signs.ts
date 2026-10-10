@@ -3,7 +3,8 @@ import { BR_SECONDARY_LOCATIONS, BR_STRUCTURES, type BrStructure, type Vec3 } fr
 export const BR_PRIMARY_FACADE_SIGN_TEXT: Readonly<Record<string, string>> = {
   "zero-spire": "ZERO POINT", "nova-cafe": "ORBITAL CAFE", "nova-arcade": "ARCADE", "nova-market": "MARKET",
   "dock-hangar": "DOCK 07", "helios-core": "HELIOS", "astra-hall": "ASTRA", "void-anchor": "VOID MALL",
-  "void-food-court": "FOOD COURT", "farm-processing": "GROW LAB", "crash-medbay": "MED BAY", "thruster-foundry": "THRUSTER WORKS"
+  "void-food-court": "FOOD COURT", "farm-processing": "GROW LAB", "crash-medbay": "MED BAY", "thruster-foundry": "THRUSTER WORKS",
+  "north-civic-archive": "CIVIC ARCHIVE", "north-civic-exchange": "ORBIT EXCHANGE"
 };
 
 /** Preserve the production naming contract; the eight newer secondary sites

@@ -1,0 +1,1505 @@
+{
+  "host": "DESKTOP-JL99F36",
+  "routing": [
+    {
+      "Path": "C:\\Users\\Chris\\Desktop\\planetfall\\.codex\\config.toml",
+      "Hash": "63CA220B73FDBDBC80F9A769DDF27C9D2EAC7C44970D40A06D7FAAECF58FAF1C"
+    },
+    {
+      "Path": "C:\\Users\\Chris\\Desktop\\planetfall\\.codex\\agents\\visuals.toml",
+      "Hash": "3D01DF49E08D502DC8EE63F299DF538E3B6DDEC1B25399D37AFF7CCFB777E728"
+    }
+  ],
+  "head": "d64d771ef62d519b8bd31324d6b1736c541ef761",
+  "sources": [
+    {
+      "path": "client/src/astronaut.ts",
+      "sha256": "255854a6a6224f30570ab0c3bab36a84a78b4a0869925c57d6065f5775a2b1ac"
+    },
+    {
+      "path": "client/src/audio.test.ts",
+      "sha256": "d4e326b90adbdccca27289b9513d3d8fd4fa46fc6fae687d2401d45ff553d6e5"
+    },
+    {
+      "path": "client/src/audio.ts",
+      "sha256": "8b2bd7950f25f6e781a30a53a893d6228288236d11c480c9b609a76d6393a181"
+    },
+    {
+      "path": "client/src/classic-spectator.test.ts",
+      "sha256": "41942f35cd90fdf2334f4cc6761046bc2151399b2e17b4802db23287031bbea6"
+    },
+    {
+      "path": "client/src/classic-spectator.ts",
+      "sha256": "d84a22069dd3a533a2ff3677066a6464148c1e8751d2185519b6df0e47550e05"
+    },
+    {
+      "path": "client/src/game.ts",
+      "sha256": "efdba1a96534fae32474dfff88f0e240de01cfba9a241354dbbcdd5fb8b59e17"
+    },
+    {
+      "path": "client/src/input.test.ts",
+      "sha256": "c721468389e9fbd8910b464450a6562928dfcd63200f830dd15b1d395229074e"
+    },
+    {
+      "path": "client/src/input.ts",
+      "sha256": "a337defd0a2a456d04b024a5b49de57c8bd95261fa9cd0578a27dce42abcb614"
+    },
+    {
+      "path": "client/src/main.ts",
+      "sha256": "13ae432ed9c972c200404c367c492e6c17e93d16794f4091fe073d35ce004cc2"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-academy-lower-frontage.test.ts",
+      "sha256": "f3e554bce3ea507483b8a670eb06529a32f9f7bc170234bf13e9847f4c0adf1b"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-academy-lower-frontage.ts",
+      "sha256": "dad7d882fa3b5a8f933024112dddface5c9d287f5b04b5bdc0f0cf6d307b7346"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-academy-streetscape.test.ts",
+      "sha256": "65cfbb67817baf9ffb6968ea8f9e085e8e12630b73e57abd57becb64efb229c4"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-academy-streetscape.ts",
+      "sha256": "20f83d8bca83cf38c45f29b623e646aa0ea43bc940bdf044e0def585012df37e"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-authored-district-props.test.ts",
+      "sha256": "d7252d0cde3175c4ee790e98cf281a84ec30eb3c2628497991d02b5977918668"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-authored-district-props.ts",
+      "sha256": "26750371e2d148fe9d2bdf735352544102bca15d530867d15c573113d3345c2a"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-authored-secondary-dressing.test.ts",
+      "sha256": "c20a46d22a3ca983f7bdaa88f3e72cab309339f589f0c3134fdb826898d4b4aa"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-authored-secondary-dressing.ts",
+      "sha256": "16e259d99bffc202436f191789b23873f7ed30ee927105ceb0c700a5c0a7d37b"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-authored-wall-finish.test.ts",
+      "sha256": "a43a3e251ab537f900c2f8ca7dc552b04095381529d9f7879f57182428e66837"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-authored-wall-finish.ts",
+      "sha256": "ac42671907b0f800ced11ac7026fd12a804ff3ffdfe9077595daad15ffd796f5"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-camera.test.ts",
+      "sha256": "916a17499e61399add6ef59ca768bd1cf6ab92c04fa0fe035ac43cdc02ca95e1"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-camera.ts",
+      "sha256": "e13160d8851f362c4bfc71a966825b9f11099327b3358ea42661a04dcd4e2d97"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-canopy-material.test.ts",
+      "sha256": "e377283006e281769872511a2ee7efb96e2f16965329d275c462cb28a74f0e82"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-canopy-material.ts",
+      "sha256": "8656a071e2631985b8b189d00d7edcdacc063067adf8b0e5950c2228bf7799f8"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-civic-frontage.test.ts",
+      "sha256": "ac37b2409aee6fae4abd9baab6bac3ca3baa16fdc124dbf2350fae9c277f0c90"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-civic-frontage.ts",
+      "sha256": "9f4391929e85af952e1176f70005d4cf216baae069da25e80cfd89ace1156f40"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-connective-clusters.test.ts",
+      "sha256": "69e0420404ed9f4612c0a7567db9faec2d58749ce60ecb9fd0e12c370cb013ac"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-connective-clusters.ts",
+      "sha256": "e30d0ea5a70604c1683464160aecafff34a66ab81df839477d7db6931d91d118"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-connective-greens.ts",
+      "sha256": "fa7202f5e83da6b3660e84a24446caae579f4ff44a9707da406fcc2f8dea1519"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-context-placements.test.ts",
+      "sha256": "0011d22dcb4838ee1a80c81e20756bbf407ab2d04a3ede6b39558466bac244b3"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-context-placements.ts",
+      "sha256": "014662d7266788cfe9c7d7bc64b9d827605ff3ff1247772e4b9b5a48b03b169e"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-coolant-frontage.test.ts",
+      "sha256": "7f403a5982e0ab2ab90123d940efb5e98926ce550149e29ad6f2c5aad388a835"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-coolant-frontage.ts",
+      "sha256": "230352eb682730d077458667a36b7c0b05517602a21315038597f0bd86597260"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-corridor-groves.test.ts",
+      "sha256": "83a390763cfa009705ec142a8e127068ac8ae16fafb4bc3836a13790577fbc4e"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-corridor-groves.ts",
+      "sha256": "ced1cab754e4db0ca342b9edd604763cac9a386a41d9417bdc40c4bf6708b459"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-damage-feedback.test.ts",
+      "sha256": "b452d7c4e3bc4bc511540d8904f5ac25599caa23da6015c652a7100fe53e6328"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-damage-feedback.ts",
+      "sha256": "d5bca4b2f1b47ee8eee4bc02ad277128af54aeba28eb013bf7381713290b1a28"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-damage-numbers.test.ts",
+      "sha256": "bc0ab5bf68bea86619aee3432a5951321d7cfa23ef4bc4450e7b85388e4c86e6"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-damage-numbers.ts",
+      "sha256": "b16989cf218e3125d67ee70d31ba04e8ef624b32f0db4da90823cfd9ef920aad"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-deck-transitions.test.ts",
+      "sha256": "91b3076ca8f5d7c2887ebf902f0ad5793c665a86484a2eea2337d7e30fb6f3eb"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-deck-transitions.ts",
+      "sha256": "48ca31959a7f459f52526c6ea6e18f12f279183194b15c317933186d836b82cc"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-district-dressing.test.ts",
+      "sha256": "a1114f78982248b7fe5cf2c6028eb23d550626f5c3d715347bd0e13cf6b85c6c"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-district-dressing.ts",
+      "sha256": "ecd88ab775c04906f292dad5c99d235402e2c557da640686f8371d0bbb97d436"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-district-palette.test.ts",
+      "sha256": "bcf8d882cf4d4545434110ffe25f5fca7c3ab25ca25af116ce19add75359d1fb"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-district-palette.ts",
+      "sha256": "b869c0660ced8f4619c81c8375bc5a6dc4187b964527994d713253f42794d8fd"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-east-rim-streetscape.test.ts",
+      "sha256": "b5983146862d452a3beb1ed8e5a2a4197ba9a67bd6eb2acbf16a325176221350"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-east-rim-streetscape.ts",
+      "sha256": "d594f3c1e78dddf7cb9843e8050374742065c18a38805701489fd42b1f127371"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-engine-gate-frontage.test.ts",
+      "sha256": "4acfd0eee3015cd8d4ded1d52325096e1332e60eab2dd5d822c4de6e3e5d4e70"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-engine-gate-frontage.ts",
+      "sha256": "7b32cd66a8f5b9f8577d69ddbb5c9b87774a373a2b6d090ea5235e78be5dda75"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-entrance-header-finish.test.ts",
+      "sha256": "7269ee1253dc03a1b0a72df058e917b1be0acea860397b4a603d2cb5978a3220"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-entrance-header-finish.ts",
+      "sha256": "475cea5503ee98e1b2f367194ac3b53ce59597af4ffce61a105b5e3e7de1f7fc"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-entrance-paving.test.ts",
+      "sha256": "533d8500c19088b31658415bc048528316590c07f393f4e30d781741cf0d233a"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-entrance-paving.ts",
+      "sha256": "f0e0b5c5a3ca882812e6c2087997e274ae16b176852d8245ac609960042b5070"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-environment-scale.test.ts",
+      "sha256": "f4c48ebf3248316b5ece98e65f5254bb66b132da4e9e931abffeab6928f5c645"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-environment-scale.ts",
+      "sha256": "fc16ef961fac8a9aeab7c2e032a025a1aeb4f289b8561d11478a948630dd62ab"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-facade-attachments.test.ts",
+      "sha256": "48c00cd81da63aa66ab3dd3277cf20f4f5cf7f102927785efa92b53921406308"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-facade-attachments.ts",
+      "sha256": "0b5b26c14780d0b9af22bd0ed1f559b1c32e416a58b13d114680909c17513a23"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-facade-intersections.test.ts",
+      "sha256": "076cc60d93e9de897c95ba115a67acf99907c0dcf5c4125a019d1f859b7d0b9d"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-facade-intersections.ts",
+      "sha256": "7c9ac017be99f322f920a88b239116704c6b212c175f1eaec18b0c1ef27c89dc"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-facade-leds.test.ts",
+      "sha256": "5057d9a9a3d0bcd30c81e86a9c1a07b1e68442c7d95e4377d475b7d30129e52c"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-facade-leds.ts",
+      "sha256": "2e37e162abbba95866e482b3d201ac6c1a5aabfa482c8cad7feeb4f2830ff3a1"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-facade-signs.test.ts",
+      "sha256": "99ca419f18ebbb8ac3ec4192eba1919dc676902c51af51e17e4e825aa3fa7407"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-facade-signs.ts",
+      "sha256": "5b43dfd552187e158d652fd51b552ad9f7ce6cf4edae63b41392fbf381871f27"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-facade-skin.ts",
+      "sha256": "593229b127844130836ae41082822ce99a2338a370d077866ced6b54f2fa153e"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-facades.test.ts",
+      "sha256": "0c11467b58beb1916f0e48285a39b6f83b4cbe02a2c99775ec7e3fa1d27929d7"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-facades.ts",
+      "sha256": "c1a245c060b0efdd9bb29e16d913dde114675b600064a8775cbb5903f13ef20e"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-feedback.test.ts",
+      "sha256": "329d66f54516c94ca5387eb2833ecad5232844ba7a2bc575e92ecd20c65914a6"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-feedback.ts",
+      "sha256": "923fac40892f28d36f3740ee15db91d3555b1efc62cd1628c215612fad7cca17"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-foundry.test.ts",
+      "sha256": "2102604e620502000b216be91f66c69c3cf20750fcc0d1eebfe25f7b2976e35d"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-foundry.ts",
+      "sha256": "76cc2aba651cfc931539214ddb03fea4a2fb78e25f61bd9d7572154c1bc0b14b"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-functional-interiors.test.ts",
+      "sha256": "b33737f6afb15172db5ce259e7a2346f15a424b6acc3ca513f6182a0bf552585"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-functional-interiors.ts",
+      "sha256": "5183ba2c0ad7ea6e242056279989ef7eb5a1b4208c9a9c230a9201754255a2e8"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-game.ts",
+      "sha256": "991237ef00ec38d8d524bc768202a05d4261cf893a83ac8f82665a364a5d0292"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-growhouse.test.ts",
+      "sha256": "8c1e85d7dc14dfef9d2f842ad6a8d16630fdd2e88aa705139eaf07b34bc17e58"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-growhouse.ts",
+      "sha256": "205a892b056ca92dcf468dce24072ba22a593823aed6771ca6b5fc1f9fa10c68"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-heal-models.test.ts",
+      "sha256": "1355de372677fdc43369710447aeb078678542c7eff0e93d8277acb44ce3420b"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-heal-models.ts",
+      "sha256": "9d87640b7f86f9b69266a8af1ad15925c4a4b242f648ec348da803696b5ed506"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-hover-skimmer.test.ts",
+      "sha256": "de8e59c534568649f1d3e49c6c772c442a6fdc99fe16cc29078b547bc365809f"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-hover-skimmer.ts",
+      "sha256": "e4ef30ba73aab8e404091e7800602d2beb97579ebe93a5d309c89e3a7eb0cfbb"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-industrial.test.ts",
+      "sha256": "50c531afc0dc43e88be2330a686af33323321b6d739d333f6a13b4553ea4f0eb"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-industrial.ts",
+      "sha256": "d8f504b4b98a09c6265e9165717261a2191e1d67b1fb521d11b2361f35e52321"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-input-latch.test.ts",
+      "sha256": "99b8684e88dfa28205c55bd5871b1f8bee5decd9bd8713d4390d066962a31418"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-input-latch.ts",
+      "sha256": "6c43da9156a014411c289eeb4a2d1f0afcddcde007d99adce6cbd22080ef0ff3"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-interaction-presentation.test.ts",
+      "sha256": "393a6c54b9175882b12107217cbc781d94c1f69f3cd0de8b5a6ebd2dd116ad0d"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-interaction-presentation.ts",
+      "sha256": "770f7ba8d0d1560c43b0ef1293fa3ae22a83f736b96e45b96a7191f471c28ef3"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-interior-surfaces.test.ts",
+      "sha256": "b2f436ba2fcae5d73b40d5962d45ea1d557decdd647f11669566961f9b001818"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-interior-surfaces.ts",
+      "sha256": "94713bdc93ad9e0f78cdc9166e293f0c408923c5f555d408abdf31f5838640c9"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-inventory-selection.test.ts",
+      "sha256": "2b1faf51299428970a0702ca98ec6f8bd8a062e11a2030f8d6ef215f00aae0e3"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-inventory-selection.ts",
+      "sha256": "d077df6bea3db57e5a74b0f1689ef8a188d4f4e5d4d52c26b5e4bdaf839a4fa8"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-ion-wings.test.ts",
+      "sha256": "e8cf7d8ba2f1c4d7a3c02d5f3cc63b1972009e851d8b47f9f9930a092d31bef1"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-ion-wings.ts",
+      "sha256": "f50133663f1280b9207e79514791e8ca815e5484e01c33d78f364cc275720cfb"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-island-deck.test.ts",
+      "sha256": "a27d4d39560624304ffac8bcb83699992fd1f3982440fa5a5504eb785e994cbf"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-island-deck.ts",
+      "sha256": "88e8c81c2ff5b524dbdebc49086e183b473541384c4b9edf08e1aa5aff4410af"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-item-art.test.ts",
+      "sha256": "92ed264c6dbdcf351bef1a753b016ab518d1b92239538b1ff3d615a6213d6007"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-item-art.ts",
+      "sha256": "6acb6daf214e4a78ed065848321eff08863da2b9614301c92eb401470a74393f"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-item-presentation.test.ts",
+      "sha256": "ff45c5e1f5d5a231051bf0d0402f14f0a7800ed3baaeab542d7e7df8056cc676"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-item-presentation.ts",
+      "sha256": "22c4c3b86722bc050e5beb3d3e3abe42bdcb24ca2c893ff6407670528ebf5bbd"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-landing-zone-markings.test.ts",
+      "sha256": "5055855b1fa1dac02d1341823c03878ab90156dd73c6e0da3061d56591f40e13"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-landing-zone-markings.ts",
+      "sha256": "883f9e23963e480d0bbf468b3beaf72927d992dc45b7d512cd839773f93faa06"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-lit-glazing.test.ts",
+      "sha256": "174246b9eec0c8f4a0a8281d69b88641f4cd23cf8c1944efb372c68ed0a6a172"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-lit-glazing.ts",
+      "sha256": "76109581310aa605a262b8cb09affc6f1385480fd0933fd41121cc085ebff875"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-loot-grounding.test.ts",
+      "sha256": "8470961fd4ff0b5c37842f3a9e022bf0fde67dfff737c3a03a1abf1dd5512cd0"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-loot-lod.test.ts",
+      "sha256": "84a579dcc875f47f48daf5f3a61ff8e895520f583dc9473221a90e85113365d2"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-loot-lod.ts",
+      "sha256": "1a24150207bda57c30507a5ae6456577e7b796f7b0e83b97072f03c9f17d0cf8"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-loot-rarity.test.ts",
+      "sha256": "eb0c13555a49893035a2b3b69f416ec895d4382960ac059fb61e148cbfd99636"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-loot-rarity.ts",
+      "sha256": "bafb46e972db40033e9c278a5aa1d4b5a243e7159c099cfb24b8d73b750ba749"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-machinery.test.ts",
+      "sha256": "91e533e259e8872cc8521a0ca3f2a13481cd607dc50e90b6b017b77d4fe2cc77"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-machinery.ts",
+      "sha256": "980d19ac0492e05d9da4b451b3128d362d7e682fb478840325ec38a5430172f2"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-maintenance-strips.test.ts",
+      "sha256": "652dcc8d3f1f5d2cae1e37834b11c92f8a08d3ee55d1e04e93d390b05ef60e63"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-maintenance-strips.ts",
+      "sha256": "8c61d938d59c6e1f8e375fe9c2f86d85ba98e319654597312eb1b54a9a17c2b1"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-mall-atrium-walls.test.ts",
+      "sha256": "ed131e04d2b81a8ce821dee47491637ad2e8a243dc26914a4e601816c28c1acb"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-mall-atrium-walls.ts",
+      "sha256": "feadbe4c5fc135b7a124dfa14a2a95ad9a3aa057cd3169b0951bf3e6b9aca485"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-mall-ceiling-edges.test.ts",
+      "sha256": "84fa05f355b6c18b0a7ba8e8f54cd521a9a4bb58133d839f90c92ddb2c526bcf"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-mall-ceiling-edges.ts",
+      "sha256": "b11d37048a758ddccacb5031e759cfb2b72a455d9c6520985d498b34b313bf90"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-mall-directories.test.ts",
+      "sha256": "ba83f4ddbe171321142480e47b2f1352e229dd22ce34259646cd9ceb61e67495"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-mall-directories.ts",
+      "sha256": "72c4159b00666fcb07c9e79b6262447201099f7945bfcb1389b63da0da4a30dd"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-mall-ramp-skins.test.ts",
+      "sha256": "5eca52516f4b49c0340e5f452b5dfa0c4f52a5b5d3597702938b875b6b9781bd"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-mall-ramp-skins.ts",
+      "sha256": "f91fa2550eb4185ce0869666a236b6bac9e26c48703e90ca5b4d9e72e534d322"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-mall-wall-bays.test.ts",
+      "sha256": "b73d5423b5b84b66a4fdc16fff10e7d4125cbc4776a0529ee363e3547cb4c24f"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-mall-wall-bays.ts",
+      "sha256": "5a8e2da9b5d04ac8decc70d88a9144610da809a4388a50308611360103d1b85a"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-map-art.test.ts",
+      "sha256": "e91f802b1f6a9cd508f0e445fa8e141ea9faef85d92e7f2a117ae6d9ca54fac1"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-map-art.ts",
+      "sha256": "94eb5e67dc95d777fd56ba34ef655cd439099d78b56bbe3bdbf5da955c1b2ad1"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-materials.ts",
+      "sha256": "a63d55571f8a302789f1efa9fe96a7cf484d434d7274ee767685553ed1ab87a4"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-neon.ts",
+      "sha256": "abb163893220d786d1f1e5a749f0b298fe50d72cbe052fc037dd79d3b22ea8a3"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-nexus-crown.test.ts",
+      "sha256": "8a202b7ae95ad36e7670c12f897a873a3e48ef18a0afca5b192b1f59b3d39002"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-nexus-crown.ts",
+      "sha256": "86962add0c210f468570b4682e3aba5ad6f7f9855ad7f6d758ba9653d5961da0"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-nexus-plaza.test.ts",
+      "sha256": "ef285d772c8df6f32e8737b29bec949d238842d53663d154a0b6130195eefaab"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-nexus-plaza.ts",
+      "sha256": "4eae40a40a3a92f136d7808f926d1f5136e5164b6b4a1f34a68b9bf6ed476cba"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-north-civic-frontage.test.ts",
+      "sha256": "3a745b3ad9a29794bdefd98f11dfb901966b092b5fbff5cda99c4a8443e0375d"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-north-civic-frontage.ts",
+      "sha256": "1d923a346d315a3c0aa1e9cbc461e3fc93da6560f6d6ca4e6bdf78952d30e9a0"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-north-civic-identity.test.ts",
+      "sha256": "bce75817fb5b068d5756001dec08e0af8773ef7301bbed653a426241db7ddaeb"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-north-civic-identity.ts",
+      "sha256": "986804332f5c9af2f72b01ace4e5d70265e0fa705de4f71e0ed49c70e83e29b3"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-nova-landing.test.ts",
+      "sha256": "c8fa509b8f7b4ba3469182583f17daec69cd4971ea97a2e49cb643c1edec392d"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-nova-landing.ts",
+      "sha256": "c72545d3972e8a78961bff80290d1eabde21a7f576ee83986006e1bb10c4cf4e"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-nova-streetscape.test.ts",
+      "sha256": "1b8f3b2c271392eed1d379b74d3ff0f527aabac6d408158fa4e644cc361893d9"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-nova-streetscape.ts",
+      "sha256": "aaf1f33bcd52aba571c4f7d47b7f20322be1f75406cbc6bf89ad9528a283e988"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-optimistic-selection.test.ts",
+      "sha256": "fee3954faac3785a11dea047aa56d3646c6034e7ae4724661bcd7fb213bf05ec"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-optimistic-selection.ts",
+      "sha256": "5c238410abcd233c3efe234dc2b4a9a91e301a6bc7cfbc750608c32916eb7331"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-park-dressing.test.ts",
+      "sha256": "c06a332c0456707a2a58d69e41f935a4d64192edb08d8d5712f21267d4d44afb"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-park-dressing.ts",
+      "sha256": "3d0523c62c142d3010efa133432b09c67931f86fc0bd51b8a96dc5274bb7d7f4"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-perimeter-armor.test.ts",
+      "sha256": "ed97ef8a9be2bb20f5b4b24b60cc6df9ca4f9ad05ed55d0163bba3b15f3798a1"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-perimeter-armor.ts",
+      "sha256": "3654c429d060a07b8c2a08fb33254088fdb1decf848f8f2dacf5dd0cf3389d5a"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-physics.test.ts",
+      "sha256": "ee959b74b1653551afb27756920e4d51fcfa2301e7b0ed8fc9c9213e81b9420f"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-physics.ts",
+      "sha256": "beeedf6ad9bd1701e60f663938d15d97c3183d4f8c344ee8bc22d957b0ece4e1"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-player-lod.test.ts",
+      "sha256": "723b22d20a24e0a4716afd00729f6a117d08bbf520effb61df84b6a13cd671d4"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-player-lod.ts",
+      "sha256": "86380cd605684cf1b131ccd92fa9ecb1510ab96c08baf00d7d000a21edf3e333"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-plaza-finish.test.ts",
+      "sha256": "97cb148eb0352bdb3cabdf93844d49cbbe87dc7e3bbbab817ab6c1a26409c4fb"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-plaza-finish.ts",
+      "sha256": "11baac5e4115930d67fb1c7768f0c08bcfbd9d9dfeaf3133ef2fee18d6527cea"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-poi-label-layout.test.ts",
+      "sha256": "841038a07460e789aa3a030b9f29dd2c85a273967f4a076a760ef6dc370380f7"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-poi-label-layout.ts",
+      "sha256": "ceb86852670e6802fe003df470a7d9a9842f675a018dab3d130fd12fdfc550a9"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-poi-label-presentation.test.ts",
+      "sha256": "9480981e9553ac2b55b99f441a2724118daabf08b0266bca82bac2a0f40a2ed5"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-poi-label-presentation.ts",
+      "sha256": "83a06ae8cd2b16356818c5d677d0522ab105d4774d663a0b035947b579f5aa11"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-presentation-clearance-test-utils.test.ts",
+      "sha256": "62d84a72925c074da3e1e36bb58b47fd67c0a1ce253779cd81e7c5956891932f"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-presentation-clearance-test-utils.ts",
+      "sha256": "6c67c6bc2ab73329ed1e2ce71f917f5340968b1a8592b3396d0b2b8adf728350"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-presentation.test.ts",
+      "sha256": "29ad1ed84f413db7ec4b465918ab3e403c263874c11c6b999adb455dcf0f8ae1"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-presentation.ts",
+      "sha256": "c0c401cf8f85dfd8bb1b3a15885863650a71ae204658f019d26ee12923739a90"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-raised-deck-details.test.ts",
+      "sha256": "0bd6a353cc4033acd3f98b215880ab49c6220454332a5695c2450bf9fae51379"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-raised-deck-details.ts",
+      "sha256": "4c32e72d85f9f72ab04a46aeb26e2e1e9cdd411a78d983eeb323e717c6fd17aa"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-reactor-floor.test.ts",
+      "sha256": "1aea02b58a5e5e20240eaeb80cc4a2f4e44a0d89722a92693b3fb151b2cf5ff1"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-reactor-floor.ts",
+      "sha256": "179a9190f98db1359f535bf3c170f467a2bf439e790effe9fd0d07f9a8999d9d"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-reactor-interior.test.ts",
+      "sha256": "9ad0f0bd3cb839731be27758c8b545c745e355a2c6f455e37112f13301077fe6"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-reactor-interior.ts",
+      "sha256": "3c82b9adf116b86233cc00f69de3cd99e8d8d8c7d963bb0f8fad839f39c64a6c"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-render-cadence.test.ts",
+      "sha256": "7777a0cc57c5198bbace04cc743f7ec8431f76d0e274e026eb4cfd4e16f9e5d4"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-render-cadence.ts",
+      "sha256": "fe68ec68611eaa007d627d699803a3e8e0e8dfbcaaecc6e999be80d722b9b946"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-residential-interiors.test.ts",
+      "sha256": "a89400d951cae3d5628d1d2c616862e44622bf239e559ba084baa3b256724973"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-residential-interiors.ts",
+      "sha256": "4964c550feb35b2dfe9b868c17259431a72137c809c2b6e5e4caac2b4334a528"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-retail-interiors.test.ts",
+      "sha256": "9fa84e714449019cf5db06cbe2dd9eb078e5473b76a0cdb70cf28d297122a9d2"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-retail-interiors.ts",
+      "sha256": "483bb2d0b108f99f7daa49668ac4432ab215646ffc21335c28a170745045f742"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-review-cameras.test.ts",
+      "sha256": "fab12b013c4d08fb36ba830a623828aadedbef7a0dfa494861d86d23d4724f24"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-review-cameras.ts",
+      "sha256": "5b73a801d8986f30cc0f345466c3860e875bb22a0677e7825da94bc5169bf6f9"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-review.ts",
+      "sha256": "9e561618f1ffeec972b6ce0e699887f5981a9f3bace3440d9ae789ea6910a455"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-revive-input.test.ts",
+      "sha256": "789909afebb7311f9c95f643a1d26cb2de0ee68d7f82b3c0e5c8482274549ed1"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-revive-input.ts",
+      "sha256": "152cd3d19f105ae05ac2b8732c3e2cb205740b737e3694660ab26cf506444646"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-road-bends.test.ts",
+      "sha256": "b50c343d1b227be1466bf4f62e35aebd0d5d6b8843435895f4715a6bbde6f14b"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-road-bends.ts",
+      "sha256": "49f02a59f266895ee4ca62c938fe8a3cc61dff5de7adc0749e76f7f1dd3f947c"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-road-detail.test.ts",
+      "sha256": "a2b5c5cd105392fc3875de0ad47bde6fb00d283f86b5cf0bd235263b832f79ca"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-road-detail.ts",
+      "sha256": "61ef6297fa3a2642063d7cc940ae181ef9f5486f0e305637daa621ffe87ac47c"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-road-grade-details.test.ts",
+      "sha256": "50c005ba3c189b7c5b51b7a04dcc88bb8959542534f600146f716db219caa75a"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-road-grade-details.ts",
+      "sha256": "6b7100cd668d749e5e410705622d5ef919d383e5e581e5745764a04535ee9beb"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-road-markings.test.ts",
+      "sha256": "2c0de102900c6399de7ac8ab5fa4217dac63963f14e1127de213212ed8eaaef7"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-road-markings.ts",
+      "sha256": "c8109cd29df404b8551bab6fe3e34a61d6397632eb704808a993d4caa1eb24e5"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-road-surfaces.test.ts",
+      "sha256": "68e79a0129da6f259b8bbdd17463273e1f3fdc75cde9339a7b56da584b9d02d7"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-road-surfaces.ts",
+      "sha256": "804fda855dd712228cfe177fcbcaa68301c588e5427a525c59e05bb8d852cd68"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-roadside-infrastructure.test.ts",
+      "sha256": "3e98760a90749ad4fc0c739ffd769d202107f825a78c7cce81de5785240a0ba1"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-roadside-infrastructure.ts",
+      "sha256": "91a30cfdf658db96f8608cf05b3fc2f90265a574193325f4215f4cc2af0a8f40"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-rooftop-details.test.ts",
+      "sha256": "227f2a901a682349fae530230238da93be7a927d5f407cc1b3bb353b00d42ab4"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-rooftop-details.ts",
+      "sha256": "632127203f80806e3a4dd06a2ac986b3aa9aa4204b0826f613beb2cc18dcff79"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-secondary-decks.test.ts",
+      "sha256": "63c232304610738dc6a8f0f54169f2e349da0fffe692d12d541e974c6ea8345e"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-secondary-decks.ts",
+      "sha256": "cc80e2cc20d2422f103b607a758e15fec8db32af45f351a49558cf493eb24df4"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-sector-fields.test.ts",
+      "sha256": "7cc3f9e17acfcc55ce4e6f1a6af5420587dabaed62b8cd1add8b895beb7b10e0"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-sector-fields.ts",
+      "sha256": "da38f21a5c7af91a714bb0ed5ff10f9e24b3a366df5200a711f22da0e96e867e"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-shipworks-streetscape.test.ts",
+      "sha256": "c5ff696318577b06ab8d5f941b4df1354f5d96d432455f863c6bdebed7efa518"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-shipworks-streetscape.ts",
+      "sha256": "f1b23f9feb367cf1c61658936d6c0032cd335b4518f836cecd6a85abfa6475ff"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-shot-effects.test.ts",
+      "sha256": "6a5f292636c4b8b373c74c4828eabc8a672b0f7bdbcf067afc90e5ee66ab0515"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-shot-effects.ts",
+      "sha256": "e990089b82a259d4b0df96b0400aba23a8d6b6eb0405fd607e614893f8370fa4"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-solar-service-frontage.test.ts",
+      "sha256": "667130106275ff66ab780e67a0407b2132a59904f5bc46265b86867da2e98ada"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-solar-service-frontage.ts",
+      "sha256": "27b0e178821e630a9ea9acb12d1a18fcc4fbe5e359f207f2645cdb05f24c6903"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-south-exchange.test.ts",
+      "sha256": "ffcabf385ffbd6f0cf510e39fe4576fa566d537f36c818e6c41715325560f286"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-south-exchange.ts",
+      "sha256": "f3c6c46fe2428991776a5d82ad24f9d004e73c44d984804dc7c896880856f8ff"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-south-shipworks-dressing.test.ts",
+      "sha256": "fa2979bddb3ee41ce76db172a8fd7514811136ba191e9d2430f25a2c8947542e"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-south-shipworks-dressing.ts",
+      "sha256": "26d697a6c556cfbbf7f312653627d8858242c8e52feea584beb07d5241e56abc"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-south-terminal-dressing.test.ts",
+      "sha256": "16bade48e857b04263bd64f5e32c685cf13f44492e355d75c261b641d264db17"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-south-terminal-dressing.ts",
+      "sha256": "e08914ffb0c9fa5918d63458b6959df1cea1fac038ae77f3e25ddc09963f442f"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-starliner-hull.test.ts",
+      "sha256": "ec1f1d091fcc23d3d4a831c46dd81380d0241852b5d86f26b8dfa34c2102aa95"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-starliner-hull.ts",
+      "sha256": "99f8ffc1576d786a526b46c92ae0bc33582a4e6be8f68b6794486dc7e1204ff0"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-starliner-visibility.test.ts",
+      "sha256": "1cdaf4fa179a9d05c460206870fcfe7567f6bb3ad3a766d60306b08e15ce145a"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-starliner-visibility.ts",
+      "sha256": "e39b5129ab59b6ad28a518474c28c2b7d12ac2a2bb29c586ee17de9fb573361c"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-storefronts.test.ts",
+      "sha256": "4686b3b96d21bfdb33fd40a5fbb4c2dc504290ca1549199cccfa6296789913d5"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-storefronts.ts",
+      "sha256": "843561a799c319e2cd75c87528a730cb1f71b3a8ee1292df1e2b447c34d5e0c6"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-storm-render.test.ts",
+      "sha256": "a021607b7283ef86aeaed1e2d35ec23b2ee1a68505a31c728f904849ff7822f4"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-storm-shape.test.ts",
+      "sha256": "c60930d4e9d14818db2b33a3f3093e7f75894bdf664ee9480b11dc81dc5ab2c6"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-storm-shape.ts",
+      "sha256": "aed83b9eb74866cd60178f9ecf4a20ffaae14dc874cfb7f7b5d099eca6434403"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-storm-texture.test.ts",
+      "sha256": "4c3dfbc8678d404127fc15eb95df052a2bb6fd86c9ae394601709c59894e1a5a"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-storm-texture.ts",
+      "sha256": "31862753793056eada8204c553d29fb67d4920036f698df2261c6274a2609484"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-tactical-map.test.ts",
+      "sha256": "e3690aa35b2a03318ef64ba7bcd48727c3a9defed0491dd8721874b265344b63"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-tactical-map.ts",
+      "sha256": "ef7ab3e11d527b06af135a4d408e8fae2a286f8e00cfb7ca57b3b425f732e521"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-team-presentation.test.ts",
+      "sha256": "f8258dcfcb93e27175c3869e1a92dfc20aea071405acb417d16a0e0433c5d2cb"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-team-presentation.ts",
+      "sha256": "5f884c58766369c18aca6d4e41489e613babd0f5d5d572ab10d7431d201ab2a9"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-terrace-details.test.ts",
+      "sha256": "d3d50f265a9a3a2c9603e189f7843cf2d85e2d377a107e96292e39d53b9f1b9a"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-terrace-details.ts",
+      "sha256": "7fdf9a9ba878ef7082a773d0ae21ea55bd141c870879b3f779e0c4e36d290f74"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-terrain-surfaces.test.ts",
+      "sha256": "3326bd9789754c37d1aa9941fdb21302666884b7283b2199705b331ca7541b44"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-terrain-surfaces.ts",
+      "sha256": "1f9414ecd834b83d8a4700c8ba9557c890168ce19ab399df89d8458bab9f619f"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-transfer-bridge-dressing.test.ts",
+      "sha256": "2bbc773e78ced36f8e54d5bb3b624b8e5c02bfb60f63093169ebe9d216dd9415"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-transfer-bridge-dressing.ts",
+      "sha256": "760af615b6f832ea94bd752279ceafa91828f1bbe150aa9963d74845242ecb9b"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-transfer-yard.test.ts",
+      "sha256": "a148f6193833ad598ab5a40e40caacc5a8d529dcdacc3125c6362c09d12846aa"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-transfer-yard.ts",
+      "sha256": "bba83984fccf4f41a504f96eee0251a310329f93cca0115380b6eda19182a076"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-transit-court.test.ts",
+      "sha256": "874d4fb5900cfe6794bffe687ce9ec9ab354ef1025098c419eadd6141cb6d7ff"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-transit-court.ts",
+      "sha256": "271f2b3686299fc116888544498b07f5d10553b3bcc9c88e8ef7bf4175f2c2e7"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-weapons.test.ts",
+      "sha256": "aa497c7e66cf76e2ca00250cf5442fb8f0e74efc2c8441c407c7d617f07cf271"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-weapons.ts",
+      "sha256": "f819e8dc1f737c8d76372a764bcd4344447853b8a901a8cf07bd564d8d40002d"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-west-junction.test.ts",
+      "sha256": "17766f94359d0c6f04c2c66663b2354e7a3a08ea7615afaaf9ab0522e30ad0d0"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-west-junction.ts",
+      "sha256": "beb85beef0aa1211af92a8e830cc451395ef80ca7260eb5e4938053bc165849d"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-world-lifecycle.test.ts",
+      "sha256": "e531a8605045ddcfa63cf1fcece053d776ece062c650f51b28f0ce16670a298b"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-world.ts",
+      "sha256": "b0f3dc2538b0e89f21f05f544f0f57a35b8b1e18b3ad284bd5c9a007ee39183c"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-wreck-engines.test.ts",
+      "sha256": "017b5261fefa4aef7ebcba8559b17c9230a7bb291052c2bd55bcfa11ee4e80b2"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-wreck-engines.ts",
+      "sha256": "1e6f1021610aec30483bbde2ad972743d9853a1ffc430c1ab0f80e8dc250e16d"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-wreck-exterior.test.ts",
+      "sha256": "fe6e790794f4a97f5d962635e2f9d28c09fa87f0f2c923f44cb5047998adde0a"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-wreck-exterior.ts",
+      "sha256": "ba2b51ee8c6a6f63c8d75e5ffc65f8fdd22f82617cd861f39af9ea70825e7b61"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-wreck.test.ts",
+      "sha256": "d34342410d2e872d51aa19cbd57d54e44442f4ceeaabd34f6a8150145f2907c2"
+    },
+    {
+      "path": "client/src/modes/battle-royale/br-wreck.ts",
+      "sha256": "db78f67bd1cb3aa763ac050cf484aa60aff2d9d4ed277cccd258fab85512a6d9"
+    },
+    {
+      "path": "client/src/network-simulation.test.ts",
+      "sha256": "b31bb5f2b666998e22d21a2ae1ee13065f29dd47de9fdb95f1d2dd36f79edcf4"
+    },
+    {
+      "path": "client/src/network.ts",
+      "sha256": "ee8fca8e5d0b35d8324c51c2a69941060c1d1c6c3e5c349c726d301a4001319f"
+    },
+    {
+      "path": "client/src/planet-cosmetics.test.ts",
+      "sha256": "a779cda43870d8a2d5666468563366216c271b10d9fc52ca0407570423a17185"
+    },
+    {
+      "path": "client/src/planet-cosmetics.ts",
+      "sha256": "0b83f168abc78308a34aa75c78eeee295a0b034a4675c741ff6c67465cf10598"
+    },
+    {
+      "path": "client/src/reconciliation.test.ts",
+      "sha256": "8d5e5bc8a45d687eb0b7df758b72ace66c363cc6db0a3c5cb42f303cb1dd1b71"
+    },
+    {
+      "path": "client/src/reconciliation.ts",
+      "sha256": "22f02f9d65175dbc95bb4a43a8584d48da12842043711aa5dab596439c71d2ac"
+    },
+    {
+      "path": "client/src/renderer-mode-ownership.test.ts",
+      "sha256": "e427967f99ada6139341039f460c9d26367587714c4d31286b051d4988784de9"
+    },
+    {
+      "path": "client/src/settings.test.ts",
+      "sha256": "fef1e6d897e86e56fe72514172a6343dade2f5a7d73dd3b64d60bb2187533db0"
+    },
+    {
+      "path": "client/src/settings.ts",
+      "sha256": "c752535d2095d74b4202e26a2f912dbe0375b236b8f5fd3615678f2112d9ccf6"
+    },
+    {
+      "path": "client/src/shop-cosmetic-preview.test.ts",
+      "sha256": "8099c80c63845a5101e7de454e06af75fd036bc5d53653942f84f9d7af112a4b"
+    },
+    {
+      "path": "client/src/shop-cosmetic-preview.ts",
+      "sha256": "090df6a8493015fae9446d3de8b46a8465a1ae09f7eaa357d286c08f1c42a5fa"
+    },
+    {
+      "path": "client/src/shop-presentation.test.ts",
+      "sha256": "23b21524c234ac9694930fb13b16ea1db1e7c2889d076386ef88c86ede3095f2"
+    },
+    {
+      "path": "client/src/style.css",
+      "sha256": "6baaa5d544ec32420f5d59d45c229d7965872751f48314f8b4abeb082e868195"
+    },
+    {
+      "path": "client/src/ui-notification-layout.test.ts",
+      "sha256": "68398d92d2b7dd92b8f235abf53bda3f59e5bc9acffa647e438440ef5e272d53"
+    },
+    {
+      "path": "e2e/multiplayer.spec.ts",
+      "sha256": "33fc46b94bf1946cb466a211e00f90f55e2fad6bb5c9c5e96966a59cd3074971"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "b712ffa920eb2158f6fae1544228e9641df7846aa0e1e5881436a9f0a34ecaf5"
+    },
+    {
+      "path": "package.json",
+      "sha256": "ba6315df7038aef2e6a1f7f5fb3168a821c773b45310aaceec2fbdf083ecebd8"
+    },
+    {
+      "path": "playwright.config.js",
+      "sha256": "ada1e131831e0cfa812be43436ae22e882bee4323e246e774777ef3731cfd5b0"
+    },
+    {
+      "path": "server/src/app.test.ts",
+      "sha256": "9d0b714828a0c4d33863c2628a753cb9e7d99b64f67d6e26aef7d72aa8a817ed"
+    },
+    {
+      "path": "server/src/app.ts",
+      "sha256": "caadcaf960f732bcc108d3b5378d73d2218f156b134cbf4be3c8a0da5dc32bdf"
+    },
+    {
+      "path": "server/src/bot.test.ts",
+      "sha256": "a31633e057f24f588a9438ff8aeee76de8909c4efd26bdc5f909c65a089bf2a9"
+    },
+    {
+      "path": "server/src/bot.ts",
+      "sha256": "3b30b585c363584a5b30c7e16e4360f50220490d7a55514e4a2462c68d289e74"
+    },
+    {
+      "path": "server/src/game-room.ts",
+      "sha256": "bc1f92058e259755ead8da229ef5172bdbc5dc0a370722577294c1c495ad700a"
+    },
+    {
+      "path": "server/src/hardening.test.ts",
+      "sha256": "d02e768e4d1c0e54351cf87c890e399b34056aa16f17a7f155fad8b658fea727"
+    },
+    {
+      "path": "server/src/index.ts",
+      "sha256": "be755924ac01c946259e7c665e46fe0af9d74ceb15e3f48c80a9b9b74fcfda54"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-academy-frontage.test.ts",
+      "sha256": "1091a12a83052da294d3cd3566e21dab495bc01f9a0468a4c7668400c4fcdb04"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-central-traversal.test.ts",
+      "sha256": "e01818b7ccc8912eca8a6f2edcd89da73a4ac9342a41f4825116f6840ddfd0e9"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-civic-frontage.test.ts",
+      "sha256": "baccec48a3f4c277197c094d4acb523a5dece9836a39094c7d39ffcec9fe923d"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-civic-identity-support.test.ts",
+      "sha256": "5c9ac19fe0e48ea8c585a59d0ddcbe503a59290520f925da2deeb4db5223dd92"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-coolant-frontage.test.ts",
+      "sha256": "3ff4620aa17b77c260bd36d4b173d3e646ba437afbe654c28127285c150ba968"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-crate-placement.test.ts",
+      "sha256": "19684eb5336b5aacaf443cb74478b053b4f0ea2cca651fc6f73f0c6a1b573200"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-engine-gate-approach.test.ts",
+      "sha256": "6ce4204c5cb961de19cf77af194669702ef9d105428c6c5e56e5761d3c902bed"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-entrance-headers.test.ts",
+      "sha256": "f87677bdd5447251d6555012fc15025abbc9ecebeedce166c6f94a3d73635ea9"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-floor-surface.test.ts",
+      "sha256": "d090572716ef47821d2195950244543a451e398bbb4d50f8e012d2f9b89b25c4"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-greenway-supports.test.ts",
+      "sha256": "2e74581125e15ea5a06c2a893178e82911db9ba3c7a885b240eb9bb8be8615cd"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-horizon-traversal.test.ts",
+      "sha256": "690615cdbc4b5823b682b0fcd850da27519990202d899d33da77478aa8ff9129"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-hotel-frontage.test.ts",
+      "sha256": "d8c5da8f7b244595d6a951d218ff3452bd75cc1984ffca699897a1b2b7359d2f"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-interior-circulation.test.ts",
+      "sha256": "534166a5477775337efdff28d157baa2931c141c50b7b98d651c6f6593e52e02"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-loot-generation.test.ts",
+      "sha256": "4f062f4ee7546f11957780299dc7cd6a921540e84d5707c57a9215ce23fc917e"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-loot-generation.ts",
+      "sha256": "ef6ab4d1b94c76ea9260be979e562f0f47455530131df5b4dd543725339ff885"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-loot-placement.test.ts",
+      "sha256": "b29933078dcd51709cd8d3da07660477712a22a47fad90e68bb72269c5c73973"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-loot-placement.ts",
+      "sha256": "993bac5b1c1edb301ca313cedb9dbdb966e6955409e8735a5c1a20c32accfe26"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-network.test.ts",
+      "sha256": "e5a00b29bbc67feaed3579c7b86191c5310be82cf1e16f720bf3ab583e841ed4"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-north-civic.test.ts",
+      "sha256": "2d73955ecc407d058868cbe634d19f6fe6b2a6d54b7645af7ccf647debc16b15"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-nova-landing.test.ts",
+      "sha256": "4c16edcd9198982ad4a859680ac314d3b9925ef57e8d30607bd2f74376aa6984"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-nova-parcels.test.ts",
+      "sha256": "be6bfbcc9843042b9b478e05e22258530fb2608122badfe4c7cb35b6245137f7"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-performance.test.ts",
+      "sha256": "af0074b4fbdcfc32767ea0f442ed0df006664d35f3a1f9b3bc3af4e8d8418a99"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-physics.test.ts",
+      "sha256": "6a06b84ca6591c2e253ec260d5529205e5c8201c7b0cc8be34401e36a39bee49"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-physics.ts",
+      "sha256": "ececb4d0db39b56397c4c89961c87ef8e1e258f89013781a3e7361fa020f9ce2"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-road-presentation-support.test.ts",
+      "sha256": "c713be1e34c94332db622ddb20b10efd0c0d22de591eb89c7c3ef2255b1b8a1e"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-room.test.ts",
+      "sha256": "b44d2d289ba0e6bcc9363321bdea0c762a052d948e7dfdd10620838cbc98ad5a"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-room.ts",
+      "sha256": "f7809bfee15fdd07eaaf4853d76973dcc33559109f48dcbd07e8b597a84cc280"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-scale.test.ts",
+      "sha256": "ddf7b24356b9ed4a9b1b0a2e00fe08936ac65302fdb8c87dacef563fa8f6c80f"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-security-traversal.test.ts",
+      "sha256": "308082675539c371342f892db3f42f6300bf64cfa11a0f2d4739d37e70436e82"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-solar-service.test.ts",
+      "sha256": "af23814fc3df1c08a3d832b312d20b99a1133d90e185e0ed757e1796720bb3b4"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-south-ring-frontage.test.ts",
+      "sha256": "d23d7df05dbbd654a2658577eda8bbcba7c91c8012a4165575f43dda34c0ddab"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-transfer-traversal.test.ts",
+      "sha256": "f6055cdfa0c546fdb3b2b82d3ae7ff02e4208ef22fb6eaf8b6bb1dd66865d405"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-transfer-yard.test.ts",
+      "sha256": "009ca486cd585815b3c920fb075445c4028afde09e1fcb94f0ad7519ec4606fb"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-west-junction.test.ts",
+      "sha256": "73f062f96feb12fcdb6ea662bd119ae8e12d7df1b76428b2c7b52ed122de5132"
+    },
+    {
+      "path": "server/src/modes/battle-royale/br-west-overlook-frontage.test.ts",
+      "sha256": "3137e59166f1fee131f544318df7e37ff79279556a2ac898dd167cd3e48f9257"
+    },
+    {
+      "path": "server/src/modes/battle-royale/spatial-grid.test.ts",
+      "sha256": "fc8921191841160d4ffc964d2a8bebcd1f1caa8eed139cbb7e6698eb71ae7bc0"
+    },
+    {
+      "path": "server/src/modes/battle-royale/spatial-grid.ts",
+      "sha256": "29d2737b660c26a076851fe294864d6ea62d107ba263a234e9a7259ddc1428c8"
+    },
+    {
+      "path": "server/src/raid.test.ts",
+      "sha256": "ec5be5129069fd3741edca10b1b83e1b0d12c0e765b0e99f690a2eea6f3ee536"
+    },
+    {
+      "path": "server/src/room-manager.ts",
+      "sha256": "41426a1075c67c2f311bd7d519d4912214d064e4d867dc11a26e26401b7d3bbf"
+    },
+    {
+      "path": "shared/src/battle-royale/balance.ts",
+      "sha256": "135e8d354dad165ee3226a729c340f89e6e822c101c164f7a3558f5acfb6b2d8"
+    },
+    {
+      "path": "shared/src/battle-royale/base-deck-contact.test.ts",
+      "sha256": "da83b28e7bb38b8dfc176de5d20ca6981a01abd94684aaef2c7be431d0379337"
+    },
+    {
+      "path": "shared/src/battle-royale/battle-royale.test.ts",
+      "sha256": "96edc3eda6d06a9b0571d21b945c689f641fdb7326369669ec5e7d913e9355cd"
+    },
+    {
+      "path": "shared/src/battle-royale/block-surface.ts",
+      "sha256": "86561562dab75090249fff57f8277910ffa5d6b3c2cf99fffd837cba9e24a0b2"
+    },
+    {
+      "path": "shared/src/battle-royale/bot-distribution.test.ts",
+      "sha256": "7f26106f15e2d07c487486d661461e4e23f39bc2cbd94a78f03a84f35c0da097"
+    },
+    {
+      "path": "shared/src/battle-royale/bot-distribution.ts",
+      "sha256": "557c2ca6e8f7f1e793946de779329df15abe7092d1046343ec8cddcf03953dcb"
+    },
+    {
+      "path": "shared/src/battle-royale/civic-frontage.test.ts",
+      "sha256": "a88cd47bd17efd0a2680befd8a69b9d7cd944b3093e4fb2dc9d9501e0b1b60e3"
+    },
+    {
+      "path": "shared/src/battle-royale/coolant-frontage.test.ts",
+      "sha256": "8ec5e8e9e7ece9b73d8c560509ff62a6da93d5517aedc4bdae537f1df16af323"
+    },
+    {
+      "path": "shared/src/battle-royale/crate-placement.test.ts",
+      "sha256": "d5d46ac6eb963bbd576662b8dc4ec09431f4e30deae5982cc05bdf5d8d4db4bf"
+    },
+    {
+      "path": "shared/src/battle-royale/engine-gate-approach.test.ts",
+      "sha256": "08239f6b70702894b603302ad1f8eb4e10ad6602f96e21a8aa336df30c2db70e"
+    },
+    {
+      "path": "shared/src/battle-royale/entrance-headers.test.ts",
+      "sha256": "74b2d20b956b7adaba6bb42a3ddd3acc156b5ca8067d0a8809744057107b376f"
+    },
+    {
+      "path": "shared/src/battle-royale/entrance-headers.ts",
+      "sha256": "1058cc53e8b96929ce300467876e075c738b83cc7023df30361fb685b460b79a"
+    },
+    {
+      "path": "shared/src/battle-royale/index.ts",
+      "sha256": "ac50c59062b220d7cba2d04202d8850a39b64de99a4e5ec9fbd9ba31a3d23b7e"
+    },
+    {
+      "path": "shared/src/battle-royale/inventory.ts",
+      "sha256": "f25c610c06522c0dbaafecf9454b2f5dfbb1736136da7f67aa501456a74342b5"
+    },
+    {
+      "path": "shared/src/battle-royale/map.ts",
+      "sha256": "6f95daeb5512a541c8ffa569746c703d58d66f067a7e318e86a2bcd682c4defc"
+    },
+    {
+      "path": "shared/src/battle-royale/math.ts",
+      "sha256": "7ff4239edc5ddb4290aef840edb42243a41dbb719e7ab9b1ac06b85803c11fcb"
+    },
+    {
+      "path": "shared/src/battle-royale/movement.ts",
+      "sha256": "e36b59030dc810cdfb80ccced478a616e5aaae4456a4b4645e195a5774ce64b8"
+    },
+    {
+      "path": "shared/src/battle-royale/north-civic.test.ts",
+      "sha256": "97f4fff45df6693420d45df16263c89c8661d616024afc82d21fe3ade7b8eff4"
+    },
+    {
+      "path": "shared/src/battle-royale/nova-landing.test.ts",
+      "sha256": "deaa597fa17ebfd2d71a62b07a78e3f578ed0f3517e98f280aedc4e1742878ba"
+    },
+    {
+      "path": "shared/src/battle-royale/orbital-isle-authored.ts",
+      "sha256": "a48fd34d657fc934531e0de02a04105ffa88eb3ab98065af2fab9233d5646566"
+    },
+    {
+      "path": "shared/src/battle-royale/orbital-isle-bridge-piers.ts",
+      "sha256": "1464cd475b27e7f4dd9233432f2c9bf91e28f492b0ec72c7395f5c00a32a48b1"
+    },
+    {
+      "path": "shared/src/battle-royale/orbital-isle-elevation.test.ts",
+      "sha256": "17cc5a579fe24a4d0275995afc0c04d5d30ae465f0f976e443c0e2413c09814a"
+    },
+    {
+      "path": "shared/src/battle-royale/orbital-isle-elevation.ts",
+      "sha256": "c2fb97117558fb2877f09418345a288e40c6e64a2653346f32f1af5e4b7508a4"
+    },
+    {
+      "path": "shared/src/battle-royale/orbital-isle-greenways.test.ts",
+      "sha256": "24799268fbf4b19661e770c59b260b4243e77940a4d8d54dfb6c9dcb1236128e"
+    },
+    {
+      "path": "shared/src/battle-royale/orbital-isle-greenways.ts",
+      "sha256": "811369ea34d85a83017ea9aef5bb08c86f13274a9d4d794a47cfbc8dd9bae59c"
+    },
+    {
+      "path": "shared/src/battle-royale/orbital-isle-spatial-plan.ts",
+      "sha256": "3d59c6c7711215466a0e848b4c830deceb4e20ba9251c97277095d478b5c675f"
+    },
+    {
+      "path": "shared/src/battle-royale/road-grade-collision.test.ts",
+      "sha256": "07c4e74ba17ab55de2d7d8928e266cabcc2d16746c7be5aeb7225a5acab784f1"
+    },
+    {
+      "path": "shared/src/battle-royale/solar-service.test.ts",
+      "sha256": "5b9174b5afe52cb94177eab99b7cf485bf222a206a5c7952e123176311b634d1"
+    },
+    {
+      "path": "shared/src/battle-royale/south-ring-frontage.test.ts",
+      "sha256": "93bf6ad3762e46ff57c85adda876f9e431bac3898608f0f1631859d7332fc14d"
+    },
+    {
+      "path": "shared/src/battle-royale/south-transfer-frontage.test.ts",
+      "sha256": "cfc5135047e80f35ab31ca0678b3a4b9bdc3e74e8142db124d29f8ff9162b953"
+    },
+    {
+      "path": "shared/src/battle-royale/spectator.test.ts",
+      "sha256": "a9afef78b7645651ed4e0fcdf7f7a1a75f330bc7a0cf8a90e9591b94a1e726fe"
+    },
+    {
+      "path": "shared/src/battle-royale/spectator.ts",
+      "sha256": "15310c3c85dcef1d1465511aebf220eb1bcd8e9d6fab459e52800b03ec2bc905"
+    },
+    {
+      "path": "shared/src/battle-royale/street-frontage.test.ts",
+      "sha256": "d40fa794f0142b5dd2533aff0a857ace9b38df4a244846bbe6cf9862f9341425"
+    },
+    {
+      "path": "shared/src/battle-royale/structure-overlaps.test.ts",
+      "sha256": "40333414a698bd18524c2818ac519d0cc923e0f873bc0b7b7540944cf602c513"
+    },
+    {
+      "path": "shared/src/battle-royale/structure-parcels.test.ts",
+      "sha256": "ffdc522504baaba3186cfc1f158c93b63ea18efb22653c7f504bcb161751f23f"
+    },
+    {
+      "path": "shared/src/battle-royale/types.ts",
+      "sha256": "a295d0b1632412fdf605ec379dce56ac872d1a8fd25806bc3536104fc2489083"
+    },
+    {
+      "path": "shared/src/battle-royale/vehicles.test.ts",
+      "sha256": "9e28e9fb262d9e23efd6cf58782c437024f55eca570e770c94c6a464f00c67f8"
+    },
+    {
+      "path": "shared/src/battle-royale/vehicles.ts",
+      "sha256": "0e5dff20e4adaac7e891bdbf7d1185837714c0e4edb42573624e799e87cd4513"
+    },
+    {
+      "path": "shared/src/battle-royale/west-transit-frontage.test.ts",
+      "sha256": "c945af352331db75f413490eddd4a885fcac9a1b0948957131faa63a3e7335ff"
+    },
+    {
+      "path": "shared/src/index.test.ts",
+      "sha256": "739624c9af74c7e2be767283c04fecd4b7de97eb398cc4f8b54f51c4b418b97e"
+    },
+    {
+      "path": "shared/src/index.ts",
+      "sha256": "5e1cf4f4cc97451dd6955e4371a449a649f3cd9b743773964a2cbedf3a87c3be"
+    },
+    {
+      "path": "shared/src/mechanics-invariants.test.ts",
+      "sha256": "7164aaa247380f6b97ca2957d7fd4296df8d6189cb7ac0a8c92b10e700ef70c0"
+    },
+    {
+      "path": "tools/br-active-spatial-review.mjs",
+      "sha256": "b7bcd6b4f3c9036e40e7c6bdbe584c2a1bbeb65789a0ea74f9b9afdf49d90680"
+    },
+    {
+      "path": "tools/br-circulation-audit.mjs",
+      "sha256": "8db2931fb98f5648f20c80b5179eeeb7535c342d353ecdcec039ad04b8f45d12"
+    },
+    {
+      "path": "tools/br-civic-identity-audit.mjs",
+      "sha256": "66d56edf5e2d05d4df3e3bb48776ae7e39429fd3c919e10b289e18e697153d07"
+    },
+    {
+      "path": "tools/br-civic-identity-review-views.json",
+      "sha256": "a2e0052af1139c52770aa16bcdba4c40576f94bb730dcce6af1fa459bfa7f13a"
+    },
+    {
+      "path": "tools/br-coolant-frontage-review-views.json",
+      "sha256": "55066720d97a9e7aa516b7edc9d2c99d968a92f35943abf4a38347f68d7c8cea"
+    },
+    {
+      "path": "tools/br-density-audit.mjs",
+      "sha256": "c38113d289a562faac3c778b9d4f92986f2a5e46b845da6fd5b8f2a227ed05ef"
+    },
+    {
+      "path": "tools/br-density-audit.test.mjs",
+      "sha256": "ff3010a605a07dfa557899484256dfd2de31b3233a8866ad8ecd391735f942b0"
+    },
+    {
+      "path": "tools/br-engine-gate-review-views.json",
+      "sha256": "7c2a4d42b2724e280c13acf4f50c3e8e27a13b4e09794f9e21295e503a388f1b"
+    },
+    {
+      "path": "tools/br-interior-audit.mjs",
+      "sha256": "b6d3760d30d60fbc2c29ddbf53e5db1a441b6a897edcc7e108872bbb2d67e151"
+    },
+    {
+      "path": "tools/br-junction-audit.mjs",
+      "sha256": "25a1094e52f09e83f119a0990742c136a10ff621bbce6487444b2afbd8b36c55"
+    },
+    {
+      "path": "tools/br-landmark-audit.mjs",
+      "sha256": "1e63a4b07c133344f37a82c07f4415d2735e25262d5f5e82b75d775e74ec9709"
+    },
+    {
+      "path": "tools/br-north-civic-review-views.json",
+      "sha256": "9b346a7de3cad46da7f4b4067fa43bd448cd4e4359ba4c03d3a14df7f4df5879"
+    },
+    {
+      "path": "tools/br-overlap-audit.mjs",
+      "sha256": "862892a2d59b67ad93e706faa54cf550d1a4e0d7d4ccc17c1e2c9e406e1b78c7"
+    },
+    {
+      "path": "tools/br-pass-poi-views.mjs",
+      "sha256": "e8424c17bed7cc6ff1990152d3c2f575249922198ff999fac78d859c1ff9fb19"
+    },
+    {
+      "path": "tools/br-pass-review-views.json",
+      "sha256": "843e75d4aca09bf3193024181d1404479131332649411374627fbe79053fd0e8"
+    },
+    {
+      "path": "tools/br-preservation-audit.mjs",
+      "sha256": "bd7200e2752884899a8b77bd2f92e7e25195f46cef836db91168acade602072a"
+    },
+    {
+      "path": "tools/br-prop-audit.mjs",
+      "sha256": "cf004ef54eb35ef4355f276bdfb85a66a8cc97085e1aac60320719cc3ea08b31"
+    },
+    {
+      "path": "tools/br-prop-review.mjs",
+      "sha256": "d4bef4be787db63e00ca342cc6218bdffda9b6aeaae13bd03d5093e4d52c2db1"
+    },
+    {
+      "path": "tools/br-road-recovery-review-views.json",
+      "sha256": "787caa9a3f332cfc7f5de0937188394b6ad39132d2effe5e34a3f26c00a486f0"
+    },
+    {
+      "path": "tools/br-roof-circulation-audit.mjs",
+      "sha256": "d62b8883a171ed358c3c6d3f7187cae13dfb497670d91ae9f77ac4bbda75e14f"
+    },
+    {
+      "path": "tools/br-secondary-review-views.json",
+      "sha256": "0620668ef9f63ba5aad8e907faf096722152bbd45ce1a08909e0ce6cee759d1a"
+    },
+    {
+      "path": "tools/br-sign-audit.mjs",
+      "sha256": "2354f34b628433060c4009d098ba55216d3caca951496c2728a739464ec867a7"
+    },
+    {
+      "path": "tools/br-sign-review-views.json",
+      "sha256": "28188f5cf2d6d2b9c9a5ee28615ccda01c34f824f2c9a1576da9f58ad62a9fed"
+    },
+    {
+      "path": "tools/br-stair-audit.mjs",
+      "sha256": "5e02cc0964fa3d90dddae0abb7052b785984c8697dbe83482926f96aa3913900"
+    },
+    {
+      "path": "tools/br-stair-regression-proof.mjs",
+      "sha256": "08c4cc4699e924469099448e6590476500b979e714318bcabeb3594da6337126"
+    },
+    {
+      "path": "tools/br-supported-review-views.mjs",
+      "sha256": "546f2206d0673e0f560cb351c83f8c6de9a736b34de6809554cf957042e366bc"
+    },
+    {
+      "path": "tools/br-world-cleanup-audit.mjs",
+      "sha256": "686d323847d087e94bb4c5c31fa357b7698b36c729658c9c4f3104c1ff65f0d2"
+    }
+  ],
+  "capturedAt": "2026-10-10T15:27:23.3518258-05:00"
+}

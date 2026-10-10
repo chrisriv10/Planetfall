@@ -1,0 +1,241 @@
+{
+  "scope": "Static actual-world assembly, normal materials and BR lighting, no gameplay/HUD/sky/bloom/shadows. Not FPS or human-control validation.",
+  "legacyParkingReconstructed": false,
+  "views": [
+    {
+      "id": "zero-point",
+      "position": [
+        0,
+        2.7,
+        -20
+      ],
+      "focus": [
+        0,
+        5,
+        0
+      ],
+      "structureId": "zero-spire",
+      "calls": 299,
+      "triangles": 298447,
+      "textures": 18,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 62991,
+        "visibleInstances": 29143,
+        "materials": 298,
+        "visibleDistricts": 28,
+        "visibleSecondaryLabels": 1
+      }
+    },
+    {
+      "id": "nova-plaza",
+      "position": [
+        -180.5,
+        7.7,
+        -172
+      ],
+      "focus": [
+        -210,
+        10,
+        -172
+      ],
+      "structureId": "nova-tower-a",
+      "calls": 281,
+      "triangles": 343181,
+      "textures": 24,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 62991,
+        "visibleInstances": 28942,
+        "materials": 298,
+        "visibleDistricts": 31,
+        "visibleSecondaryLabels": 6
+      }
+    },
+    {
+      "id": "dockyard-7",
+      "position": [
+        190,
+        2.700001907348633,
+        -207
+      ],
+      "focus": [
+        190,
+        4.4,
+        -174
+      ],
+      "structureId": "dock-hangar",
+      "calls": 410,
+      "triangles": 313491,
+      "textures": 33,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 62991,
+        "visibleInstances": 21573,
+        "materials": 298,
+        "visibleDistricts": 23,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "helios-reactor",
+      "position": [
+        262,
+        8.7,
+        45
+      ],
+      "focus": [
+        262,
+        11,
+        78
+      ],
+      "structureId": "helios-core",
+      "calls": 272,
+      "triangles": 283775,
+      "textures": 38,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 62991,
+        "visibleInstances": 24635,
+        "materials": 298,
+        "visibleDistricts": 26,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "astra-academy",
+      "position": [
+        -278,
+        10.7,
+        47
+      ],
+      "focus": [
+        -278,
+        11.6,
+        75
+      ],
+      "structureId": "astra-hall",
+      "calls": 256,
+      "triangles": 271623,
+      "textures": 45,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 62991,
+        "visibleInstances": 24791,
+        "materials": 298,
+        "visibleDistricts": 26,
+        "visibleSecondaryLabels": 6
+      }
+    },
+    {
+      "id": "void-mall",
+      "position": [
+        -93,
+        2.7,
+        230
+      ],
+      "focus": [
+        -93,
+        5,
+        263
+      ],
+      "structureId": "void-anchor",
+      "calls": 190,
+      "triangles": 298611,
+      "textures": 54,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 62991,
+        "visibleInstances": 24427,
+        "materials": 298,
+        "visibleDistricts": 24,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "orbital-farms",
+      "position": [
+        127,
+        6.7,
+        291
+      ],
+      "focus": [
+        94,
+        7.2,
+        291
+      ],
+      "structureId": "farm-dome-a",
+      "calls": 319,
+      "triangles": 335615,
+      "textures": 59,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 62991,
+        "visibleInstances": 25047,
+        "materials": 298,
+        "visibleDistricts": 24,
+        "visibleSecondaryLabels": 5
+      }
+    },
+    {
+      "id": "crash-site",
+      "position": [
+        -291,
+        2.7,
+        -258
+      ],
+      "focus": [
+        -326,
+        3.6,
+        -258
+      ],
+      "structureId": "crash-fuselage",
+      "calls": 164,
+      "triangles": 214811,
+      "textures": 60,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 62991,
+        "visibleInstances": 24190,
+        "materials": 298,
+        "visibleDistricts": 24,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "thruster-works",
+      "position": [
+        342,
+        2.6999980926513674,
+        -102
+      ],
+      "focus": [
+        342,
+        5,
+        -70
+      ],
+      "structureId": "thruster-foundry",
+      "calls": 312,
+      "triangles": 287897,
+      "textures": 60,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 62991,
+        "visibleInstances": 21177,
+        "materials": 298,
+        "visibleDistricts": 17,
+        "visibleSecondaryLabels": 1
+      }
+    }
+  ],
+  "errors": []
+}

@@ -1,0 +1,738 @@
+diff --git a/client/src/main.ts b/client/src/main.ts
+index b787ec6..659fa94 100644
+--- a/client/src/main.ts
++++ b/client/src/main.ts
+@@ -752,12 +752,16 @@ function renderBrLootCard(loot:BrLootState|null,player:BrPlayerState):void{
+   const action=disposition==="swap"?"SWAP HELD":"PICK UP";
+   card.innerHTML=`<span class="br-loot-art">${artId?brItemIconSvg(artId):""}</span><div><small>${rarity} · ${action}</small><strong>${escapeHtml(brLootName(loot))}</strong><p>${escapeHtml(brLootDescription(loot))}</p></div><kbd>E</kbd>`;
+ }
++let brInventoryPanelMarkup="";
+ function renderBrInventoryPanel(player:BrPlayerState):void{
+-  byId("br-inventory-panel-slots").innerHTML=player.inventory.map((item,index)=>{
++  const markup=player.inventory.map((item,index)=>{
+     const color=item?({common:"#b8c4dc",rare:"#54b8ff",epic:"#c565ff",legendary:"#ffc84f"} as const)[item.rarity]:"#56617f";
+     const ammo=item&&isBrWeapon(item.itemId)?item.itemId==="energy-saber"?"No ammo required":`${item.magazine} loaded · ${BR_WEAPONS[item.itemId].ammo?player.ammo[BR_WEAPONS[item.itemId].ammo!]:0} reserve`:item?`${item.count} carried`:"Available slot";
+     return `<article class="br-inventory-panel-slot${index===player.selectedSlot?" selected":""}" style="--slot-color:${color}"><span>${item?brItemIconSvg(item.itemId):'<i aria-hidden="true">+</i>'}</span><div><small>SLOT ${index+1}${item?` · ${item.rarity.toUpperCase()}`:""}</small><strong>${item?escapeHtml(brItemName(item.itemId)):"EMPTY"}</strong><p>${ammo}</p></div><button type="button" data-slot="${index}" data-action="equip" ${item?"":"disabled"}>EQUIP</button><button type="button" data-slot="${index}" data-action="drop" ${item?"":"disabled"}>DROP</button></article>`;
+   }).join("");
++  // Keep buttons attached across movement snapshots so an ordinary press and
++  // release can complete. Replace rows only when their displayed data changes.
++  if(markup!==brInventoryPanelMarkup){byId("br-inventory-panel-slots").innerHTML=markup;brInventoryPanelMarkup=markup;}
+ }
+ function toggleBrInventory(visible:boolean):void{
+   if(currentScreen!=="brHud")visible=false;
+diff --git a/client/src/modes/battle-royale/br-item-presentation.ts b/client/src/modes/battle-royale/br-item-presentation.ts
+index fff598c..b7f1605 100644
+--- a/client/src/modes/battle-royale/br-item-presentation.ts
++++ b/client/src/modes/battle-royale/br-item-presentation.ts
+@@ -1,5 +1,6 @@
+ import { isBrHeal, isBrWeapon, type BrLootState, type BrWeaponId } from "@planetfall/shared";
+ import * as THREE from "three";
++import { BR_LOOT_FLOAT } from "./br-loot-rarity";
+ 
+ export type BrLootCategory = "weapon" | "ammo" | "health" | "shield" | "unknown";
+ 
+@@ -44,7 +45,7 @@ export function brLootModelSupportLift(model:THREE.Object3D,clearance=.07):numbe
+   model.updateWorldMatrix(true,true);
+   const bounds=new THREE.Box3().setFromObject(model);
+   if(bounds.isEmpty()||!Number.isFinite(bounds.min.y))return .42;
+-  return Math.max(.42,-bounds.min.y+Math.max(0,clearance));
++  return Math.max(BR_LOOT_FLOAT.lift,-bounds.min.y+Math.max(0,clearance)+BR_LOOT_FLOAT.amplitude);
+ }
+ 
+ /** Relative Y from the authoritative pickup origin to its supporting surface. */
+diff --git a/client/src/modes/battle-royale/br-loot-lod.ts b/client/src/modes/battle-royale/br-loot-lod.ts
+index 2c12d27..ef18539 100644
+--- a/client/src/modes/battle-royale/br-loot-lod.ts
++++ b/client/src/modes/battle-royale/br-loot-lod.ts
+@@ -1,6 +1,7 @@
+ import * as THREE from "three";
+ import type { GraphicsQuality } from "../../settings";
+ import type { BrLootCategory } from "./br-item-presentation";
++import { BrLootRarityVisual } from "./br-loot-rarity";
+ 
+ /** A small three-dimensional silhouette, visible from every approach. One mesh
+  * per marker, including the medical cross; materials remain ordinary depth-tested
+@@ -28,12 +29,18 @@ export class BrLootLod extends THREE.Group {
+   readonly marker: THREE.Mesh;
+   private readonly beam: THREE.Object3D | undefined;
+   private readonly worldPosition = new THREE.Vector3();
++  private readonly markerBottom: number;
++  private readonly surfaceOffsetY: number;
+ 
+   constructor(readonly detail: THREE.Group, color: number, readonly category: BrLootCategory = "unknown") {
+     super();
+     this.marker = new THREE.Mesh(brLootMarkerGeometry(category), new THREE.MeshBasicMaterial({ color, toneMapped: false }));
+     this.marker.name = `loot-marker-${category}`;
+     this.marker.rotation.set(.16, Math.PI / 4, category === "weapon" ? .16 : 0);
++    // Measure the actual rotated silhouette once. Distance scaling must grow
++    // above the same support as its detailed item, not through the floor.
++    this.markerBottom = new THREE.Box3().setFromObject(this.marker).min.y;
++    this.surfaceOffsetY = detail instanceof BrLootRarityVisual ? detail.surfaceOffsetY : 0;
+     this.marker.visible = false;
+     this.beam = detail.getObjectByName("loot-beam");
+     this.add(detail, this.marker);
+@@ -50,6 +57,7 @@ export class BrLootLod extends THREE.Group {
+     // bounded to avoid oversized floating icons on the skyline.
+     const markerScale = Number.isFinite(distanceSquared) ? Math.min(2.4, Math.max(1, Math.sqrt(distanceSquared) / 55)) : 1;
+     this.marker.scale.setScalar(markerScale);
++    this.marker.position.y = this.surfaceOffsetY + .07 - this.markerBottom * markerScale;
+     if (this.beam) {
+       const beamRange = quality === "high" ? 72 : quality === "medium" ? 48 : 26;
+       this.beam.visible = distanceSquared < beamRange * beamRange;
+diff --git a/client/src/modes/battle-royale/br-loot-rarity.ts b/client/src/modes/battle-royale/br-loot-rarity.ts
+index 4ea6eb3..49f1916 100644
+--- a/client/src/modes/battle-royale/br-loot-rarity.ts
++++ b/client/src/modes/battle-royale/br-loot-rarity.ts
+@@ -52,7 +52,7 @@ export class BrLootRarityVisual extends THREE.Group {
+   private readonly phase: number;
+   private readonly itemBaseY:number;
+ 
+-  constructor(model: THREE.Object3D, id: string, surfaceOffsetY: number, itemLift:number,
++  constructor(model: THREE.Object3D, id: string, readonly surfaceOffsetY: number, itemLift:number,
+     geometries: readonly [THREE.BufferGeometry, THREE.BufferGeometry, THREE.BufferGeometry],
+     materials: FieldMaterials, height: number, private readonly onRelease: () => void) {
+     super(); this.name = "loot-rarity-visual";
+diff --git a/client/src/modes/battle-royale/br-road-bends.test.ts b/client/src/modes/battle-royale/br-road-bends.test.ts
+index 6da13ea..7143705 100644
+--- a/client/src/modes/battle-royale/br-road-bends.test.ts
++++ b/client/src/modes/battle-royale/br-road-bends.test.ts
+@@ -28,4 +28,36 @@ describe("supported level road curves",()=>{
+       expect(isInsideBrIslandInterior(p),bend.id).toBe(true);
+     }
+   });
++  it.each([30,45,60,120])("makes tangential inside edges at a %s degree turn",degrees=>{
++    const radians=degrees*Math.PI/180,next={...b,to:{x:30*Math.cos(radians),y:.1,z:30*Math.sin(radians)}};
++    const [bend]=buildBrRoadBends([a,next],()=>0,[]);
++    expect(bend.insideFans).toHaveLength(8);expect(bend.outerEdge).toHaveLength(9);
++    const first=bend.edge[0],last=bend.edge.at(-1)!;
++    expect(Math.abs(first.x*Math.sin(radians)-first.z*Math.cos(radians))).toBeCloseTo(4,8);
++    expect(last.z).toBeCloseTo(4,8);
++    const incoming={x:last.x-bend.edge.at(-2)!.x,z:last.z-bend.edge.at(-2)!.z};
++    expect(Math.abs(incoming.z/incoming.x)).toBeLessThan(.14);
++    for(const arm of bend.arms)expect(arm.tangent).toBeLessThanOrEqual(30*.45+1e-8);
++  });
++  it("bounds both tangencies on a short leg and rejects interior support holes",()=>{
++    const next={...b,to:{x:6*Math.cos(Math.PI/4),y:.1,z:6*Math.sin(Math.PI/4)}};
++    const [bend]=buildBrRoadBends([a,next],()=>0,[]);
++    expect(bend.insideFans).toHaveLength(8);
++    for(const arm of bend.arms)expect(arm.tangent).toBeLessThanOrEqual(6*.45+1e-8);
++    expect(buildBrRoadBends([a,b],p=>Math.abs(p.x-1)<.5&&Math.abs(p.z-1)<.5?5:0,[])).toEqual([]);
++  });
++  it("excludes full grade and solid footprints, including a solid hidden between polygon vertices",()=>{
++    const grade={...a,id:"grade",from:{x:-20,y:2,z:1},to:{x:20,y:3,z:1},width:1};
++    expect(buildBrRoadBends([a,b,grade],()=>0,[])).toEqual([]);
++    const block={id:"solid",districtId:"test",kind:"platform" as const,color:"#fff",position:{x:1,y:4,z:1},size:{x:.4,y:8,z:.4}};
++    expect(buildBrRoadBends([a,b],()=>0,[],[block])).toEqual([]);
++  });
++  it("keeps real North Civic curves while preserving grade-adjacent and raised-deck boundaries",()=>{
++    const bends=buildBrRoadBends(BR_ROADS);
++    for(const z of [86,104,170])expect(bends.some(b=>b.center.z===z&&b.edge.length===9)).toBe(true);
++    expect(bends.some(b=>b.center.x===-5&&b.center.z===184)).toBe(false);
++    expect(bends.some(b=>b.center.x===340&&b.center.z===-275)).toBe(false);
++    bends[0].vertices[0].x=9999;
++    expect(buildBrRoadBends(BR_ROADS)[0].vertices[0].x).not.toBe(9999);
++  });
+ });
+diff --git a/client/src/modes/battle-royale/br-road-bends.ts b/client/src/modes/battle-royale/br-road-bends.ts
+index 4caf979..2f1091f 100644
+--- a/client/src/modes/battle-royale/br-road-bends.ts
++++ b/client/src/modes/battle-royale/br-road-bends.ts
+@@ -1,54 +1,131 @@
+-import { BR_STRUCTURES, brAuthoredDeckHeight, isInsideBrIslandInterior, type BrRoadSegment, type BrStructure, type Vec3 } from "@planetfall/shared";
+-export interface BrRoadBend { id:string; center:Vec3; radius:number; vertices:Vec3[]; insideFans:Vec3[][]; edge:Vec3[]; }
++import { BR_MAP_BLOCKS, BR_ROADS, BR_STRUCTURES, brAuthoredDeckHeight, brBlockPlanarHalfExtents, isInsideBrIslandInterior, type BrMapBlock, type BrRoadSegment, type BrStructure, type Vec3 } from "@planetfall/shared";
++export interface BrRoadBend {
++  id:string; center:Vec3; radius:number; vertices:Vec3[]; insideFans:Vec3[][]; edge:Vec3[];
++  /** Distances measured outward from the common endpoint to the inside tangencies. */
++  arms:{roadId:string;direction:{x:number;z:number};tangent:number}[];
++  outerEdge:Vec3[];
++}
++let productionBends:BrRoadBend[]|undefined;
++const copyBends=(bends:readonly BrRoadBend[])=>bends.map(b=>({...b,center:{...b.center},
++  vertices:b.vertices.map(p=>({...p})),insideFans:b.insideFans.map(t=>t.map(p=>({...p}))),
++  edge:b.edge.map(p=>({...p})),outerEdge:b.outerEdge.map(p=>({...p})),
++  arms:b.arms.map(a=>({...a,direction:{...a.direction}}))}));
+ 
+-/** Round the outside of level road elbows with a pavement cap. The entire
+- * original ribbon remains intact: route support, navigation and grade planes
+- * never move. Caps only occupy the existing continuous floor at that height;
+- * raised crossings and retaining edges must keep their authored boundaries. */
+-export function buildBrRoadBends(roads:readonly BrRoadSegment[],supported:(p:Vec3)=>number=brAuthoredDeckHeight,structures:readonly BrStructure[]=BR_STRUCTURES):BrRoadBend[]{
++/** Round supported level elbows without removing any of the literal ribbons.
++ * Tangent reach is capped at 45% of each leg, leaving space for the next join. */
++export function buildBrRoadBends(roads:readonly BrRoadSegment[],supported:(p:Vec3)=>number=brAuthoredDeckHeight,structures:readonly BrStructure[]=BR_STRUCTURES,blocks:readonly BrMapBlock[]=roads===BR_ROADS?BR_MAP_BLOCKS:[]):BrRoadBend[]{
++  const production=roads===BR_ROADS&&supported===brAuthoredDeckHeight&&structures===BR_STRUCTURES&&blocks===BR_MAP_BLOCKS;
++  if(production&&productionBends)return copyBends(productionBends);
+   const nodes=new Map<string,{point:Vec3;roads:BrRoadSegment[]}>();
+-  for(const road of roads){
+-    if(Math.abs(road.from.y-road.to.y)>1e-6)continue;
+-    for(const point of [road.from,road.to]){
+-      const key=`${point.x.toFixed(4)}:${point.y.toFixed(4)}:${point.z.toFixed(4)}`;
+-      const node=nodes.get(key)??{point,roads:[]};node.roads.push(road);nodes.set(key,node);
+-    }
++  for(const road of roads)for(const point of [road.from,road.to]){
++    const key=`${point.x.toFixed(4)}:${point.y.toFixed(4)}:${point.z.toFixed(4)}`;
++    const node=nodes.get(key)??{point,roads:[]};node.roads.push(road);nodes.set(key,node);
+   }
+   const result:BrRoadBend[]=[];
+   for(const [id,node] of nodes){
+     if(node.roads.length!==2)continue;
+-    const [a,b]=node.roads;if(Math.abs(a.width-b.width)>.01)continue;
++    const [a,b]=node.roads;
++    if(Math.abs(a.width-b.width)>.01||node.roads.some(r=>Math.abs(r.from.y-r.to.y)>1e-6))continue;
++    // An endpoint on the interior of another road is a branch, not an elbow.
++    if(roads.some(r=>{
++      if(node.roads.includes(r))return false;
++      const dx=r.to.x-r.from.x,dz=r.to.z-r.from.z,lengthSq=dx*dx+dz*dz;
++      const t=lengthSq?((node.point.x-r.from.x)*dx+(node.point.z-r.from.z)*dz)/lengthSq:-1;
++      return t>=0&&t<=1&&Math.hypot(node.point.x-r.from.x-dx*t,node.point.z-r.from.z-dz*t)<.001
++        &&Math.abs(r.from.y+(r.to.y-r.from.y)*t-node.point.y)<.001;
++    }))continue;
+     const direction=(road:BrRoadSegment)=>{
+       const end=Math.hypot(road.from.x-node.point.x,road.from.z-node.point.z)<.001?road.to:road.from;
+       const dx=end.x-node.point.x,dz=end.z-node.point.z,length=Math.hypot(dx,dz);
+       return {x:dx/length,z:dz/length,length};
+     };
+     const u=direction(a),v=direction(b),dot=u.x*v.x+u.z*v.z;
+-    if(dot<-.95||dot>.9||Math.min(u.length,v.length)<a.width)continue;
++    if(!Number.isFinite(dot)||dot<-.999||dot>.9)continue;
+     const radius=a.width/2,vertices:Vec3[]=[];
++    // Check whole polygons, not just their boundary: a support hole or a small
++    // wall footprint can lie between vertices. Convex SAT covers wall overlap.
++    const clearPolygon=(polygon:Vec3[])=>{
++      // A base-height region can extend underneath a solid raised deck or
++      // retaining wall. Keep the full pavement/curb footprint out of solids
++      // at this elevation rather than trusting the region height alone.
++      for(const block of blocks){
++        const r=block.rotation,a=Math.cos(r?.x??0),b=Math.sin(r?.x??0),c=Math.cos(r?.y??0),d=Math.sin(r?.y??0),e=Math.cos(r?.z??0),f=Math.sin(r?.z??0);
++        const halfY=Math.abs(a*f+b*e*d)*block.size.x/2+Math.abs(a*e-b*f*d)*block.size.y/2+Math.abs(b*c)*block.size.z/2;
++        if(block.position.y+halfY<=node.point.y-.1+.01||block.position.y-halfY>=node.point.y+.08)continue;
++        const half=brBlockPlanarHalfExtents(block);
++        const axes=[{x:1,z:0},{x:0,z:1},...polygon.map((p,i)=>{const q=polygon[(i+1)%polygon.length];return{x:p.z-q.z,z:q.x-p.x};})];
++        if(!axes.some(axis=>{
++          const values=polygon.map(p=>p.x*axis.x+p.z*axis.z),center=block.position.x*axis.x+block.position.z*axis.z;
++          const extent=Math.abs(axis.x)*(half.x+.2)+Math.abs(axis.z)*(half.z+.2);
++          return Math.max(...values)<center-extent||Math.min(...values)>center+extent;
++        }))return false;
++      }
++      // The island-height sampler does not include road grade planes. Reject
++      // overlap with their complete ribbon (including the curb half-width),
++      // even when no centerline or polygon vertex enters that ribbon.
++      for(const road of roads){
++        if(node.roads.includes(road)||Math.abs(road.from.y-node.point.y)<1e-6&&Math.abs(road.to.y-node.point.y)<1e-6)continue;
++        const dx=road.to.x-road.from.x,dz=road.to.z-road.from.z,length=Math.hypot(dx,dz);if(length<1e-6)continue;
++        const ux=dx/length,uz=dz/length,cx=(road.from.x+road.to.x)/2,cz=(road.from.z+road.to.z)/2;
++        const axes=[{x:ux,z:uz},{x:-uz,z:ux},...polygon.map((p,i)=>{const q=polygon[(i+1)%polygon.length];return{x:p.z-q.z,z:q.x-p.x};})];
++        if(!axes.some(axis=>{
++          const values=polygon.map(p=>p.x*axis.x+p.z*axis.z),center=cx*axis.x+cz*axis.z;
++          const extent=Math.abs(ux*axis.x+uz*axis.z)*(length/2+.2)+Math.abs(-uz*axis.x+ux*axis.z)*(road.width/2+.2);
++          return Math.max(...values)<center-extent||Math.min(...values)>center+extent;
++        }))return false;
++      }
++      for(const s of structures){
++        const axes=[{x:1,z:0},{x:0,z:1},...polygon.map((p,i)=>{const q=polygon[(i+1)%polygon.length];return{x:p.z-q.z,z:q.x-p.x};})];
++        const separate=axes.some(axis=>{
++          const values=polygon.map(p=>p.x*axis.x+p.z*axis.z),center=s.position.x*axis.x+s.position.z*axis.z;
++          const extent=Math.abs(axis.x)*(s.size.x/2+.8)+Math.abs(axis.z)*(s.size.z/2+.8);
++          return Math.max(...values)<center-extent||Math.min(...values)>center+extent;
++        });
++        if(!separate)return false;
++      }
++      const first=polygon[0];
++      for(let i=1;i<polygon.length-1;i++){
++        const p=polygon[i],q=polygon[i+1];
++        const steps=Math.max(1,Math.ceil(Math.max(Math.hypot(p.x-first.x,p.z-first.z),Math.hypot(q.x-first.x,q.z-first.z),Math.hypot(q.x-p.x,q.z-p.z))/.4));
++        for(let j=0;j<=steps;j++)for(let k=0;k<=steps-j;k++){
++          const sample={x:first.x+(p.x-first.x)*j/steps+(q.x-first.x)*k/steps,y:first.y,z:first.z+(p.z-first.z)*j/steps+(q.z-first.z)*k/steps};
++          if(!isInsideBrIslandInterior(sample)||Math.abs(supported(sample)-(node.point.y-.1))>.01)return false;
++        }
++      }
++      return true;
++    };
+     for(let i=0;i<24;i++){
+       const angle=i*Math.PI*2/24;
+       vertices.push({x:node.point.x+Math.cos(angle)*radius,y:node.point.y-.065,z:node.point.z+Math.sin(angle)*radius});
+     }
+-    if(vertices.some(p=>!isInsideBrIslandInterior(p)||Math.abs(supported(p)-(node.point.y-.1))>.01))continue;
+-    const insideFans:Vec3[][]=[],edge:Vec3[]=[];
+-    // Tangential inside fillet at a near-right-angle elbow, leaving the full
+-    // old road corridor intact. Eight triangles partition the added wedge.
+-    if(Math.abs(dot)<.05){
+-      const r=a.width*.65,corner={x:node.point.x+(u.x+v.x)*radius,y:node.point.y-.065,z:node.point.z+(u.z+v.z)*radius};
+-      const center={x:corner.x+(u.x+v.x)*r,y:corner.y,z:corner.z+(u.z+v.z)*r};
+-      for(let i=0;i<=8;i++){
+-        const angle=i*Math.PI/16;
+-        edge.push({x:center.x-u.x*r*Math.cos(angle)-v.x*r*Math.sin(angle),y:center.y,z:center.z-u.z*r*Math.cos(angle)-v.z*r*Math.sin(angle)});
+-      }
+-      const clear=[corner,...edge].every(p=>isInsideBrIslandInterior(p)&&Math.abs(supported(p)-(node.point.y-.1))<.01
+-        &&structures.every(s=>Math.abs(p.x-s.position.x)>s.size.x/2+.8||Math.abs(p.z-s.position.z)>s.size.z/2+.8));
+-      if(clear)for(let i=0;i<8;i++){
+-        const triangle=[corner,edge[i],edge[i+1]],cross=(triangle[1].x-corner.x)*(triangle[2].z-corner.z)-(triangle[1].z-corner.z)*(triangle[2].x-corner.x);
+-        insideFans.push(cross<0?triangle.reverse():triangle);
++    if(!clearPolygon(vertices))continue;
++    const insideFans:Vec3[][]=[],edge:Vec3[]=[],outerEdge:Vec3[]=[],arms:BrRoadBend["arms"]=[];
++    const sin=Math.sqrt(1-dot*dot),cotHalf=Math.sqrt((1+dot)/(1-dot));
++    const r=Math.min(a.width*.65,Math.min(u.length,v.length)*.45/cotHalf-radius);
++    if(r>.15){
++      const corner={x:node.point.x+(u.x+v.x)*radius/sin,y:node.point.y-.065,z:node.point.z+(u.z+v.z)*radius/sin};
++      const center={x:corner.x+(u.x+v.x)*r/sin,y:corner.y,z:corner.z+(u.z+v.z)*r/sin};
++      const start={x:corner.x+v.x*r*cotHalf,z:corner.z+v.z*r*cotHalf};
++      const end={x:corner.x+u.x*r*cotHalf,z:corner.z+u.z*r*cotHalf};
++      const angle=Math.atan2(start.z-center.z,start.x-center.x);
++      const sweep=Math.atan2((start.x-center.x)*(end.z-center.z)-(start.z-center.z)*(end.x-center.x),
++        (start.x-center.x)*(end.x-center.x)+(start.z-center.z)*(end.z-center.z));
++      for(let i=0;i<=8;i++)edge.push({x:center.x+r*Math.cos(angle+sweep*i/8),y:center.y,z:center.z+r*Math.sin(angle+sweep*i/8)});
++      const triangles=edge.slice(0,-1).map((p,i)=>{
++        const triangle=[corner,p,edge[i+1]],cross=(p.x-corner.x)*(edge[i+1].z-corner.z)-(p.z-corner.z)*(edge[i+1].x-corner.x);
++        return cross<0?triangle.reverse():triangle;
++      });
++      if(triangles.every(clearPolygon)){
++        insideFans.push(...triangles);
++        arms.push({roadId:a.id,direction:u,tangent:(radius+r)*cotHalf},{roadId:b.id,direction:v,tangent:(radius+r)*cotHalf});
++        const cross=u.x*v.z-u.z*v.x,sign=Math.sign(cross);
++        const startAngle=Math.atan2(-u.x*sign,u.z*sign);
++        const outerSweep=-sign*(Math.PI-Math.acos(dot));
++        for(let i=0;i<=8;i++)outerEdge.push({x:node.point.x+radius*Math.cos(startAngle+outerSweep*i/8),y:node.point.y-.065,z:node.point.z+radius*Math.sin(startAngle+outerSweep*i/8)});
+       }else edge.length=0;
+     }
+-    result.push({id:`bend-${id}`,center:node.point,radius,vertices,insideFans,edge});
++    result.push({id:`bend-${id}`,center:node.point,radius,vertices,insideFans,edge,arms,outerEdge});
+   }
++  if(production){productionBends=result;return copyBends(result);}
+   return result;
+ }
+diff --git a/client/src/modes/battle-royale/br-road-detail.test.ts b/client/src/modes/battle-royale/br-road-detail.test.ts
+index ab0e0ed..b4831ee 100644
+--- a/client/src/modes/battle-royale/br-road-detail.test.ts
++++ b/client/src/modes/battle-royale/br-road-detail.test.ts
+@@ -49,3 +49,14 @@ it("masks actual bent road legs without masking their empty endpoint chord",()=>
+   for(let x=-10;x<=110;x+=5)for(let z=-10;z<=110;z+=5)expect(divided(other,x,z)).toBe(clear(other,x,z));
+   expect(JSON.stringify(pieces)).toBe(before);
+ });
++it("treats only local equal-width level elbows as continuations",()=>{
++  const first={...BR_ROADS[0],id:"entry",width:8,from:{x:-30,y:.1,z:0},to:{x:0,y:.1,z:0}};
++  const second={...first,id:"exit",from:first.to,to:{x:0,y:.1,z:30}};
++  expect(buildBrRoadDetailClear([first,second],[])(first,-4,3)).toBe(true);
++  for(const neighbor of [{...second,to:{...second.to,y:5}},{...second,width:10}])
++    expect(buildBrRoadDetailClear([first,neighbor],[])(first,-4,3)).toBe(false);
++  const branch={...first,id:"branch",from:first.to,to:{x:30,y:.1,z:0}};
++  expect(buildBrRoadDetailClear([first,second,branch],[])(first,-4,3)).toBe(false);
++  const crossing={...first,id:"crossing",from:{x:-20,y:.1,z:5},to:{x:20,y:.1,z:5}};
++  expect(buildBrRoadDetailClear([first,second,crossing],[])(first,-4,3)).toBe(false);
++});
+diff --git a/client/src/modes/battle-royale/br-road-detail.ts b/client/src/modes/battle-royale/br-road-detail.ts
+index e91dde4..fcdfdba 100644
+--- a/client/src/modes/battle-royale/br-road-detail.ts
++++ b/client/src/modes/battle-royale/br-road-detail.ts
+@@ -1,10 +1,12 @@
+ import { BR_ROADS, BR_STRUCTURES, type BrRoadSegment, type BrStructure } from "@planetfall/shared";
++import { buildBrRoadBends } from "./br-road-bends";
+ 
+ /** Grade subdivision is geometry, not a new street or an intersection. */
+ export const brRoadRouteId=(road:Pick<BrRoadSegment,"id">):string=>road.id.replace(/-grade-part-\d+$/,"");
+ /** Cache horizontal paths once. Merge only adjoining, equally wide collinear
+  * pieces so grade subdivision adds no clearance work, while bends stay intact. */
+ export function buildBrRoadDetailClear(pieces:readonly BrRoadSegment[]=BR_ROADS,structures:readonly BrStructure[]=BR_STRUCTURES){
++const elbows=buildBrRoadBends(pieces,undefined,structures).filter(b=>b.arms.length===2);
+ const paths:BrRoadSegment[]=[];
+ const tails=new Map<string,BrRoadSegment>();
+ for(const piece of pieces){
+@@ -42,6 +44,11 @@ return function roadDetailClear(road:BrRoadSegment,x:number,z:number):boolean {
+   for(const footprint of routeFootprints) {
+     const {road:other,dx,dz,lengthSq}=footprint;
+     if(other.id===routeId||x<footprint.minX||x>footprint.maxX||z<footprint.minZ||z>footprint.maxZ)continue;
++    // Only the local supported two-arm join is a continuation. The same two
++    // routes may cross elsewhere; those crossings keep their full mask.
++    if(elbows.some(bend=>bend.arms.some(a=>brRoadRouteId({id:a.roadId})===routeId)
++      &&bend.arms.some(a=>brRoadRouteId({id:a.roadId})===other.id)
++      &&Math.hypot(x-bend.center.x,z-bend.center.z)<=Math.max(...bend.arms.map(a=>a.tangent))+bend.radius+1.5))continue;
+     const t=lengthSq?Math.max(0,Math.min(1,((x-other.from.x)*dx+(z-other.from.z)*dz)/lengthSq)):0;
+     const gapX=x-other.from.x-dx*t,gapZ=z-other.from.z-dz*t;
+     if(gapX*gapX+gapZ*gapZ<footprint.padSquared)return false;
+diff --git a/client/src/modes/battle-royale/br-road-markings.test.ts b/client/src/modes/battle-royale/br-road-markings.test.ts
+index eaa7341..218c638 100644
+--- a/client/src/modes/battle-royale/br-road-markings.test.ts
++++ b/client/src/modes/battle-royale/br-road-markings.test.ts
+@@ -2,6 +2,7 @@ import { describe,expect,it } from "vitest";
+ import { BR_ROADS,BR_ROAD_ROUTES, type BrRoadSegment } from "@planetfall/shared";
+ import { buildBrRoadMarkings } from "./br-road-markings";
+ import { brRoadDetailClear } from "./br-road-detail";
++import { buildBrRoadBends } from "./br-road-bends";
+ 
+ describe("route-stationed presentation detail",()=>{
+   const route:BrRoadSegment={...BR_ROAD_ROUTES[0],id:"test-route",from:{x:0,y:.1,z:0},to:{x:240,y:12.1,z:0},width:12};
+@@ -138,4 +139,22 @@ describe("route-stationed presentation detail",()=>{
+     expectNoCornerOverlap(marks);
+     expectNoCornerOverlap(buildBrRoadMarkings([route],pieces));
+   });
++  it("aligns separate North Civic route curbs with the shared inner tangencies",()=>{
++    const parts=buildBrRoadMarkings();
++    for(const bend of buildBrRoadBends(BR_ROADS).filter(b=>[-5,-15].includes(b.center.x)&&[86,104,170].includes(b.center.z))){
++      expect(bend.arms).toHaveLength(2);
++      for(const arm of bend.arms){
++        const other=bend.arms.find(a=>a!==arm)!,road=BR_ROADS.find(r=>r.id===arm.roadId)!;
++        const dx=road.to.x-road.from.x,dz=road.to.z-road.from.z,length=Math.hypot(dx,dz),ux=dx/length,uz=dz/length;
++        const sign=Math.sign(-uz*other.direction.x+ux*other.direction.z),offset=sign*road.width*.49;
++        const dot=arm.direction.x*other.direction.x+arm.direction.z*other.direction.z,cot=Math.sqrt((1+dot)/(1-dot));
++        const tangent=arm.tangent+(Math.abs(offset)-bend.radius)*cot+.075;
++        const curbs=parts.filter(p=>p.pieceId===road.id&&p.role==="curb"
++          &&Math.abs((p.position.x-road.from.x)*-uz+(p.position.z-road.from.z)*ux-offset)<.01);
++        expect(curbs.length,road.id).toBeGreaterThan(0);
++        const distances=curbs.map(p=>(p.position.x-bend.center.x)*arm.direction.x+(p.position.z-bend.center.z)*arm.direction.z-p.scale.x/2);
++        expect(Math.min(...distances),road.id).toBeCloseTo(tangent,5);
++      }
++    }
++  });
+ });
+diff --git a/client/src/modes/battle-royale/br-road-markings.ts b/client/src/modes/battle-royale/br-road-markings.ts
+index c8ca680..62b6ff4 100644
+--- a/client/src/modes/battle-royale/br-road-markings.ts
++++ b/client/src/modes/battle-royale/br-road-markings.ts
+@@ -1,5 +1,6 @@
+ import { BR_ROADS, BR_ROAD_ROUTES, type BrRoadSegment, type Vec3 } from "@planetfall/shared";
+ import { brRoadDetailClear, brRoadRouteId } from "./br-road-detail";
++import { buildBrRoadBends } from "./br-road-bends";
+ 
+ export type BrRoadMarkingRole="curb"|"edge-light"|"dash"|"crossing"|"lamp-post"|"lamp-bulb";
+ export interface BrRoadMarking {
+@@ -24,6 +25,8 @@ export function buildBrRoadMarkings(
+   isClear:Clear=brRoadDetailClear,
+ ):BrRoadMarking[]{
+   const result:BrRoadMarking[]=[];
++  const elbows=buildBrRoadBends(pieces).filter(b=>b.arms.length===2
++    &&brRoadRouteId({id:b.arms[0].roadId})!==brRoadRouteId({id:b.arms[1].roadId}));
+   const byRoute=new Map<string,BrRoadSegment[]>();
+   for(const piece of pieces){const id=brRoadRouteId(piece),list=byRoute.get(id)??[];list.push(piece);byRoute.set(id,list);}
+   for(const route of routes){
+@@ -56,6 +59,17 @@ export function buildBrRoadMarkings(
+       const inset=offset*turn+width/2*Math.abs(turn);
+       return inset>0?inset+.075:0;
+     };
++    const endpointInset=(segment:typeof segments[number],start:boolean,offset:number,width:number,role:BrRoadMarkingRole)=>{
++      const endpoint=start?segment.piece.from:segment.piece.to;
++      const bend=elbows.find(b=>Math.hypot(b.center.x-endpoint.x,b.center.z-endpoint.z)<.001&&Math.abs(b.center.y-endpoint.y)<.001
++        &&b.arms.some(a=>a.roadId===segment.piece.id));
++      if(!bend)return 0;
++      const other=bend.arms.find(a=>a.roadId!==segment.piece.id)!,arm=bend.arms.find(a=>a.roadId===segment.piece.id)!;
++      const inside=offset*(-segment.uz*other.direction.x+segment.ux*other.direction.z)>0;
++      const dot=arm.direction.x*other.direction.x+arm.direction.z*other.direction.z,cot=Math.sqrt((1+dot)/(1-dot));
++      if(inside&&(role==="curb"||role==="edge-light"))return Math.max(0,arm.tangent+(Math.abs(offset)-bend.radius)*cot)+.075;
++      return inside?(Math.abs(offset)+width/2)*cot+.075:width/2*cot+.075;
++    };
+     const point=(segment:typeof segments[number],distance:number,offset:number)=>({
+       x:segment.piece.from.x+segment.ux*(distance-segment.from)-segment.uz*offset,
+       z:segment.piece.from.z+segment.uz*(distance-segment.from)+segment.ux*offset});
+@@ -81,8 +95,8 @@ export function buildBrRoadMarkings(
+       if(!clear(from,to,offset,width))return;
+       for(const segment of segments){
+         const run=runs[segment.run];
+-        const a=Math.max(from,segment.from,run.from+cornerInset(run.startTurn,offset,width));
+-        const b=Math.min(to,segment.to,run.to-cornerInset(run.endTurn,offset,width));
++        const a=Math.max(from,segment.from+endpointInset(segment,true,offset,width,role),run.from+cornerInset(run.startTurn,offset,width));
++        const b=Math.min(to,segment.to-endpointInset(segment,false,offset,width,role),run.to-cornerInset(run.endTurn,offset,width));
+         if(b-a<1e-6)continue;
+         const d=(a+b)/2,p=point(segment,d,offset);
+         result.push({role,routeId:route.id,pieceId:segment.piece.id,
+diff --git a/client/src/modes/battle-royale/br-world.ts b/client/src/modes/battle-royale/br-world.ts
+index ac1f346..7b7bd40 100644
+--- a/client/src/modes/battle-royale/br-world.ts
++++ b/client/src/modes/battle-royale/br-world.ts
+@@ -55,6 +55,8 @@ import { buildBrTransferYardDressing } from "./br-transfer-yard";
+ import { buildBrCivicFrontageDressing } from "./br-civic-frontage";
+ import { buildBrNovaLandingDressing } from "./br-nova-landing";
+ import { buildBrEngineGateFrontage } from "./br-engine-gate-frontage";
++import { buildBrCoolantFrontage } from "./br-coolant-frontage";
++import { buildBrNorthCivicFrontage } from "./br-north-civic-frontage";
+ import { buildBrTerrainSurface } from "./br-terrain-surfaces";
+ import { buildMaintenanceStrips } from "./br-maintenance-strips";
+ import { buildMallDirectories } from "./br-mall-directories";
+@@ -388,8 +390,8 @@ export class BrWorldRenderer {
+       const spec={position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z),rotationY:part.rotationY,rotationZ:part.rotationZ};
+       (part.role==="edge"?gradeEdges:part.role==="support"?gradeSupports:gradeLights).push(spec);
+     }
+-    for(const bend of buildBrRoadBends(BR_ROADS))for(let i=1;i<bend.edge.length;i++){
+-      const a=bend.edge[i-1],b=bend.edge[i],dx=b.x-a.x,dz=b.z-a.z;
++    for(const bend of buildBrRoadBends(BR_ROADS))for(const edge of [bend.edge,bend.outerEdge])for(let i=1;i<edge.length;i++){
++      const a=edge[i-1],b=edge[i],dx=b.x-a.x,dz=b.z-a.z;
+       curbs.push({position:position((a.x+b.x)/2,a.y+.039,(a.z+b.z)/2),scale:position(Math.hypot(dx,dz),.07,.24),rotationY:-Math.atan2(dz,dx)});
+       if(i%2===1)edgeLights.push({position:position((a.x+b.x)/2,a.y+.08,(a.z+b.z)/2),scale:position(Math.hypot(dx,dz)*.7,.018,.07),rotationY:-Math.atan2(dz,dx)});
+     }
+@@ -1178,6 +1180,8 @@ export class BrWorldRenderer {
+     this.addInstances(group,this.materials.unitBox,this.materials.get("energyCyan"),nexusEnergy,false);
+     this.addInstances(group,this.materials.unitBox,this.materials.get("industrialOrange"),nexusWarnings,false);
+     this.addContextProps(group, poi);
++    if(poi.id==="zero-point")for(const frontage of buildBrCoolantFrontage())this.addAuthoredSecondaryDressing(group,frontage);
++    if(poi.id==="void-mall")for(const frontage of buildBrNorthCivicFrontage())this.addAuthoredSecondaryDressing(group,frontage);
+     this.root.add(group);
+     this.districtDetails.push({ group, center: position(poi.position.x, 0, poi.position.z), visible: true });
+   }
+diff --git a/docs/BR_DESKTOP_HANDOFF_OCT09.md b/docs/BR_DESKTOP_HANDOFF_OCT09.md
+index 50c7f14..ae44924 100644
+--- a/docs/BR_DESKTOP_HANDOFF_OCT09.md
++++ b/docs/BR_DESKTOP_HANDOFF_OCT09.md
+@@ -116,3 +116,104 @@ Preview/test processes are stopped after checkpoint validation.
+ `client/src/modes/battle-royale/br-engine-gate-frontage.ts` and colocated test;
+ mixed integration `br-world.ts`; `tools/br-prop-audit.mjs`,
+ `br-secondary-review-views.json`, `br-engine-gate-review-views.json`.
++
++## October 9 local continuation — Coolant frontage and loot support
++
++The local desktop checkout was clean and updated from `5503890` to `d64d771`
++by fast-forward only. The continuation remains uncommitted and unpushed.
++Existing local routing/runtime configuration is preserved.
++
++Dock–Engine's road, doors and loot were exercised with the actual player,
++camera, networking and trusted browser input. The next confirmed gap was
++Coolant East: two opposing enterable buildings now enclose a connected street,
++with an internal upper floor, real collision and loot. All established map
++objects, 66 trees, bridge piers and the Transit basin are preserved exactly.
++North Civic and the other ground-view-confirmed gaps remain open.
++
++The reported floor-phasing defect is addressed in authoritative loot support
++queries and geometry-derived presentation grounding. Generated items, inventory
++drops and crate scatter now resolve real floor/slab/ramp heights. Far markers
++stay above support as they scale. Inventory buttons remain attached across
++movement snapshots so ordinary clicks can complete.
++
++The final automated live checks pass 21 Coolant and 11 Dock–Engine route legs,
++including stairs in both directions and five inventory drop/recovery cycles.
++They use one initial fixture placement per site and are not human acceptance.
++Fresh typecheck/build and 949/949 unit/integration tests across 172 files pass,
++including the unchanged 10/20/40-player authoritative server budgets. E2E
++results, logs, screenshots, preserved failures and precise evidence scopes are
++recorded in `artifacts/br-active-recovery-oct09/README.md` and `validation.json`.
++
++Continue architecture, usable interiors, meaningful elevation, lighting and
++ground-level composition. Do not treat passing automated tests or additional
++object counts as whole-island or human gameplay acceptance.
++## October 9 local continuation — North Civic street and interiors
++
++Continued from the current local Coolant/loot working tree on DESKTOP-JL99F36.
++All existing map data and prior improvements remain; no reset, restore or stash
++was used. North Civic now has opposing enterable archive/exchange buildings,
++a collision-backed upper floor and internal incline, five appended loot sockets,
++and a connected lower street between Zero Point and the mall's level corner.
++The route bends around existing solid cover and preserves the literal garden
++and service pockets at unchanged required clearance. All 66 authoritative trees,
++old roads/grades, existing sockets, collision blocks and bridge piers remain.
++
++The initial full regression passed 968/970; two existing pocket-clearance tests
++rejected a straight lane. The geometry was rerouted, without weakening tests.
++The revised focused run passes 41/41 including those tests and both-direction
++traversal/parity. Fresh validation evidence and source hashes are recorded in
++`artifacts/br-north-civic-oct09/README.md` and `validation.json`. Earlier x-19
++renders/live-first evidence are intermediate and retain their original scope.
++
++Whole-island art/playability acceptance remains open. New static and active
++views still show generic shell language, dark archive massing and angular mall
++pavement/stripe joins. Continue architectural/interior identity and ground-level
++composition; use confirmed views rather than filling all density samples.
++Automated native input and tests are not human control-feel acceptance. This
++continuation remains local and uncommitted; no push or deployment is authorized.
++
++Final North Civic validation: fresh typecheck/build pass; 970/970 tests across
++175 files pass in 151.76s, including all five unchanged 10/20/40-player server
++performance cases. Full E2E passes 11/11 in 5.6 minutes. Final native-input
++walkthrough passes 34 route legs and three pickup/drop/recovery cycles, with
++68 trusted mouse and 380 trusted key events and zero page errors. One initial
++fixture placement is recorded; this is not human acceptance. All 342 source
++manifest hashes were verified after E2E. The ordinary 5173/3000 preview is
++restored; review/E2E servers are closed. No new commit, push or deployment.
++
++## October 9 local continuation — supported road curves
++
++Continued on DESKTOP-JL99F36 from the current North Civic/loot working tree.
++All shared/server production source, map geometry, Classic/Chaos code and prior
++loot/frontage helpers are unchanged from that local checkpoint. Isolated
++presentation work was delegated to Astra; Sol reviewed/completed the helper
++changes, authoritative support checks and mixed renderer integration.
++
++Supported level two-arm bends now have tangential inside fillets and circular
++outer curb edges, including oblique turns. Road widths, centerlines, slopes,
++collision and navigation remain unchanged. Doorway and real-junction marking
++clearances remain enforced. Full polygon checks exclude unsupported additions,
++grade ribbons and raised solids. The freight deck edge at `(340,-275)` and
++mall's grade-adjacent join at `(-5,184)` are intentionally not rounded by this
++presentation pass; they still require deliberate geometry/composition work.
++
++Fresh typecheck/build and 49 focused checks pass. Full unit/integration validation
++passes 980/980 tests across 176 files in 156.65s, including all five unchanged
++10/20/40-player authoritative performance cases. The active production player,
++camera and network walkthrough passes 12 road legs, Zero Point to mall and back,
++with 17 trusted mouse events, 218 trusted key events and no page errors. Every
++captured client/server sample is grounded. One initial fixture placement is
++recorded; this is automated input evidence, not human gameplay acceptance.
++
++Resource cleanup checks pass for high/low world assemblies. Before/after static
++views and the active camera captures are in `artifacts/br-road-recovery-oct09/`.
++`README.md` and `validation.json` record exact scopes and final browser results.
++Construction caching does not establish live FPS acceptance. Archive massing,
++repeated shells/interiors, mall grade joins and whole-island recovery remain
++unfinished. No commit, push or deployment was performed.
++
++Final road-checkpoint browser validation passes 11/11 E2E in 5.7 minutes, with
++no source edits or concurrent render/unit jobs during the run. All 344 source
++manifest hashes were verified afterward. The ordinary 5173/3000 preview is
++restored; isolated review and E2E servers are closed. This is a validated local
++checkpoint, not completion of the spatial recovery pass or human acceptance.
+diff --git a/server/src/modes/battle-royale/br-loot-generation.ts b/server/src/modes/battle-royale/br-loot-generation.ts
+index fd896a1..90c6599 100644
+--- a/server/src/modes/battle-royale/br-loot-generation.ts
++++ b/server/src/modes/battle-royale/br-loot-generation.ts
+@@ -1,7 +1,8 @@
+ import {
+-  BR_HEALS, BR_WEAPONS, brItemMagazine, isBrHeal, seededRandom,
++  BR_HEALS, BR_WEAPONS, brFloorHeightAt, brItemMagazine, isBrHeal, seededRandom,
+   type BrItemId, type BrLootSocket, type BrLootState, type BrRarity, type BrWeaponId,
+ } from "@planetfall/shared";
++import type { BrLootPlacement } from "./br-loot-placement.js";
+ 
+ const WEAPONS = Object.keys(BR_WEAPONS) as BrWeaponId[];
+ const HEALS = Object.keys(BR_HEALS) as BrItemId[];
+@@ -18,6 +19,10 @@ export function generateBrLoot(
+   sockets: readonly BrLootSocket[],
+   seed: number,
+   idFactory: (kind: "loot" | "ammo") => string,
++  place: (origin: BrLootSocket["position"], requested: BrLootSocket["position"]) => BrLootPlacement = (_origin, position) => {
++    const surfaceY=brFloorHeightAt(position,position.y);
++    return {position:{...position,y:surfaceY+.58},surfaceY};
++  },
+ ): BrLootState[] {
+   const random = seededRandom(seed);
+   const seenStructures = new Set<string>();
+@@ -32,13 +37,11 @@ export function generateBrLoot(
+     const previous = lastItemByStructure.get(socket.structureId);
+     if (itemId === previous && pool.length > 1) itemId = pool[(pool.indexOf(itemId) + 1 + Math.floor(random() * (pool.length - 1))) % pool.length];
+     lastItemByStructure.set(socket.structureId, itemId);
+-    const surfaceY = socket.position.y - (socket.kind === "roof" ? .65 : .58);
+     const item: BrLootState = {
+       id: idFactory("loot"), itemId, rarity: rarity(random),
+       count: isBrHeal(itemId) ? 1 + Math.floor(random() * 2) : 1,
+       magazine: brItemMagazine(itemId),
+-      position: { x: socket.position.x + (random() - .5) * .8, y: socket.position.y, z: socket.position.z + (random() - .5) * .8 },
+-      surfaceY,
++      ...place(socket.position,{ x: socket.position.x + (random() - .5) * .8, y: socket.position.y, z: socket.position.z + (random() - .5) * .8 }),
+     };
+     output.push(item);
+     if (itemId in BR_WEAPONS) {
+@@ -46,7 +49,7 @@ export function generateBrLoot(
+       if (ammoType && (primary || random() < .78)) output.push({
+         id: idFactory("ammo"), ammoType, rarity: "common",
+         count: ammoType === "light" ? 36 : ammoType === "heavy" ? 12 : 8,
+-        position: { x: item.position.x + .95, y: socket.position.y, z: item.position.z - .72 }, surfaceY,
++        ...place(item.position,{ x: item.position.x + .95, y: item.position.y, z: item.position.z - .72 }),
+       });
+     }
+   }
+diff --git a/server/src/modes/battle-royale/br-room.ts b/server/src/modes/battle-royale/br-room.ts
+index e41911d..eaa2586 100644
+--- a/server/src/modes/battle-royale/br-room.ts
++++ b/server/src/modes/battle-royale/br-room.ts
+@@ -13,6 +13,7 @@ import {
+ import { SpatialGrid } from "./spatial-grid.js";
+ import { BrPhysicsWorld } from "./br-physics.js";
+ import { generateBrLoot } from "./br-loot-generation.js";
++import { placeBrLoot } from "./br-loot-placement.js";
+ 
+ type GameSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
+ type GameServer = Server<ClientToServerEvents, ServerToClientEvents>;
+@@ -302,7 +303,9 @@ export class BattleRoyaleRoom {
+     const item = player.inventory[slot];
+     if (!item) return;
+     if (slot === player.selectedSlot || slot === player.useSlot || slot === player.reloadSlot) this.cancelTimedActions(player);
+-    const loot: BrLootState = { id: id("loot"), itemId: item.itemId, rarity: item.rarity, count: item.count, magazine: item.magazine, position: { x: player.position.x + Math.sin(player.yaw) * 1.2, y: player.position.y + .5, z: player.position.z - Math.cos(player.yaw) * 1.2 },surfaceY:player.position.y };
++    const origin={...player.position,y:player.position.y+.58};
++    const placement=placeBrLoot(origin,{x:origin.x+Math.sin(player.yaw)*1.2,y:origin.y,z:origin.z-Math.cos(player.yaw)*1.2},(start,direction,maximum)=>this.physics.rayDistance(start,direction,maximum));
++    const loot: BrLootState = { id: id("loot"), itemId: item.itemId, rarity: item.rarity, count: item.count, magazine: item.magazine, ...placement };
+     this.loot.set(loot.id, loot); this.lootGridDirty = true; player.inventory[slot] = null; this.io.to(this.code).emit("br:loot:spawned", [loot]);
+   }
+ 
+@@ -312,7 +315,9 @@ export class BattleRoyaleRoom {
+     crate.opened = true; const random = seededRandom(this.seed ^ this.hash(crate.id)); const drops: BrLootState[] = [];
+     for (let index = 0; index < 3; index++) {
+       const itemId = ITEM_IDS[Math.floor(random() * ITEM_IDS.length)]; const rarityRoll = random(); const rarity: BrRarity = rarityRoll > .9 ? "legendary" : rarityRoll > .55 ? "epic" : "rare";
+-      const angle = index / 3 * Math.PI * 2; const drop: BrLootState = { id: id("crate-loot"), itemId, rarity, count: isBrHeal(itemId) ? 2 : 1, magazine: brItemMagazine(itemId), position: { x: crate.position.x + Math.cos(angle) * 1.6, y: crate.position.y + .45, z: crate.position.z + Math.sin(angle) * 1.6 },surfaceY:crate.position.y-.62 };
++      const angle = index / 3 * Math.PI * 2;
++      const placement=placeBrLoot(crate.position,{x:crate.position.x+Math.cos(angle)*1.6,y:crate.position.y,z:crate.position.z+Math.sin(angle)*1.6},(start,direction,maximum)=>this.physics.rayDistance(start,direction,maximum));
++      const drop: BrLootState = { id: id("crate-loot"), itemId, rarity, count: isBrHeal(itemId) ? 2 : 1, magazine: brItemMagazine(itemId), ...placement };
+       this.loot.set(drop.id, drop); drops.push(drop);
+     }
+     this.lootGridDirty = true;
+@@ -742,7 +747,7 @@ export class BattleRoyaleRoom {
+   private initialStorm(): BrStormState { return { phaseIndex: 0, center: { x: 0, z: 0 }, radius: BR_MAP.radius, nextCenter: { x: 0, z: 0 }, nextRadius: BR_STORM_PHASES[0].radius, stage: "waiting", stageEndsAt: null, damagePerSecond: BR_STORM_PHASES[0].damage }; }
+ 
+   private spawnLoot(): void {
+-    for (const loot of generateBrLoot(BR_LOOT_SOCKETS,this.seed,(kind)=>id(kind))) this.loot.set(loot.id,loot);
++    for (const loot of generateBrLoot(BR_LOOT_SOCKETS,this.seed,(kind)=>id(kind),(origin,requested)=>placeBrLoot(origin,requested,(start,direction,maximum)=>this.physics.rayDistance(start,direction,maximum)))) this.loot.set(loot.id,loot);
+     this.lootGrid.rebuild(this.loot.values()); this.lootGridDirty = false;
+     const crates = BR_CRATE_SOCKETS.map((position, index) => ({ id: `crate-${this.seed}-${index}`, position: { ...position }, opened: false }));
+     for (const crate of crates) this.crates.set(crate.id, crate);
+diff --git a/shared/src/battle-royale/battle-royale.test.ts b/shared/src/battle-royale/battle-royale.test.ts
+index 0f5ab3c..6f603c2 100644
+--- a/shared/src/battle-royale/battle-royale.test.ts
++++ b/shared/src/battle-royale/battle-royale.test.ts
+@@ -185,8 +185,8 @@ describe("Battle Royale shared rules", () => {
+     expect(BR_POIS).toHaveLength(9);
+     expect(BR_SECONDARY_LOCATIONS).toHaveLength(39);
+     expect(BR_ISLAND_OUTLINE.length).toBeGreaterThanOrEqual(16);
+-    expect(BR_STRUCTURES).toHaveLength(185);
+-    expect(BR_STRUCTURES.filter((structure)=>structure.enterable)).toHaveLength(103);
++    expect(BR_STRUCTURES).toHaveLength(189);
++    expect(BR_STRUCTURES.filter((structure)=>structure.enterable)).toHaveLength(107);
+     expect(BR_ROADS.length).toBeGreaterThanOrEqual(46);
+     expect(BR_TERRAIN_PATCHES.length).toBeGreaterThanOrEqual(BR_POIS.length);
+     for (const poi of BR_POIS) {
+diff --git a/shared/src/battle-royale/engine-gate-approach.test.ts b/shared/src/battle-royale/engine-gate-approach.test.ts
+index 21d31ab..8eb6fe7 100644
+--- a/shared/src/battle-royale/engine-gate-approach.test.ts
++++ b/shared/src/battle-royale/engine-gate-approach.test.ts
+@@ -4,7 +4,7 @@ import { BR_DISTRICT_PLANS, BR_LOOT_SOCKETS, BR_MAP_BLOCKS, BR_ROADS, BR_STRUCTU
+ const ids = ["engine-gate-approach-workshop", "engine-gate-approach-relay"];
+ describe("Dock–Engine occupied approach frontage", () => {
+   it("appends two real, enterable approach buildings without moving the secondary block", () => {
+-    expect(BR_STRUCTURES.slice(-2).map(s => s.id)).toEqual(ids);
++    expect(BR_STRUCTURES.slice(183,185).map(s => s.id)).toEqual(ids);
+     const plan = BR_DISTRICT_PLANS.find(p => p.id === "engine-gate")!;
+     expect(plan.parcels.map(p => p.id)).toEqual(["engine-gate-parcel-1", "engine-gate-parcel-2", "engine-gate-parcel-3"]);
+     expect(plan.origin).toEqual({ x:405, y:0, z:-180 });
+diff --git a/shared/src/battle-royale/map.ts b/shared/src/battle-royale/map.ts
+index 7ab7fe5..cdea5e9 100644
+--- a/shared/src/battle-royale/map.ts
++++ b/shared/src/battle-royale/map.ts
+@@ -248,6 +248,17 @@ const BR_ARTERIAL_ROADS:readonly BrRoadSegment[]=[
+   { id:"dock-engine-link-east", from:{x:340,y:.1,z:-275}, to:{x:340,y:.1,z:-180}, width:8, color:"#493f3a",kind:"arterial" },
+   { id:"dock-engine-link-gate", from:{x:340,y:.1,z:-180}, to:{x:375,y:.1,z:-180}, width:8, color:"#493f3a",kind:"arterial" },
+   { id:"engine-gate-approach-through", from:{x:340,y:.1,z:-180}, to:{x:340,y:.08,z:-130}, width:8, color:"#493f3a",kind:"arterial" },
++  // Occupied Coolant frontage connects Zero's perimeter to its existing avenue.
++  // Stop the north leg before the preserved garden trunks and plant shell.
++  { id:"coolant-frontage-street", from:{x:37,y:.1,z:58}, to:{x:37,y:.1,z:121}, width:6, color:"#304a58",kind:"local" },
++  { id:"coolant-frontage-north", from:{x:37,y:.1,z:121}, to:{x:70+10*63/95,y:.1,z:121}, width:6, color:"#304a58",kind:"local" },
++  // Pass east of the retained exchange garden pocket at (-25,125), then
++  // join the mall's exact ground-level corner instead of its sloping midspan.
++  { id:"north-civic-zero-entry",from:{x:-5,y:.1,z:58},to:{x:-5,y:.1,z:86},width:6,color:"#3c3a57",kind:"local" },
++  { id:"north-civic-garden-link",from:{x:-5,y:.1,z:86},to:{x:-15,y:.1,z:104},width:6,color:"#3c3a57",kind:"local" },
++  { id:"north-civic-street",from:{x:-15,y:.1,z:104},to:{x:-15,y:.1,z:170},width:6,color:"#3c3a57",kind:"local" },
++  { id:"north-civic-mall-link",from:{x:-15,y:.1,z:170},to:{x:-5,y:.1,z:184},width:6,color:"#3c3a57",kind:"local" },
++  { id:"north-civic-mall-arrival",from:{x:-5,y:.1,z:184},to:{x:-5,y:.1,z:190},width:6,color:"#3c3a57",kind:"local" },
+   { id:"east-freight-engine-deck", from:{x:360,y:8.1,z:-315}, to:{x:375,y:8.1,z:-315}, width:9, color:"#4e433c",kind:"arterial" },
+   // Keep the first leg level beside the freight shell, then descend on a
+   // shorter grade. Besides reading as a proper loading viaduct, this keeps
+@@ -768,7 +779,17 @@ const ENGINE_GATE_APPROACH_STRUCTURES:readonly BrStructure[]=[
+   S("engine-gate-approach-workshop","thruster-works",318,-198,16,18,6,"#579edf","industrial",1,"east",false,true,"utility"),
+   S("engine-gate-approach-relay","thruster-works",318,-162,16,16,8,"#579edf","industrial",1,"east",false,true,"industrial")
+ ];
+-export const BR_STRUCTURES:readonly BrStructure[]=[...PRIMARY_BR_STRUCTURES,...FIXED_SECONDARY_STRUCTURES,...SOLAR_SERVICE_STRUCTURES,...SOUTH_RING_STRUCTURES,...WEST_JUNCTION_STRUCTURES,...TRANSFER_YARD_STRUCTURES,...CIVIC_FRONTAGE_STRUCTURES,...NOVA_LANDING_STRUCTURES,...ENGINE_GATE_APPROACH_STRUCTURES];
++const COOLANT_FRONTAGE_STRUCTURES:readonly BrStructure[]=[
++  // Opposing doors frame a real lower street. Internal circulation creates
++  // elevation in the office without another exterior ramp or raised apron.
++  S("coolant-frontage-office","zero-point",18,98,20,24,11,"#65bfc8","academy",2,"east",false,true,"office"),
++  S("coolant-frontage-maintenance","zero-point",56,98,18,20,6,"#a99a78","industrial",1,"west",false,true,"utility")
++];
++const NORTH_CIVIC_STRUCTURES:readonly BrStructure[]=[
++  S("north-civic-archive","void-mall",-44,155,22,24,9,"#a599db","academy",2,"east",false,true,"office"),
++  S("north-civic-exchange","void-mall",0,155,18,20,6,"#d084a8","city",1,"west",false,true,"shop")
++];
++export const BR_STRUCTURES:readonly BrStructure[]=[...PRIMARY_BR_STRUCTURES,...FIXED_SECONDARY_STRUCTURES,...SOLAR_SERVICE_STRUCTURES,...SOUTH_RING_STRUCTURES,...WEST_JUNCTION_STRUCTURES,...TRANSFER_YARD_STRUCTURES,...CIVIC_FRONTAGE_STRUCTURES,...NOVA_LANDING_STRUCTURES,...ENGINE_GATE_APPROACH_STRUCTURES,...COOLANT_FRONTAGE_STRUCTURES,...NORTH_CIVIC_STRUCTURES];
+ 
+ /** District surfaces and smaller landscape beds follow the authored deck levels. */
+ export const BR_TERRAIN_PATCHES: readonly BrTerrainPatch[] = [

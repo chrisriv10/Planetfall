@@ -1,0 +1,371 @@
+{
+  "scope": "Static actual-world assembly, normal materials and BR lighting, no gameplay/HUD/sky/bloom/shadows. Not FPS or human-control validation.",
+  "legacyParkingReconstructed": false,
+  "views": [
+    {
+      "id": "interior-tower",
+      "position": [
+        0,
+        2.2,
+        -12
+      ],
+      "focus": [
+        0,
+        2.3,
+        0
+      ],
+      "structureId": "zero-spire",
+      "calls": 293,
+      "triangles": 297621,
+      "textures": 17,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 29225,
+        "materials": 297,
+        "visibleDistricts": 28,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "interior-office",
+      "position": [
+        -25,
+        2.2,
+        -9
+      ],
+      "focus": [
+        -38,
+        2.3,
+        -9
+      ],
+      "structureId": "zero-control",
+      "calls": 373,
+      "triangles": 420727,
+      "textures": 34,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 29225,
+        "materials": 297,
+        "visibleDistricts": 28,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "interior-shop",
+      "position": [
+        -220,
+        7.2,
+        -112
+      ],
+      "focus": [
+        -220,
+        7.3,
+        -104
+      ],
+      "structureId": "nova-cafe",
+      "calls": 389,
+      "triangles": 474741,
+      "textures": 35,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 31093,
+        "materials": 297,
+        "visibleDistricts": 32,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "interior-hangar",
+      "position": [
+        190,
+        2.2,
+        -189
+      ],
+      "focus": [
+        190,
+        2.3,
+        -174
+      ],
+      "structureId": "dock-hangar",
+      "calls": 435,
+      "triangles": 386525,
+      "textures": 42,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 24949,
+        "materials": 297,
+        "visibleDistricts": 24,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "interior-warehouse",
+      "position": [
+        161,
+        2.2,
+        -130
+      ],
+      "focus": [
+        150,
+        2.3,
+        -130
+      ],
+      "structureId": "dock-office",
+      "calls": 424,
+      "triangles": 376759,
+      "textures": 45,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 28710,
+        "materials": 297,
+        "visibleDistricts": 30,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "interior-industrial",
+      "position": [
+        228,
+        8.2,
+        74
+      ],
+      "focus": [
+        218,
+        8.3,
+        74
+      ],
+      "structureId": "helios-turbine-a",
+      "calls": 460,
+      "triangles": 424525,
+      "textures": 50,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 27665,
+        "materials": 297,
+        "visibleDistricts": 25,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "interior-academy",
+      "position": [
+        -278,
+        10.2,
+        65
+      ],
+      "focus": [
+        -278,
+        10.3,
+        75
+      ],
+      "structureId": "astra-hall",
+      "calls": 243,
+      "triangles": 271591,
+      "textures": 54,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 24857,
+        "materials": 297,
+        "visibleDistricts": 26,
+        "visibleSecondaryLabels": 8
+      }
+    },
+    {
+      "id": "interior-mall",
+      "position": [
+        -93,
+        2.2,
+        248
+      ],
+      "focus": [
+        -93,
+        2.3,
+        263
+      ],
+      "structureId": "void-anchor",
+      "calls": 189,
+      "triangles": 279173,
+      "textures": 66,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 25114,
+        "materials": 297,
+        "visibleDistricts": 26,
+        "visibleSecondaryLabels": 5
+      }
+    },
+    {
+      "id": "interior-greenhouse",
+      "position": [
+        109,
+        6.2,
+        291
+      ],
+      "focus": [
+        94,
+        6.3,
+        291
+      ],
+      "structureId": "farm-dome-a",
+      "calls": 283,
+      "triangles": 326607,
+      "textures": 70,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 24862,
+        "materials": 297,
+        "visibleDistricts": 22,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "interior-utility",
+      "position": [
+        -299,
+        2.2,
+        -258
+      ],
+      "focus": [
+        -326,
+        2.3,
+        -258
+      ],
+      "structureId": "crash-fuselage",
+      "calls": 156,
+      "triangles": 205193,
+      "textures": 72,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 23279,
+        "materials": 297,
+        "visibleDistricts": 22,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "interior-hotel",
+      "position": [
+        -138,
+        7.2,
+        -197
+      ],
+      "focus": [
+        -128,
+        7.3,
+        -197
+      ],
+      "structureId": "nova-hotel",
+      "calls": 364,
+      "triangles": 328039,
+      "textures": 74,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 24951,
+        "materials": 297,
+        "visibleDistricts": 27,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "interior-transit",
+      "position": [
+        153,
+        -0.7999999999999998,
+        72
+      ],
+      "focus": [
+        161,
+        -0.7000000000000002,
+        72
+      ],
+      "structureId": "transit-ticket-hall",
+      "calls": 332,
+      "triangles": 324077,
+      "textures": 74,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 29691,
+        "materials": 297,
+        "visibleDistricts": 26,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "interior-apartment",
+      "position": [
+        -56,
+        2.2,
+        -42
+      ],
+      "focus": [
+        -48,
+        2.3,
+        -42
+      ],
+      "structureId": "central-heights-1",
+      "calls": 440,
+      "triangles": 369767,
+      "textures": 75,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 29225,
+        "materials": 297,
+        "visibleDistricts": 28,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "interior-lab",
+      "position": [
+        -301,
+        2.2,
+        -293
+      ],
+      "focus": [
+        -307,
+        2.3,
+        -293
+      ],
+      "structureId": "salvage-row-1",
+      "calls": 136,
+      "triangles": 203863,
+      "textures": 75,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 24268,
+        "materials": 297,
+        "visibleDistricts": 24,
+        "visibleSecondaryLabels": 3
+      }
+    }
+  ],
+  "errors": []
+}

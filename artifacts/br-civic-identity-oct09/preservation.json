@@ -1,0 +1,28 @@
+{
+  "passed": true,
+  "baseline": "Validated road checkpoint local source",
+  "baselineFiles": 344,
+  "unchangedFiles": 337,
+  "changed": [
+    "client/src/modes/battle-royale/br-facade-signs.test.ts",
+    "client/src/modes/battle-royale/br-facade-signs.ts",
+    "client/src/modes/battle-royale/br-road-bends.test.ts",
+    "client/src/modes/battle-royale/br-road-detail.test.ts",
+    "client/src/modes/battle-royale/br-road-markings.test.ts",
+    "client/src/modes/battle-royale/br-world.ts",
+    "tools/br-active-spatial-review.mjs"
+  ],
+  "added": [
+    "client/src/modes/battle-royale/br-north-civic-identity.test.ts",
+    "client/src/modes/battle-royale/br-north-civic-identity.ts",
+    "server/src/modes/battle-royale/br-civic-identity-support.test.ts",
+    "tools/br-civic-identity-audit.mjs",
+    "tools/br-civic-identity-review-views.json"
+  ],
+  "sharedAndServerProductionUnchanged": true,
+  "classicAndChaosUnchanged": true,
+  "roadImplementationsUnchanged": true,
+  "lootAndFrontageHelpersUnchanged": true,
+  "additionalRoadTests": "Four presentation regressions appended when visuals resumed; all prior test code preserved.",
+  "mapHash": "028da755785ff50a783252577b0c44f19f4e1ff04fffba84aa39dc554d625716"
+}

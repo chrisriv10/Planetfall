@@ -1,0 +1,17 @@
+Largest building/cover gaps (10m sampling, 18m edge exclusion; floors and POI centers excluded):
+ -70, -460 : 58.5m to enclosure, 0.0m to road
+ 460, -110 : 57.2m to enclosure, 22.5m to road
+-410,  230 : 55.1m to enclosure, 14.9m to road
+  10, -340 : 51.2m to enclosure, 0.0m to road
+-460,   70 : 49.6m to enclosure, 23.5m to road
+ 270, -380 : 49.2m to enclosure, 49.4m to road
+ 460,  -50 : 48.5m to enclosure, 22.5m to road
+ 110, -440 : 48.4m to enclosure, 28.7m to road
+ 400, -260 : 48.0m to enclosure, 9.9m to road
+ 450,   30 : 47.7m to enclosure, 12.5m to road
+  30,  340 : 47.1m to enclosure, 5.5m to road
+-360,  230 : 47.1m to enclosure, 15.1m to road
+9.4% of interior samples are over 30m from a building/cover footprint
+0.2% of interior samples are over 50m from a building/cover footprint
+0.0% of interior samples are over 75m from a building/cover footprint
+Geometric diagnostic only: trees, facade detail, sightlines and elevation framing still require ground-level screenshot review.

@@ -1,7 +1,10 @@
 import { describe,expect,it } from "vitest";
-import { BR_ROAD_ROUTES,BR_STRUCTURES,BR_LOOT_SOCKETS,BR_MAP_BLOCKS } from "@planetfall/shared";
+import { BR_ROAD_ROUTES,BR_STRUCTURES,BR_LOOT_SOCKETS,BR_MAP_BLOCKS,brEntranceHeadroom } from "@planetfall/shared";
 import { buildBrSouthExchangeDressing } from "./br-south-exchange";
 import { blockClearance } from "./br-presentation-clearance-test-utils";
+import { buildBrDoorwayParts } from "./br-facade-attachments";
+import { buildBrFacadeSkin } from "./br-facade-skin";
+import { buildBrEntranceHeaderFinish } from "./br-entrance-header-finish";
 
 const input={structures:BR_STRUCTURES,roads:BR_ROAD_ROUTES};
 const buildings=BR_STRUCTURES.filter(s=>s.districtId==="south-exchange");
@@ -34,8 +37,33 @@ describe("South Exchange authored frontage dressing",()=>{
         const h=half(p);
         expect(gap(p.position,facade+direction*3,s.position.z,3+h.x,2.5+h.z),`${p.name}: ${s.id}`).toBeGreaterThan(.5);
       }
-      const sign=d.signs.find(sign=>sign.position.x===facade+direction*.36&&sign.position.z===s.position.z)!;
-      expect(sign.position.y-sign.height/2).toBeGreaterThan(s.position.y+3.1);
+      const sign=d.signs.find(sign=>sign.position.z===s.position.z)!;
+      expect(sign).toBeDefined();
+      expect(sign.position.y-sign.height/2).toBeGreaterThan(s.position.y+brEntranceHeadroom(s));
+    }
+  });
+  it("mounts all four named signs on the real canopy front with an unobstructed visible silhouette",()=>{
+    const d=buildBrSouthExchangeDressing()!;
+    const labels={"south-exchange-cafe":"EXCHANGE CAFE","south-exchange-office":"SOUTH EXCHANGE","south-exchange-market":"RING MARKET","south-exchange-service":"EXCHANGE SERVICE"};
+    for(const s of buildings){
+      const sign=d.signs.find(p=>p.text===labels[s.id as keyof typeof labels])!;
+      const direction=s.entrance==="east"?1:-1;
+      const attachments=buildBrDoorwayParts(s);
+      const canopy=attachments.filter(p=>p.face===s.entrance&&p.scale.z>=sign.width)
+        .sort((a,b)=>direction*(b.position.x-a.position.x))[0]!;
+      expect(sign.position.x).toBeCloseTo(canopy.position.x+direction*(canopy.scale.x/2+.04));
+      expect(sign.position.y).toBeCloseTo(s.position.y+canopy.position.y);
+      expect(sign.position.z).toBe(canopy.position.z);
+      expect(sign.rotationY).toBe(direction*Math.PI/2);
+      expect(sign.width).toBeLessThan(canopy.scale.z);
+      expect(sign.position.y-sign.height/2).toBeGreaterThan(s.position.y+brEntranceHeadroom(s));
+      const parts=[...buildBrFacadeSkin(s),...attachments].map(p=>({...p,position:{...p.position,y:p.position.y+s.position.y}}));
+      parts.push(...buildBrEntranceHeaderFinish(s));
+      for(const part of parts.filter(p=>p.face===s.entrance)){
+        const overlapsY=Math.abs(part.position.y-sign.position.y)<(part.scale.y+sign.height)/2;
+        const overlapsZ=Math.abs(part.position.z-sign.position.z)<(part.scale.z+sign.width)/2;
+        if(overlapsY&&overlapsZ)expect(direction*sign.position.x-(direction*part.position.x+part.scale.x/2),`${s.id}: ${part.finish}`).toBeGreaterThan(.03);
+      }
     }
   });
   it("keeps complete footprints outside roads, buildings, gameplay blocks and loot sockets",()=>{

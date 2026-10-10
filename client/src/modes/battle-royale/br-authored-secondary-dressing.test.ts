@@ -172,11 +172,14 @@ describe("literal secondary-site presentation", () => {
         const yFactor = part.geometry === "octahedron" ? 1 : .5;
         const bottom = part.position.y - part.scale.y * yFactor, top = part.position.y + part.scale.y * yFactor;
         expect(bottom).toBeGreaterThanOrEqual(group.center.y);
-        expect(top).toBeLessThanOrEqual(group.center.y+5);
+        const matureTree=part.name==="tree-stem"||part.name==="specimen-stem"||part.name==="tree-crown"||part.name==="specimen-crown";
+        expect(top).toBeLessThanOrEqual(group.center.y+(matureTree?8:5));
         if (part.surface) {
           expect(part.geometry).toBe("box");
           expect(top).toBeLessThanOrEqual(group.center.y+.041);
         } else if (part.finish === "canopy") {
+          expect(top-group.center.y).toBe(8);
+          expect(Math.min(part.scale.x,part.scale.z)*2).toBeGreaterThan(1.598);
           expect(bottom).toBeGreaterThanOrEqual(group.center.y+2.4);
           expect(part.geometry).toBe("octahedron");
         } else if (bottom > group.center.y+2.7) {

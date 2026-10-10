@@ -3,6 +3,7 @@ import { createBrCanopyMaterial } from "./br-canopy-material";
 import { createBrLitGlazingTexture } from "./br-lit-glazing";
 import { BR_PLAZA_COLORS, brPlazaTint } from "./br-plaza-finish";
 import { brDistrictPalette } from "./br-district-palette";
+import { brAuthoredRoomTint } from "./br-authored-wall-finish";
 
 export type BrMaterialKey =
   | "structuralWhite"
@@ -220,6 +221,25 @@ export class BrMaterialLibrary {
 
   districtFacade(color: THREE.ColorRepresentation): THREE.MeshStandardMaterial {
     return this.districtFinish(color, "facade");
+  }
+
+  /** Eight medium neutral partition paints, borrowing the existing wall maps. */
+  authoredRoomWall(color: THREE.ColorRepresentation): THREE.MeshStandardMaterial {
+    const key = `authored-room:${brDistrictPalette(color).id}`;
+    const cached = this.materials.get(key); if (cached) return cached as THREE.MeshStandardMaterial;
+    const material = this.get("interiorWall").clone() as THREE.MeshStandardMaterial;
+    material.color.copy(brAuthoredRoomTint(color));
+    material.roughness = .8; material.metalness = .04;
+    this.materials.set(key, material); return material;
+  }
+
+  /** Replaces the renderer's one-off slab material; face colors own its tint. */
+  authoredSlabMaterial(): THREE.MeshStandardMaterial {
+    const key = "authored-slab";
+    const cached = this.materials.get(key); if (cached) return cached as THREE.MeshStandardMaterial;
+    const material = this.get("interiorFloor").clone() as THREE.MeshStandardMaterial;
+    material.color.set(0xffffff); material.vertexColors = true;
+    this.materials.set(key, material); return material;
   }
 
   private districtFinish(color: THREE.ColorRepresentation, finish: "shell" | "facade"): THREE.MeshStandardMaterial {

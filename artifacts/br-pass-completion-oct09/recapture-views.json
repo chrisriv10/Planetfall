@@ -1,0 +1,246 @@
+[
+  {
+    "id": "crash-salvage-oblique",
+    "position": [
+      -297.7,
+      5,
+      -317
+    ],
+    "focus": [
+      -296.5,
+      4,
+      -301
+    ],
+    "structureId": "crash-salvage"
+  },
+  {
+    "id": "helios-annex-oblique",
+    "position": [
+      291,
+      12,
+      144
+    ],
+    "focus": [
+      301,
+      10,
+      126
+    ],
+    "structureId": "helios-annex"
+  },
+  {
+    "id": "salvage-row-1-oblique",
+    "position": [
+      -297.7,
+      6,
+      -277
+    ],
+    "focus": [
+      -299,
+      7,
+      -293
+    ],
+    "structureId": "salvage-row-1"
+  },
+  {
+    "id": "void-east-oblique",
+    "position": [
+      -74,
+      5,
+      278
+    ],
+    "focus": [
+      -58,
+      4,
+      260
+    ],
+    "structureId": "void-east"
+  },
+  {
+    "id": "void-west-oblique",
+    "position": [
+      -112,
+      5,
+      242
+    ],
+    "focus": [
+      -128,
+      4,
+      260
+    ],
+    "structureId": "void-west"
+  },
+  {
+    "id": "salvage-row-secondary-oblique",
+    "position": [
+      -297.7,
+      6,
+      -277
+    ],
+    "focus": [
+      -299,
+      7,
+      -293
+    ],
+    "structureId": "salvage-row-1"
+  },
+  {
+    "id": "zero-control-roof-access-side",
+    "position": [
+      -11,
+      17,
+      15.4
+    ],
+    "focus": [
+      -38,
+      4,
+      10.4
+    ],
+    "structureId": "zero-control",
+    "roofAccessSide": "north",
+    "blockId": "zero-control-roof-ramp"
+  },
+  {
+    "id": "nova-studio-roof-access-side",
+    "position": [
+      -123,
+      23,
+      -76.425
+    ],
+    "focus": [
+      -150,
+      9.5,
+      -81.425
+    ],
+    "structureId": "nova-studio",
+    "roofAccessSide": "north",
+    "blockId": "nova-studio-roof-ramp"
+  },
+  {
+    "id": "dock-office-roof-access-side",
+    "position": [
+      177,
+      17,
+      -105.6
+    ],
+    "focus": [
+      150,
+      4,
+      -110.6
+    ],
+    "structureId": "dock-office",
+    "roofAccessSide": "north",
+    "blockId": "dock-office-roof-ramp"
+  },
+  {
+    "id": "helios-control-roof-access-side",
+    "position": [
+      293.225,
+      22,
+      151
+    ],
+    "focus": [
+      288.225,
+      9.5,
+      124
+    ],
+    "structureId": "helios-control",
+    "roofAccessSide": "east",
+    "blockId": "helios-control-roof-ramp"
+  },
+  {
+    "id": "astra-hall-roof-access-side",
+    "position": [
+      -307.575,
+      26,
+      102
+    ],
+    "focus": [
+      -312.575,
+      12.5,
+      75
+    ],
+    "structureId": "astra-hall",
+    "roofAccessSide": "west",
+    "blockId": "astra-hall-roof-ramp"
+  },
+  {
+    "id": "farm-processing-roof-access-side",
+    "position": [
+      192,
+      20,
+      255.775
+    ],
+    "focus": [
+      165,
+      7.5,
+      250.775
+    ],
+    "structureId": "farm-processing",
+    "roofAccessSide": "south",
+    "blockId": "farm-processing-roof-ramp"
+  },
+  {
+    "id": "crash-engine-roof-access-side",
+    "position": [
+      -323.6,
+      17,
+      -267
+    ],
+    "focus": [
+      -328.6,
+      4,
+      -294
+    ],
+    "structureId": "crash-engine",
+    "roofAccessSide": "east",
+    "blockId": "crash-engine-roof-ramp"
+  },
+  {
+    "id": "thruster-control-roof-access-side",
+    "position": [
+      372.225,
+      16,
+      5
+    ],
+    "focus": [
+      367.225,
+      3.5,
+      -22
+    ],
+    "structureId": "thruster-control",
+    "roofAccessSide": "east",
+    "blockId": "thruster-control-roof-ramp"
+  },
+  {
+    "id": "south-relay-roof-access-side",
+    "position": [
+      17.775,
+      16,
+      -228
+    ],
+    "focus": [
+      12.775,
+      3.5,
+      -255
+    ],
+    "structureId": "south-relay",
+    "roofAccessSide": "west",
+    "blockId": "south-relay-roof-ramp"
+  },
+  {
+    "id": "void-food-court-roof-access-side",
+    "position": [
+      -124,
+      17,
+      304.6
+    ],
+    "focus": [
+      -151,
+      4,
+      299.6
+    ],
+    "structureId": "void-food-court",
+    "roofAccessSide": "south",
+    "blockId": "void-food-court-roof-ramp"
+  }
+]

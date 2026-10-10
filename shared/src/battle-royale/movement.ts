@@ -2,6 +2,7 @@ import { BR_BALANCE } from "./balance.js";
 import { BR_MAP_BLOCKS, BR_TRAVERSAL, brBlockPlanarHalfExtents, brBlocksNear, brRoadGradeFloorAt, isInsideBrIsland } from "./map.js";
 import { brClamp } from "./math.js";
 import { brBaseDeckHeight } from "./orbital-isle-elevation.js";
+import {brBlockTopSurfaceAt} from "./block-surface.js";
 import type { BrDeploymentState, BrShipState } from "./types.js";
 import type { Vec3 } from "../index.js";
 
@@ -37,6 +38,46 @@ export interface BrMotionResult extends BrMotionState {
 
 export interface BrCollisionResult { movement: Vec3; grounded: boolean; ceiling: boolean; crouched?: boolean; }
 export type BrCollisionResolver = (position: Vec3, desiredMovement: Vec3, options: { jumping: boolean; downed: boolean; crouched: boolean }) => BrCollisionResult;
+
+/** Keep interior stair contact queries shorter than the existing .18m ground
+ * snap. A sprint tick can cross a landing lip and its incline in one query.
+ * This refines only supported interior ramps; jumping and open deck keep the
+ * ordinary single query and the controller's contact limits stay unchanged. */
+export function brInteriorStairSubsteps(feet:Vec3,desired:Vec3,jumping:boolean):number {
+  const distance=Math.hypot(desired.x,desired.z);
+  if(jumping||desired.y>0||distance<=.12)return 1;
+  const steps=Math.ceil(distance/.12);
+  for(const block of brBlocksNear(feet,distance+BR_BALANCE.playerRadius)){
+    if(block.kind!=="ramp"||!block.id.includes("-stairs-"))continue;
+    // Sample the swept segment as well as its endpoints. A long tick can
+    // begin on the landing and end far down the incline; neither endpoint
+    // then lies close enough to the initial feet height to identify contact.
+    for(let step=0;step<=steps;step++){
+      const p={x:feet.x+desired.x*step/steps,z:feet.z+desired.z*step/steps};
+      const top=brBlockTopSurfaceAt(block,p);
+      if(top!==null&&feet.y>=top-.05&&feet.y<=top+.45)return steps;
+    }
+  }
+  return 1;
+}
+
+/** Downward intent only where the next short stair query has real support
+ * within the controller's existing snap range. Never pull a pilot down across
+ * an unsupported stairwell edge or change freefall/jump velocity. */
+export function brInteriorStairProbeY(feet:Vec3,desired:Vec3):number {
+  const next={x:feet.x+desired.x,z:feet.z+desired.z};
+  let currentTop=-Infinity,nextTop=-Infinity;
+  for(const block of brBlocksNear(feet,Math.hypot(desired.x,desired.z)+BR_BALANCE.playerRadius)){
+    if(block.kind!=="platform"&&block.kind!=="ramp")continue;
+    const current=brBlockTopSurfaceAt(block,feet),top=brBlockTopSurfaceAt(block,next);
+    if(current!==null&&current<=feet.y+.18)currentTop=Math.max(currentTop,current);
+    if(top!==null&&top<=feet.y+.18)nextTop=Math.max(top,nextTop);
+  }
+  // Upward travel keeps the original controller input. Adding downward intent
+  // uphill can oppose a slow pilot at a steep stair foot.
+  if(currentTop>=feet.y-.18&&nextTop>=feet.y-.18&&nextTop<currentTop-.001)return Math.min(desired.y,-.1);
+  return desired.y;
+}
 
 /** A wall/floor corner can make Rapier's autostep return a small downward
  * penetration into the solid base deck. Preserve the resolved horizontal
@@ -140,9 +181,12 @@ export function brFloorHeightAt(position: Vec3, previousY: number): number {
         if(previousY>=gradeFloor-.5)floor=Math.max(floor,gradeFloor);
         continue;
       }
+      // A diagonal ribbon's axis-aligned box also covers empty space beside
+      // the road. Its exact grade query returning null means no floor here.
+      if(block.id.endsWith("-surface"))continue;
     }
-    const halfX = block.size.x / 2; const halfZ = block.size.z / 2; const top = block.position.y + block.size.y / 2;
-    if (Math.abs(position.x - block.position.x) <= halfX && Math.abs(position.z - block.position.z) <= halfZ && previousY >= top - .5) floor = Math.max(floor, top);
+    const top=brBlockTopSurfaceAt(block,position);
+    if(top!==null&&previousY>=top-.5)floor=Math.max(floor,top);
   }
   return floor;
 }

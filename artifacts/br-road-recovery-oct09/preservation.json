@@ -1,0 +1,24 @@
+{
+  "passed": true,
+  "baseline": "North Civic local source checkpoint",
+  "baselineFiles": 342,
+  "unchangedFiles": 334,
+  "changed": [
+    "client/src/modes/battle-royale/br-road-bends.test.ts",
+    "client/src/modes/battle-royale/br-road-bends.ts",
+    "client/src/modes/battle-royale/br-road-detail.test.ts",
+    "client/src/modes/battle-royale/br-road-detail.ts",
+    "client/src/modes/battle-royale/br-road-markings.test.ts",
+    "client/src/modes/battle-royale/br-road-markings.ts",
+    "client/src/modes/battle-royale/br-world.ts",
+    "tools/br-active-spatial-review.mjs"
+  ],
+  "added": [
+    "server/src/modes/battle-royale/br-road-presentation-support.test.ts",
+    "tools/br-road-recovery-review-views.json"
+  ],
+  "sharedAndServerProductionUnchanged": true,
+  "classicAndChaosSourceUnchanged": true,
+  "lootAndFrontageHelpersUnchanged": true,
+  "mapHash": "028da755785ff50a783252577b0c44f19f4e1ff04fffba84aa39dc554d625716"
+}

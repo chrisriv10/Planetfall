@@ -1,0 +1,36 @@
+{
+  "scope": "Native pointer-lock cursor bookkeeping probe, no game state or WebGL.",
+  "commandedBefore": 2000,
+  "clickAfterUnlock": 640,
+  "commandedAfter": 2100,
+  "harnessAssumedDelta": 100,
+  "expectedDeltaAfterRecenter": 1460,
+  "before": [
+    {
+      "x": 640,
+      "movementX": 0,
+      "trusted": true,
+      "locked": false
+    },
+    {
+      "x": 640,
+      "movementX": 1360,
+      "trusted": true,
+      "locked": true
+    }
+  ],
+  "after": [
+    {
+      "x": 640,
+      "movementX": 0,
+      "trusted": true,
+      "locked": false
+    },
+    {
+      "x": 640,
+      "movementX": 1460,
+      "trusted": true,
+      "locked": true
+    }
+  ]
+}

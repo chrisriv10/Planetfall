@@ -1,0 +1,119 @@
+[
+  {
+    "id": "zero-point-aerial",
+    "position": [
+      105,
+      100,
+      -110
+    ],
+    "focus": [
+      0,
+      4,
+      0
+    ]
+  },
+  {
+    "id": "nova-plaza-aerial",
+    "position": [
+      -70,
+      105,
+      -245
+    ],
+    "focus": [
+      -175,
+      9,
+      -135
+    ]
+  },
+  {
+    "id": "dockyard-7-aerial",
+    "position": [
+      293,
+      100,
+      -266
+    ],
+    "focus": [
+      188,
+      4,
+      -156
+    ]
+  },
+  {
+    "id": "helios-reactor-aerial",
+    "position": [
+      367,
+      106,
+      -32
+    ],
+    "focus": [
+      262,
+      10,
+      78
+    ]
+  },
+  {
+    "id": "astra-academy-aerial",
+    "position": [
+      -173,
+      108,
+      -35
+    ],
+    "focus": [
+      -278,
+      12,
+      75
+    ]
+  },
+  {
+    "id": "void-mall-aerial",
+    "position": [
+      12,
+      100,
+      153
+    ],
+    "focus": [
+      -93,
+      4,
+      263
+    ]
+  },
+  {
+    "id": "orbital-farms-aerial",
+    "position": [
+      230,
+      104,
+      184
+    ],
+    "focus": [
+      125,
+      8,
+      294
+    ]
+  },
+  {
+    "id": "crash-site-aerial",
+    "position": [
+      -221,
+      100,
+      -368
+    ],
+    "focus": [
+      -326,
+      4,
+      -258
+    ]
+  },
+  {
+    "id": "thruster-works-aerial",
+    "position": [
+      447,
+      100,
+      -180
+    ],
+    "focus": [
+      342,
+      4,
+      -70
+    ]
+  }
+]

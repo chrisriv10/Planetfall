@@ -38,7 +38,7 @@ const BASE_REVIEW_CAMERAS: Readonly<Record<string, BrReviewCamera>> = {
   "foundry-roof": { position: [342, 24.7, -60], focus: [352, 28, -73] },
   // South Exchange now occupies the former ring-s stop. Review the remaining
   // Crash–Hotel service pocket, not an empty retired location or a deck grade.
-  "roadside-south": { position: [-138.3, 3.1, -284], focus: [-138.3, 2.2, -300.5] },
+  "roadside-south": { position: [-154, 2.7, -284], focus: [-154, 2.2, -300.5] },
   "roadside-nova": { position: [-76, 3.1, -178], focus: [-76, 3, -214] },
   "west-neighborhood-link": { position: [-309, 2.7, -43], focus: [-350, 2.4, -105] },
   "west-transit-avenue": { position: [-320, 2.7, -165], focus: [-315, 2.5, -131] },

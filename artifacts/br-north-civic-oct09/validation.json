@@ -1,0 +1,151 @@
+{
+  "date": "2026-10-09",
+  "machine": "DESKTOP-JL99F36",
+  "head": "d64d771ef62d519b8bd31324d6b1736c541ef761",
+  "workingTree": "local, uncommitted",
+  "pushed": false,
+  "deployed": false,
+  "typecheck": {
+    "command": "npm run typecheck",
+    "log": "typecheck-final.log",
+    "passed": true
+  },
+  "build": {
+    "command": "npm run build",
+    "log": "build-final.log",
+    "passed": true
+  },
+  "fullSuite": {
+    "passed": true,
+    "tests": 970,
+    "files": 175,
+    "durationSeconds": 151.76,
+    "log": "full-suite-final.log",
+    "firstRun": {
+      "passed": 968,
+      "failed": 2,
+      "log": "full-suite-first.log",
+      "cause": "Existing whole-pocket clearance checks rejected x-19 lane; geometry rerouted around preserved cover and pockets, limits unchanged."
+    }
+  },
+  "serverPerformance": {
+    "passed": true,
+    "includedInFullSuite": true,
+    "cases": [
+      {
+        "players": 10,
+        "identityOffset": 0
+      },
+      {
+        "players": 20,
+        "identityOffset": 0
+      },
+      {
+        "players": 40,
+        "identityOffset": 0
+      },
+      {
+        "players": 40,
+        "identityOffset": 1000
+      },
+      {
+        "players": 40,
+        "identityOffset": 5000
+      }
+    ],
+    "unchangedLimits": {
+      "averageTickMs": 16,
+      "p95TickMs": 45,
+      "worstTickMs": 150,
+      "maximumSnapshotBytes": 160000
+    },
+    "scope": "Thirty production-rate seconds per case, authoritative simulation and relevance snapshots with hard bots; not forty browser clients."
+  },
+  "e2e": {
+    "passed": true,
+    "tests": 11,
+    "duration": "5.6m",
+    "log": "e2e-final.log",
+    "sourceEditsDuringRun": false,
+    "concurrentRenderOrUnitJobs": false,
+    "historicalTimeoutCause": "Not proven."
+  },
+  "live": {
+    "passed": true,
+    "routes": 34,
+    "pickups": 3,
+    "dropRecoveryCycles": 3,
+    "input": {
+      "mouse": 68,
+      "keys": 380,
+      "trusted": true
+    },
+    "pageErrors": [],
+    "initialFixture": {
+      "position": {
+        "x": -5,
+        "y": 0.035,
+        "z": 58
+      },
+      "placementCount": 1,
+      "generatedLoot": 423
+    },
+    "briefDoorwayDescentSamples": 2,
+    "scope": "Active production player/camera walkthrough in an isolated local match. One initial authoritative fixture placement, then trusted browser mouse/keyboard only. Not human gameplay acceptance.",
+    "evidence": "live-final/playthrough.json"
+  },
+  "preservation": {
+    "baseline": "preserved current local working tree before North Civic, including Coolant frontage",
+    "checks": {
+      "BR_STRUCTURES": {
+        "preserved": 187,
+        "current": 189
+      },
+      "BR_LOOT_SOCKETS": {
+        "preserved": 276,
+        "current": 281
+      },
+      "BR_CRATE_SOCKETS": {
+        "preserved": 22,
+        "current": 22
+      },
+      "BR_ROADS": {
+        "preserved": 322,
+        "current": 327
+      },
+      "BR_ROAD_ROUTES": {
+        "preserved": 239,
+        "current": 244
+      },
+      "BR_TERRACES": {
+        "preserved": 18,
+        "current": 18
+      },
+      "BR_MAP_BLOCKS": {
+        "preserved": 1705,
+        "current": 1729
+      },
+      "BR_GREENWAY_TREES": {
+        "preserved": 66,
+        "current": 66
+      },
+      "BR_BRIDGE_PIERS": {
+        "preserved": 46,
+        "current": 46
+      }
+    },
+    "passed": true
+  },
+  "sourceManifest": {
+    "file": "source-manifest.json",
+    "files": 342,
+    "allHashesVerified": true
+  },
+  "limitations": [
+    "Whole-island recovery remains unfinished.",
+    "Automated native inputs use one initial fixture; no human art/control-feel acceptance claimed.",
+    "Dark archive massing, repeated shells/interiors and angular mall pavement/stripe joins need further iteration.",
+    "Static/overlap scopes exclude unrelated prop-to-prop and player contacts.",
+    "No existing assertion, timeout, gameplay condition or performance budget was weakened."
+  ]
+}

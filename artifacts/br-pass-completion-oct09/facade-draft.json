@@ -1,0 +1,3568 @@
+{
+  "generatedAt": "2026-10-10T15:21:24.190Z",
+  "scope": "All authored building envelopes and the production facade skin composition (glazing, service ribs, Nova storefront details and Solar service skins), doorway frames/awnings, freight pilasters, storefront uprights, facade LEDs and supported sign mounts. Shared physics/route tests separately validate bridge piers and tree trunks.",
+  "limits": "This does not certify every decorative mesh or animated figure. Bounding envelopes cannot prove triangle-level separation. Plant foliage, thin mullions and backing panels are intentional facade joins; broad boxes penetrating the outward glass face are flagged.",
+  "checked": {
+    "structures": 189,
+    "buildingPairs": 17766,
+    "facadeBoxes": 28162,
+    "bridgePiers": 46,
+    "greenwayTrees": 66
+  },
+  "buildingIntersections": [],
+  "facadeIntersections": [
+    {
+      "structure": "zero-spire",
+      "pane": 764,
+      "decoration": 771,
+      "face": "south",
+      "width": 3.9,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000000057,
+      "paneBox": {
+        "finish": "glass",
+        "face": "south",
+        "position": {
+          "x": 0,
+          "y": 11.5,
+          "z": -14.535
+        },
+        "scale": {
+          "x": 3.9,
+          "y": 15.62,
+          "z": 0.035
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "south",
+        "position": {
+          "x": 0,
+          "y": 4.05,
+          "z": -14.48
+        },
+        "scale": {
+          "x": 5.1,
+          "y": 0.38,
+          "z": 0.55
+        }
+      }
+    },
+    {
+      "structure": "zero-control",
+      "pane": 148,
+      "decoration": 153,
+      "face": "east",
+      "width": 3.8999999999999995,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000000057,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": -22.465,
+          "y": 5.6,
+          "z": -9
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 3.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -22.52,
+          "y": 4.05,
+          "z": -9
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "zero-relay",
+      "pane": 127,
+      "decoration": 132,
+      "face": "west",
+      "width": 3.8999999999999986,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000000057,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": 25.465,
+          "y": 5.1,
+          "z": 12
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 2.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": 25.52,
+          "y": 4.05,
+          "z": 12
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "zero-archive",
+      "pane": 98,
+      "decoration": 103,
+      "face": "south",
+      "width": 3.9000000000000004,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000000767,
+      "paneBox": {
+        "finish": "glass",
+        "face": "south",
+        "position": {
+          "x": 2,
+          "y": 4.6,
+          "z": 33.465
+        },
+        "scale": {
+          "x": 3.9,
+          "y": 1.82,
+          "z": 0.035
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "south",
+        "position": {
+          "x": 2,
+          "y": 4.05,
+          "z": 33.519999999999996
+        },
+        "scale": {
+          "x": 5.1,
+          "y": 0.38,
+          "z": 0.55
+        }
+      }
+    },
+    {
+      "structure": "nova-tower-a",
+      "pane": 711,
+      "decoration": 718,
+      "face": "east",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": -195.965,
+          "y": 11,
+          "z": -172
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 14.62,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -196.02,
+          "y": 4.05,
+          "z": -172
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "nova-tower-b",
+      "pane": 548,
+      "decoration": 555,
+      "face": "west",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": -153.035,
+          "y": 9.250000000000002,
+          "z": -172
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 11.12,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": -152.98,
+          "y": 4.05,
+          "z": -172
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "nova-cafe",
+      "pane": 120,
+      "decoration": 125,
+      "face": "south",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000001478,
+      "paneBox": {
+        "finish": "glass",
+        "face": "south",
+        "position": {
+          "x": -220,
+          "y": 4.6,
+          "z": -114.535
+        },
+        "scale": {
+          "x": 3.9,
+          "y": 1.82,
+          "z": 0.035
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "south",
+        "position": {
+          "x": -220,
+          "y": 4.05,
+          "z": -114.48
+        },
+        "scale": {
+          "x": 5.1,
+          "y": 0.38,
+          "z": 0.55
+        }
+      }
+    },
+    {
+      "structure": "nova-studio",
+      "pane": 204,
+      "decoration": 209,
+      "face": "south",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000001478,
+      "paneBox": {
+        "finish": "glass",
+        "face": "south",
+        "position": {
+          "x": -150,
+          "y": 6.1,
+          "z": -114.535
+        },
+        "scale": {
+          "x": 3.9,
+          "y": 4.82,
+          "z": 0.035
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "south",
+        "position": {
+          "x": -150,
+          "y": 4.05,
+          "z": -114.48
+        },
+        "scale": {
+          "x": 5.1,
+          "y": 0.38,
+          "z": 0.55
+        }
+      }
+    },
+    {
+      "structure": "helios-core",
+      "pane": 604,
+      "decoration": 611,
+      "face": "south",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000000767,
+      "paneBox": {
+        "finish": "glass",
+        "face": "south",
+        "position": {
+          "x": 262,
+          "y": 13,
+          "z": 60.465
+        },
+        "scale": {
+          "x": 3.9,
+          "y": 18.62,
+          "z": 0.035
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "south",
+        "position": {
+          "x": 262,
+          "y": 4.05,
+          "z": 60.519999999999996
+        },
+        "scale": {
+          "x": 5.1,
+          "y": 0.38,
+          "z": 0.55
+        }
+      }
+    },
+    {
+      "structure": "helios-turbine-a",
+      "pane": 84,
+      "decoration": 89,
+      "face": "east",
+      "width": 3.9000000000000057,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": 230.535,
+          "y": 6.1,
+          "z": 74
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 4.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": 230.48,
+          "y": 4.05,
+          "z": 74
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "helios-turbine-b",
+      "pane": 84,
+      "decoration": 89,
+      "face": "west",
+      "width": 3.9000000000000057,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": 293.465,
+          "y": 6.1,
+          "z": 74
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 4.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": 293.52,
+          "y": 4.05,
+          "z": 74
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "helios-control",
+      "pane": 87,
+      "decoration": 92,
+      "face": "north",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "north",
+        "position": {
+          "x": 261,
+          "y": 5.1,
+          "z": 134.535
+        },
+        "scale": {
+          "x": 3.9,
+          "y": 2.82,
+          "z": 0.035
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "north",
+        "position": {
+          "x": 261,
+          "y": 4.05,
+          "z": 134.48
+        },
+        "scale": {
+          "x": 5.1,
+          "y": 0.38,
+          "z": 0.55
+        }
+      }
+    },
+    {
+      "structure": "astra-hall",
+      "pane": 201,
+      "decoration": 206,
+      "face": "south",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000000767,
+      "paneBox": {
+        "finish": "glass",
+        "face": "south",
+        "position": {
+          "x": -278,
+          "y": 6.1,
+          "z": 62.465
+        },
+        "scale": {
+          "x": 3.9,
+          "y": 4.82,
+          "z": 0.035
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "south",
+        "position": {
+          "x": -278,
+          "y": 4.05,
+          "z": 62.519999999999996
+        },
+        "scale": {
+          "x": 5.1,
+          "y": 0.38,
+          "z": 0.55
+        }
+      }
+    },
+    {
+      "structure": "astra-lab",
+      "pane": 153,
+      "decoration": 158,
+      "face": "east",
+      "width": 3.9000000000000057,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": -307.465,
+          "y": 5.1,
+          "z": 52
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 2.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -307.52,
+          "y": 4.05,
+          "z": 52
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "astra-library",
+      "pane": 153,
+      "decoration": 158,
+      "face": "west",
+      "width": 3.9000000000000057,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": -248.535,
+          "y": 5.1,
+          "z": 52
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 2.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": -248.48,
+          "y": 4.05,
+          "z": 52
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "astra-observatory",
+      "pane": 458,
+      "decoration": 465,
+      "face": "north",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "north",
+        "position": {
+          "x": -278,
+          "y": 9,
+          "z": 131.535
+        },
+        "scale": {
+          "x": 3.9,
+          "y": 10.62,
+          "z": 0.035
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "north",
+        "position": {
+          "x": -278,
+          "y": 4.05,
+          "z": 131.48
+        },
+        "scale": {
+          "x": 5.1,
+          "y": 0.38,
+          "z": 0.55
+        }
+      }
+    },
+    {
+      "structure": "void-anchor",
+      "pane": 606,
+      "decoration": 613,
+      "face": "south",
+      "width": 3.9000000000000057,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "south",
+        "position": {
+          "x": -93,
+          "y": 7.000000000000002,
+          "z": 245.465
+        },
+        "scale": {
+          "x": 3.9,
+          "y": 6.620000000000001,
+          "z": 0.035
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "south",
+        "position": {
+          "x": -93,
+          "y": 4.05,
+          "z": 245.52
+        },
+        "scale": {
+          "x": 5.1,
+          "y": 0.38,
+          "z": 0.55
+        }
+      }
+    },
+    {
+      "structure": "void-west",
+      "pane": 243,
+      "decoration": 248,
+      "face": "east",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000001478,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": -127.465,
+          "y": 5.6,
+          "z": 260
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 3.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -127.52,
+          "y": 4.05,
+          "z": 260
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "void-east",
+      "pane": 243,
+      "decoration": 248,
+      "face": "west",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000000767,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": -58.535,
+          "y": 5.6,
+          "z": 260
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 3.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": -58.480000000000004,
+          "y": 4.05,
+          "z": 260
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "void-cinema",
+      "pane": 189,
+      "decoration": 194,
+      "face": "north",
+      "width": 3.9000000000000057,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "north",
+        "position": {
+          "x": -93,
+          "y": 5.1,
+          "z": 321.535
+        },
+        "scale": {
+          "x": 3.9,
+          "y": 2.82,
+          "z": 0.035
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "north",
+        "position": {
+          "x": -93,
+          "y": 4.05,
+          "z": 321.48
+        },
+        "scale": {
+          "x": 5.1,
+          "y": 0.38,
+          "z": 0.55
+        }
+      }
+    },
+    {
+      "structure": "farm-dome-a",
+      "pane": 190,
+      "decoration": 195,
+      "face": "east",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000001478,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": 111.535,
+          "y": 5.6,
+          "z": 291
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 3.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": 111.48,
+          "y": 4.05,
+          "z": 291
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "farm-dome-b",
+      "pane": 204,
+      "decoration": 209,
+      "face": "south",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "south",
+        "position": {
+          "x": 137,
+          "y": 5.6,
+          "z": 303.465
+        },
+        "scale": {
+          "x": 3.9,
+          "y": 3.82,
+          "z": 0.035
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "south",
+        "position": {
+          "x": 137,
+          "y": 4.05,
+          "z": 303.52
+        },
+        "scale": {
+          "x": 5.1,
+          "y": 0.38,
+          "z": 0.55
+        }
+      }
+    },
+    {
+      "structure": "farm-processing",
+      "pane": 169,
+      "decoration": 174,
+      "face": "west",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": 149.465,
+          "y": 5.1,
+          "z": 271
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 2.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": 149.52,
+          "y": 4.05,
+          "z": 271
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "farm-pump",
+      "pane": 70,
+      "decoration": 75,
+      "face": "north",
+      "width": 3.9000000000000057,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "north",
+        "position": {
+          "x": 106,
+          "y": 4.1,
+          "z": 257.535
+        },
+        "scale": {
+          "x": 3.9,
+          "y": 0.8199999999999998,
+          "z": 0.035
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "north",
+        "position": {
+          "x": 106,
+          "y": 4.05,
+          "z": 257.48
+        },
+        "scale": {
+          "x": 5.1,
+          "y": 0.38,
+          "z": 0.55
+        }
+      }
+    },
+    {
+      "structure": "crash-fuselage",
+      "pane": 151,
+      "decoration": 156,
+      "face": "east",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": -296.465,
+          "y": 6.1,
+          "z": -258
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 4.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -296.52,
+          "y": 4.05,
+          "z": -258
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "crash-cargo",
+      "pane": 87,
+      "decoration": 92,
+      "face": "west",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": -300.035,
+          "y": 4.6,
+          "z": -226
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 1.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": -299.98,
+          "y": 4.05,
+          "z": -226
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "crash-shelter",
+      "pane": 87,
+      "decoration": 92,
+      "face": "east",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": -351.465,
+          "y": 4.6,
+          "z": -224
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 1.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -351.52,
+          "y": 4.05,
+          "z": -224
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "crash-engine",
+      "pane": 81,
+      "decoration": 86,
+      "face": "north",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "north",
+        "position": {
+          "x": -350,
+          "y": 5.6,
+          "z": -282.465
+        },
+        "scale": {
+          "x": 3.9,
+          "y": 3.82,
+          "z": 0.035
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "north",
+        "position": {
+          "x": -350,
+          "y": 4.05,
+          "z": -282.52
+        },
+        "scale": {
+          "x": 5.1,
+          "y": 0.38,
+          "z": 0.55
+        }
+      }
+    },
+    {
+      "structure": "thruster-pump-a",
+      "pane": 87,
+      "decoration": 92,
+      "face": "east",
+      "width": 3.9000000000000057,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": 311.035,
+          "y": 5.6,
+          "z": -98
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 3.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": 310.98,
+          "y": 4.05,
+          "z": -98
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "thruster-pump-b",
+      "pane": 87,
+      "decoration": 92,
+      "face": "west",
+      "width": 3.9000000000000057,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": 372.965,
+          "y": 5.6,
+          "z": -98
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 3.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": 373.02,
+          "y": 4.05,
+          "z": -98
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "thruster-control",
+      "pane": 93,
+      "decoration": 98,
+      "face": "north",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000000057,
+      "paneBox": {
+        "finish": "glass",
+        "face": "north",
+        "position": {
+          "x": 342,
+          "y": 5.1,
+          "z": -9.965
+        },
+        "scale": {
+          "x": 3.9,
+          "y": 2.82,
+          "z": 0.035
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "north",
+        "position": {
+          "x": 342,
+          "y": 4.05,
+          "z": -10.02
+        },
+        "scale": {
+          "x": 5.1,
+          "y": 0.38,
+          "z": 0.55
+        }
+      }
+    },
+    {
+      "structure": "thruster-depot",
+      "pane": 81,
+      "decoration": 86,
+      "face": "west",
+      "width": 3.9000000000000057,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": 378.465,
+          "y": 4.6,
+          "z": -43
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 1.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": 378.52,
+          "y": 4.05,
+          "z": -43
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "mid-transit-west",
+      "pane": 90,
+      "decoration": 95,
+      "face": "east",
+      "width": 3.8999999999999986,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000001478,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": -75.965,
+          "y": 4.1,
+          "z": -22
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 0.8199999999999998,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -76.02,
+          "y": 4.05,
+          "z": -22
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "mid-transit-east",
+      "pane": 90,
+      "decoration": 95,
+      "face": "west",
+      "width": 3.8999999999999986,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000001478,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": 78.965,
+          "y": 4.1,
+          "z": 24
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 0.8199999999999998,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": 79.02,
+          "y": 4.05,
+          "z": 24
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "zero-gallery",
+      "pane": 134,
+      "decoration": 139,
+      "face": "east",
+      "width": 3.9000000000000057,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000000767,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": -34.965,
+          "y": 5.1,
+          "z": 35
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 2.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -35.019999999999996,
+          "y": 4.05,
+          "z": 35
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "zero-works",
+      "pane": 148,
+      "decoration": 153,
+      "face": "west",
+      "width": 3.900000000000002,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000000767,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": 32.965,
+          "y": 5.6,
+          "z": -31
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 3.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": 33.019999999999996,
+          "y": 4.05,
+          "z": -31
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "nova-arcade",
+      "pane": 147,
+      "decoration": 152,
+      "face": "south",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000001478,
+      "paneBox": {
+        "finish": "glass",
+        "face": "south",
+        "position": {
+          "x": -232,
+          "y": 6.1,
+          "z": -84.535
+        },
+        "scale": {
+          "x": 3.9,
+          "y": 4.82,
+          "z": 0.035
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "south",
+        "position": {
+          "x": -232,
+          "y": 4.05,
+          "z": -84.48
+        },
+        "scale": {
+          "x": 5.1,
+          "y": 0.38,
+          "z": 0.55
+        }
+      }
+    },
+    {
+      "structure": "nova-hotel",
+      "pane": 688,
+      "decoration": 695,
+      "face": "west",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": -140.535,
+          "y": 8.500000000000002,
+          "z": -197
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 9.62,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": -140.48,
+          "y": 4.05,
+          "z": -197
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "nova-market",
+      "pane": 109,
+      "decoration": 114,
+      "face": "east",
+      "width": 3.9000000000000057,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000001478,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": -102.465,
+          "y": 5.1,
+          "z": -106
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 2.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -102.52,
+          "y": 4.05,
+          "z": -106
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "dock-tower",
+      "pane": 157,
+      "decoration": 164,
+      "face": "south",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000001478,
+      "paneBox": {
+        "finish": "glass",
+        "face": "south",
+        "position": {
+          "x": 224,
+          "y": 7.250000000000002,
+          "z": -99.535
+        },
+        "scale": {
+          "x": 3.9,
+          "y": 7.120000000000001,
+          "z": 0.035
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "south",
+        "position": {
+          "x": 224,
+          "y": 4.05,
+          "z": -99.48
+        },
+        "scale": {
+          "x": 5.1,
+          "y": 0.38,
+          "z": 0.55
+        }
+      }
+    },
+    {
+      "structure": "helios-annex",
+      "pane": 87,
+      "decoration": 92,
+      "face": "west",
+      "width": 3.9000000000000057,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": 300.465,
+          "y": 6.1,
+          "z": 126
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 4.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": 300.52,
+          "y": 4.05,
+          "z": 126
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "helios-storage",
+      "pane": 87,
+      "decoration": 92,
+      "face": "east",
+      "width": 3.9000000000000057,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": 226.035,
+          "y": 5.1,
+          "z": 126
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 2.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": 225.98,
+          "y": 4.05,
+          "z": 126
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "astra-student-hall",
+      "pane": 153,
+      "decoration": 160,
+      "face": "east",
+      "width": 3.9000000000000057,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": -322.965,
+          "y": 5,
+          "z": 105
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 2.6199999999999997,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -323.02,
+          "y": 4.05,
+          "z": 105
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "astra-workshop",
+      "pane": 135,
+      "decoration": 140,
+      "face": "west",
+      "width": 3.9000000000000057,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": -233.535,
+          "y": 5.6,
+          "z": 105
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 3.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": -233.48,
+          "y": 4.05,
+          "z": 105
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "void-food-court",
+      "pane": 153,
+      "decoration": 158,
+      "face": "east",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": -133.465,
+          "y": 5.6,
+          "z": 320
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 3.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -133.52,
+          "y": 4.05,
+          "z": 320
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "void-market",
+      "pane": 113,
+      "decoration": 118,
+      "face": "west",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000000767,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": -52.535,
+          "y": 5.6,
+          "z": 319
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 3.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": -52.480000000000004,
+          "y": 4.05,
+          "z": 319
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "void-station",
+      "pane": 153,
+      "decoration": 158,
+      "face": "north",
+      "width": 3.9000000000000057,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "north",
+        "position": {
+          "x": -92,
+          "y": 6.1,
+          "z": 224.535
+        },
+        "scale": {
+          "x": 3.9,
+          "y": 4.82,
+          "z": 0.035
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "north",
+        "position": {
+          "x": -92,
+          "y": 4.05,
+          "z": 224.48
+        },
+        "scale": {
+          "x": 5.1,
+          "y": 0.38,
+          "z": 0.55
+        }
+      }
+    },
+    {
+      "structure": "farm-greenhouse-c",
+      "pane": 204,
+      "decoration": 209,
+      "face": "west",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": 174.465,
+          "y": 5.6,
+          "z": 328
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 3.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": 174.52,
+          "y": 4.05,
+          "z": 328
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "farm-silo",
+      "pane": 204,
+      "decoration": 211,
+      "face": "east",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000001478,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": 77.535,
+          "y": 6.500000000000002,
+          "z": 263
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 5.620000000000001,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": 77.48,
+          "y": 4.05,
+          "z": 263
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "crash-medbay",
+      "pane": 87,
+      "decoration": 92,
+      "face": "east",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": -315.465,
+          "y": 5.6,
+          "z": -215
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 3.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -315.52,
+          "y": 4.05,
+          "z": -215
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "crash-salvage",
+      "pane": 87,
+      "decoration": 92,
+      "face": "west",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": -297.035,
+          "y": 5.1,
+          "z": -301
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 2.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": -296.98,
+          "y": 4.05,
+          "z": -301
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "thruster-assembly",
+      "pane": 87,
+      "decoration": 94,
+      "face": "west",
+      "width": 3.8999999999999986,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": 383.965,
+          "y": 5,
+          "z": -15
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 2.6199999999999997,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": 384.02,
+          "y": 4.05,
+          "z": -15
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "thruster-cooling",
+      "pane": 87,
+      "decoration": 92,
+      "face": "east",
+      "width": 3.8999999999999986,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": 316.035,
+          "y": 6.1,
+          "z": -28
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 4.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": 315.98,
+          "y": 4.05,
+          "z": -28
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "transit-cafe",
+      "pane": 82,
+      "decoration": 87,
+      "face": "east",
+      "width": 3.9000000000000057,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000001478,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": 119.535,
+          "y": 4.6,
+          "z": 76
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 1.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": 119.48,
+          "y": 4.05,
+          "z": 76
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "transit-service-store",
+      "pane": 82,
+      "decoration": 87,
+      "face": "east",
+      "width": 3.9000000000000057,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000001478,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": 119.535,
+          "y": 5.1,
+          "z": 112
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 2.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": 119.48,
+          "y": 4.05,
+          "z": 112
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "transit-ticket-hall",
+      "pane": 83,
+      "decoration": 88,
+      "face": "west",
+      "width": 3.9000000000000057,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": 150.465,
+          "y": 5.6,
+          "z": 72
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 3.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": 150.52,
+          "y": 4.05,
+          "z": 72
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "transit-maintenance",
+      "pane": 62,
+      "decoration": 67,
+      "face": "west",
+      "width": 3.9000000000000057,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": 150.465,
+          "y": 5.1,
+          "z": 115
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 2.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": 150.52,
+          "y": 4.05,
+          "z": 115
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "south-exchange-cafe",
+      "pane": 91,
+      "decoration": 96,
+      "face": "east",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000001478,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": -88.465,
+          "y": 4.6,
+          "z": -314
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 1.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -88.52,
+          "y": 4.05,
+          "z": -314
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "south-exchange-office",
+      "pane": 155,
+      "decoration": 160,
+      "face": "west",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000000767,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": -63.535,
+          "y": 6.1,
+          "z": -314
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 4.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": -63.480000000000004,
+          "y": 4.05,
+          "z": -314
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "south-exchange-market",
+      "pane": 91,
+      "decoration": 96,
+      "face": "east",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000001478,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": -88.465,
+          "y": 5.1,
+          "z": -378
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 2.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -88.52,
+          "y": 4.05,
+          "z": -378
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "south-exchange-service",
+      "pane": 68,
+      "decoration": 73,
+      "face": "west",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000000767,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": -63.535,
+          "y": 4.6,
+          "z": -378
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 1.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": -63.480000000000004,
+          "y": 4.05,
+          "z": -378
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "transfer-canteen",
+      "pane": 68,
+      "decoration": 73,
+      "face": "east",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": 179.535,
+          "y": 4.6,
+          "z": 203
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 1.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": 179.48,
+          "y": 4.05,
+          "z": 203
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "transfer-control",
+      "pane": 113,
+      "decoration": 118,
+      "face": "west",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": 218.465,
+          "y": 6.1,
+          "z": 184
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 4.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": 218.52,
+          "y": 4.05,
+          "z": 184
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "transfer-maintenance",
+      "pane": 53,
+      "decoration": 58,
+      "face": "north",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "north",
+        "position": {
+          "x": 149,
+          "y": 5.1,
+          "z": 213.535
+        },
+        "scale": {
+          "x": 3.9,
+          "y": 2.82,
+          "z": 0.035
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "north",
+        "position": {
+          "x": 149,
+          "y": 4.05,
+          "z": 213.48
+        },
+        "scale": {
+          "x": 5.1,
+          "y": 0.38,
+          "z": 0.55
+        }
+      }
+    },
+    {
+      "structure": "central-heights-1",
+      "pane": 274,
+      "decoration": 279,
+      "face": "west",
+      "width": 3.9000000000000057,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000000767,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": -58.535,
+          "y": 5.6,
+          "z": -42
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 3.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": -58.480000000000004,
+          "y": 4.05,
+          "z": -42
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "relay-market-1",
+      "pane": 291,
+      "decoration": 298,
+      "face": "west",
+      "width": 3.9000000000000057,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000001478,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": 90.465,
+          "y": 5.25,
+          "z": -52
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 3.1199999999999997,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": 90.52,
+          "y": 4.05,
+          "z": -52
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "comet-hotel-1",
+      "pane": 453,
+      "decoration": 460,
+      "face": "east",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000001478,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": -81.465,
+          "y": 6.000000000000002,
+          "z": -236
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 4.620000000000001,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -81.52,
+          "y": 4.05,
+          "z": -236
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "horizon-homes-1",
+      "pane": 482,
+      "decoration": 489,
+      "face": "east",
+      "width": 3.8999999999999986,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": -264.465,
+          "y": 6.750000000000002,
+          "z": -13
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 6.120000000000001,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -264.52,
+          "y": 4.05,
+          "z": -13
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "academy-dorms-1",
+      "pane": 256,
+      "decoration": 261,
+      "face": "east",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": -372.465,
+          "y": 5.6,
+          "z": 167
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 3.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -372.52,
+          "y": 4.05,
+          "z": 167
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "west-overlook-1",
+      "pane": 89,
+      "decoration": 96,
+      "face": "west",
+      "width": 3.900000000000002,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": -397.535,
+          "y": 5.25,
+          "z": 31
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 3.1199999999999997,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": -397.48,
+          "y": 4.05,
+          "z": 31
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "signal-station-1",
+      "pane": 98,
+      "decoration": 105,
+      "face": "east",
+      "width": 3.9000000000000057,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": -398.465,
+          "y": 6.000000000000002,
+          "z": -83
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 4.620000000000001,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -398.52,
+          "y": 4.05,
+          "z": -83
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "salvage-row-1",
+      "pane": 83,
+      "decoration": 90,
+      "face": "east",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": -298.465,
+          "y": 6.750000000000002,
+          "z": -293
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 6.120000000000001,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -298.52,
+          "y": 4.05,
+          "z": -293
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "solar-service-1",
+      "pane": 94,
+      "decoration": 99,
+      "face": "east",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": 166.535,
+          "y": 5.1,
+          "z": 418
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 2.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": 166.48,
+          "y": 4.05,
+          "z": 418
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "solar-service-2",
+      "pane": 156,
+      "decoration": 161,
+      "face": "west",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": 193.465,
+          "y": 6.1,
+          "z": 414
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 4.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": 193.52,
+          "y": 4.05,
+          "z": 414
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "solar-service-3",
+      "pane": 72,
+      "decoration": 77,
+      "face": "east",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": 163.535,
+          "y": 4.6,
+          "z": 437
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 1.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": 163.48,
+          "y": 4.05,
+          "z": 437
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "ring-service-shop",
+      "pane": 91,
+      "decoration": 96,
+      "face": "east",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": -221.465,
+          "y": 4.6,
+          "z": -315
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 1.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -221.52,
+          "y": 4.05,
+          "z": -315
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "ring-service-office",
+      "pane": 148,
+      "decoration": 153,
+      "face": "west",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": -198.535,
+          "y": 6.1,
+          "z": -315
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 4.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": -198.48,
+          "y": 4.05,
+          "z": -315
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "ring-service-utility",
+      "pane": 62,
+      "decoration": 67,
+      "face": "west",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": -198.535,
+          "y": 4.6,
+          "z": -365
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 1.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": -198.48,
+          "y": 4.05,
+          "z": -365
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "west-junction-shop",
+      "pane": 85,
+      "decoration": 90,
+      "face": "south",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000001478,
+      "paneBox": {
+        "finish": "glass",
+        "face": "south",
+        "position": {
+          "x": -312,
+          "y": 4.6,
+          "z": -112.535
+        },
+        "scale": {
+          "x": 3.9,
+          "y": 1.82,
+          "z": 0.035
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "south",
+        "position": {
+          "x": -312,
+          "y": 4.05,
+          "z": -112.48
+        },
+        "scale": {
+          "x": 5.1,
+          "y": 0.38,
+          "z": 0.55
+        }
+      }
+    },
+    {
+      "structure": "west-junction-office",
+      "pane": 155,
+      "decoration": 162,
+      "face": "north",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "north",
+        "position": {
+          "x": -294,
+          "y": 5,
+          "z": -152.465
+        },
+        "scale": {
+          "x": 3.9,
+          "y": 2.6199999999999997,
+          "z": 0.035
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "north",
+        "position": {
+          "x": -294,
+          "y": 4.05,
+          "z": -152.52
+        },
+        "scale": {
+          "x": 5.1,
+          "y": 0.38,
+          "z": 0.55
+        }
+      }
+    },
+    {
+      "structure": "west-junction-utility",
+      "pane": 62,
+      "decoration": 67,
+      "face": "east",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": -342.465,
+          "y": 5.1,
+          "z": -152
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 2.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -342.52,
+          "y": 4.05,
+          "z": -152
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "transfer-yard-shop",
+      "pane": 88,
+      "decoration": 93,
+      "face": "east",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000001478,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": 89.535,
+          "y": 4.6,
+          "z": -365
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 1.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": 89.48,
+          "y": 4.05,
+          "z": -365
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "transfer-yard-office",
+      "pane": 148,
+      "decoration": 155,
+      "face": "west",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000001478,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": 117.465,
+          "y": 5,
+          "z": -372
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 2.6199999999999997,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": 117.52,
+          "y": 4.05,
+          "z": -372
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "transfer-yard-utility",
+      "pane": 62,
+      "decoration": 67,
+      "face": "east",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000001478,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": 86.535,
+          "y": 4.6,
+          "z": -391
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 1.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": 86.48,
+          "y": 4.05,
+          "z": -391
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "civic-frontage-bookshop",
+      "pane": 88,
+      "decoration": 93,
+      "face": "east",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": -154.465,
+          "y": 4.6,
+          "z": 170
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 1.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -154.52,
+          "y": 4.05,
+          "z": 170
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "civic-frontage-clinic",
+      "pane": 105,
+      "decoration": 112,
+      "face": "west",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": -132.535,
+          "y": 5,
+          "z": 166
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 2.6199999999999997,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": -132.48,
+          "y": 4.05,
+          "z": 166
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "civic-frontage-service",
+      "pane": 62,
+      "decoration": 67,
+      "face": "west",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": -131.535,
+          "y": 4.6,
+          "z": 145
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 1.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": -131.48,
+          "y": 4.05,
+          "z": 145
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "nova-landing-shop",
+      "pane": 88,
+      "decoration": 93,
+      "face": "east",
+      "width": 3.9000000000000004,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": -188.465,
+          "y": 4.6,
+          "z": 3
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 1.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -188.52,
+          "y": 4.05,
+          "z": 3
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "nova-landing-office",
+      "pane": 134,
+      "decoration": 141,
+      "face": "north",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000000057,
+      "paneBox": {
+        "finish": "glass",
+        "face": "north",
+        "position": {
+          "x": -198,
+          "y": 5,
+          "z": -18.465
+        },
+        "scale": {
+          "x": 3.9,
+          "y": 2.6199999999999997,
+          "z": 0.035
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "north",
+        "position": {
+          "x": -198,
+          "y": 4.05,
+          "z": -18.52
+        },
+        "scale": {
+          "x": 5.1,
+          "y": 0.38,
+          "z": 0.55
+        }
+      }
+    },
+    {
+      "structure": "nova-landing-service",
+      "pane": 62,
+      "decoration": 67,
+      "face": "north",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000000057,
+      "paneBox": {
+        "finish": "glass",
+        "face": "north",
+        "position": {
+          "x": -151,
+          "y": 4.6,
+          "z": -19.465
+        },
+        "scale": {
+          "x": 3.9,
+          "y": 1.82,
+          "z": 0.035
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "north",
+        "position": {
+          "x": -151,
+          "y": 4.05,
+          "z": -19.52
+        },
+        "scale": {
+          "x": 5.1,
+          "y": 0.38,
+          "z": 0.55
+        }
+      }
+    },
+    {
+      "structure": "engine-gate-approach-workshop",
+      "pane": 62,
+      "decoration": 67,
+      "face": "east",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": 326.535,
+          "y": 4.6,
+          "z": -198
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 1.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": 326.48,
+          "y": 4.05,
+          "z": -198
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "engine-gate-approach-relay",
+      "pane": 62,
+      "decoration": 67,
+      "face": "east",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20249999999998636,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": 326.535,
+          "y": 5.6,
+          "z": -162
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 3.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": 326.48,
+          "y": 4.05,
+          "z": -162
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "coolant-frontage-office",
+      "pane": 141,
+      "decoration": 148,
+      "face": "east",
+      "width": 3.9000000000000057,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000000057,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": 28.535,
+          "y": 5.25,
+          "z": 98
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 3.1199999999999997,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": 28.48,
+          "y": 4.05,
+          "z": 98
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "coolant-frontage-maintenance",
+      "pane": 62,
+      "decoration": 67,
+      "face": "west",
+      "width": 3.9000000000000057,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000000767,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": 46.465,
+          "y": 4.6,
+          "z": 98
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 1.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": 46.519999999999996,
+          "y": 4.05,
+          "z": 98
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "north-civic-archive",
+      "pane": 141,
+      "decoration": 146,
+      "face": "east",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000000767,
+      "paneBox": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": -32.465,
+          "y": 6.1,
+          "z": 155
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 4.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -32.519999999999996,
+          "y": 4.05,
+          "z": 155
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    },
+    {
+      "structure": "north-civic-exchange",
+      "pane": 85,
+      "decoration": 90,
+      "face": "west",
+      "width": 3.8999999999999773,
+      "height": 0.38000000000000034,
+      "penetration": 0.20250000000000057,
+      "paneBox": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": -9.535,
+          "y": 4.6,
+          "z": 155
+        },
+        "scale": {
+          "x": 0.035,
+          "y": 1.82,
+          "z": 3.9
+        }
+      },
+      "decorationBox": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": -9.48,
+          "y": 4.05,
+          "z": 155
+        },
+        "scale": {
+          "x": 0.55,
+          "y": 0.38,
+          "z": 5.1
+        }
+      }
+    }
+  ],
+  "passed": false
+}

@@ -1,0 +1,309 @@
+[
+  {
+    "id": "south-boardwalk-supported",
+    "position": [
+      -70,
+      7.112193298339844,
+      -460
+    ],
+    "focus": [
+      -70,
+      5,
+      -415
+    ],
+    "cameraSupportY": 4.412193298339844
+  },
+  {
+    "id": "engine-east-rim-supported",
+    "position": [
+      460,
+      2.699992370605469,
+      -110
+    ],
+    "focus": [
+      405,
+      4,
+      -160
+    ],
+    "cameraSupportY": -0.00000762939453125
+  },
+  {
+    "id": "west-campus-edge-supported",
+    "position": [
+      -410,
+      2.7,
+      230
+    ],
+    "focus": [
+      -350,
+      7,
+      220
+    ],
+    "cameraSupportY": 0
+  },
+  {
+    "id": "south-central-ring-supported",
+    "position": [
+      10,
+      2.7,
+      -340
+    ],
+    "focus": [
+      100,
+      5,
+      -350
+    ],
+    "cameraSupportY": 0
+  },
+  {
+    "id": "west-overlook-edge-supported",
+    "position": [
+      -460,
+      2.699992370605469,
+      70
+    ],
+    "focus": [
+      -405,
+      4,
+      30
+    ],
+    "cameraSupportY": -0.00000762939453125
+  },
+  {
+    "id": "shipworks-freight-transition-supported",
+    "position": [
+      270,
+      2.7,
+      -380
+    ],
+    "focus": [
+      300,
+      6,
+      -315
+    ],
+    "cameraSupportY": 0
+  },
+  {
+    "id": "east-thruster-transition-supported",
+    "position": [
+      460,
+      2.7,
+      -50
+    ],
+    "focus": [
+      395,
+      5,
+      -20
+    ],
+    "cameraSupportY": 0
+  },
+  {
+    "id": "south-transfer-edge-supported",
+    "position": [
+      110,
+      2.699992370605469,
+      -440
+    ],
+    "focus": [
+      110,
+      5,
+      -405
+    ],
+    "cameraSupportY": -0.00000762939453125
+  },
+  {
+    "id": "engine-freight-edge-supported",
+    "position": [
+      400,
+      2.7,
+      -260
+    ],
+    "focus": [
+      375,
+      6,
+      -290
+    ],
+    "cameraSupportY": 0
+  },
+  {
+    "id": "east-helios-transition-supported",
+    "position": [
+      450,
+      2.7,
+      30
+    ],
+    "focus": [
+      395,
+      6,
+      100
+    ],
+    "cameraSupportY": 0
+  },
+  {
+    "id": "mall-farm-transition-supported",
+    "position": [
+      30,
+      2.699992370605469,
+      340
+    ],
+    "focus": [
+      100,
+      10,
+      330
+    ],
+    "cameraSupportY": -0.00000762939453125
+  },
+  {
+    "id": "campus-commons-transition-supported",
+    "position": [
+      -360,
+      2.7,
+      230
+    ],
+    "focus": [
+      -285,
+      6,
+      245
+    ],
+    "cameraSupportY": 0
+  },
+  {
+    "id": "nova-retaining-supported",
+    "position": [
+      -80,
+      2.7,
+      -180
+    ],
+    "focus": [
+      -120,
+      10,
+      -170
+    ],
+    "cameraSupportY": 0
+  },
+  {
+    "id": "academy-retaining-supported",
+    "position": [
+      -270,
+      10.7,
+      90
+    ],
+    "focus": [
+      -310,
+      15,
+      140
+    ],
+    "cameraSupportY": 8
+  },
+  {
+    "id": "helios-retaining-supported",
+    "position": [
+      280,
+      8.7,
+      80
+    ],
+    "focus": [
+      320,
+      12,
+      110
+    ],
+    "cameraSupportY": 6
+  },
+  {
+    "id": "farm-retaining-supported",
+    "position": [
+      60,
+      2.699992370605469,
+      210
+    ],
+    "focus": [
+      100,
+      8,
+      250
+    ],
+    "cameraSupportY": -0.00000762939453125
+  },
+  {
+    "id": "farms-west-grade",
+    "position": [
+      250,
+      5.4,
+      330
+    ],
+    "focus": [
+      205,
+      7,
+      330
+    ]
+  },
+  {
+    "id": "crash-salvage-envelope",
+    "position": [
+      -317,
+      29,
+      -276
+    ],
+    "focus": [
+      -282,
+      3.5,
+      -301
+    ],
+    "structureId": "crash-salvage"
+  },
+  {
+    "id": "salvage-row-1-envelope",
+    "position": [
+      -272,
+      39,
+      -268
+    ],
+    "focus": [
+      -307,
+      8.5,
+      -293
+    ],
+    "structureId": "salvage-row-1"
+  },
+  {
+    "id": "void-east-envelope",
+    "position": [
+      -79,
+      30,
+      285
+    ],
+    "focus": [
+      -44,
+      4,
+      260
+    ],
+    "structureId": "void-east"
+  },
+  {
+    "id": "void-west-envelope",
+    "position": [
+      -107,
+      30,
+      285
+    ],
+    "focus": [
+      -142,
+      4,
+      260
+    ],
+    "structureId": "void-west"
+  },
+  {
+    "id": "zero-control-envelope",
+    "position": [
+      -3,
+      30,
+      16
+    ],
+    "focus": [
+      -38,
+      4,
+      -9
+    ],
+    "structureId": "zero-control"
+  }
+]

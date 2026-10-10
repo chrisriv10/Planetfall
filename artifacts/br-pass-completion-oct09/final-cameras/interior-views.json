@@ -1,0 +1,198 @@
+[
+  {
+    "id": "interior-tower",
+    "position": [
+      0,
+      2.2,
+      -12
+    ],
+    "focus": [
+      0,
+      2.3,
+      0
+    ],
+    "structureId": "zero-spire"
+  },
+  {
+    "id": "interior-office",
+    "position": [
+      -25,
+      2.2,
+      -9
+    ],
+    "focus": [
+      -38,
+      2.3,
+      -9
+    ],
+    "structureId": "zero-control"
+  },
+  {
+    "id": "interior-shop",
+    "position": [
+      -220,
+      7.2,
+      -112
+    ],
+    "focus": [
+      -220,
+      7.3,
+      -104
+    ],
+    "structureId": "nova-cafe"
+  },
+  {
+    "id": "interior-hangar",
+    "position": [
+      190,
+      2.2,
+      -189
+    ],
+    "focus": [
+      190,
+      2.3,
+      -174
+    ],
+    "structureId": "dock-hangar"
+  },
+  {
+    "id": "interior-warehouse",
+    "position": [
+      161,
+      2.2,
+      -130
+    ],
+    "focus": [
+      150,
+      2.3,
+      -130
+    ],
+    "structureId": "dock-office"
+  },
+  {
+    "id": "interior-industrial",
+    "position": [
+      228,
+      8.2,
+      74
+    ],
+    "focus": [
+      218,
+      8.3,
+      74
+    ],
+    "structureId": "helios-turbine-a"
+  },
+  {
+    "id": "interior-academy",
+    "position": [
+      -278,
+      10.2,
+      65
+    ],
+    "focus": [
+      -278,
+      10.3,
+      75
+    ],
+    "structureId": "astra-hall"
+  },
+  {
+    "id": "interior-mall",
+    "position": [
+      -93,
+      2.2,
+      248
+    ],
+    "focus": [
+      -93,
+      2.3,
+      263
+    ],
+    "structureId": "void-anchor"
+  },
+  {
+    "id": "interior-greenhouse",
+    "position": [
+      109,
+      6.2,
+      291
+    ],
+    "focus": [
+      94,
+      6.3,
+      291
+    ],
+    "structureId": "farm-dome-a"
+  },
+  {
+    "id": "interior-utility",
+    "position": [
+      -299,
+      2.2,
+      -258
+    ],
+    "focus": [
+      -326,
+      2.3,
+      -258
+    ],
+    "structureId": "crash-fuselage"
+  },
+  {
+    "id": "interior-hotel",
+    "position": [
+      -138,
+      7.2,
+      -197
+    ],
+    "focus": [
+      -128,
+      7.3,
+      -197
+    ],
+    "structureId": "nova-hotel"
+  },
+  {
+    "id": "interior-transit",
+    "position": [
+      153,
+      -0.7999999999999998,
+      72
+    ],
+    "focus": [
+      161,
+      -0.7000000000000002,
+      72
+    ],
+    "structureId": "transit-ticket-hall"
+  },
+  {
+    "id": "interior-apartment",
+    "position": [
+      -56,
+      2.2,
+      -42
+    ],
+    "focus": [
+      -48,
+      2.3,
+      -42
+    ],
+    "structureId": "central-heights-1"
+  },
+  {
+    "id": "interior-lab",
+    "position": [
+      -301,
+      2.2,
+      -293
+    ],
+    "focus": [
+      -307,
+      2.3,
+      -293
+    ],
+    "structureId": "salvage-row-1"
+  }
+]

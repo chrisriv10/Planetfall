@@ -1,0 +1,19 @@
+
+ RUN  v5.0.0 C:/Users/Chris/Desktop/planetfall
+
+BR_PERF {"idOffset":0,"participants":10,"averageTickMs":0.9149157777777842,"p95TickMs":1.7870000000000346,"worstTickMs":33.10369999999989,"averageSnapshotBytes":10162.694657762939,"p95SnapshotBytes":10626,"maximumSnapshotBytes":10765,"heapDeltaMb":13.72119140625}
+ ✓ server/src/modes/battle-royale/br-performance.test.ts > Battle Royale server performance > keeps 10-participant combat ticks and relevance snapshots bounded (identity case 0) 919ms
+ ✓ server/src/modes/battle-royale/br-performance.test.ts > Battle Royale server performance > keeps 20-participant combat ticks and relevance snapshots bounded (identity case 0) 1100ms
+ ✓ server/src/modes/battle-royale/br-performance.test.ts > Battle Royale server performance > keeps 40-participant combat ticks and relevance snapshots bounded (identity case 0) 5103ms
+ ✓ server/src/modes/battle-royale/br-performance.test.ts > Battle Royale server performance > keeps 40-participant combat ticks and relevance snapshots bounded (identity case 1000) 5126ms
+ ✓ server/src/modes/battle-royale/br-performance.test.ts > Battle Royale server performance > keeps 40-participant combat ticks and relevance snapshots bounded (identity case 5000) 5203ms
+BR_PERF {"idOffset":0,"participants":20,"averageTickMs":2.126715841584158,"p95TickMs":4.5002000000004045,"worstTickMs":9.003499999999804,"averageSnapshotBytes":17573.73482142857,"p95SnapshotBytes":18242,"maximumSnapshotBytes":19200,"heapDeltaMb":13.160697937011719}
+BR_PERF {"idOffset":0,"participants":40,"averageTickMs":5.6497477777777645,"p95TickMs":9.152799999999843,"worstTickMs":14.734599999999773,"averageSnapshotBytes":32289.098539232054,"p95SnapshotBytes":33558,"maximumSnapshotBytes":33867,"heapDeltaMb":14.542999267578125}
+BR_PERF {"idOffset":1000,"participants":40,"averageTickMs":5.673840888888883,"p95TickMs":9.51680000000124,"worstTickMs":14.754400000001624,"averageSnapshotBytes":31676.253631051753,"p95SnapshotBytes":33639,"maximumSnapshotBytes":33983,"heapDeltaMb":9.820747375488281}
+BR_PERF {"idOffset":5000,"participants":40,"averageTickMs":5.7641066666666605,"p95TickMs":9.142099999999118,"worstTickMs":15.729100000000471,"averageSnapshotBytes":32823.3918196995,"p95SnapshotBytes":33608,"maximumSnapshotBytes":34089,"heapDeltaMb":3.8709259033203125}
+
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  15:44:47
+   Duration  18.23s (tests 97%, transform 2%, import 1%)
+

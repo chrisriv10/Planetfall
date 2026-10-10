@@ -4,7 +4,7 @@ import { BR_DISTRICT_PLANS, BR_LOOT_SOCKETS, BR_MAP_BLOCKS, BR_ROADS, BR_STRUCTU
 const ids = ["engine-gate-approach-workshop", "engine-gate-approach-relay"];
 describe("Dock–Engine occupied approach frontage", () => {
   it("appends two real, enterable approach buildings without moving the secondary block", () => {
-    expect(BR_STRUCTURES.slice(-2).map(s => s.id)).toEqual(ids);
+    expect(BR_STRUCTURES.slice(183,185).map(s => s.id)).toEqual(ids);
     const plan = BR_DISTRICT_PLANS.find(p => p.id === "engine-gate")!;
     expect(plan.parcels.map(p => p.id)).toEqual(["engine-gate-parcel-1", "engine-gate-parcel-2", "engine-gate-parcel-3"]);
     expect(plan.origin).toEqual({ x:405, y:0, z:-180 });
@@ -16,7 +16,8 @@ describe("Dock–Engine occupied approach frontage", () => {
       expect(building.position.y).toBe(0);
       expect(building.roofAccess).toBe(false);
       expect(BR_MAP_BLOCKS.find(b => b.id === `${id}-floor`)).toBeDefined();
-      expect(BR_MAP_BLOCKS.filter(b => b.id.startsWith(`${id}-`) && b.kind === "wall")).toHaveLength(5);
+      expect(BR_MAP_BLOCKS.filter(b => b.id.startsWith(`${id}-`) && b.kind === "wall")).toHaveLength(6);
+      expect(BR_MAP_BLOCKS.find(b=>b.id===`${id}-entrance-header`)).toBeDefined();
       const loot = BR_LOOT_SOCKETS.filter(l => l.structureId === id);
       expect(loot).toHaveLength(2);
       expect(loot.every(l => l.kind === "interior")).toBe(true);

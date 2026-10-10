@@ -7,7 +7,14 @@ export function buildBrDoorwayParts(s:BrStructure):FacadePart[]{
   if(!s.enterable)return [];
   const face=s.entrance,ns=face==="north"||face==="south",sign=face==="north"||face==="east"?1:-1;
   const span=ns?s.size.x:s.size.z,normal=(ns?s.size.z:s.size.x)/2;
-  const shop=s.archetype==="shop"||s.archetype==="transit",projection=shop?2.4:1.8;
+  // These facing alley frontages have only 2.5m between building envelopes.
+  // A .8m canopy starts at .8m and ends at 1.6m, leaving .22m before
+  // the neighbour's actual .68m service skin beyond its envelope.
+  const alley=s.id==="crash-salvage"||s.id==="salvage-row-1";
+  // Mall side passages are 3m wide. End at 2m, leaving .23m before the
+  // anchor's actual .77m facade ribs without changing bracket placement.
+  const mallAlley=s.id==="void-east"||s.id==="void-west";
+  const shop=s.archetype==="shop"||s.archetype==="transit",projection=alley?.8:mallAlley?1.2:shop?2.4:1.8;
   const parts:FacadePart[]=[];
   const add=(lateral:number,y:number,w:number,h:number,offset:number,thickness:number)=>parts.push({finish:"frame",face,
     position:{x:s.position.x+(ns?lateral:sign*(normal+offset)),y,z:s.position.z+(ns?sign*(normal+offset):lateral)},

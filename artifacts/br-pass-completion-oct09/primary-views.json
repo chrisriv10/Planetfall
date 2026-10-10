@@ -1,0 +1,128 @@
+[
+  {
+    "id": "zero-point",
+    "position": [
+      0,
+      2.7,
+      -30
+    ],
+    "focus": [
+      0,
+      5,
+      0
+    ],
+    "structureId": "zero-spire"
+  },
+  {
+    "id": "nova-plaza",
+    "position": [
+      -180.5,
+      7.7,
+      -172
+    ],
+    "focus": [
+      -210,
+      10,
+      -172
+    ],
+    "structureId": "nova-tower-a"
+  },
+  {
+    "id": "dockyard-7",
+    "position": [
+      190,
+      2.7,
+      -207
+    ],
+    "focus": [
+      190,
+      4.4,
+      -174
+    ],
+    "structureId": "dock-hangar"
+  },
+  {
+    "id": "helios-reactor",
+    "position": [
+      262,
+      8.7,
+      45
+    ],
+    "focus": [
+      262,
+      11,
+      78
+    ],
+    "structureId": "helios-core"
+  },
+  {
+    "id": "astra-academy",
+    "position": [
+      -278,
+      10.7,
+      47
+    ],
+    "focus": [
+      -278,
+      11.6,
+      75
+    ],
+    "structureId": "astra-hall"
+  },
+  {
+    "id": "void-mall",
+    "position": [
+      -93,
+      2.7,
+      230
+    ],
+    "focus": [
+      -93,
+      5,
+      263
+    ],
+    "structureId": "void-anchor"
+  },
+  {
+    "id": "orbital-farms",
+    "position": [
+      127,
+      6.7,
+      291
+    ],
+    "focus": [
+      94,
+      7.2,
+      291
+    ],
+    "structureId": "farm-dome-a"
+  },
+  {
+    "id": "crash-site",
+    "position": [
+      -281,
+      2.7,
+      -258
+    ],
+    "focus": [
+      -326,
+      3.6,
+      -258
+    ],
+    "structureId": "crash-fuselage"
+  },
+  {
+    "id": "thruster-works",
+    "position": [
+      342,
+      2.7,
+      -102
+    ],
+    "focus": [
+      342,
+      5,
+      -70
+    ],
+    "structureId": "thruster-foundry"
+  }
+]

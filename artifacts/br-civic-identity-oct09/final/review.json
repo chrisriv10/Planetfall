@@ -1,0 +1,207 @@
+{
+  "scope": "Static actual-world assembly, normal materials and BR lighting, no gameplay/HUD/sky/bloom/shadows. Not FPS or human-control validation.",
+  "legacyParkingReconstructed": false,
+  "views": [
+    {
+      "id": "archive-frontage",
+      "position": [
+        -22,
+        2.2,
+        155
+      ],
+      "focus": [
+        -44,
+        3.5,
+        155
+      ],
+      "calls": 324,
+      "triangles": 407881,
+      "textures": 30,
+      "world": {
+        "objects": 2161,
+        "meshes": 1863,
+        "instances": 62126,
+        "visibleInstances": 29383,
+        "materials": 291,
+        "visibleDistricts": 29,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "exchange-frontage",
+      "position": [
+        -16,
+        2.2,
+        155
+      ],
+      "focus": [
+        0,
+        3,
+        155
+      ],
+      "calls": 385,
+      "triangles": 385321,
+      "textures": 48,
+      "world": {
+        "objects": 2161,
+        "meshes": 1863,
+        "instances": 62126,
+        "visibleInstances": 29383,
+        "materials": 291,
+        "visibleDistricts": 29,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "archive-ground-bays",
+      "position": [
+        -47,
+        2.2,
+        149
+      ],
+      "focus": [
+        -47,
+        2.2,
+        162
+      ],
+      "calls": 200,
+      "triangles": 286207,
+      "textures": 48,
+      "world": {
+        "objects": 2161,
+        "meshes": 1863,
+        "instances": 62126,
+        "visibleInstances": 29383,
+        "materials": 291,
+        "visibleDistricts": 29,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "archive-upper-bays",
+      "position": [
+        -47,
+        6.5,
+        150
+      ],
+      "focus": [
+        -47,
+        6.8,
+        161
+      ],
+      "calls": 200,
+      "triangles": 286207,
+      "textures": 48,
+      "world": {
+        "objects": 2161,
+        "meshes": 1863,
+        "instances": 62126,
+        "visibleInstances": 29383,
+        "materials": 291,
+        "visibleDistricts": 29,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "archive-stair-landing",
+      "position": [
+        -38.06,
+        6.5,
+        143.8
+      ],
+      "focus": [
+        -44,
+        5.6,
+        150
+      ],
+      "calls": 260,
+      "triangles": 328369,
+      "textures": 48,
+      "world": {
+        "objects": 2161,
+        "meshes": 1863,
+        "instances": 62126,
+        "visibleInstances": 29383,
+        "materials": 291,
+        "visibleDistricts": 29,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "exchange-ground-bays",
+      "position": [
+        -5,
+        2.2,
+        155
+      ],
+      "focus": [
+        5,
+        2.4,
+        155
+      ],
+      "calls": 368,
+      "triangles": 384945,
+      "textures": 48,
+      "world": {
+        "objects": 2161,
+        "meshes": 1863,
+        "instances": 62126,
+        "visibleInstances": 27019,
+        "materials": 291,
+        "visibleDistricts": 27,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "archive-full-frontage",
+      "position": [
+        -15,
+        2.7,
+        151
+      ],
+      "focus": [
+        -44,
+        5,
+        155
+      ],
+      "calls": 294,
+      "triangles": 353053,
+      "textures": 48,
+      "world": {
+        "objects": 2161,
+        "meshes": 1863,
+        "instances": 62126,
+        "visibleInstances": 27019,
+        "materials": 291,
+        "visibleDistricts": 27,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "exchange-full-frontage",
+      "position": [
+        -21,
+        2.7,
+        155
+      ],
+      "focus": [
+        0,
+        3.8,
+        155
+      ],
+      "calls": 389,
+      "triangles": 393853,
+      "textures": 48,
+      "world": {
+        "objects": 2161,
+        "meshes": 1863,
+        "instances": 62126,
+        "visibleInstances": 27019,
+        "materials": 291,
+        "visibleDistricts": 27,
+        "visibleSecondaryLabels": 4
+      }
+    }
+  ],
+  "errors": []
+}

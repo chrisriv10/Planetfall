@@ -25,7 +25,7 @@ export function buildResidentialLandingMarkers(structure: BrStructure): {parts: 
   // Existing interior wall cassettes project .61m from the wall centre.
   // Mount on that visible skin, not on the collider face behind the cladding.
   const wallZ = structure.position.z - structure.size.z / 2 + .625;
-  for (const landing of localBlocks(structure).filter(b => b.id.startsWith(`${structure.id}-deck-`) && b.id.endsWith("-landing"))) {
+  for (const landing of localBlocks(structure).filter(b => b.id.startsWith(`${structure.id}-deck-`) && b.id.endsWith("-landing") && !b.id.endsWith("-lower-landing"))) {
     const width = Math.min(3.6, landing.size.x - .6), x = landing.position.x;
     const floorY = landing.position.y + landing.size.y / 2;
     const floorHeight = structure.size.y / structure.floors;

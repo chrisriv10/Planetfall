@@ -1,0 +1,42 @@
+{
+  "baseline": "preserved current local working tree before North Civic, including Coolant frontage",
+  "checks": {
+    "BR_STRUCTURES": {
+      "preserved": 187,
+      "current": 189
+    },
+    "BR_LOOT_SOCKETS": {
+      "preserved": 276,
+      "current": 281
+    },
+    "BR_CRATE_SOCKETS": {
+      "preserved": 22,
+      "current": 22
+    },
+    "BR_ROADS": {
+      "preserved": 322,
+      "current": 327
+    },
+    "BR_ROAD_ROUTES": {
+      "preserved": 239,
+      "current": 244
+    },
+    "BR_TERRACES": {
+      "preserved": 18,
+      "current": 18
+    },
+    "BR_MAP_BLOCKS": {
+      "preserved": 1705,
+      "current": 1729
+    },
+    "BR_GREENWAY_TREES": {
+      "preserved": 66,
+      "current": 66
+    },
+    "BR_BRIDGE_PIERS": {
+      "preserved": 46,
+      "current": 46
+    }
+  },
+  "passed": true
+}

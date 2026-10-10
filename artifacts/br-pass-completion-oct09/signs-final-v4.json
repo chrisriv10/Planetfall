@@ -1,0 +1,493 @@
+{
+  "generatedAt": "2026-10-10T20:33:52.469Z",
+  "scope": "Actual fixed building labels and all seven batch-assembled mount pieces, world elevation/facing/materials and building-envelope clearance. Legacy POI-relative context billboards must be absent.",
+  "limits": "Not pixel-level text visibility, gameplay, full rooftop/prop collision or human art acceptance. Fixed views and focused geometry tests complement this check.",
+  "checked": {
+    "namedCatalog": 45,
+    "mountedLabels": 25,
+    "matchedMounts": 175,
+    "buildings": 189
+  },
+  "omitted": [
+    {
+      "structureId": "zero-spire",
+      "text": "ZERO POINT",
+      "reason": "high-roof"
+    },
+    {
+      "structureId": "helios-core",
+      "text": "HELIOS",
+      "reason": "high-roof"
+    },
+    {
+      "structureId": "void-anchor",
+      "text": "VOID MALL",
+      "reason": "high-roof"
+    },
+    {
+      "structureId": "thruster-foundry",
+      "text": "THRUSTER WORKS",
+      "reason": "high-roof"
+    },
+    {
+      "structureId": "comet-hotel-1",
+      "text": "COMET HOTEL",
+      "reason": "high-roof"
+    },
+    {
+      "structureId": "horizon-homes-1",
+      "text": "HORIZON HOMES",
+      "reason": "high-roof"
+    },
+    {
+      "structureId": "signal-station-1",
+      "text": "SIGNAL STATION",
+      "reason": "high-roof"
+    },
+    {
+      "structureId": "salvage-row-1",
+      "text": "SALVAGE ROW",
+      "reason": "high-roof"
+    },
+    {
+      "structureId": "cargo-spur-1",
+      "text": "CARGO SPUR",
+      "reason": "high-roof"
+    },
+    {
+      "structureId": "dock-service-1",
+      "text": "DOCK SERVICE",
+      "reason": "high-roof"
+    },
+    {
+      "structureId": "helios-relay-1",
+      "text": "HELIOS RELAY",
+      "reason": "high-roof"
+    },
+    {
+      "structureId": "orbital-overlook-1",
+      "text": "ORBITAL OVERLOOK",
+      "reason": "high-roof"
+    },
+    {
+      "structureId": "north-gardens-1",
+      "text": "NORTH GARDENS",
+      "reason": "high-roof"
+    },
+    {
+      "structureId": "mall-annex-1",
+      "text": "MALL ANNEX",
+      "reason": "high-roof"
+    },
+    {
+      "structureId": "coolant-plant-1",
+      "text": "COOLANT PLANT",
+      "reason": "high-roof"
+    },
+    {
+      "structureId": "central-security-1",
+      "text": "CENTRAL SECURITY",
+      "reason": "high-roof"
+    },
+    {
+      "structureId": "northwest-housing-1",
+      "text": "NORTHWEST HOUSING",
+      "reason": "high-roof"
+    },
+    {
+      "structureId": "west-salvage-1",
+      "text": "WEST SALVAGE",
+      "reason": "high-roof"
+    },
+    {
+      "structureId": "east-rim-1",
+      "text": "EAST RIM",
+      "reason": "narrow-frontage"
+    },
+    {
+      "structureId": "west-rim-1",
+      "text": "WEST RIM",
+      "reason": "narrow-frontage"
+    }
+  ],
+  "labels": [
+    {
+      "structureId": "nova-cafe",
+      "text": "ORBITAL CAFE",
+      "position": [
+        -230.15,
+        12.25,
+        -115.235
+      ],
+      "facing": [
+        1.2246467991473532e-16,
+        0,
+        -1
+      ],
+      "width": 8.5
+    },
+    {
+      "structureId": "dock-hangar",
+      "text": "DOCK 07",
+      "position": [
+        169.35,
+        12.25,
+        -192.235
+      ],
+      "facing": [
+        1.2246467991473532e-16,
+        0,
+        -1
+      ],
+      "width": 8.5
+    },
+    {
+      "structureId": "astra-hall",
+      "text": "ASTRA",
+      "position": [
+        -296.65,
+        18.25,
+        61.765
+      ],
+      "facing": [
+        1.2246467991473532e-16,
+        0,
+        -1
+      ],
+      "width": 8.5
+    },
+    {
+      "structureId": "farm-processing",
+      "text": "GROW LAB",
+      "position": [
+        148.765,
+        12.25,
+        263.9
+      ],
+      "facing": [
+        -1,
+        0,
+        2.220446049250313e-16
+      ],
+      "width": 7.6
+    },
+    {
+      "structureId": "nova-arcade",
+      "text": "ARCADE",
+      "position": [
+        -240.15,
+        15.25,
+        -85.235
+      ],
+      "facing": [
+        1.2246467991473532e-16,
+        0,
+        -1
+      ],
+      "width": 8.5
+    },
+    {
+      "structureId": "nova-market",
+      "text": "MARKET",
+      "position": [
+        -101.765,
+        13.25,
+        -112.1
+      ],
+      "facing": [
+        1,
+        0,
+        2.220446049250313e-16
+      ],
+      "width": 5.6
+    },
+    {
+      "structureId": "void-food-court",
+      "text": "FOOD COURT",
+      "position": [
+        -132.765,
+        9.25,
+        313.4
+      ],
+      "facing": [
+        1,
+        0,
+        2.220446049250313e-16
+      ],
+      "width": 6.6
+    },
+    {
+      "structureId": "crash-medbay",
+      "text": "MED BAY",
+      "position": [
+        -314.765,
+        9.25,
+        -221.6
+      ],
+      "facing": [
+        1,
+        0,
+        2.220446049250313e-16
+      ],
+      "width": 6.6
+    },
+    {
+      "structureId": "central-heights-1",
+      "text": "CENTRAL HEIGHTS",
+      "position": [
+        -59.235,
+        9.25,
+        -47.6
+      ],
+      "facing": [
+        -1,
+        0,
+        2.220446049250313e-16
+      ],
+      "width": 4.6
+    },
+    {
+      "structureId": "relay-market-1",
+      "text": "RELAY MARKET",
+      "position": [
+        89.765,
+        12.25,
+        -58.1
+      ],
+      "facing": [
+        -1,
+        0,
+        2.220446049250313e-16
+      ],
+      "width": 5.6
+    },
+    {
+      "structureId": "academy-dorms-1",
+      "text": "ACADEMY DORMS",
+      "position": [
+        -371.765,
+        9.25,
+        160.9
+      ],
+      "facing": [
+        1,
+        0,
+        2.220446049250313e-16
+      ],
+      "width": 5.6
+    },
+    {
+      "structureId": "west-overlook-1",
+      "text": "WEST OVERLOOK",
+      "position": [
+        -398.235,
+        12.25,
+        24.4
+      ],
+      "facing": [
+        -1,
+        0,
+        2.220446049250313e-16
+      ],
+      "width": 6.6
+    },
+    {
+      "structureId": "emergency-depot-1",
+      "text": "EMERGENCY DEPOT",
+      "position": [
+        -153.235,
+        14.75,
+        -409.6
+      ],
+      "facing": [
+        -1,
+        0,
+        2.220446049250313e-16
+      ],
+      "width": 6.6
+    },
+    {
+      "structureId": "south-terminal-1",
+      "text": "SOUTH TERMINAL",
+      "position": [
+        23.765,
+        15.75,
+        -403.6
+      ],
+      "facing": [
+        -1,
+        0,
+        2.220446049250313e-16
+      ],
+      "width": 4.6
+    },
+    {
+      "structureId": "engine-gate-1",
+      "text": "ENGINE GATE",
+      "position": [
+        396.235,
+        9.25,
+        -168.6
+      ],
+      "facing": [
+        1,
+        0,
+        2.220446049250313e-16
+      ],
+      "width": 4.6
+    },
+    {
+      "structureId": "east-checkpoint-1",
+      "text": "EAST CHECKPOINT",
+      "position": [
+        360.765,
+        16.75,
+        232.9
+      ],
+      "facing": [
+        -1,
+        0,
+        2.220446049250313e-16
+      ],
+      "width": 5.6
+    },
+    {
+      "structureId": "farm-service-1",
+      "text": "FARM SERVICE",
+      "position": [
+        287.765,
+        9.25,
+        340.9
+      ],
+      "facing": [
+        -1,
+        0,
+        2.220446049250313e-16
+      ],
+      "width": 5.6
+    },
+    {
+      "structureId": "solar-field-1",
+      "text": "SOLAR FIELD",
+      "position": [
+        68.235,
+        16.25,
+        425.4
+      ],
+      "facing": [
+        1,
+        0,
+        2.220446049250313e-16
+      ],
+      "width": 6.6
+    },
+    {
+      "structureId": "academy-commons-1",
+      "text": "ACADEMY COMMONS",
+      "position": [
+        -258.235,
+        14.75,
+        245.4
+      ],
+      "facing": [
+        -1,
+        0,
+        2.220446049250313e-16
+      ],
+      "width": 6.6
+    },
+    {
+      "structureId": "west-park-1",
+      "text": "WEST PARK",
+      "position": [
+        -358.235,
+        12.25,
+        168.4
+      ],
+      "facing": [
+        -1,
+        0,
+        2.220446049250313e-16
+      ],
+      "width": 4.6
+    },
+    {
+      "structureId": "south-shipworks-1",
+      "text": "SOUTH SHIPWORKS",
+      "position": [
+        198.765,
+        13.25,
+        -388.6
+      ],
+      "facing": [
+        -1,
+        0,
+        2.220446049250313e-16
+      ],
+      "width": 4.6
+    },
+    {
+      "structureId": "east-freight-1",
+      "text": "EAST FREIGHT",
+      "position": [
+        337.765,
+        20.25,
+        -304.1
+      ],
+      "facing": [
+        -1,
+        0,
+        2.220446049250313e-16
+      ],
+      "width": 5.6
+    },
+    {
+      "structureId": "solar-service-1",
+      "text": "SOLAR SERVICE",
+      "position": [
+        167.235,
+        8.25,
+        412.4
+      ],
+      "facing": [
+        1,
+        0,
+        2.220446049250313e-16
+      ],
+      "width": 4.6
+    },
+    {
+      "structureId": "north-civic-archive",
+      "text": "CIVIC ARCHIVE",
+      "position": [
+        -31.765,
+        10.25,
+        147.9
+      ],
+      "facing": [
+        1,
+        0,
+        2.220446049250313e-16
+      ],
+      "width": 7.6
+    },
+    {
+      "structureId": "north-civic-exchange",
+      "text": "ORBIT EXCHANGE",
+      "position": [
+        -10.235,
+        7.25,
+        148.9
+      ],
+      "facing": [
+        -1,
+        0,
+        2.220446049250313e-16
+      ],
+      "width": 5.6
+    }
+  ],
+  "issues": [],
+  "errors": [],
+  "passed": true
+}

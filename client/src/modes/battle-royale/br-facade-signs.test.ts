@@ -100,3 +100,15 @@ describe("supported facade roof crests", () => {
     }
   });
 });
+
+it("adds two North Civic roof crests while preserving the prior 43 names and omission decisions",()=>{
+  const catalog=buildBrFacadeSignCatalog();
+  expect(catalog).toHaveLength(45);
+  expect(catalog.filter(s=>!s.structureId.startsWith("north-civic-")).map(({structureId,text,omission})=>[structureId,text,omission])).toEqual([
+    ["zero-spire","ZERO POINT","high-roof"],["nova-cafe","ORBITAL CAFE",null],["dock-hangar","DOCK 07",null],["helios-core","HELIOS","high-roof"],["astra-hall","ASTRA",null],["void-anchor","VOID MALL","high-roof"],["farm-processing","GROW LAB",null],["thruster-foundry","THRUSTER WORKS","high-roof"],["nova-arcade","ARCADE",null],["nova-market","MARKET",null],["void-food-court","FOOD COURT",null],["crash-medbay","MED BAY",null],
+    ["central-heights-1","CENTRAL HEIGHTS",null],["relay-market-1","RELAY MARKET",null],["comet-hotel-1","COMET HOTEL","high-roof"],["horizon-homes-1","HORIZON HOMES","high-roof"],["academy-dorms-1","ACADEMY DORMS",null],["west-overlook-1","WEST OVERLOOK",null],["signal-station-1","SIGNAL STATION","high-roof"],["salvage-row-1","SALVAGE ROW","high-roof"],["emergency-depot-1","EMERGENCY DEPOT",null],["south-terminal-1","SOUTH TERMINAL",null],["cargo-spur-1","CARGO SPUR","high-roof"],["dock-service-1","DOCK SERVICE","high-roof"],["engine-gate-1","ENGINE GATE",null],["east-checkpoint-1","EAST CHECKPOINT",null],["helios-relay-1","HELIOS RELAY","high-roof"],["orbital-overlook-1","ORBITAL OVERLOOK","high-roof"],["farm-service-1","FARM SERVICE",null],["solar-field-1","SOLAR FIELD",null],["north-gardens-1","NORTH GARDENS","high-roof"],["mall-annex-1","MALL ANNEX","high-roof"],["academy-commons-1","ACADEMY COMMONS",null],["west-park-1","WEST PARK",null],["coolant-plant-1","COOLANT PLANT","high-roof"],["central-security-1","CENTRAL SECURITY","high-roof"],["south-shipworks-1","SOUTH SHIPWORKS",null],["east-freight-1","EAST FREIGHT",null],["northwest-housing-1","NORTHWEST HOUSING","high-roof"],["west-salvage-1","WEST SALVAGE","high-roof"],["east-rim-1","EAST RIM","narrow-frontage"],["west-rim-1","WEST RIM","narrow-frontage"],["solar-service-1","SOLAR SERVICE",null],
+  ]);
+  expect(catalog.filter(s=>s.structureId.startsWith("north-civic-")).map(s=>[s.structureId,s.text,s.omission,s.sign?.parts.length])).toEqual([
+    ["north-civic-archive","CIVIC ARCHIVE",null,7],["north-civic-exchange","ORBIT EXCHANGE",null,7],
+  ]);
+});

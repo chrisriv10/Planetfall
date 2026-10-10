@@ -1,0 +1,65 @@
+{
+  "generatedAt": "2026-10-10T16:17:31.176Z",
+  "scope": "All authored building envelopes and the production facade skin composition (glazing, service ribs, Nova storefront details and Solar service skins), doorway frames/awnings, freight pilasters, storefront uprights, facade LEDs and supported sign mounts. Shared physics/route tests separately validate bridge piers and tree trunks.",
+  "limits": "This does not certify every decorative mesh or animated figure. Bounding envelopes cannot prove triangle-level separation. Plant foliage, thin mullions and backing panels are intentional facade joins; broad boxes penetrating the outward glass face are flagged.",
+  "checked": {
+    "structures": 189,
+    "buildingPairs": 17766,
+    "facadeBoxes": 28138,
+    "bridgePiers": 46,
+    "greenwayTrees": 66
+  },
+  "buildingIntersections": [],
+  "facadeIntersections": [],
+  "neighboringFacadeIntersections": [
+    {
+      "structure": "crash-salvage",
+      "neighbor": "salvage-row-1",
+      "partIndex": 93,
+      "part": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": -298.2,
+          "y": 4.45,
+          "z": -301
+        },
+        "scale": {
+          "x": 1.8,
+          "y": 0.22,
+          "z": 7.4
+        }
+      },
+      "overlap": {
+        "x": 0.09999999999998899,
+        "y": 0.22000000000000064,
+        "z": 2.6999999999999993
+      }
+    },
+    {
+      "structure": "salvage-row-1",
+      "neighbor": "crash-salvage",
+      "partIndex": 91,
+      "part": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -297.3,
+          "y": 4.45,
+          "z": -293
+        },
+        "scale": {
+          "x": 1.8,
+          "y": 0.22,
+          "z": 7.4
+        }
+      },
+      "overlap": {
+        "x": 0.09999999999998899,
+        "y": 0.22000000000000064,
+        "z": 7.199999999999999
+      }
+    }
+  ],
+  "passed": false
+}

@@ -2,6 +2,7 @@ import { describe,expect,it } from "vitest";
 import { BR_ROADS,BR_ROAD_ROUTES, type BrRoadSegment } from "@planetfall/shared";
 import { buildBrRoadMarkings } from "./br-road-markings";
 import { brRoadDetailClear } from "./br-road-detail";
+import { buildBrRoadBends } from "./br-road-bends";
 
 describe("route-stationed presentation detail",()=>{
   const route:BrRoadSegment={...BR_ROAD_ROUTES[0],id:"test-route",from:{x:0,y:.1,z:0},to:{x:240,y:12.1,z:0},width:12};
@@ -138,4 +139,34 @@ describe("route-stationed presentation detail",()=>{
     expectNoCornerOverlap(marks);
     expectNoCornerOverlap(buildBrRoadMarkings([route],pieces));
   });
+  it("aligns separate North Civic route curbs with the shared inner tangencies",()=>{
+    const parts=buildBrRoadMarkings();
+    for(const bend of buildBrRoadBends(BR_ROADS).filter(b=>[-5,-15].includes(b.center.x)&&[86,104,170].includes(b.center.z))){
+      expect(bend.arms).toHaveLength(2);
+      for(const arm of bend.arms){
+        const other=bend.arms.find(a=>a!==arm)!,road=BR_ROADS.find(r=>r.id===arm.roadId)!;
+        const dx=road.to.x-road.from.x,dz=road.to.z-road.from.z,length=Math.hypot(dx,dz),ux=dx/length,uz=dz/length;
+        const sign=Math.sign(-uz*other.direction.x+ux*other.direction.z),offset=sign*road.width*.49;
+        const dot=arm.direction.x*other.direction.x+arm.direction.z*other.direction.z,cot=Math.sqrt((1+dot)/(1-dot));
+        const tangent=arm.tangent+(Math.abs(offset)-bend.radius)*cot+.075;
+        const curbs=parts.filter(p=>p.pieceId===road.id&&p.role==="curb"
+          &&Math.abs((p.position.x-road.from.x)*-uz+(p.position.z-road.from.z)*ux-offset)<.01);
+        expect(curbs.length,road.id).toBeGreaterThan(0);
+        const distances=curbs.map(p=>(p.position.x-bend.center.x)*arm.direction.x+(p.position.z-bend.center.z)*arm.direction.z-p.scale.x/2);
+        expect(Math.min(...distances),road.id).toBeCloseTo(tangent,5);
+      }
+    }
+  });
+});
+
+it("trims distinct-route inside curbs to the supported North Civic fillet without overrunning either leg",()=>{
+  const a=BR_ROADS.find(r=>r.id==="north-civic-street")!,b=BR_ROADS.find(r=>r.id==="north-civic-mall-link")!;
+  const parts=buildBrRoadMarkings([a,b],[a,b],()=>true);
+  expect(parts.filter(p=>p.role==="curb"&&Math.hypot(p.position.x+15,p.position.z-170)<8).length).toBeGreaterThan(0);
+  for(const p of parts.filter(p=>p.role==="curb")){
+    const road=p.pieceId===a.id?a:b,dx=road.to.x-road.from.x,dz=road.to.z-road.from.z,length=Math.hypot(dx,dz);
+    const along=((p.position.x-road.from.x)*dx+(p.position.z-road.from.z)*dz)/length;
+    expect(along-p.scale.x/2).toBeGreaterThanOrEqual(0);
+    expect(along+p.scale.x/2).toBeLessThanOrEqual(length);
+  }
 });

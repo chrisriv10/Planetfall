@@ -44,9 +44,9 @@ export function buildBrAcademyStreetscape(quality: GraphicsQuality): BrAcademySt
       add("box","paintedMetal",-.86,.15,.45,.75,.26,1.3);
       add("box","soil",-.86,.284,.45,.61,.016,1.15);
       if(tree){
-        add("cylinder","soil",-.86,1.62,.45,.095,3.05,.095);
-        add("octahedron","canopy",-.86,3.75,.45,.64,1.1,.72);
-        if(quality==="high")add("octahedron","canopy",-.65,4.37,.42,.4,.63,.46);
+        add("cylinder","soil",-.86,2.82,.45,.095,5.45,.095);
+        add("octahedron","canopy",-.86,6.05,.45,.82,1.85,.8);
+        if(quality==="high")add("octahedron","canopy",-.65,7.03,.42,.4,.87,.46);
       }else{
         add("octahedron","canopy",-.86,.54,.17,.28,.23,.3);
         add("octahedron","canopy",-.86,.54,.73,.28,.23,.3);

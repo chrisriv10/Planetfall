@@ -1,0 +1,38 @@
+{
+  "scope": "Two complete production world assemblies; each reachable instance batch, geometry, material and mapped texture releases exactly once despite repeated dispose calls.",
+  "limits": "No WebGL allocation/memory measurement, live match, audio, sockets, players or Classic scene. Global borrowed Sprite geometry is retained. Does not prove every unreachable library resource is freed.",
+  "cycles": [
+    {
+      "quality": "high",
+      "counts": {
+        "geometry": 198,
+        "material": 363,
+        "texture": 136,
+        "instance-batch": 1512
+      },
+      "missing": {},
+      "repeated": {},
+      "rootChildren": 0,
+      "collidableMeshes": 0,
+      "poiLabels": 0,
+      "borrowedDisposals": 0
+    },
+    {
+      "quality": "low",
+      "counts": {
+        "geometry": 198,
+        "material": 363,
+        "texture": 136,
+        "instance-batch": 1512
+      },
+      "missing": {},
+      "repeated": {},
+      "rootChildren": 0,
+      "collidableMeshes": 0,
+      "poiLabels": 0,
+      "borrowedDisposals": 0
+    }
+  ],
+  "errors": [],
+  "passed": true
+}

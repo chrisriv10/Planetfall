@@ -1,10 +1,12 @@
 import { BR_ROADS, BR_STRUCTURES, type BrRoadSegment, type BrStructure } from "@planetfall/shared";
+import { buildBrRoadBends } from "./br-road-bends";
 
 /** Grade subdivision is geometry, not a new street or an intersection. */
 export const brRoadRouteId=(road:Pick<BrRoadSegment,"id">):string=>road.id.replace(/-grade-part-\d+$/,"");
 /** Cache horizontal paths once. Merge only adjoining, equally wide collinear
  * pieces so grade subdivision adds no clearance work, while bends stay intact. */
 export function buildBrRoadDetailClear(pieces:readonly BrRoadSegment[]=BR_ROADS,structures:readonly BrStructure[]=BR_STRUCTURES){
+const elbows=buildBrRoadBends(pieces,undefined,structures).filter(b=>b.arms.length===2);
 const paths:BrRoadSegment[]=[];
 const tails=new Map<string,BrRoadSegment>();
 for(const piece of pieces){
@@ -42,6 +44,11 @@ return function roadDetailClear(road:BrRoadSegment,x:number,z:number):boolean {
   for(const footprint of routeFootprints) {
     const {road:other,dx,dz,lengthSq}=footprint;
     if(other.id===routeId||x<footprint.minX||x>footprint.maxX||z<footprint.minZ||z>footprint.maxZ)continue;
+    // Only the local supported two-arm join is a continuation. The same two
+    // routes may cross elsewhere; those crossings keep their full mask.
+    if(elbows.some(bend=>bend.arms.some(a=>brRoadRouteId({id:a.roadId})===routeId)
+      &&bend.arms.some(a=>brRoadRouteId({id:a.roadId})===other.id)
+      &&Math.hypot(x-bend.center.x,z-bend.center.z)<=Math.max(...bend.arms.map(a=>a.tangent))+bend.radius+1.5))continue;
     const t=lengthSq?Math.max(0,Math.min(1,((x-other.from.x)*dx+(z-other.from.z)*dz)/lengthSq)):0;
     const gapX=x-other.from.x-dx*t,gapZ=z-other.from.z-dz*t;
     if(gapX*gapX+gapZ*gapZ<footprint.padSquared)return false;

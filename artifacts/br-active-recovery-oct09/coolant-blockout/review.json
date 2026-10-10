@@ -1,0 +1,157 @@
+{
+  "scope": "Static actual-world assembly, normal materials and BR lighting, no gameplay/HUD/sky/bloom/shadows. Not FPS or human-control validation.",
+  "legacyParkingReconstructed": false,
+  "views": [
+    {
+      "id": "central-heights-frontage",
+      "position": [
+        -70,
+        2.7,
+        -58
+      ],
+      "focus": [
+        -48,
+        4.5,
+        -42
+      ],
+      "calls": 429,
+      "triangles": 350633,
+      "textures": 27,
+      "world": {
+        "objects": 2133,
+        "meshes": 1835,
+        "instances": 61075,
+        "visibleInstances": 30766,
+        "materials": 289,
+        "visibleDistricts": 29,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "transit-court-street",
+      "position": [
+        129.5,
+        -0.3,
+        127
+      ],
+      "focus": [
+        129.5,
+        2.2,
+        72
+      ],
+      "calls": 364,
+      "triangles": 327563,
+      "textures": 33,
+      "world": {
+        "objects": 2133,
+        "meshes": 1835,
+        "instances": 61075,
+        "visibleInstances": 23121,
+        "materials": 289,
+        "visibleDistricts": 20,
+        "visibleSecondaryLabels": 0
+      }
+    },
+    {
+      "id": "hotel-lounge",
+      "position": [
+        -94,
+        2.2,
+        -236
+      ],
+      "focus": [
+        -104.8,
+        2.35,
+        -236
+      ],
+      "calls": 262,
+      "triangles": 317247,
+      "textures": 44,
+      "world": {
+        "objects": 2133,
+        "meshes": 1835,
+        "instances": 61075,
+        "visibleInstances": 26771,
+        "materials": 289,
+        "visibleDistricts": 29,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "coolant-east-gap",
+      "position": [
+        50,
+        2.7,
+        100
+      ],
+      "focus": [
+        110,
+        3.5,
+        100
+      ],
+      "calls": 366,
+      "triangles": 366475,
+      "textures": 47,
+      "world": {
+        "objects": 2133,
+        "meshes": 1835,
+        "instances": 61075,
+        "visibleInstances": 27354,
+        "materials": 289,
+        "visibleDistricts": 26,
+        "visibleSecondaryLabels": 1
+      }
+    },
+    {
+      "id": "north-civic-gap",
+      "position": [
+        -20,
+        2.7,
+        180
+      ],
+      "focus": [
+        50,
+        3.5,
+        180
+      ],
+      "calls": 351,
+      "triangles": 360303,
+      "textures": 49,
+      "world": {
+        "objects": 2133,
+        "meshes": 1835,
+        "instances": 61075,
+        "visibleInstances": 24791,
+        "materials": 289,
+        "visibleDistricts": 23,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "industrial-south-gap",
+      "position": [
+        320,
+        2.7,
+        -180
+      ],
+      "focus": [
+        365,
+        4.5,
+        -130
+      ],
+      "calls": 156,
+      "triangles": 197163,
+      "textures": 50,
+      "world": {
+        "objects": 2133,
+        "meshes": 1835,
+        "instances": 61075,
+        "visibleInstances": 17337,
+        "materials": 289,
+        "visibleDistricts": 10,
+        "visibleSecondaryLabels": 2
+      }
+    }
+  ],
+  "errors": []
+}

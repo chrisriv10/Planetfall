@@ -1,0 +1,232 @@
+{
+  "scope": "Static actual-world assembly, normal materials and BR lighting, no gameplay/HUD/sky/bloom/shadows. Not FPS or human-control validation.",
+  "legacyParkingReconstructed": false,
+  "views": [
+    {
+      "id": "zero-point-aerial",
+      "position": [
+        105,
+        100,
+        -110
+      ],
+      "focus": [
+        0,
+        4,
+        0
+      ],
+      "calls": 427,
+      "triangles": 363943,
+      "textures": 28,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 27678,
+        "materials": 298,
+        "visibleDistricts": 24,
+        "visibleSecondaryLabels": 0
+      }
+    },
+    {
+      "id": "nova-plaza-aerial",
+      "position": [
+        -70,
+        105,
+        -245
+      ],
+      "focus": [
+        -175,
+        9,
+        -135
+      ],
+      "calls": 382,
+      "triangles": 402717,
+      "textures": 36,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 26092,
+        "materials": 298,
+        "visibleDistricts": 25,
+        "visibleSecondaryLabels": 1
+      }
+    },
+    {
+      "id": "dockyard-7-aerial",
+      "position": [
+        293,
+        100,
+        -266
+      ],
+      "focus": [
+        188,
+        4,
+        -156
+      ],
+      "calls": 539,
+      "triangles": 328595,
+      "textures": 42,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 19754,
+        "materials": 298,
+        "visibleDistricts": 17,
+        "visibleSecondaryLabels": 1
+      }
+    },
+    {
+      "id": "helios-reactor-aerial",
+      "position": [
+        367,
+        106,
+        -32
+      ],
+      "focus": [
+        262,
+        10,
+        78
+      ],
+      "calls": 475,
+      "triangles": 358559,
+      "textures": 43,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 20535,
+        "materials": 298,
+        "visibleDistricts": 13,
+        "visibleSecondaryLabels": 1
+      }
+    },
+    {
+      "id": "astra-academy-aerial",
+      "position": [
+        -173,
+        108,
+        -35
+      ],
+      "focus": [
+        -278,
+        12,
+        75
+      ],
+      "calls": 277,
+      "triangles": 435237,
+      "textures": 49,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 27357,
+        "materials": 298,
+        "visibleDistricts": 21,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "void-mall-aerial",
+      "position": [
+        12,
+        100,
+        153
+      ],
+      "focus": [
+        -93,
+        4,
+        263
+      ],
+      "calls": 237,
+      "triangles": 307681,
+      "textures": 60,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 25838,
+        "materials": 298,
+        "visibleDistricts": 21,
+        "visibleSecondaryLabels": 1
+      }
+    },
+    {
+      "id": "orbital-farms-aerial",
+      "position": [
+        230,
+        104,
+        184
+      ],
+      "focus": [
+        125,
+        8,
+        294
+      ],
+      "calls": 264,
+      "triangles": 268307,
+      "textures": 63,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 20541,
+        "materials": 298,
+        "visibleDistricts": 20,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "crash-site-aerial",
+      "position": [
+        -221,
+        100,
+        -368
+      ],
+      "focus": [
+        -326,
+        4,
+        -258
+      ],
+      "calls": 258,
+      "triangles": 231893,
+      "textures": 67,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 16295,
+        "materials": 298,
+        "visibleDistricts": 11,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "thruster-works-aerial",
+      "position": [
+        447,
+        100,
+        -180
+      ],
+      "focus": [
+        342,
+        4,
+        -70
+      ],
+      "calls": 481,
+      "triangles": 267299,
+      "textures": 68,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 15563,
+        "materials": 298,
+        "visibleDistricts": 8,
+        "visibleSecondaryLabels": 0
+      }
+    }
+  ],
+  "errors": []
+}

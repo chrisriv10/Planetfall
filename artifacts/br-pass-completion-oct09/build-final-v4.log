@@ -1,0 +1,41 @@
+
+> planetfall@0.1.0 build
+> npm run build -w @planetfall/shared && npm run build -w @planetfall/server && npm run build -w @planetfall/client
+
+
+> @planetfall/shared@0.1.0 build
+> tsc -p tsconfig.json
+
+
+> @planetfall/server@0.1.0 build
+> tsc -p tsconfig.json
+
+
+> @planetfall/client@0.1.0 build
+> tsc -p tsconfig.json --noEmit && vite build --configLoader native
+
+vite v8.2.2 building client environment for production...
+transforming...
+✓ 187 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                            21.76 kB │ gzip:     5.18 kB
+dist/assets/index-BAem0Yia.css             66.81 kB │ gzip:    15.60 kB
+dist/assets/br-world-BpWRSOXC.js            0.07 kB │ gzip:     0.08 kB
+dist/assets/br-feedback-BAUo0VMz.js         1.84 kB │ gzip:     0.95 kB │ map:    10.61 kB
+dist/assets/preload-helper-BshRHs2e.js      2.74 kB │ gzip:     1.26 kB │ map:     5.23 kB
+dist/assets/input-BaBFOnUx.js               7.32 kB │ gzip:     2.57 kB │ map:    23.33 kB
+dist/assets/index-CVk1C-Hi.js             102.81 kB │ gzip:    33.36 kB │ map:   352.61 kB
+dist/assets/br-game-DIsEj3Ar.js           127.29 kB │ gzip:    39.19 kB │ map:   416.63 kB
+dist/assets/dist-Ddx6bXkC.js              136.65 kB │ gzip:    36.71 kB │ map:   534.35 kB
+dist/assets/br-world-Bq8cS1KC.js          226.67 kB │ gzip:    66.15 kB │ map:   839.69 kB
+dist/assets/three.core-v4bhI8_j.js        239.05 kB │ gzip:    64.86 kB │ map: 1,876.05 kB
+dist/assets/game-BD569gpG.js              455.06 kB │ gzip:   115.30 kB │ map: 1,244.92 kB
+dist/assets/reconciliation-C_sxPLB0.js  2,855.55 kB │ gzip: 1,095.45 kB │ map: 3,033.67 kB
+
+✓ built in 743ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 1600 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.

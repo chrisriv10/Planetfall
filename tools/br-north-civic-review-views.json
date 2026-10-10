@@ -1,0 +1,9 @@
+[
+ {"id":"north-civic-gap","position":[-20,2.7,180],"focus":[50,3.5,180]},
+ {"id":"street-from-zero","position":[-15,2.7,120],"focus":[-15,4,166]},
+ {"id":"mall-corner-arrival","position":[-5,2.7,190],"focus":[-20,3.5,151]},
+ {"id":"archive-door","position":[-22,2.2,155],"focus":[-44,2.4,155]},
+ {"id":"exchange-door","position":[-16,2.2,155],"focus":[0,2.4,155]},
+ {"id":"garden-pocket-retained","position":[-15,2.7,113],"focus":[-25,2.2,125]},
+ {"id":"archive-upper","position":[-47,6.5,150],"focus":[-47,6.8,161]}
+]

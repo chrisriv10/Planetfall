@@ -1,0 +1,1500 @@
+[
+  {
+    "id": "zero-spire",
+    "position": [
+      0,
+      2.7,
+      -20
+    ],
+    "focus": [
+      0,
+      5,
+      0
+    ],
+    "structureId": "zero-spire"
+  },
+  {
+    "id": "zero-control",
+    "position": [
+      -17,
+      2.7,
+      -9
+    ],
+    "focus": [
+      -38,
+      3.2,
+      -9
+    ],
+    "structureId": "zero-control"
+  },
+  {
+    "id": "zero-relay",
+    "position": [
+      17,
+      2.7,
+      12
+    ],
+    "focus": [
+      38,
+      2.8000000000000003,
+      12
+    ],
+    "structureId": "zero-relay"
+  },
+  {
+    "id": "zero-archive",
+    "position": [
+      2,
+      2.7,
+      18
+    ],
+    "focus": [
+      2,
+      2.4000000000000004,
+      43
+    ],
+    "structureId": "zero-archive"
+  },
+  {
+    "id": "nova-tower-a",
+    "position": [
+      -180.5,
+      7.7,
+      -172
+    ],
+    "focus": [
+      -210,
+      10,
+      -172
+    ],
+    "structureId": "nova-tower-a"
+  },
+  {
+    "id": "nova-tower-b",
+    "position": [
+      -168.5,
+      7.7,
+      -172
+    ],
+    "focus": [
+      -140,
+      10,
+      -172
+    ],
+    "structureId": "nova-tower-b"
+  },
+  {
+    "id": "nova-cafe",
+    "position": [
+      -220,
+      7.7,
+      -130
+    ],
+    "focus": [
+      -220,
+      7.4,
+      -104
+    ],
+    "structureId": "nova-cafe"
+  },
+  {
+    "id": "nova-studio",
+    "position": [
+      -150,
+      7.7,
+      -130
+    ],
+    "focus": [
+      -150,
+      8.6,
+      -103
+    ],
+    "structureId": "nova-studio"
+  },
+  {
+    "id": "nova-kiosk",
+    "position": [
+      -190,
+      7.7,
+      -127
+    ],
+    "focus": [
+      -190,
+      6.6,
+      -105
+    ],
+    "structureId": "nova-kiosk"
+  },
+  {
+    "id": "dock-hangar",
+    "position": [
+      190,
+      2.700001907348633,
+      -207
+    ],
+    "focus": [
+      190,
+      4.4,
+      -174
+    ],
+    "structureId": "dock-hangar"
+  },
+  {
+    "id": "dock-office",
+    "position": [
+      179,
+      2.7,
+      -130
+    ],
+    "focus": [
+      150,
+      3.2,
+      -130
+    ],
+    "structureId": "dock-office"
+  },
+  {
+    "id": "dock-warehouse",
+    "position": [
+      195,
+      2.700001907348633,
+      -129
+    ],
+    "focus": [
+      230,
+      2.8000000000000003,
+      -129
+    ],
+    "structureId": "dock-warehouse"
+  },
+  {
+    "id": "dock-customs",
+    "position": [
+      191,
+      2.700001907348633,
+      -80
+    ],
+    "focus": [
+      191,
+      2,
+      -105
+    ],
+    "structureId": "dock-customs"
+  },
+  {
+    "id": "helios-core",
+    "position": [
+      262,
+      8.7,
+      45
+    ],
+    "focus": [
+      262,
+      11,
+      78
+    ],
+    "structureId": "helios-core"
+  },
+  {
+    "id": "helios-turbine-a",
+    "position": [
+      242,
+      8.7,
+      74
+    ],
+    "focus": [
+      218,
+      9.6,
+      74
+    ],
+    "structureId": "helios-turbine-a"
+  },
+  {
+    "id": "helios-turbine-b",
+    "position": [
+      282,
+      8.7,
+      74
+    ],
+    "focus": [
+      306,
+      9.6,
+      74
+    ],
+    "structureId": "helios-turbine-b"
+  },
+  {
+    "id": "helios-control",
+    "position": [
+      261,
+      8.7,
+      150
+    ],
+    "focus": [
+      261,
+      8.8,
+      124
+    ],
+    "structureId": "helios-control"
+  },
+  {
+    "id": "astra-hall",
+    "position": [
+      -278,
+      10.7,
+      47
+    ],
+    "focus": [
+      -278,
+      11.6,
+      75
+    ],
+    "structureId": "astra-hall"
+  },
+  {
+    "id": "astra-lab",
+    "position": [
+      -299,
+      10.7,
+      52
+    ],
+    "focus": [
+      -323,
+      10.8,
+      52
+    ],
+    "structureId": "astra-lab"
+  },
+  {
+    "id": "astra-library",
+    "position": [
+      -264,
+      10.7,
+      52
+    ],
+    "focus": [
+      -233,
+      10.8,
+      52
+    ],
+    "structureId": "astra-library"
+  },
+  {
+    "id": "astra-observatory",
+    "position": [
+      -278,
+      10.7,
+      147
+    ],
+    "focus": [
+      -278,
+      13,
+      119
+    ],
+    "structureId": "astra-observatory"
+  },
+  {
+    "id": "void-anchor",
+    "position": [
+      -93,
+      2.7,
+      230
+    ],
+    "focus": [
+      -93,
+      5,
+      263
+    ],
+    "structureId": "void-anchor"
+  },
+  {
+    "id": "void-west",
+    "position": [
+      -126,
+      2.7,
+      260
+    ],
+    "focus": [
+      -142,
+      3.2,
+      260
+    ],
+    "structureId": "void-west"
+  },
+  {
+    "id": "void-east",
+    "position": [
+      -60,
+      2.7,
+      260
+    ],
+    "focus": [
+      -44,
+      3.2,
+      260
+    ],
+    "structureId": "void-east"
+  },
+  {
+    "id": "void-cinema",
+    "position": [
+      -93,
+      2.6999980926513674,
+      337
+    ],
+    "focus": [
+      -93,
+      2.8000000000000003,
+      309
+    ],
+    "structureId": "void-cinema"
+  },
+  {
+    "id": "farm-dome-a",
+    "position": [
+      127,
+      6.7,
+      291
+    ],
+    "focus": [
+      94,
+      7.2,
+      291
+    ],
+    "structureId": "farm-dome-a"
+  },
+  {
+    "id": "farm-dome-b",
+    "position": [
+      137,
+      6.7,
+      288
+    ],
+    "focus": [
+      137,
+      7.2,
+      319
+    ],
+    "structureId": "farm-dome-b"
+  },
+  {
+    "id": "farm-processing",
+    "position": [
+      141,
+      6.7,
+      271
+    ],
+    "focus": [
+      165,
+      6.800000000000001,
+      271
+    ],
+    "structureId": "farm-processing"
+  },
+  {
+    "id": "farm-pump",
+    "position": [
+      106,
+      6.7,
+      273
+    ],
+    "focus": [
+      106,
+      6,
+      248
+    ],
+    "structureId": "farm-pump"
+  },
+  {
+    "id": "crash-fuselage",
+    "position": [
+      -291,
+      2.7,
+      -258
+    ],
+    "focus": [
+      -326,
+      3.6,
+      -258
+    ],
+    "structureId": "crash-fuselage"
+  },
+  {
+    "id": "crash-cargo",
+    "position": [
+      -315.5,
+      2.7,
+      -226
+    ],
+    "focus": [
+      -286,
+      2.4000000000000004,
+      -226
+    ],
+    "structureId": "crash-cargo"
+  },
+  {
+    "id": "crash-shelter",
+    "position": [
+      -346,
+      2.7,
+      -224
+    ],
+    "focus": [
+      -367,
+      2.4000000000000004,
+      -224
+    ],
+    "structureId": "crash-shelter"
+  },
+  {
+    "id": "crash-engine",
+    "position": [
+      -350,
+      2.7,
+      -271
+    ],
+    "focus": [
+      -350,
+      3.2,
+      -294
+    ],
+    "structureId": "crash-engine"
+  },
+  {
+    "id": "thruster-foundry",
+    "position": [
+      342,
+      2.6999980926513674,
+      -102
+    ],
+    "focus": [
+      342,
+      5,
+      -70
+    ],
+    "structureId": "thruster-foundry"
+  },
+  {
+    "id": "thruster-pump-a",
+    "position": [
+      326.5,
+      2.6999980926513674,
+      -98
+    ],
+    "focus": [
+      297,
+      3.2,
+      -98
+    ],
+    "structureId": "thruster-pump-a"
+  },
+  {
+    "id": "thruster-pump-b",
+    "position": [
+      357.5,
+      2.6999980926513674,
+      -98
+    ],
+    "focus": [
+      387,
+      3.2,
+      -98
+    ],
+    "structureId": "thruster-pump-b"
+  },
+  {
+    "id": "thruster-control",
+    "position": [
+      342,
+      2.7,
+      5.5
+    ],
+    "focus": [
+      342,
+      2.8000000000000003,
+      -22
+    ],
+    "structureId": "thruster-control"
+  },
+  {
+    "id": "thruster-depot",
+    "position": [
+      363,
+      2.7,
+      -43
+    ],
+    "focus": [
+      392,
+      2.4000000000000004,
+      -43
+    ],
+    "structureId": "thruster-depot"
+  },
+  {
+    "id": "mid-transit-west",
+    "position": [
+      -60.5,
+      2.7,
+      -22
+    ],
+    "focus": [
+      -92,
+      2,
+      -22
+    ],
+    "structureId": "mid-transit-west"
+  },
+  {
+    "id": "mid-transit-east",
+    "position": [
+      63.5,
+      2.7,
+      24
+    ],
+    "focus": [
+      95,
+      2,
+      24
+    ],
+    "structureId": "mid-transit-east"
+  },
+  {
+    "id": "south-relay",
+    "position": [
+      35,
+      2.7,
+      -228
+    ],
+    "focus": [
+      35,
+      2.8000000000000003,
+      -255
+    ],
+    "structureId": "south-relay"
+  },
+  {
+    "id": "zero-gallery",
+    "position": [
+      -19.5,
+      2.7,
+      35
+    ],
+    "focus": [
+      -48,
+      2.8000000000000003,
+      35
+    ],
+    "structureId": "zero-gallery"
+  },
+  {
+    "id": "zero-works",
+    "position": [
+      17.5,
+      2.7,
+      -31
+    ],
+    "focus": [
+      48,
+      3.2,
+      -31
+    ],
+    "structureId": "zero-works"
+  },
+  {
+    "id": "nova-arcade",
+    "position": [
+      -232,
+      7.7,
+      -93
+    ],
+    "focus": [
+      -232,
+      8.6,
+      -73
+    ],
+    "structureId": "nova-arcade"
+  },
+  {
+    "id": "nova-hotel",
+    "position": [
+      -156,
+      7.7,
+      -197
+    ],
+    "focus": [
+      -128,
+      10,
+      -197
+    ],
+    "structureId": "nova-hotel"
+  },
+  {
+    "id": "nova-market",
+    "position": [
+      -87,
+      7.6999961853027346,
+      -106
+    ],
+    "focus": [
+      -114,
+      7.800000000000001,
+      -106
+    ],
+    "structureId": "nova-market"
+  },
+  {
+    "id": "dock-freight-a",
+    "position": [
+      216.5,
+      2.700001907348633,
+      -188
+    ],
+    "focus": [
+      247,
+      3.2,
+      -188
+    ],
+    "structureId": "dock-freight-a"
+  },
+  {
+    "id": "dock-freight-b",
+    "position": [
+      163.5,
+      2.7,
+      -190
+    ],
+    "focus": [
+      136,
+      2.8000000000000003,
+      -190
+    ],
+    "structureId": "dock-freight-b"
+  },
+  {
+    "id": "dock-tower",
+    "position": [
+      224,
+      2.700001907348633,
+      -115
+    ],
+    "focus": [
+      224,
+      5,
+      -90
+    ],
+    "structureId": "dock-tower"
+  },
+  {
+    "id": "helios-annex",
+    "position": [
+      285,
+      8.7,
+      126
+    ],
+    "focus": [
+      315,
+      9.6,
+      126
+    ],
+    "structureId": "helios-annex"
+  },
+  {
+    "id": "helios-storage",
+    "position": [
+      241.5,
+      8.7,
+      126
+    ],
+    "focus": [
+      211,
+      8.8,
+      126
+    ],
+    "structureId": "helios-storage"
+  },
+  {
+    "id": "astra-student-hall",
+    "position": [
+      -307.5,
+      10.7,
+      105
+    ],
+    "focus": [
+      -338,
+      12,
+      105
+    ],
+    "structureId": "astra-student-hall"
+  },
+  {
+    "id": "astra-workshop",
+    "position": [
+      -249,
+      10.7,
+      105
+    ],
+    "focus": [
+      -218,
+      11.2,
+      105
+    ],
+    "structureId": "astra-workshop"
+  },
+  {
+    "id": "void-food-court",
+    "position": [
+      -125,
+      2.6999980926513674,
+      320
+    ],
+    "focus": [
+      -151,
+      3.2,
+      320
+    ],
+    "structureId": "void-food-court"
+  },
+  {
+    "id": "void-market",
+    "position": [
+      -68,
+      2.7,
+      319
+    ],
+    "focus": [
+      -35,
+      3.2,
+      319
+    ],
+    "structureId": "void-market"
+  },
+  {
+    "id": "void-station",
+    "position": [
+      -92,
+      2.7,
+      240
+    ],
+    "focus": [
+      -92,
+      3.6,
+      214
+    ],
+    "structureId": "void-station"
+  },
+  {
+    "id": "farm-greenhouse-c",
+    "position": [
+      159,
+      6.7,
+      328
+    ],
+    "focus": [
+      193,
+      7.2,
+      328
+    ],
+    "structureId": "farm-greenhouse-c"
+  },
+  {
+    "id": "farm-silo",
+    "position": [
+      93,
+      6.7,
+      263
+    ],
+    "focus": [
+      66,
+      9,
+      263
+    ],
+    "structureId": "farm-silo"
+  },
+  {
+    "id": "crash-medbay",
+    "position": [
+      -300,
+      2.7,
+      -215
+    ],
+    "focus": [
+      -330,
+      3.2,
+      -215
+    ],
+    "structureId": "crash-medbay"
+  },
+  {
+    "id": "crash-salvage",
+    "position": [
+      -312.5,
+      2.7,
+      -301
+    ],
+    "focus": [
+      -282,
+      2.8000000000000003,
+      -301
+    ],
+    "structureId": "crash-salvage"
+  },
+  {
+    "id": "thruster-assembly",
+    "position": [
+      368.5,
+      2.7,
+      -15
+    ],
+    "focus": [
+      400,
+      4,
+      -15
+    ],
+    "structureId": "thruster-assembly"
+  },
+  {
+    "id": "thruster-cooling",
+    "position": [
+      324.5,
+      2.7,
+      -28
+    ],
+    "focus": [
+      300,
+      3.6,
+      -28
+    ],
+    "structureId": "thruster-cooling"
+  },
+  {
+    "id": "transit-cafe",
+    "position": [
+      135,
+      -0.2999999999999998,
+      76
+    ],
+    "focus": [
+      110,
+      -0.5999999999999996,
+      76
+    ],
+    "structureId": "transit-cafe"
+  },
+  {
+    "id": "transit-service-store",
+    "position": [
+      135,
+      -0.2999999999999998,
+      112
+    ],
+    "focus": [
+      110,
+      -0.19999999999999973,
+      112
+    ],
+    "structureId": "transit-service-store"
+  },
+  {
+    "id": "transit-ticket-hall",
+    "position": [
+      135,
+      -0.2999999999999998,
+      72
+    ],
+    "focus": [
+      161,
+      0.20000000000000018,
+      72
+    ],
+    "structureId": "transit-ticket-hall"
+  },
+  {
+    "id": "transit-maintenance",
+    "position": [
+      135,
+      -0.2999999999999998,
+      115
+    ],
+    "focus": [
+      161,
+      -0.19999999999999973,
+      115
+    ],
+    "structureId": "transit-maintenance"
+  },
+  {
+    "id": "south-exchange-cafe",
+    "position": [
+      -73,
+      2.7,
+      -314
+    ],
+    "focus": [
+      -100,
+      2.4000000000000004,
+      -314
+    ],
+    "structureId": "south-exchange-cafe"
+  },
+  {
+    "id": "south-exchange-office",
+    "position": [
+      -79,
+      2.700001907348633,
+      -314
+    ],
+    "focus": [
+      -52,
+      3.6,
+      -314
+    ],
+    "structureId": "south-exchange-office"
+  },
+  {
+    "id": "south-exchange-market",
+    "position": [
+      -73,
+      2.700001907348633,
+      -378
+    ],
+    "focus": [
+      -100,
+      2.8000000000000003,
+      -378
+    ],
+    "structureId": "south-exchange-market"
+  },
+  {
+    "id": "south-exchange-service",
+    "position": [
+      -79,
+      2.700001907348633,
+      -378
+    ],
+    "focus": [
+      -52,
+      2.4000000000000004,
+      -378
+    ],
+    "structureId": "south-exchange-service"
+  },
+  {
+    "id": "transfer-logistics",
+    "position": [
+      195,
+      6.7,
+      184
+    ],
+    "focus": [
+      170,
+      6.800000000000001,
+      184
+    ],
+    "structureId": "transfer-logistics"
+  },
+  {
+    "id": "transfer-canteen",
+    "position": [
+      195,
+      6.7,
+      203
+    ],
+    "focus": [
+      170,
+      6.4,
+      203
+    ],
+    "structureId": "transfer-canteen"
+  },
+  {
+    "id": "transfer-control",
+    "position": [
+      203,
+      6.7,
+      184
+    ],
+    "focus": [
+      228,
+      7.6,
+      184
+    ],
+    "structureId": "transfer-control"
+  },
+  {
+    "id": "transfer-maintenance",
+    "position": [
+      149,
+      6.7,
+      229
+    ],
+    "focus": [
+      149,
+      6.800000000000001,
+      205
+    ],
+    "structureId": "transfer-maintenance"
+  },
+  {
+    "id": "central-heights-1",
+    "position": [
+      -74,
+      2.7,
+      -42
+    ],
+    "focus": [
+      -48,
+      3.2,
+      -42
+    ],
+    "structureId": "central-heights-1"
+  },
+  {
+    "id": "relay-market-1",
+    "position": [
+      75,
+      2.7,
+      -52
+    ],
+    "focus": [
+      102,
+      4.4,
+      -52
+    ],
+    "structureId": "relay-market-1"
+  },
+  {
+    "id": "comet-hotel-1",
+    "position": [
+      -66,
+      2.7,
+      -236
+    ],
+    "focus": [
+      -94,
+      5,
+      -236
+    ],
+    "structureId": "comet-hotel-1"
+  },
+  {
+    "id": "horizon-homes-1",
+    "position": [
+      -249,
+      2.7,
+      -13
+    ],
+    "focus": [
+      -275,
+      5,
+      -13
+    ],
+    "structureId": "horizon-homes-1"
+  },
+  {
+    "id": "academy-dorms-1",
+    "position": [
+      -361,
+      2.6999980926513674,
+      167
+    ],
+    "focus": [
+      -384,
+      3.2,
+      167
+    ],
+    "structureId": "academy-dorms-1"
+  },
+  {
+    "id": "west-overlook-1",
+    "position": [
+      -413,
+      2.7,
+      31
+    ],
+    "focus": [
+      -385,
+      4.4,
+      31
+    ],
+    "structureId": "west-overlook-1"
+  },
+  {
+    "id": "signal-station-1",
+    "position": [
+      -383,
+      2.7,
+      -83
+    ],
+    "focus": [
+      -409,
+      5,
+      -83
+    ],
+    "structureId": "signal-station-1"
+  },
+  {
+    "id": "salvage-row-1",
+    "position": [
+      -297,
+      2.7,
+      -293
+    ],
+    "focus": [
+      -307,
+      5,
+      -293
+    ],
+    "structureId": "salvage-row-1"
+  },
+  {
+    "id": "solar-service-1",
+    "position": [
+      182,
+      2.7,
+      418
+    ],
+    "focus": [
+      155,
+      2.8000000000000003,
+      418
+    ],
+    "structureId": "solar-service-1"
+  },
+  {
+    "id": "solar-service-2",
+    "position": [
+      178,
+      2.7,
+      414
+    ],
+    "focus": [
+      205,
+      3.6,
+      414
+    ],
+    "structureId": "solar-service-2"
+  },
+  {
+    "id": "solar-service-3",
+    "position": [
+      179,
+      2.7,
+      437
+    ],
+    "focus": [
+      153,
+      2.4000000000000004,
+      437
+    ],
+    "structureId": "solar-service-3"
+  },
+  {
+    "id": "ring-service-shop",
+    "position": [
+      -206,
+      2.7,
+      -315
+    ],
+    "focus": [
+      -232,
+      2.4000000000000004,
+      -315
+    ],
+    "structureId": "ring-service-shop"
+  },
+  {
+    "id": "ring-service-office",
+    "position": [
+      -214,
+      2.7,
+      -315
+    ],
+    "focus": [
+      -188,
+      3.6,
+      -315
+    ],
+    "structureId": "ring-service-office"
+  },
+  {
+    "id": "ring-service-warehouse",
+    "position": [
+      -206,
+      2.7,
+      -365
+    ],
+    "focus": [
+      -232,
+      2.8000000000000003,
+      -365
+    ],
+    "structureId": "ring-service-warehouse"
+  },
+  {
+    "id": "ring-service-utility",
+    "position": [
+      -214,
+      2.7,
+      -365
+    ],
+    "focus": [
+      -188,
+      2.4000000000000004,
+      -365
+    ],
+    "structureId": "ring-service-utility"
+  },
+  {
+    "id": "west-junction-shop",
+    "position": [
+      -312,
+      2.700001907348633,
+      -128
+    ],
+    "focus": [
+      -312,
+      2.4000000000000004,
+      -103
+    ],
+    "structureId": "west-junction-shop"
+  },
+  {
+    "id": "west-junction-office",
+    "position": [
+      -294,
+      2.700001907348633,
+      -137
+    ],
+    "focus": [
+      -294,
+      4,
+      -163
+    ],
+    "structureId": "west-junction-office"
+  },
+  {
+    "id": "west-junction-utility",
+    "position": [
+      -327,
+      2.7,
+      -152
+    ],
+    "focus": [
+      -352,
+      2.8000000000000003,
+      -152
+    ],
+    "structureId": "west-junction-utility"
+  },
+  {
+    "id": "transfer-yard-shop",
+    "position": [
+      105,
+      2.7,
+      -365
+    ],
+    "focus": [
+      78,
+      2.4000000000000004,
+      -365
+    ],
+    "structureId": "transfer-yard-shop"
+  },
+  {
+    "id": "transfer-yard-office",
+    "position": [
+      102,
+      2.7,
+      -372
+    ],
+    "focus": [
+      128,
+      4,
+      -372
+    ],
+    "structureId": "transfer-yard-office"
+  },
+  {
+    "id": "transfer-yard-utility",
+    "position": [
+      102,
+      2.7,
+      -391
+    ],
+    "focus": [
+      76,
+      2.4000000000000004,
+      -391
+    ],
+    "structureId": "transfer-yard-utility"
+  },
+  {
+    "id": "civic-frontage-bookshop",
+    "position": [
+      -139,
+      2.7,
+      170
+    ],
+    "focus": [
+      -165,
+      2.4000000000000004,
+      170
+    ],
+    "structureId": "civic-frontage-bookshop"
+  },
+  {
+    "id": "civic-frontage-clinic",
+    "position": [
+      -148,
+      2.7,
+      166
+    ],
+    "focus": [
+      -122,
+      4,
+      166
+    ],
+    "structureId": "civic-frontage-clinic"
+  },
+  {
+    "id": "civic-frontage-service",
+    "position": [
+      -147,
+      2.7,
+      145
+    ],
+    "focus": [
+      -122,
+      2.4000000000000004,
+      145
+    ],
+    "structureId": "civic-frontage-service"
+  },
+  {
+    "id": "nova-landing-shop",
+    "position": [
+      -173,
+      2.7,
+      3
+    ],
+    "focus": [
+      -200,
+      2.4000000000000004,
+      3
+    ],
+    "structureId": "nova-landing-shop"
+  },
+  {
+    "id": "nova-landing-office",
+    "position": [
+      -198,
+      2.7,
+      -7
+    ],
+    "focus": [
+      -198,
+      4,
+      -27
+    ],
+    "structureId": "nova-landing-office"
+  },
+  {
+    "id": "nova-landing-service",
+    "position": [
+      -151,
+      2.7,
+      -4
+    ],
+    "focus": [
+      -151,
+      2.4000000000000004,
+      -27
+    ],
+    "structureId": "nova-landing-service"
+  },
+  {
+    "id": "engine-gate-approach-workshop",
+    "position": [
+      342,
+      2.7,
+      -198
+    ],
+    "focus": [
+      318,
+      2.4000000000000004,
+      -198
+    ],
+    "structureId": "engine-gate-approach-workshop"
+  },
+  {
+    "id": "engine-gate-approach-relay",
+    "position": [
+      342,
+      2.7,
+      -162
+    ],
+    "focus": [
+      318,
+      3.2,
+      -162
+    ],
+    "structureId": "engine-gate-approach-relay"
+  },
+  {
+    "id": "coolant-frontage-office",
+    "position": [
+      44,
+      2.7,
+      98
+    ],
+    "focus": [
+      18,
+      4.4,
+      98
+    ],
+    "structureId": "coolant-frontage-office"
+  },
+  {
+    "id": "coolant-frontage-maintenance",
+    "position": [
+      31,
+      2.7,
+      98
+    ],
+    "focus": [
+      56,
+      2.4000000000000004,
+      98
+    ],
+    "structureId": "coolant-frontage-maintenance"
+  },
+  {
+    "id": "north-civic-archive",
+    "position": [
+      -17,
+      2.7,
+      155
+    ],
+    "focus": [
+      -44,
+      3.6,
+      155
+    ],
+    "structureId": "north-civic-archive"
+  },
+  {
+    "id": "north-civic-exchange",
+    "position": [
+      -25,
+      2.7,
+      155
+    ],
+    "focus": [
+      0,
+      2.4000000000000004,
+      155
+    ],
+    "structureId": "north-civic-exchange"
+  }
+]

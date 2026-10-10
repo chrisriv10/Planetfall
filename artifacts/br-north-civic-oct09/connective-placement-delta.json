@@ -1,0 +1,780 @@
+{
+  "scope": "Derived connective presentation placements before/after North Civic, including unchanged local Coolant source. Existing reservation functions and structures used; comparison is not a whole-world collision proof.",
+  "groups": {
+    "roadside": {
+      "before": 15,
+      "after": 14,
+      "removed": [
+        {
+          "roadId": "zero-circulation-n",
+          "locationId": "coolant-plant",
+          "style": "industrial",
+          "center": {
+            "x": 0,
+            "y": 0,
+            "z": 70
+          },
+          "parts": [
+            {
+              "geometry": "box",
+              "finish": "sidewalk",
+              "surface": true,
+              "rotationY": -6.283185307179586,
+              "position": {
+                "x": -4.0413344371862655e-16,
+                "y": 0.055,
+                "z": 68.35
+              },
+              "scale": {
+                "x": 5.5,
+                "y": 0.012,
+                "z": 0.09
+              }
+            },
+            {
+              "geometry": "box",
+              "finish": "industrialOrange",
+              "surface": true,
+              "rotationY": -6.283185307179586,
+              "position": {
+                "x": -2.7,
+                "y": 0.055,
+                "z": 70
+              },
+              "scale": {
+                "x": 0.09,
+                "y": 0.012,
+                "z": 3.3
+              }
+            },
+            {
+              "geometry": "box",
+              "finish": "sidewalk",
+              "surface": true,
+              "rotationY": -6.283185307179586,
+              "position": {
+                "x": 4.0413344371862655e-16,
+                "y": 0.055,
+                "z": 71.65
+              },
+              "scale": {
+                "x": 5.5,
+                "y": 0.012,
+                "z": 0.09
+              }
+            },
+            {
+              "geometry": "box",
+              "finish": "industrialOrange",
+              "surface": true,
+              "rotationY": -6.283185307179586,
+              "position": {
+                "x": 2.7,
+                "y": 0.055,
+                "z": 70
+              },
+              "scale": {
+                "x": 0.09,
+                "y": 0.012,
+                "z": 3.3
+              }
+            },
+            {
+              "geometry": "box",
+              "finish": "brushedMetal",
+              "surface": false,
+              "rotationY": -6.283185307179586,
+              "position": {
+                "x": -2.0999999999999996,
+                "y": 1.45,
+                "z": 71.1
+              },
+              "scale": {
+                "x": 0.12,
+                "y": 2.9,
+                "z": 0.12
+              }
+            },
+            {
+              "geometry": "box",
+              "finish": "structuralDark",
+              "surface": false,
+              "rotationY": -6.283185307179586,
+              "position": {
+                "x": -2.0999999999999996,
+                "y": 2.36,
+                "z": 71.1
+              },
+              "scale": {
+                "x": 0.58,
+                "y": 0.82,
+                "z": 0.12
+              }
+            },
+            {
+              "geometry": "box",
+              "finish": "industrialOrange",
+              "surface": false,
+              "rotationY": -6.283185307179586,
+              "position": {
+                "x": -2.0999999999999996,
+                "y": 2.58,
+                "z": 71.015
+              },
+              "scale": {
+                "x": 0.42,
+                "y": 0.12,
+                "z": 0.04
+              }
+            },
+            {
+              "geometry": "box",
+              "finish": "windowLit",
+              "surface": false,
+              "rotationY": -6.283185307179586,
+              "position": {
+                "x": -2.0999999999999996,
+                "y": 2.32,
+                "z": 71.015
+              },
+              "scale": {
+                "x": 0.38,
+                "y": 0.06,
+                "z": 0.04
+              }
+            },
+            {
+              "geometry": "box",
+              "finish": "windowLit",
+              "surface": false,
+              "rotationY": -6.283185307179586,
+              "position": {
+                "x": -2.1799999999999997,
+                "y": 2.14,
+                "z": 71.015
+              },
+              "scale": {
+                "x": 0.22,
+                "y": 0.045,
+                "z": 0.04
+              }
+            },
+            {
+              "geometry": "box",
+              "finish": "industrialOrange",
+              "surface": false,
+              "rotationY": -6.283185307179586,
+              "position": {
+                "x": -2.0999999999999996,
+                "y": 2.95,
+                "z": 71.1
+              },
+              "scale": {
+                "x": 0.24,
+                "y": 0.08,
+                "z": 0.24
+              }
+            },
+            {
+              "geometry": "box",
+              "finish": "structuralDark",
+              "surface": false,
+              "rotationY": -6.283185307179586,
+              "position": {
+                "x": -1.3499999999999999,
+                "y": 1.4,
+                "z": 71.25
+              },
+              "scale": {
+                "x": 0.12,
+                "y": 2.8,
+                "z": 0.12
+              }
+            },
+            {
+              "geometry": "box",
+              "finish": "structuralDark",
+              "surface": false,
+              "rotationY": -6.283185307179586,
+              "position": {
+                "x": 1.6500000000000001,
+                "y": 1.4,
+                "z": 71.25
+              },
+              "scale": {
+                "x": 0.12,
+                "y": 2.8,
+                "z": 0.12
+              }
+            },
+            {
+              "geometry": "box",
+              "finish": "structuralDark",
+              "surface": false,
+              "rotationY": -6.283185307179586,
+              "position": {
+                "x": 0.1500000000000003,
+                "y": 2.8,
+                "z": 71.25
+              },
+              "scale": {
+                "x": 3.3,
+                "y": 0.14,
+                "z": 0.16
+              }
+            },
+            {
+              "geometry": "box",
+              "finish": "brushedMetal",
+              "surface": false,
+              "rotationY": -6.283185307179586,
+              "position": {
+                "x": -0.9499999999999997,
+                "y": 2.92,
+                "z": 70.85
+              },
+              "scale": {
+                "x": 0.72,
+                "y": 0.08,
+                "z": 1.25
+              }
+            },
+            {
+              "geometry": "box",
+              "finish": "brushedMetal",
+              "surface": false,
+              "rotationY": -6.283185307179586,
+              "position": {
+                "x": 0.15000000000000022,
+                "y": 2.92,
+                "z": 70.85
+              },
+              "scale": {
+                "x": 0.72,
+                "y": 0.08,
+                "z": 1.25
+              }
+            },
+            {
+              "geometry": "box",
+              "finish": "brushedMetal",
+              "surface": false,
+              "rotationY": -6.283185307179586,
+              "position": {
+                "x": 1.2500000000000002,
+                "y": 2.92,
+                "z": 70.85
+              },
+              "scale": {
+                "x": 0.72,
+                "y": 0.08,
+                "z": 1.25
+              }
+            },
+            {
+              "geometry": "box",
+              "finish": "industrialOrange",
+              "surface": false,
+              "rotationY": -6.283185307179586,
+              "position": {
+                "x": 0.15000000000000027,
+                "y": 2.81,
+                "z": 71.15
+              },
+              "scale": {
+                "x": 2.7,
+                "y": 0.045,
+                "z": 0.035
+              }
+            },
+            {
+              "geometry": "box",
+              "finish": "structuralDark",
+              "surface": false,
+              "rotationY": -6.283185307179586,
+              "position": {
+                "x": 1.5500000000000003,
+                "y": 0.39,
+                "z": 71.2
+              },
+              "scale": {
+                "x": 0.12,
+                "y": 0.78,
+                "z": 0.14
+              }
+            },
+            {
+              "geometry": "box",
+              "finish": "brushedMetal",
+              "surface": false,
+              "rotationY": -6.283185307179586,
+              "position": {
+                "x": 1.5500000000000003,
+                "y": 0.83,
+                "z": 71.2
+              },
+              "scale": {
+                "x": 0.5,
+                "y": 0.1,
+                "z": 0.36
+              }
+            },
+            {
+              "geometry": "box",
+              "finish": "windowLit",
+              "surface": false,
+              "rotationY": -6.283185307179586,
+              "position": {
+                "x": 1.5500000000000003,
+                "y": 0.889,
+                "z": 71.2
+              },
+              "scale": {
+                "x": 0.35,
+                "y": 0.018,
+                "z": 0.22
+              }
+            },
+            {
+              "geometry": "box",
+              "finish": "industrialOrange",
+              "surface": false,
+              "rotationY": -6.283185307179586,
+              "position": {
+                "x": 1.5500000000000003,
+                "y": 0.04,
+                "z": 71.2
+              },
+              "scale": {
+                "x": 0.4,
+                "y": 0.025,
+                "z": 0.3
+              }
+            },
+            {
+              "geometry": "box",
+              "finish": "brushedMetal",
+              "surface": true,
+              "rotationY": -6.283185307179586,
+              "position": {
+                "x": 0.5000000000000001,
+                "y": 0.055,
+                "z": 70.3
+              },
+              "scale": {
+                "x": 0.1,
+                "y": 0.012,
+                "z": 1.1
+              }
+            },
+            {
+              "geometry": "box",
+              "finish": "brushedMetal",
+              "surface": true,
+              "rotationY": -6.283185307179586,
+              "position": {
+                "x": 0.7500000000000001,
+                "y": 0.055,
+                "z": 70.3
+              },
+              "scale": {
+                "x": 0.1,
+                "y": 0.012,
+                "z": 1.1
+              }
+            },
+            {
+              "geometry": "box",
+              "finish": "brushedMetal",
+              "surface": true,
+              "rotationY": -6.283185307179586,
+              "position": {
+                "x": 1,
+                "y": 0.055,
+                "z": 70.3
+              },
+              "scale": {
+                "x": 0.1,
+                "y": 0.012,
+                "z": 1.1
+              }
+            },
+            {
+              "geometry": "box",
+              "finish": "brushedMetal",
+              "surface": true,
+              "rotationY": -6.283185307179586,
+              "position": {
+                "x": 1.25,
+                "y": 0.055,
+                "z": 70.3
+              },
+              "scale": {
+                "x": 0.1,
+                "y": 0.012,
+                "z": 1.1
+              }
+            },
+            {
+              "geometry": "box",
+              "finish": "brushedMetal",
+              "surface": true,
+              "rotationY": -6.283185307179586,
+              "position": {
+                "x": 1.5,
+                "y": 0.055,
+                "z": 70.3
+              },
+              "scale": {
+                "x": 0.1,
+                "y": 0.012,
+                "z": 1.1
+              }
+            }
+          ]
+        }
+      ],
+      "added": []
+    },
+    "clusters": {
+      "before": 13,
+      "after": 12,
+      "removed": [
+        {
+          "roadId": "mall-circulation-s-grade-part-2",
+          "locationId": "zero-point",
+          "style": "nexus",
+          "theme": "transit",
+          "center": {
+            "x": -30.200000000000003,
+            "y": 0,
+            "z": 104.5
+          },
+          "radius": 7,
+          "parts": [
+            {
+              "geometry": "box",
+              "finish": "sidewalk",
+              "surface": true,
+              "rotationY": 0,
+              "position": {
+                "x": -35,
+                "y": 0.04,
+                "z": 101.5
+              },
+              "scale": {
+                "x": 0.8,
+                "y": 0.012,
+                "z": 0.12
+              }
+            },
+            {
+              "geometry": "box",
+              "finish": "sidewalk",
+              "surface": true,
+              "rotationY": 0,
+              "position": {
+                "x": -35,
+                "y": 0.04,
+                "z": 107.5
+              },
+              "scale": {
+                "x": 0.8,
+                "y": 0.012,
+                "z": 0.12
+              }
+            },
+            {
+              "geometry": "box",
+              "finish": "sidewalk",
+              "surface": true,
+              "rotationY": 0,
+              "position": {
+                "x": -25.400000000000002,
+                "y": 0.04,
+                "z": 101.5
+              },
+              "scale": {
+                "x": 0.8,
+                "y": 0.012,
+                "z": 0.12
+              }
+            },
+            {
+              "geometry": "box",
+              "finish": "sidewalk",
+              "surface": true,
+              "rotationY": 0,
+              "position": {
+                "x": -25.400000000000002,
+                "y": 0.04,
+                "z": 107.5
+              },
+              "scale": {
+                "x": 0.8,
+                "y": 0.012,
+                "z": 0.12
+              }
+            },
+            {
+              "geometry": "box",
+              "finish": "sidewalk",
+              "surface": true,
+              "rotationY": 0,
+              "position": {
+                "x": -32.400000000000006,
+                "y": 0.04,
+                "z": 104.5
+              },
+              "scale": {
+                "x": 0.85,
+                "y": 0.012,
+                "z": 0.12
+              }
+            },
+            {
+              "geometry": "box",
+              "finish": "sidewalk",
+              "surface": true,
+              "rotationY": 0,
+              "position": {
+                "x": -30.200000000000003,
+                "y": 0.04,
+                "z": 104.5
+              },
+              "scale": {
+                "x": 0.85,
+                "y": 0.012,
+                "z": 0.12
+              }
+            },
+            {
+              "geometry": "box",
+              "finish": "sidewalk",
+              "surface": true,
+              "rotationY": 0,
+              "position": {
+                "x": -28.000000000000004,
+                "y": 0.04,
+                "z": 104.5
+              },
+              "scale": {
+                "x": 0.85,
+                "y": 0.012,
+                "z": 0.12
+              }
+            },
+            {
+              "geometry": "cylinder",
+              "finish": "brushedMetal",
+              "surface": false,
+              "rotationY": 0,
+              "position": {
+                "x": -34.1,
+                "y": 1.4,
+                "z": 106.7
+              },
+              "scale": {
+                "x": 0.1,
+                "y": 2.8,
+                "z": 0.1
+              }
+            },
+            {
+              "geometry": "cylinder",
+              "finish": "windowLit",
+              "surface": false,
+              "rotationY": 0,
+              "position": {
+                "x": -34.1,
+                "y": 2.85,
+                "z": 106.7
+              },
+              "scale": {
+                "x": 0.16,
+                "y": 0.1,
+                "z": 0.16
+              }
+            },
+            {
+              "geometry": "cylinder",
+              "finish": "brushedMetal",
+              "surface": false,
+              "rotationY": 0,
+              "position": {
+                "x": -26.300000000000004,
+                "y": 1.4,
+                "z": 106.7
+              },
+              "scale": {
+                "x": 0.1,
+                "y": 2.8,
+                "z": 0.1
+              }
+            },
+            {
+              "geometry": "cylinder",
+              "finish": "windowLit",
+              "surface": false,
+              "rotationY": 0,
+              "position": {
+                "x": -26.300000000000004,
+                "y": 2.85,
+                "z": 106.7
+              },
+              "scale": {
+                "x": 0.16,
+                "y": 0.1,
+                "z": 0.16
+              }
+            }
+          ]
+        }
+      ],
+      "added": []
+    },
+    "maintenance": {
+      "before": 10,
+      "after": 9,
+      "removed": [
+        {
+          "roadId": "zero-circulation-n",
+          "center": {
+            "x": -28,
+            "y": 0,
+            "z": 72.5
+          },
+          "parts": [
+            {
+              "finish": "structuralDark",
+              "layer": 6,
+              "rotationY": -3.141592653589793,
+              "position": {
+                "x": -28,
+                "y": 0.046,
+                "z": 72.5
+              },
+              "scale": {
+                "x": 12,
+                "y": 0.008,
+                "z": 1.1
+              }
+            },
+            {
+              "finish": "brushedMetal",
+              "layer": 7,
+              "rotationY": -3.141592653589793,
+              "position": {
+                "x": -28,
+                "y": 0.062,
+                "z": 73.07
+              },
+              "scale": {
+                "x": 12,
+                "y": 0.008,
+                "z": 0.07
+              }
+            },
+            {
+              "finish": "brushedMetal",
+              "layer": 7,
+              "rotationY": -3.141592653589793,
+              "position": {
+                "x": -28,
+                "y": 0.062,
+                "z": 71.93
+              },
+              "scale": {
+                "x": 12,
+                "y": 0.008,
+                "z": 0.07
+              }
+            },
+            {
+              "finish": "brushedMetal",
+              "layer": 7,
+              "rotationY": -3.141592653589793,
+              "position": {
+                "x": -24,
+                "y": 0.062,
+                "z": 72.5
+              },
+              "scale": {
+                "x": 0.08,
+                "y": 0.008,
+                "z": 1.02
+              }
+            },
+            {
+              "finish": "brushedMetal",
+              "layer": 7,
+              "rotationY": -3.141592653589793,
+              "position": {
+                "x": -28,
+                "y": 0.062,
+                "z": 72.5
+              },
+              "scale": {
+                "x": 0.08,
+                "y": 0.008,
+                "z": 1.02
+              }
+            },
+            {
+              "finish": "brushedMetal",
+              "layer": 7,
+              "rotationY": -3.141592653589793,
+              "position": {
+                "x": -32,
+                "y": 0.062,
+                "z": 72.5
+              },
+              "scale": {
+                "x": 0.08,
+                "y": 0.008,
+                "z": 1.02
+              }
+            },
+            {
+              "finish": "energyCyan",
+              "layer": 7,
+              "rotationY": -3.141592653589793,
+              "position": {
+                "x": -26,
+                "y": 0.062,
+                "z": 72.84
+              },
+              "scale": {
+                "x": 0.75,
+                "y": 0.008,
+                "z": 0.065
+              }
+            },
+            {
+              "finish": "energyCyan",
+              "layer": 7,
+              "rotationY": -3.141592653589793,
+              "position": {
+                "x": -30,
+                "y": 0.062,
+                "z": 72.84
+              },
+              "scale": {
+                "x": 0.75,
+                "y": 0.008,
+                "z": 0.065
+              }
+            }
+          ]
+        }
+      ],
+      "added": []
+    },
+    "groves": {
+      "before": 325,
+      "after": 325,
+      "removed": [],
+      "added": []
+    }
+  }
+}

@@ -1,0 +1,56 @@
+[
+  {
+    "id": "west-park-tree-and-astronaut",
+    "position": [
+      -424,
+      5,
+      179
+    ],
+    "focus": [
+      -434,
+      4,
+      165
+    ],
+    "astronautPosition": [
+      -433,
+      0,
+      165
+    ]
+  },
+  {
+    "id": "academy-tree-and-astronaut",
+    "position": [
+      -262,
+      10.5,
+      271
+    ],
+    "focus": [
+      -273,
+      9.5,
+      263
+    ],
+    "astronautPosition": [
+      -271.5,
+      5.5,
+      263
+    ]
+  },
+  {
+    "id": "orbital-overlook-pocket-clearance",
+    "position": [
+      389,
+      8,
+      204
+    ],
+    "focus": [
+      375,
+      1,
+      195
+    ],
+    "astronautPosition": [
+      378,
+      0,
+      195
+    ]
+  }
+]

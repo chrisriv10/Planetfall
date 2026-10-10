@@ -1,0 +1,157 @@
+{
+  "scope": "Static actual-world assembly, normal materials and BR lighting, no gameplay/HUD/sky/bloom/shadows. Not FPS or human-control validation.",
+  "legacyParkingReconstructed": false,
+  "views": [
+    {
+      "id": "mall-arrival-ground",
+      "position": [
+        -5,
+        2.7,
+        195
+      ],
+      "focus": [
+        -10,
+        1,
+        177
+      ],
+      "calls": 424,
+      "triangles": 391849,
+      "textures": 22,
+      "world": {
+        "objects": 2160,
+        "meshes": 1862,
+        "instances": 62259,
+        "visibleInstances": 26472,
+        "materials": 289,
+        "visibleDistricts": 27,
+        "visibleSecondaryLabels": 1
+      }
+    },
+    {
+      "id": "mall-grade-meeting",
+      "position": [
+        -24,
+        2.7,
+        190
+      ],
+      "focus": [
+        -5,
+        0.8,
+        187
+      ],
+      "calls": 390,
+      "triangles": 409871,
+      "textures": 38,
+      "world": {
+        "objects": 2160,
+        "meshes": 1862,
+        "instances": 62259,
+        "visibleInstances": 26472,
+        "materials": 289,
+        "visibleDistricts": 27,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "civic-oblique-link",
+      "position": [
+        -15,
+        2.7,
+        166
+      ],
+      "focus": [
+        -5,
+        1,
+        186
+      ],
+      "calls": 231,
+      "triangles": 319965,
+      "textures": 40,
+      "world": {
+        "objects": 2160,
+        "meshes": 1862,
+        "instances": 62259,
+        "visibleInstances": 26472,
+        "materials": 289,
+        "visibleDistricts": 27,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "zero-entry-bend",
+      "position": [
+        -5,
+        2.7,
+        80
+      ],
+      "focus": [
+        -15,
+        1,
+        108
+      ],
+      "calls": 284,
+      "triangles": 384403,
+      "textures": 51,
+      "world": {
+        "objects": 2160,
+        "meshes": 1862,
+        "instances": 62259,
+        "visibleInstances": 26315,
+        "materials": 289,
+        "visibleDistricts": 23,
+        "visibleSecondaryLabels": 5
+      }
+    },
+    {
+      "id": "coolant-right-angle",
+      "position": [
+        37,
+        2.7,
+        114
+      ],
+      "focus": [
+        47,
+        1,
+        121
+      ],
+      "calls": 335,
+      "triangles": 437205,
+      "textures": 53,
+      "world": {
+        "objects": 2160,
+        "meshes": 1862,
+        "instances": 62259,
+        "visibleInstances": 28503,
+        "materials": 289,
+        "visibleDistricts": 26,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "freight-deck-boundary",
+      "position": [
+        340,
+        2.7,
+        -265
+      ],
+      "focus": [
+        340,
+        3,
+        -280
+      ],
+      "calls": 97,
+      "triangles": 162623,
+      "textures": 55,
+      "world": {
+        "objects": 2160,
+        "meshes": 1862,
+        "instances": 62259,
+        "visibleInstances": 18174,
+        "materials": 289,
+        "visibleDistricts": 12,
+        "visibleSecondaryLabels": 1
+      }
+    }
+  ],
+  "errors": []
+}

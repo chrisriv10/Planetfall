@@ -1,0 +1,2789 @@
+{
+  "scope": "Static actual-world assembly, normal materials and BR lighting, no gameplay/HUD/sky/bloom/shadows. Not FPS or human-control validation.",
+  "legacyParkingReconstructed": false,
+  "views": [
+    {
+      "id": "zero-spire",
+      "position": [
+        0,
+        2.7,
+        -20
+      ],
+      "focus": [
+        0,
+        5,
+        0
+      ],
+      "structureId": "zero-spire",
+      "calls": 299,
+      "triangles": 298759,
+      "textures": 18,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 29169,
+        "materials": 298,
+        "visibleDistricts": 28,
+        "visibleSecondaryLabels": 1
+      }
+    },
+    {
+      "id": "zero-control",
+      "position": [
+        -17,
+        2.7,
+        -9
+      ],
+      "focus": [
+        -38,
+        3.2,
+        -9
+      ],
+      "structureId": "zero-control",
+      "calls": 381,
+      "triangles": 421371,
+      "textures": 34,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 29169,
+        "materials": 298,
+        "visibleDistricts": 28,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "zero-relay",
+      "position": [
+        17,
+        2.7,
+        12
+      ],
+      "focus": [
+        38,
+        2.8000000000000003,
+        12
+      ],
+      "structureId": "zero-relay",
+      "calls": 370,
+      "triangles": 344837,
+      "textures": 43,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 29091,
+        "materials": 298,
+        "visibleDistricts": 27,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "zero-archive",
+      "position": [
+        2,
+        2.7,
+        18
+      ],
+      "focus": [
+        2,
+        2.4000000000000004,
+        43
+      ],
+      "structureId": "zero-archive",
+      "calls": 277,
+      "triangles": 294247,
+      "textures": 43,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 29091,
+        "materials": 298,
+        "visibleDistricts": 27,
+        "visibleSecondaryLabels": 5
+      }
+    },
+    {
+      "id": "nova-tower-a",
+      "position": [
+        -180.5,
+        7.7,
+        -172
+      ],
+      "focus": [
+        -210,
+        10,
+        -172
+      ],
+      "structureId": "nova-tower-a",
+      "calls": 281,
+      "triangles": 343361,
+      "textures": 47,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 28968,
+        "materials": 298,
+        "visibleDistricts": 31,
+        "visibleSecondaryLabels": 6
+      }
+    },
+    {
+      "id": "nova-tower-b",
+      "position": [
+        -168.5,
+        7.7,
+        -172
+      ],
+      "focus": [
+        -140,
+        10,
+        -172
+      ],
+      "structureId": "nova-tower-b",
+      "calls": 475,
+      "triangles": 411473,
+      "textures": 57,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 28968,
+        "materials": 298,
+        "visibleDistricts": 31,
+        "visibleSecondaryLabels": 6
+      }
+    },
+    {
+      "id": "nova-cafe",
+      "position": [
+        -220,
+        7.7,
+        -130
+      ],
+      "focus": [
+        -220,
+        7.4,
+        -104
+      ],
+      "structureId": "nova-cafe",
+      "calls": 403,
+      "triangles": 465723,
+      "textures": 62,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 31898,
+        "materials": 298,
+        "visibleDistricts": 34,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "nova-studio",
+      "position": [
+        -150,
+        7.7,
+        -130
+      ],
+      "focus": [
+        -150,
+        8.6,
+        -103
+      ],
+      "structureId": "nova-studio",
+      "calls": 419,
+      "triangles": 461451,
+      "textures": 62,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 32253,
+        "materials": 298,
+        "visibleDistricts": 35,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "nova-kiosk",
+      "position": [
+        -190,
+        7.7,
+        -127
+      ],
+      "focus": [
+        -190,
+        6.6,
+        -105
+      ],
+      "structureId": "nova-kiosk",
+      "calls": 387,
+      "triangles": 456449,
+      "textures": 62,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 31363,
+        "materials": 298,
+        "visibleDistricts": 33,
+        "visibleSecondaryLabels": 5
+      }
+    },
+    {
+      "id": "dock-hangar",
+      "position": [
+        190,
+        2.700001907348633,
+        -207
+      ],
+      "focus": [
+        190,
+        4.4,
+        -174
+      ],
+      "structureId": "dock-hangar",
+      "calls": 410,
+      "triangles": 313791,
+      "textures": 64,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 21598,
+        "materials": 298,
+        "visibleDistricts": 23,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "dock-office",
+      "position": [
+        179,
+        2.7,
+        -130
+      ],
+      "focus": [
+        150,
+        3.2,
+        -130
+      ],
+      "structureId": "dock-office",
+      "calls": 406,
+      "triangles": 362779,
+      "textures": 64,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 28022,
+        "materials": 298,
+        "visibleDistricts": 28,
+        "visibleSecondaryLabels": 1
+      }
+    },
+    {
+      "id": "dock-warehouse",
+      "position": [
+        195,
+        2.700001907348633,
+        -129
+      ],
+      "focus": [
+        230,
+        2.8000000000000003,
+        -129
+      ],
+      "structureId": "dock-warehouse",
+      "calls": 239,
+      "triangles": 302885,
+      "textures": 65,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 28022,
+        "materials": 298,
+        "visibleDistricts": 28,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "dock-customs",
+      "position": [
+        191,
+        2.700001907348633,
+        -80
+      ],
+      "focus": [
+        191,
+        2,
+        -105
+      ],
+      "structureId": "dock-customs",
+      "calls": 289,
+      "triangles": 312321,
+      "textures": 68,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 26801,
+        "materials": 298,
+        "visibleDistricts": 24,
+        "visibleSecondaryLabels": 1
+      }
+    },
+    {
+      "id": "helios-core",
+      "position": [
+        262,
+        8.7,
+        45
+      ],
+      "focus": [
+        262,
+        11,
+        78
+      ],
+      "structureId": "helios-core",
+      "calls": 272,
+      "triangles": 284087,
+      "textures": 73,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 28000,
+        "materials": 298,
+        "visibleDistricts": 28,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "helios-turbine-a",
+      "position": [
+        242,
+        8.7,
+        74
+      ],
+      "focus": [
+        218,
+        9.6,
+        74
+      ],
+      "structureId": "helios-turbine-a",
+      "calls": 472,
+      "triangles": 425767,
+      "textures": 73,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 27646,
+        "materials": 298,
+        "visibleDistricts": 26,
+        "visibleSecondaryLabels": 5
+      }
+    },
+    {
+      "id": "helios-turbine-b",
+      "position": [
+        282,
+        8.7,
+        74
+      ],
+      "focus": [
+        306,
+        9.6,
+        74
+      ],
+      "structureId": "helios-turbine-b",
+      "calls": 165,
+      "triangles": 266239,
+      "textures": 74,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 24306,
+        "materials": 298,
+        "visibleDistricts": 24,
+        "visibleSecondaryLabels": 5
+      }
+    },
+    {
+      "id": "helios-control",
+      "position": [
+        261,
+        8.7,
+        150
+      ],
+      "focus": [
+        261,
+        8.8,
+        124
+      ],
+      "structureId": "helios-control",
+      "calls": 350,
+      "triangles": 304049,
+      "textures": 74,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 22917,
+        "materials": 298,
+        "visibleDistricts": 24,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "astra-hall",
+      "position": [
+        -278,
+        10.7,
+        47
+      ],
+      "focus": [
+        -278,
+        11.6,
+        75
+      ],
+      "structureId": "astra-hall",
+      "calls": 256,
+      "triangles": 271803,
+      "textures": 78,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 24817,
+        "materials": 298,
+        "visibleDistricts": 26,
+        "visibleSecondaryLabels": 6
+      }
+    },
+    {
+      "id": "astra-lab",
+      "position": [
+        -299,
+        10.7,
+        52
+      ],
+      "focus": [
+        -323,
+        10.8,
+        52
+      ],
+      "structureId": "astra-lab",
+      "calls": 195,
+      "triangles": 251189,
+      "textures": 80,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 24817,
+        "materials": 298,
+        "visibleDistricts": 26,
+        "visibleSecondaryLabels": 7
+      }
+    },
+    {
+      "id": "astra-library",
+      "position": [
+        -264,
+        10.7,
+        52
+      ],
+      "focus": [
+        -233,
+        10.8,
+        52
+      ],
+      "structureId": "astra-library",
+      "calls": 478,
+      "triangles": 394545,
+      "textures": 81,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 24817,
+        "materials": 298,
+        "visibleDistricts": 26,
+        "visibleSecondaryLabels": 6
+      }
+    },
+    {
+      "id": "astra-observatory",
+      "position": [
+        -278,
+        10.7,
+        147
+      ],
+      "focus": [
+        -278,
+        13,
+        119
+      ],
+      "structureId": "astra-observatory",
+      "calls": 348,
+      "triangles": 308529,
+      "textures": 81,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 24638,
+        "materials": 298,
+        "visibleDistricts": 28,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "void-anchor",
+      "position": [
+        -93,
+        2.7,
+        230
+      ],
+      "focus": [
+        -93,
+        5,
+        263
+      ],
+      "structureId": "void-anchor",
+      "calls": 190,
+      "triangles": 298791,
+      "textures": 90,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 24453,
+        "materials": 298,
+        "visibleDistricts": 24,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "void-west",
+      "position": [
+        -126,
+        2.7,
+        260
+      ],
+      "focus": [
+        -142,
+        3.2,
+        260
+      ],
+      "structureId": "void-west",
+      "calls": 237,
+      "triangles": 332563,
+      "textures": 92,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 24260,
+        "materials": 298,
+        "visibleDistricts": 24,
+        "visibleSecondaryLabels": 5
+      }
+    },
+    {
+      "id": "void-east",
+      "position": [
+        -60,
+        2.7,
+        260
+      ],
+      "focus": [
+        -44,
+        3.2,
+        260
+      ],
+      "structureId": "void-east",
+      "calls": 323,
+      "triangles": 311721,
+      "textures": 94,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 21909,
+        "materials": 298,
+        "visibleDistricts": 22,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "void-cinema",
+      "position": [
+        -93,
+        2.6999980926513674,
+        337
+      ],
+      "focus": [
+        -93,
+        2.8000000000000003,
+        309
+      ],
+      "structureId": "void-cinema",
+      "calls": 495,
+      "triangles": 318615,
+      "textures": 98,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 21909,
+        "materials": 298,
+        "visibleDistricts": 22,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "farm-dome-a",
+      "position": [
+        127,
+        6.7,
+        291
+      ],
+      "focus": [
+        94,
+        7.2,
+        291
+      ],
+      "structureId": "farm-dome-a",
+      "calls": 319,
+      "triangles": 335795,
+      "textures": 98,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 25073,
+        "materials": 298,
+        "visibleDistricts": 24,
+        "visibleSecondaryLabels": 5
+      }
+    },
+    {
+      "id": "farm-dome-b",
+      "position": [
+        137,
+        6.7,
+        288
+      ],
+      "focus": [
+        137,
+        7.2,
+        319
+      ],
+      "structureId": "farm-dome-b",
+      "calls": 157,
+      "triangles": 240553,
+      "textures": 104,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 25073,
+        "materials": 298,
+        "visibleDistricts": 24,
+        "visibleSecondaryLabels": 5
+      }
+    },
+    {
+      "id": "farm-processing",
+      "position": [
+        141,
+        6.7,
+        271
+      ],
+      "focus": [
+        165,
+        6.800000000000001,
+        271
+      ],
+      "structureId": "farm-processing",
+      "calls": 218,
+      "triangles": 300793,
+      "textures": 107,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 27285,
+        "materials": 298,
+        "visibleDistricts": 26,
+        "visibleSecondaryLabels": 5
+      }
+    },
+    {
+      "id": "farm-pump",
+      "position": [
+        106,
+        6.7,
+        273
+      ],
+      "focus": [
+        106,
+        6,
+        248
+      ],
+      "structureId": "farm-pump",
+      "calls": 580,
+      "triangles": 409013,
+      "textures": 107,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 27285,
+        "materials": 298,
+        "visibleDistricts": 26,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "crash-fuselage",
+      "position": [
+        -291,
+        2.7,
+        -258
+      ],
+      "focus": [
+        -326,
+        3.6,
+        -258
+      ],
+      "structureId": "crash-fuselage",
+      "calls": 164,
+      "triangles": 214991,
+      "textures": 108,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 24216,
+        "materials": 298,
+        "visibleDistricts": 24,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "crash-cargo",
+      "position": [
+        -315.5,
+        2.7,
+        -226
+      ],
+      "focus": [
+        -286,
+        2.4000000000000004,
+        -226
+      ],
+      "structureId": "crash-cargo",
+      "calls": 578,
+      "triangles": 395627,
+      "textures": 120,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 24216,
+        "materials": 298,
+        "visibleDistricts": 24,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "crash-shelter",
+      "position": [
+        -346,
+        2.7,
+        -224
+      ],
+      "focus": [
+        -367,
+        2.4000000000000004,
+        -224
+      ],
+      "structureId": "crash-shelter",
+      "calls": 127,
+      "triangles": 192435,
+      "textures": 120,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 22289,
+        "materials": 298,
+        "visibleDistricts": 20,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "crash-engine",
+      "position": [
+        -350,
+        2.7,
+        -271
+      ],
+      "focus": [
+        -350,
+        3.2,
+        -294
+      ],
+      "structureId": "crash-engine",
+      "calls": 146,
+      "triangles": 213855,
+      "textures": 120,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 22289,
+        "materials": 298,
+        "visibleDistricts": 20,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "thruster-foundry",
+      "position": [
+        342,
+        2.6999980926513674,
+        -102
+      ],
+      "focus": [
+        342,
+        5,
+        -70
+      ],
+      "structureId": "thruster-foundry",
+      "calls": 312,
+      "triangles": 288197,
+      "textures": 120,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 21202,
+        "materials": 298,
+        "visibleDistricts": 17,
+        "visibleSecondaryLabels": 1
+      }
+    },
+    {
+      "id": "thruster-pump-a",
+      "position": [
+        326.5,
+        2.6999980926513674,
+        -98
+      ],
+      "focus": [
+        297,
+        3.2,
+        -98
+      ],
+      "structureId": "thruster-pump-a",
+      "calls": 417,
+      "triangles": 339565,
+      "textures": 120,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 21202,
+        "materials": 298,
+        "visibleDistricts": 17,
+        "visibleSecondaryLabels": 1
+      }
+    },
+    {
+      "id": "thruster-pump-b",
+      "position": [
+        357.5,
+        2.6999980926513674,
+        -98
+      ],
+      "focus": [
+        387,
+        3.2,
+        -98
+      ],
+      "structureId": "thruster-pump-b",
+      "calls": 104,
+      "triangles": 199679,
+      "textures": 120,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 21202,
+        "materials": 298,
+        "visibleDistricts": 17,
+        "visibleSecondaryLabels": 1
+      }
+    },
+    {
+      "id": "thruster-control",
+      "position": [
+        342,
+        2.7,
+        5.5
+      ],
+      "focus": [
+        342,
+        2.8000000000000003,
+        -22
+      ],
+      "structureId": "thruster-control",
+      "calls": 267,
+      "triangles": 276427,
+      "textures": 120,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 22168,
+        "materials": 298,
+        "visibleDistricts": 18,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "thruster-depot",
+      "position": [
+        363,
+        2.7,
+        -43
+      ],
+      "focus": [
+        392,
+        2.4000000000000004,
+        -43
+      ],
+      "structureId": "thruster-depot",
+      "calls": 82,
+      "triangles": 194243,
+      "textures": 120,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 22168,
+        "materials": 298,
+        "visibleDistricts": 18,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "mid-transit-west",
+      "position": [
+        -60.5,
+        2.7,
+        -22
+      ],
+      "focus": [
+        -92,
+        2,
+        -22
+      ],
+      "structureId": "mid-transit-west",
+      "calls": 347,
+      "triangles": 454093,
+      "textures": 120,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 28467,
+        "materials": 298,
+        "visibleDistricts": 26,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "mid-transit-east",
+      "position": [
+        63.5,
+        2.7,
+        24
+      ],
+      "focus": [
+        95,
+        2,
+        24
+      ],
+      "structureId": "mid-transit-east",
+      "calls": 364,
+      "triangles": 404643,
+      "textures": 120,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 27000,
+        "materials": 298,
+        "visibleDistricts": 27,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "south-relay",
+      "position": [
+        35,
+        2.7,
+        -228
+      ],
+      "focus": [
+        35,
+        2.8000000000000003,
+        -255
+      ],
+      "structureId": "south-relay",
+      "calls": 254,
+      "triangles": 275191,
+      "textures": 124,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 27690,
+        "materials": 298,
+        "visibleDistricts": 24,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "zero-gallery",
+      "position": [
+        -19.5,
+        2.7,
+        35
+      ],
+      "focus": [
+        -48,
+        2.8000000000000003,
+        35
+      ],
+      "structureId": "zero-gallery",
+      "calls": 341,
+      "triangles": 465679,
+      "textures": 124,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 28904,
+        "materials": 298,
+        "visibleDistricts": 25,
+        "visibleSecondaryLabels": 6
+      }
+    },
+    {
+      "id": "zero-works",
+      "position": [
+        17.5,
+        2.7,
+        -31
+      ],
+      "focus": [
+        48,
+        3.2,
+        -31
+      ],
+      "structureId": "zero-works",
+      "calls": 351,
+      "triangles": 343503,
+      "textures": 124,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 27992,
+        "materials": 298,
+        "visibleDistricts": 25,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "nova-arcade",
+      "position": [
+        -232,
+        7.7,
+        -93
+      ],
+      "focus": [
+        -232,
+        8.6,
+        -73
+      ],
+      "structureId": "nova-arcade",
+      "calls": 367,
+      "triangles": 464875,
+      "textures": 124,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 30043,
+        "materials": 298,
+        "visibleDistricts": 30,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "nova-hotel",
+      "position": [
+        -156,
+        7.7,
+        -197
+      ],
+      "focus": [
+        -128,
+        10,
+        -197
+      ],
+      "structureId": "nova-hotel",
+      "calls": 423,
+      "triangles": 405879,
+      "textures": 124,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 28834,
+        "materials": 298,
+        "visibleDistricts": 31,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "nova-market",
+      "position": [
+        -87,
+        7.6999961853027346,
+        -106
+      ],
+      "focus": [
+        -114,
+        7.800000000000001,
+        -106
+      ],
+      "structureId": "nova-market",
+      "calls": 324,
+      "triangles": 346989,
+      "textures": 124,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 27867,
+        "materials": 298,
+        "visibleDistricts": 27,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "dock-freight-a",
+      "position": [
+        216.5,
+        2.700001907348633,
+        -188
+      ],
+      "focus": [
+        247,
+        3.2,
+        -188
+      ],
+      "structureId": "dock-freight-a",
+      "calls": 217,
+      "triangles": 278931,
+      "textures": 126,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 20619,
+        "materials": 298,
+        "visibleDistricts": 20,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "dock-freight-b",
+      "position": [
+        163.5,
+        2.7,
+        -190
+      ],
+      "focus": [
+        136,
+        2.8000000000000003,
+        -190
+      ],
+      "structureId": "dock-freight-b",
+      "calls": 352,
+      "triangles": 282093,
+      "textures": 126,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 21557,
+        "materials": 298,
+        "visibleDistricts": 22,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "dock-tower",
+      "position": [
+        224,
+        2.700001907348633,
+        -115
+      ],
+      "focus": [
+        224,
+        5,
+        -90
+      ],
+      "structureId": "dock-tower",
+      "calls": 372,
+      "triangles": 356431,
+      "textures": 126,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 23461,
+        "materials": 298,
+        "visibleDistricts": 22,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "helios-annex",
+      "position": [
+        285,
+        8.7,
+        126
+      ],
+      "focus": [
+        315,
+        9.6,
+        126
+      ],
+      "structureId": "helios-annex",
+      "calls": 165,
+      "triangles": 278109,
+      "textures": 126,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 22917,
+        "materials": 298,
+        "visibleDistricts": 24,
+        "visibleSecondaryLabels": 5
+      }
+    },
+    {
+      "id": "helios-storage",
+      "position": [
+        241.5,
+        8.7,
+        126
+      ],
+      "focus": [
+        211,
+        8.8,
+        126
+      ],
+      "structureId": "helios-storage",
+      "calls": 414,
+      "triangles": 320449,
+      "textures": 126,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 22917,
+        "materials": 298,
+        "visibleDistricts": 24,
+        "visibleSecondaryLabels": 6
+      }
+    },
+    {
+      "id": "astra-student-hall",
+      "position": [
+        -307.5,
+        10.7,
+        105
+      ],
+      "focus": [
+        -338,
+        12,
+        105
+      ],
+      "structureId": "astra-student-hall",
+      "calls": 191,
+      "triangles": 236773,
+      "textures": 126,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 20544,
+        "materials": 298,
+        "visibleDistricts": 24,
+        "visibleSecondaryLabels": 7
+      }
+    },
+    {
+      "id": "astra-workshop",
+      "position": [
+        -249,
+        10.7,
+        105
+      ],
+      "focus": [
+        -218,
+        11.2,
+        105
+      ],
+      "structureId": "astra-workshop",
+      "calls": 475,
+      "triangles": 364703,
+      "textures": 126,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 24209,
+        "materials": 298,
+        "visibleDistricts": 26,
+        "visibleSecondaryLabels": 7
+      }
+    },
+    {
+      "id": "void-food-court",
+      "position": [
+        -125,
+        2.6999980926513674,
+        320
+      ],
+      "focus": [
+        -151,
+        3.2,
+        320
+      ],
+      "structureId": "void-food-court",
+      "calls": 210,
+      "triangles": 274165,
+      "textures": 126,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 20016,
+        "materials": 298,
+        "visibleDistricts": 19,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "void-market",
+      "position": [
+        -68,
+        2.7,
+        319
+      ],
+      "focus": [
+        -35,
+        3.2,
+        319
+      ],
+      "structureId": "void-market",
+      "calls": 325,
+      "triangles": 319789,
+      "textures": 126,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 21909,
+        "materials": 298,
+        "visibleDistricts": 22,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "void-station",
+      "position": [
+        -92,
+        2.7,
+        240
+      ],
+      "focus": [
+        -92,
+        3.6,
+        214
+      ],
+      "structureId": "void-station",
+      "calls": 397,
+      "triangles": 295399,
+      "textures": 126,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 21909,
+        "materials": 298,
+        "visibleDistricts": 22,
+        "visibleSecondaryLabels": 5
+      }
+    },
+    {
+      "id": "farm-greenhouse-c",
+      "position": [
+        159,
+        6.7,
+        328
+      ],
+      "focus": [
+        193,
+        7.2,
+        328
+      ],
+      "structureId": "farm-greenhouse-c",
+      "calls": 149,
+      "triangles": 241553,
+      "textures": 126,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 25065,
+        "materials": 298,
+        "visibleDistricts": 23,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "farm-silo",
+      "position": [
+        93,
+        6.7,
+        263
+      ],
+      "focus": [
+        66,
+        9,
+        263
+      ],
+      "structureId": "farm-silo",
+      "calls": 282,
+      "triangles": 324613,
+      "textures": 126,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 25073,
+        "materials": 298,
+        "visibleDistricts": 24,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "crash-medbay",
+      "position": [
+        -300,
+        2.7,
+        -215
+      ],
+      "focus": [
+        -330,
+        3.2,
+        -215
+      ],
+      "structureId": "crash-medbay",
+      "calls": 173,
+      "triangles": 217981,
+      "textures": 127,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 23472,
+        "materials": 298,
+        "visibleDistricts": 22,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "crash-salvage",
+      "position": [
+        -312.5,
+        2.7,
+        -301
+      ],
+      "focus": [
+        -282,
+        2.8000000000000003,
+        -301
+      ],
+      "structureId": "crash-salvage",
+      "calls": 542,
+      "triangles": 372011,
+      "textures": 127,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 22128,
+        "materials": 298,
+        "visibleDistricts": 20,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "thruster-assembly",
+      "position": [
+        368.5,
+        2.7,
+        -15
+      ],
+      "focus": [
+        400,
+        4,
+        -15
+      ],
+      "structureId": "thruster-assembly",
+      "calls": 81,
+      "triangles": 194171,
+      "textures": 127,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 20543,
+        "materials": 298,
+        "visibleDistricts": 14,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "thruster-cooling",
+      "position": [
+        324.5,
+        2.7,
+        -28
+      ],
+      "focus": [
+        300,
+        3.6,
+        -28
+      ],
+      "structureId": "thruster-cooling",
+      "calls": 479,
+      "triangles": 365255,
+      "textures": 127,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 21456,
+        "materials": 298,
+        "visibleDistricts": 16,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "transit-cafe",
+      "position": [
+        135,
+        -0.2999999999999998,
+        76
+      ],
+      "focus": [
+        110,
+        -0.5999999999999996,
+        76
+      ],
+      "structureId": "transit-cafe",
+      "calls": 345,
+      "triangles": 286445,
+      "textures": 127,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 29260,
+        "materials": 298,
+        "visibleDistricts": 26,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "transit-service-store",
+      "position": [
+        135,
+        -0.2999999999999998,
+        112
+      ],
+      "focus": [
+        110,
+        -0.19999999999999973,
+        112
+      ],
+      "structureId": "transit-service-store",
+      "calls": 344,
+      "triangles": 286887,
+      "textures": 127,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 29260,
+        "materials": 298,
+        "visibleDistricts": 26,
+        "visibleSecondaryLabels": 1
+      }
+    },
+    {
+      "id": "transit-ticket-hall",
+      "position": [
+        135,
+        -0.2999999999999998,
+        72
+      ],
+      "focus": [
+        161,
+        0.20000000000000018,
+        72
+      ],
+      "structureId": "transit-ticket-hall",
+      "calls": 368,
+      "triangles": 333101,
+      "textures": 127,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 29260,
+        "materials": 298,
+        "visibleDistricts": 26,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "transit-maintenance",
+      "position": [
+        135,
+        -0.2999999999999998,
+        115
+      ],
+      "focus": [
+        161,
+        -0.19999999999999973,
+        115
+      ],
+      "structureId": "transit-maintenance",
+      "calls": 328,
+      "triangles": 284309,
+      "textures": 127,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 24172,
+        "materials": 298,
+        "visibleDistricts": 22,
+        "visibleSecondaryLabels": 1
+      }
+    },
+    {
+      "id": "south-exchange-cafe",
+      "position": [
+        -73,
+        2.7,
+        -314
+      ],
+      "focus": [
+        -100,
+        2.4000000000000004,
+        -314
+      ],
+      "structureId": "south-exchange-cafe",
+      "calls": 257,
+      "triangles": 319567,
+      "textures": 128,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 21784,
+        "materials": 298,
+        "visibleDistricts": 20,
+        "visibleSecondaryLabels": 5
+      }
+    },
+    {
+      "id": "south-exchange-office",
+      "position": [
+        -79,
+        2.700001907348633,
+        -314
+      ],
+      "focus": [
+        -52,
+        3.6,
+        -314
+      ],
+      "structureId": "south-exchange-office",
+      "calls": 314,
+      "triangles": 244801,
+      "textures": 129,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 22336,
+        "materials": 298,
+        "visibleDistricts": 22,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "south-exchange-market",
+      "position": [
+        -73,
+        2.700001907348633,
+        -378
+      ],
+      "focus": [
+        -100,
+        2.8000000000000003,
+        -378
+      ],
+      "structureId": "south-exchange-market",
+      "calls": 256,
+      "triangles": 315187,
+      "textures": 129,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 21747,
+        "materials": 298,
+        "visibleDistricts": 21,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "south-exchange-service",
+      "position": [
+        -79,
+        2.700001907348633,
+        -378
+      ],
+      "focus": [
+        -52,
+        2.4000000000000004,
+        -378
+      ],
+      "structureId": "south-exchange-service",
+      "calls": 264,
+      "triangles": 226761,
+      "textures": 129,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 21747,
+        "materials": 298,
+        "visibleDistricts": 21,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "transfer-logistics",
+      "position": [
+        195,
+        6.7,
+        184
+      ],
+      "focus": [
+        170,
+        6.800000000000001,
+        184
+      ],
+      "structureId": "transfer-logistics",
+      "calls": 366,
+      "triangles": 271745,
+      "textures": 129,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 21333,
+        "materials": 298,
+        "visibleDistricts": 22,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "transfer-canteen",
+      "position": [
+        195,
+        6.7,
+        203
+      ],
+      "focus": [
+        170,
+        6.4,
+        203
+      ],
+      "structureId": "transfer-canteen",
+      "calls": 368,
+      "triangles": 272131,
+      "textures": 129,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 21333,
+        "materials": 298,
+        "visibleDistricts": 22,
+        "visibleSecondaryLabels": 5
+      }
+    },
+    {
+      "id": "transfer-control",
+      "position": [
+        203,
+        6.7,
+        184
+      ],
+      "focus": [
+        228,
+        7.6,
+        184
+      ],
+      "structureId": "transfer-control",
+      "calls": 222,
+      "triangles": 262625,
+      "textures": 130,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 21333,
+        "materials": 298,
+        "visibleDistricts": 22,
+        "visibleSecondaryLabels": 5
+      }
+    },
+    {
+      "id": "transfer-maintenance",
+      "position": [
+        149,
+        6.7,
+        229
+      ],
+      "focus": [
+        149,
+        6.800000000000001,
+        205
+      ],
+      "structureId": "transfer-maintenance",
+      "calls": 508,
+      "triangles": 352827,
+      "textures": 130,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 23519,
+        "materials": 298,
+        "visibleDistricts": 24,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "central-heights-1",
+      "position": [
+        -74,
+        2.7,
+        -42
+      ],
+      "focus": [
+        -48,
+        3.2,
+        -42
+      ],
+      "structureId": "central-heights-1",
+      "calls": 434,
+      "triangles": 319803,
+      "textures": 130,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 28803,
+        "materials": 298,
+        "visibleDistricts": 27,
+        "visibleSecondaryLabels": 5
+      }
+    },
+    {
+      "id": "relay-market-1",
+      "position": [
+        75,
+        2.7,
+        -52
+      ],
+      "focus": [
+        102,
+        4.4,
+        -52
+      ],
+      "structureId": "relay-market-1",
+      "calls": 339,
+      "triangles": 383639,
+      "textures": 130,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 30580,
+        "materials": 298,
+        "visibleDistricts": 29,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "comet-hotel-1",
+      "position": [
+        -66,
+        2.7,
+        -236
+      ],
+      "focus": [
+        -94,
+        5,
+        -236
+      ],
+      "structureId": "comet-hotel-1",
+      "calls": 279,
+      "triangles": 327615,
+      "textures": 130,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 29479,
+        "materials": 298,
+        "visibleDistricts": 29,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "horizon-homes-1",
+      "position": [
+        -249,
+        2.7,
+        -13
+      ],
+      "focus": [
+        -275,
+        5,
+        -13
+      ],
+      "structureId": "horizon-homes-1",
+      "calls": 270,
+      "triangles": 301049,
+      "textures": 130,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 29778,
+        "materials": 298,
+        "visibleDistricts": 31,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "academy-dorms-1",
+      "position": [
+        -361,
+        2.6999980926513674,
+        167
+      ],
+      "focus": [
+        -384,
+        3.2,
+        167
+      ],
+      "structureId": "academy-dorms-1",
+      "calls": 117,
+      "triangles": 175219,
+      "textures": 130,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 20622,
+        "materials": 298,
+        "visibleDistricts": 24,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "west-overlook-1",
+      "position": [
+        -413,
+        2.7,
+        31
+      ],
+      "focus": [
+        -385,
+        4.4,
+        31
+      ],
+      "structureId": "west-overlook-1",
+      "calls": 595,
+      "triangles": 356985,
+      "textures": 130,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 20336,
+        "materials": 298,
+        "visibleDistricts": 23,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "signal-station-1",
+      "position": [
+        -383,
+        2.7,
+        -83
+      ],
+      "focus": [
+        -409,
+        5,
+        -83
+      ],
+      "structureId": "signal-station-1",
+      "calls": 92,
+      "triangles": 172565,
+      "textures": 130,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 24732,
+        "materials": 298,
+        "visibleDistricts": 22,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "salvage-row-1",
+      "position": [
+        -297,
+        2.7,
+        -293
+      ],
+      "focus": [
+        -307,
+        5,
+        -293
+      ],
+      "structureId": "salvage-row-1",
+      "calls": 139,
+      "triangles": 203679,
+      "textures": 130,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 23200,
+        "materials": 298,
+        "visibleDistricts": 21,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "solar-service-1",
+      "position": [
+        182,
+        2.7,
+        418
+      ],
+      "focus": [
+        155,
+        2.8000000000000003,
+        418
+      ],
+      "structureId": "solar-service-1",
+      "calls": 255,
+      "triangles": 250283,
+      "textures": 130,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 18193,
+        "materials": 298,
+        "visibleDistricts": 16,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "solar-service-2",
+      "position": [
+        178,
+        2.7,
+        414
+      ],
+      "focus": [
+        205,
+        3.6,
+        414
+      ],
+      "structureId": "solar-service-2",
+      "calls": 116,
+      "triangles": 188411,
+      "textures": 130,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 18193,
+        "materials": 298,
+        "visibleDistricts": 16,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "solar-service-3",
+      "position": [
+        179,
+        2.7,
+        437
+      ],
+      "focus": [
+        153,
+        2.4000000000000004,
+        437
+      ],
+      "structureId": "solar-service-3",
+      "calls": 250,
+      "triangles": 249313,
+      "textures": 130,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 18193,
+        "materials": 298,
+        "visibleDistricts": 16,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "ring-service-shop",
+      "position": [
+        -206,
+        2.7,
+        -315
+      ],
+      "focus": [
+        -232,
+        2.4000000000000004,
+        -315
+      ],
+      "structureId": "ring-service-shop",
+      "calls": 206,
+      "triangles": 235541,
+      "textures": 131,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 22522,
+        "materials": 298,
+        "visibleDistricts": 20,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "ring-service-office",
+      "position": [
+        -214,
+        2.7,
+        -315
+      ],
+      "focus": [
+        -188,
+        3.6,
+        -315
+      ],
+      "structureId": "ring-service-office",
+      "calls": 404,
+      "triangles": 339579,
+      "textures": 131,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 22522,
+        "materials": 298,
+        "visibleDistricts": 20,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "ring-service-warehouse",
+      "position": [
+        -206,
+        2.7,
+        -365
+      ],
+      "focus": [
+        -232,
+        2.8000000000000003,
+        -365
+      ],
+      "structureId": "ring-service-warehouse",
+      "calls": 181,
+      "triangles": 221571,
+      "textures": 131,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 22835,
+        "materials": 298,
+        "visibleDistricts": 21,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "ring-service-utility",
+      "position": [
+        -214,
+        2.7,
+        -365
+      ],
+      "focus": [
+        -188,
+        2.4000000000000004,
+        -365
+      ],
+      "structureId": "ring-service-utility",
+      "calls": 394,
+      "triangles": 264111,
+      "textures": 131,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 22835,
+        "materials": 298,
+        "visibleDistricts": 21,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "west-junction-shop",
+      "position": [
+        -312,
+        2.700001907348633,
+        -128
+      ],
+      "focus": [
+        -312,
+        2.4000000000000004,
+        -103
+      ],
+      "structureId": "west-junction-shop",
+      "calls": 326,
+      "triangles": 383539,
+      "textures": 131,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 26410,
+        "materials": 298,
+        "visibleDistricts": 26,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "west-junction-office",
+      "position": [
+        -294,
+        2.700001907348633,
+        -137
+      ],
+      "focus": [
+        -294,
+        4,
+        -163
+      ],
+      "structureId": "west-junction-office",
+      "calls": 258,
+      "triangles": 333235,
+      "textures": 131,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 27046,
+        "materials": 298,
+        "visibleDistricts": 28,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "west-junction-utility",
+      "position": [
+        -327,
+        2.7,
+        -152
+      ],
+      "focus": [
+        -352,
+        2.8000000000000003,
+        -152
+      ],
+      "structureId": "west-junction-utility",
+      "calls": 164,
+      "triangles": 220763,
+      "textures": 131,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 27046,
+        "materials": 298,
+        "visibleDistricts": 28,
+        "visibleSecondaryLabels": 1
+      }
+    },
+    {
+      "id": "transfer-yard-shop",
+      "position": [
+        105,
+        2.7,
+        -365
+      ],
+      "focus": [
+        78,
+        2.4000000000000004,
+        -365
+      ],
+      "structureId": "transfer-yard-shop",
+      "calls": 308,
+      "triangles": 290765,
+      "textures": 131,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 19430,
+        "materials": 298,
+        "visibleDistricts": 20,
+        "visibleSecondaryLabels": 1
+      }
+    },
+    {
+      "id": "transfer-yard-office",
+      "position": [
+        102,
+        2.7,
+        -372
+      ],
+      "focus": [
+        128,
+        4,
+        -372
+      ],
+      "structureId": "transfer-yard-office",
+      "calls": 192,
+      "triangles": 243553,
+      "textures": 132,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 19430,
+        "materials": 298,
+        "visibleDistricts": 20,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "transfer-yard-utility",
+      "position": [
+        102,
+        2.7,
+        -391
+      ],
+      "focus": [
+        76,
+        2.4000000000000004,
+        -391
+      ],
+      "structureId": "transfer-yard-utility",
+      "calls": 291,
+      "triangles": 246493,
+      "textures": 132,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 19430,
+        "materials": 298,
+        "visibleDistricts": 20,
+        "visibleSecondaryLabels": 1
+      }
+    },
+    {
+      "id": "civic-frontage-bookshop",
+      "position": [
+        -139,
+        2.7,
+        170
+      ],
+      "focus": [
+        -165,
+        2.4000000000000004,
+        170
+      ],
+      "structureId": "civic-frontage-bookshop",
+      "calls": 251,
+      "triangles": 368271,
+      "textures": 132,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 26400,
+        "materials": 298,
+        "visibleDistricts": 24,
+        "visibleSecondaryLabels": 1
+      }
+    },
+    {
+      "id": "civic-frontage-clinic",
+      "position": [
+        -148,
+        2.7,
+        166
+      ],
+      "focus": [
+        -122,
+        4,
+        166
+      ],
+      "structureId": "civic-frontage-clinic",
+      "calls": 444,
+      "triangles": 374479,
+      "textures": 132,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 26400,
+        "materials": 298,
+        "visibleDistricts": 24,
+        "visibleSecondaryLabels": 1
+      }
+    },
+    {
+      "id": "civic-frontage-service",
+      "position": [
+        -147,
+        2.7,
+        145
+      ],
+      "focus": [
+        -122,
+        2.4000000000000004,
+        145
+      ],
+      "structureId": "civic-frontage-service",
+      "calls": 447,
+      "triangles": 376139,
+      "textures": 132,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 26400,
+        "materials": 298,
+        "visibleDistricts": 24,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "nova-landing-shop",
+      "position": [
+        -173,
+        2.7,
+        3
+      ],
+      "focus": [
+        -200,
+        2.4000000000000004,
+        3
+      ],
+      "structureId": "nova-landing-shop",
+      "calls": 293,
+      "triangles": 371345,
+      "textures": 132,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 30962,
+        "materials": 298,
+        "visibleDistricts": 26,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "nova-landing-office",
+      "position": [
+        -198,
+        2.7,
+        -7
+      ],
+      "focus": [
+        -198,
+        4,
+        -27
+      ],
+      "structureId": "nova-landing-office",
+      "calls": 304,
+      "triangles": 323227,
+      "textures": 132,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 27892,
+        "materials": 298,
+        "visibleDistricts": 26,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "nova-landing-service",
+      "position": [
+        -151,
+        2.7,
+        -4
+      ],
+      "focus": [
+        -151,
+        2.4000000000000004,
+        -27
+      ],
+      "structureId": "nova-landing-service",
+      "calls": 330,
+      "triangles": 394335,
+      "textures": 132,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 28235,
+        "materials": 298,
+        "visibleDistricts": 26,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "engine-gate-approach-workshop",
+      "position": [
+        342,
+        2.7,
+        -198
+      ],
+      "focus": [
+        318,
+        2.4000000000000004,
+        -198
+      ],
+      "structureId": "engine-gate-approach-workshop",
+      "calls": 424,
+      "triangles": 305993,
+      "textures": 132,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 18316,
+        "materials": 298,
+        "visibleDistricts": 10,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "engine-gate-approach-relay",
+      "position": [
+        342,
+        2.7,
+        -162
+      ],
+      "focus": [
+        318,
+        3.2,
+        -162
+      ],
+      "structureId": "engine-gate-approach-relay",
+      "calls": 420,
+      "triangles": 306533,
+      "textures": 132,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 18316,
+        "materials": 298,
+        "visibleDistricts": 10,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "coolant-frontage-office",
+      "position": [
+        44,
+        2.7,
+        98
+      ],
+      "focus": [
+        18,
+        4.4,
+        98
+      ],
+      "structureId": "coolant-frontage-office",
+      "calls": 364,
+      "triangles": 371827,
+      "textures": 132,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 28314,
+        "materials": 298,
+        "visibleDistricts": 24,
+        "visibleSecondaryLabels": 1
+      }
+    },
+    {
+      "id": "coolant-frontage-maintenance",
+      "position": [
+        31,
+        2.7,
+        98
+      ],
+      "focus": [
+        56,
+        2.4000000000000004,
+        98
+      ],
+      "structureId": "coolant-frontage-maintenance",
+      "calls": 393,
+      "triangles": 385191,
+      "textures": 132,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 28948,
+        "materials": 298,
+        "visibleDistricts": 26,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "north-civic-archive",
+      "position": [
+        -17,
+        2.7,
+        155
+      ],
+      "focus": [
+        -44,
+        3.6,
+        155
+      ],
+      "structureId": "north-civic-archive",
+      "calls": 287,
+      "triangles": 359043,
+      "textures": 132,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 26728,
+        "materials": 298,
+        "visibleDistricts": 23,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "north-civic-exchange",
+      "position": [
+        -25,
+        2.7,
+        155
+      ],
+      "focus": [
+        0,
+        2.4000000000000004,
+        155
+      ],
+      "structureId": "north-civic-exchange",
+      "calls": 411,
+      "triangles": 406909,
+      "textures": 132,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 26728,
+        "materials": 298,
+        "visibleDistricts": 23,
+        "visibleSecondaryLabels": 4
+      }
+    }
+  ],
+  "errors": []
+}

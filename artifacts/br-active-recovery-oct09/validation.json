@@ -1,0 +1,186 @@
+{
+  "date": "2026-10-09",
+  "machine": "DESKTOP-JL99F36",
+  "head": "d64d771ef62d519b8bd31324d6b1736c541ef761",
+  "workingTree": "local, uncommitted",
+  "pushed": false,
+  "deployed": false,
+  "typecheck": {
+    "passed": true,
+    "command": "npm run typecheck",
+    "log": "typecheck.log"
+  },
+  "build": {
+    "passed": true,
+    "command": "npm run build",
+    "log": "build.log",
+    "existingChunkSizeWarning": true
+  },
+  "fullSuite": {
+    "passed": true,
+    "tests": 949,
+    "files": 172,
+    "durationSeconds": 148.52,
+    "command": "npm test",
+    "log": "full-suite.log",
+    "firstRun": {
+      "passed": 948,
+      "failed": 1,
+      "log": "full-suite-first.log",
+      "cause": "New test omitted baseline central-garden tree 6; baseline and current both preserve all seven IDs. Corrected expected list, no tree changes."
+    }
+  },
+  "serverPerformance": {
+    "passed": true,
+    "includedInFullSuite": true,
+    "cases": [
+      {
+        "players": 10,
+        "identityOffset": 0
+      },
+      {
+        "players": 20,
+        "identityOffset": 0
+      },
+      {
+        "players": 40,
+        "identityOffset": 0
+      },
+      {
+        "players": 40,
+        "identityOffset": 1000
+      },
+      {
+        "players": 40,
+        "identityOffset": 5000
+      }
+    ],
+    "unchangedLimits": {
+      "averageTickMs": 16,
+      "p95TickMs": 45,
+      "worstTickMs": 150,
+      "maximumSnapshotBytes": 160000
+    },
+    "scope": "Thirty production-rate seconds per case, authoritative simulation and relevance snapshots with hard bots; not forty browser clients."
+  },
+  "e2e": {
+    "passed": true,
+    "tests": 11,
+    "duration": "5.7m",
+    "command": "npx playwright test --workers=1",
+    "log": "e2e.log",
+    "sourceEditsDuringRun": false,
+    "concurrentRenderOrUnitJobs": false,
+    "historicalTimeoutCause": "Not proven. No historical timeout reproduced on this run."
+  },
+  "live": {
+    "engine": {
+      "passed": true,
+      "routes": 11,
+      "pickups": 2,
+      "dropRecoveryCycles": 2,
+      "input": {
+        "mouse": 31,
+        "keys": 192,
+        "trusted": true
+      },
+      "pageErrors": [],
+      "initialFixture": {
+        "position": {
+          "x": 340,
+          "y": 0.035,
+          "z": -205
+        },
+        "placementCount": 1,
+        "generatedLoot": 415
+      },
+      "briefDoorwayDescentSamples": 2
+    },
+    "coolant": {
+      "passed": true,
+      "routes": 21,
+      "pickups": 3,
+      "dropRecoveryCycles": 3,
+      "input": {
+        "mouse": 57,
+        "keys": 271,
+        "trusted": true
+      },
+      "pageErrors": [],
+      "initialFixture": {
+        "position": {
+          "x": 37,
+          "y": 0.035,
+          "z": 58
+        },
+        "placementCount": 1,
+        "generatedLoot": 415
+      },
+      "briefDoorwayDescentSamples": 2
+    },
+    "scope": "Production client/camera/HUD/network/physics and trusted browser input. One initial authoritative pilot-placement fixture per site, fixed seed. Not human acceptance or a normal ship-drop route to these sites."
+  },
+  "preservation": {
+    "baseline": "d64d771",
+    "checks": {
+      "BR_STRUCTURES": {
+        "preserved": 185,
+        "current": 187
+      },
+      "BR_LOOT_SOCKETS": {
+        "preserved": 271,
+        "current": 276
+      },
+      "BR_CRATE_SOCKETS": {
+        "preserved": 22,
+        "current": 22
+      },
+      "BR_ROADS": {
+        "preserved": 320,
+        "current": 322
+      },
+      "BR_ROAD_ROUTES": {
+        "preserved": 237,
+        "current": 239
+      },
+      "BR_TERRACES": {
+        "preserved": 18,
+        "current": 18
+      },
+      "BR_MAP_BLOCKS": {
+        "preserved": 1683,
+        "current": 1705
+      },
+      "BR_GREENWAY_TREES": {
+        "preserved": 66,
+        "current": 66
+      },
+      "BR_BRIDGE_PIERS": {
+        "preserved": 46,
+        "current": 46
+      }
+    },
+    "passed": true
+  },
+  "sourceHashes": {
+    "shared/src/battle-royale/map.ts": "6e5b8c040ffd74228f48a251fa1f5941e672a7d27a179ebc3f772856f90b9933",
+    "client/src/main.ts": "13ae432ed9c972c200404c367c492e6c17e93d16794f4091fe073d35ce004cc2",
+    "client/src/modes/battle-royale/br-world.ts": "28738ea8bd71de02ffc20717638a5a08a19730784e3f21eb795f0201c0cdb7ec",
+    "client/src/modes/battle-royale/br-coolant-frontage.ts": "230352eb682730d077458667a36b7c0b05517602a21315038597f0bd86597260",
+    "client/src/modes/battle-royale/br-item-presentation.ts": "22c4c3b86722bc050e5beb3d3e3abe42bdcb24ca2c893ff6407670528ebf5bbd",
+    "client/src/modes/battle-royale/br-loot-lod.ts": "1a24150207bda57c30507a5ae6456577e7b796f7b0e83b97072f03c9f17d0cf8",
+    "client/src/modes/battle-royale/br-loot-rarity.ts": "bafb46e972db40033e9c278a5aa1d4b5a243e7159c099cfb24b8d73b750ba749",
+    "server/src/modes/battle-royale/br-room.ts": "f7809bfee15fdd07eaaf4853d76973dcc33559109f48dcbd07e8b597a84cc280",
+    "server/src/modes/battle-royale/br-loot-generation.ts": "ef6ab4d1b94c76ea9260be979e562f0f47455530131df5b4dd543725339ff885",
+    "server/src/modes/battle-royale/br-loot-placement.ts": "993bac5b1c1edb301ca313cedb9dbdb966e6955409e8735a5c1a20c32accfe26",
+    "tools/br-active-spatial-review.mjs": "9343da1ac3078644b7189bfcb94ec0d4735e961474b174c205791e7a5896afae"
+  },
+  "limitations": [
+    "Whole-island spatial recovery remains unfinished.",
+    "North Civic and other ground-view-confirmed gaps remain.",
+    "Architecture, usable interiors, elevation, lighting and composition need further iteration and human acceptance.",
+    "Screenshot/overlap audit scopes exclude unrelated prop-to-prop and player contacts.",
+    "The upper heal is occluded in Coolant stills; complete model clearance relies on separate geometry checks.",
+    "No test, timeout, gameplay condition or performance budget was weakened."
+  ]
+}

@@ -1,0 +1,157 @@
+{
+  "scope": "Static actual-world assembly, normal materials and BR lighting, no gameplay/HUD/sky/bloom/shadows. Not FPS or human-control validation.",
+  "legacyParkingReconstructed": false,
+  "views": [
+    {
+      "id": "coolant-frontage-street",
+      "position": [
+        37,
+        2.7,
+        72
+      ],
+      "focus": [
+        37,
+        3.5,
+        115
+      ],
+      "calls": 295,
+      "triangles": 372841,
+      "textures": 24,
+      "world": {
+        "objects": 2133,
+        "meshes": 1835,
+        "instances": 61075,
+        "visibleInstances": 30067,
+        "materials": 289,
+        "visibleDistricts": 28,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "coolant-frontage-north",
+      "position": [
+        72,
+        2.7,
+        135
+      ],
+      "focus": [
+        37,
+        3.5,
+        118
+      ],
+      "calls": 378,
+      "triangles": 361765,
+      "textures": 34,
+      "world": {
+        "objects": 2133,
+        "meshes": 1835,
+        "instances": 61075,
+        "visibleInstances": 26735,
+        "materials": 289,
+        "visibleDistricts": 24,
+        "visibleSecondaryLabels": 1
+      }
+    },
+    {
+      "id": "coolant-office-door",
+      "position": [
+        35,
+        2.2,
+        98
+      ],
+      "focus": [
+        18,
+        2.3,
+        98
+      ],
+      "calls": 346,
+      "triangles": 359295,
+      "textures": 36,
+      "world": {
+        "objects": 2133,
+        "meshes": 1835,
+        "instances": 61075,
+        "visibleInstances": 27354,
+        "materials": 289,
+        "visibleDistricts": 26,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "coolant-maintenance-door",
+      "position": [
+        39,
+        2.2,
+        98
+      ],
+      "focus": [
+        56,
+        2.3,
+        98
+      ],
+      "calls": 370,
+      "triangles": 367603,
+      "textures": 48,
+      "world": {
+        "objects": 2133,
+        "meshes": 1835,
+        "instances": 61075,
+        "visibleInstances": 27354,
+        "materials": 289,
+        "visibleDistricts": 26,
+        "visibleSecondaryLabels": 1
+      }
+    },
+    {
+      "id": "coolant-office-upper",
+      "position": [
+        17,
+        7.7,
+        91
+      ],
+      "focus": [
+        17,
+        7.9,
+        104
+      ],
+      "calls": 258,
+      "triangles": 355579,
+      "textures": 48,
+      "world": {
+        "objects": 2133,
+        "meshes": 1835,
+        "instances": 61075,
+        "visibleInstances": 27354,
+        "materials": 289,
+        "visibleDistricts": 26,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "north-civic-reference",
+      "position": [
+        -20,
+        2.7,
+        180
+      ],
+      "focus": [
+        50,
+        3.5,
+        180
+      ],
+      "calls": 351,
+      "triangles": 360303,
+      "textures": 48,
+      "world": {
+        "objects": 2133,
+        "meshes": 1835,
+        "instances": 61075,
+        "visibleInstances": 24791,
+        "materials": 289,
+        "visibleDistricts": 23,
+        "visibleSecondaryLabels": 3
+      }
+    }
+  ],
+  "errors": []
+}

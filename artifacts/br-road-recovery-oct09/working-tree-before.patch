@@ -1,0 +1,349 @@
+diff --git a/client/src/main.ts b/client/src/main.ts
+index b787ec6..659fa94 100644
+--- a/client/src/main.ts
++++ b/client/src/main.ts
+@@ -752,12 +752,16 @@ function renderBrLootCard(loot:BrLootState|null,player:BrPlayerState):void{
+   const action=disposition==="swap"?"SWAP HELD":"PICK UP";
+   card.innerHTML=`<span class="br-loot-art">${artId?brItemIconSvg(artId):""}</span><div><small>${rarity} · ${action}</small><strong>${escapeHtml(brLootName(loot))}</strong><p>${escapeHtml(brLootDescription(loot))}</p></div><kbd>E</kbd>`;
+ }
++let brInventoryPanelMarkup="";
+ function renderBrInventoryPanel(player:BrPlayerState):void{
+-  byId("br-inventory-panel-slots").innerHTML=player.inventory.map((item,index)=>{
++  const markup=player.inventory.map((item,index)=>{
+     const color=item?({common:"#b8c4dc",rare:"#54b8ff",epic:"#c565ff",legendary:"#ffc84f"} as const)[item.rarity]:"#56617f";
+     const ammo=item&&isBrWeapon(item.itemId)?item.itemId==="energy-saber"?"No ammo required":`${item.magazine} loaded · ${BR_WEAPONS[item.itemId].ammo?player.ammo[BR_WEAPONS[item.itemId].ammo!]:0} reserve`:item?`${item.count} carried`:"Available slot";
+     return `<article class="br-inventory-panel-slot${index===player.selectedSlot?" selected":""}" style="--slot-color:${color}"><span>${item?brItemIconSvg(item.itemId):'<i aria-hidden="true">+</i>'}</span><div><small>SLOT ${index+1}${item?` · ${item.rarity.toUpperCase()}`:""}</small><strong>${item?escapeHtml(brItemName(item.itemId)):"EMPTY"}</strong><p>${ammo}</p></div><button type="button" data-slot="${index}" data-action="equip" ${item?"":"disabled"}>EQUIP</button><button type="button" data-slot="${index}" data-action="drop" ${item?"":"disabled"}>DROP</button></article>`;
+   }).join("");
++  // Keep buttons attached across movement snapshots so an ordinary press and
++  // release can complete. Replace rows only when their displayed data changes.
++  if(markup!==brInventoryPanelMarkup){byId("br-inventory-panel-slots").innerHTML=markup;brInventoryPanelMarkup=markup;}
+ }
+ function toggleBrInventory(visible:boolean):void{
+   if(currentScreen!=="brHud")visible=false;
+diff --git a/client/src/modes/battle-royale/br-item-presentation.ts b/client/src/modes/battle-royale/br-item-presentation.ts
+index fff598c..b7f1605 100644
+--- a/client/src/modes/battle-royale/br-item-presentation.ts
++++ b/client/src/modes/battle-royale/br-item-presentation.ts
+@@ -1,5 +1,6 @@
+ import { isBrHeal, isBrWeapon, type BrLootState, type BrWeaponId } from "@planetfall/shared";
+ import * as THREE from "three";
++import { BR_LOOT_FLOAT } from "./br-loot-rarity";
+ 
+ export type BrLootCategory = "weapon" | "ammo" | "health" | "shield" | "unknown";
+ 
+@@ -44,7 +45,7 @@ export function brLootModelSupportLift(model:THREE.Object3D,clearance=.07):numbe
+   model.updateWorldMatrix(true,true);
+   const bounds=new THREE.Box3().setFromObject(model);
+   if(bounds.isEmpty()||!Number.isFinite(bounds.min.y))return .42;
+-  return Math.max(.42,-bounds.min.y+Math.max(0,clearance));
++  return Math.max(BR_LOOT_FLOAT.lift,-bounds.min.y+Math.max(0,clearance)+BR_LOOT_FLOAT.amplitude);
+ }
+ 
+ /** Relative Y from the authoritative pickup origin to its supporting surface. */
+diff --git a/client/src/modes/battle-royale/br-loot-lod.ts b/client/src/modes/battle-royale/br-loot-lod.ts
+index 2c12d27..ef18539 100644
+--- a/client/src/modes/battle-royale/br-loot-lod.ts
++++ b/client/src/modes/battle-royale/br-loot-lod.ts
+@@ -1,6 +1,7 @@
+ import * as THREE from "three";
+ import type { GraphicsQuality } from "../../settings";
+ import type { BrLootCategory } from "./br-item-presentation";
++import { BrLootRarityVisual } from "./br-loot-rarity";
+ 
+ /** A small three-dimensional silhouette, visible from every approach. One mesh
+  * per marker, including the medical cross; materials remain ordinary depth-tested
+@@ -28,12 +29,18 @@ export class BrLootLod extends THREE.Group {
+   readonly marker: THREE.Mesh;
+   private readonly beam: THREE.Object3D | undefined;
+   private readonly worldPosition = new THREE.Vector3();
++  private readonly markerBottom: number;
++  private readonly surfaceOffsetY: number;
+ 
+   constructor(readonly detail: THREE.Group, color: number, readonly category: BrLootCategory = "unknown") {
+     super();
+     this.marker = new THREE.Mesh(brLootMarkerGeometry(category), new THREE.MeshBasicMaterial({ color, toneMapped: false }));
+     this.marker.name = `loot-marker-${category}`;
+     this.marker.rotation.set(.16, Math.PI / 4, category === "weapon" ? .16 : 0);
++    // Measure the actual rotated silhouette once. Distance scaling must grow
++    // above the same support as its detailed item, not through the floor.
++    this.markerBottom = new THREE.Box3().setFromObject(this.marker).min.y;
++    this.surfaceOffsetY = detail instanceof BrLootRarityVisual ? detail.surfaceOffsetY : 0;
+     this.marker.visible = false;
+     this.beam = detail.getObjectByName("loot-beam");
+     this.add(detail, this.marker);
+@@ -50,6 +57,7 @@ export class BrLootLod extends THREE.Group {
+     // bounded to avoid oversized floating icons on the skyline.
+     const markerScale = Number.isFinite(distanceSquared) ? Math.min(2.4, Math.max(1, Math.sqrt(distanceSquared) / 55)) : 1;
+     this.marker.scale.setScalar(markerScale);
++    this.marker.position.y = this.surfaceOffsetY + .07 - this.markerBottom * markerScale;
+     if (this.beam) {
+       const beamRange = quality === "high" ? 72 : quality === "medium" ? 48 : 26;
+       this.beam.visible = distanceSquared < beamRange * beamRange;
+diff --git a/client/src/modes/battle-royale/br-loot-rarity.ts b/client/src/modes/battle-royale/br-loot-rarity.ts
+index 4ea6eb3..49f1916 100644
+--- a/client/src/modes/battle-royale/br-loot-rarity.ts
++++ b/client/src/modes/battle-royale/br-loot-rarity.ts
+@@ -52,7 +52,7 @@ export class BrLootRarityVisual extends THREE.Group {
+   private readonly phase: number;
+   private readonly itemBaseY:number;
+ 
+-  constructor(model: THREE.Object3D, id: string, surfaceOffsetY: number, itemLift:number,
++  constructor(model: THREE.Object3D, id: string, readonly surfaceOffsetY: number, itemLift:number,
+     geometries: readonly [THREE.BufferGeometry, THREE.BufferGeometry, THREE.BufferGeometry],
+     materials: FieldMaterials, height: number, private readonly onRelease: () => void) {
+     super(); this.name = "loot-rarity-visual";
+diff --git a/client/src/modes/battle-royale/br-world.ts b/client/src/modes/battle-royale/br-world.ts
+index ac1f346..c8a0015 100644
+--- a/client/src/modes/battle-royale/br-world.ts
++++ b/client/src/modes/battle-royale/br-world.ts
+@@ -55,6 +55,8 @@ import { buildBrTransferYardDressing } from "./br-transfer-yard";
+ import { buildBrCivicFrontageDressing } from "./br-civic-frontage";
+ import { buildBrNovaLandingDressing } from "./br-nova-landing";
+ import { buildBrEngineGateFrontage } from "./br-engine-gate-frontage";
++import { buildBrCoolantFrontage } from "./br-coolant-frontage";
++import { buildBrNorthCivicFrontage } from "./br-north-civic-frontage";
+ import { buildBrTerrainSurface } from "./br-terrain-surfaces";
+ import { buildMaintenanceStrips } from "./br-maintenance-strips";
+ import { buildMallDirectories } from "./br-mall-directories";
+@@ -1178,6 +1180,8 @@ export class BrWorldRenderer {
+     this.addInstances(group,this.materials.unitBox,this.materials.get("energyCyan"),nexusEnergy,false);
+     this.addInstances(group,this.materials.unitBox,this.materials.get("industrialOrange"),nexusWarnings,false);
+     this.addContextProps(group, poi);
++    if(poi.id==="zero-point")for(const frontage of buildBrCoolantFrontage())this.addAuthoredSecondaryDressing(group,frontage);
++    if(poi.id==="void-mall")for(const frontage of buildBrNorthCivicFrontage())this.addAuthoredSecondaryDressing(group,frontage);
+     this.root.add(group);
+     this.districtDetails.push({ group, center: position(poi.position.x, 0, poi.position.z), visible: true });
+   }
+diff --git a/docs/BR_DESKTOP_HANDOFF_OCT09.md b/docs/BR_DESKTOP_HANDOFF_OCT09.md
+index 50c7f14..7d32f6e 100644
+--- a/docs/BR_DESKTOP_HANDOFF_OCT09.md
++++ b/docs/BR_DESKTOP_HANDOFF_OCT09.md
+@@ -116,3 +116,67 @@ Preview/test processes are stopped after checkpoint validation.
+ `client/src/modes/battle-royale/br-engine-gate-frontage.ts` and colocated test;
+ mixed integration `br-world.ts`; `tools/br-prop-audit.mjs`,
+ `br-secondary-review-views.json`, `br-engine-gate-review-views.json`.
++
++## October 9 local continuation — Coolant frontage and loot support
++
++The local desktop checkout was clean and updated from `5503890` to `d64d771`
++by fast-forward only. The continuation remains uncommitted and unpushed.
++Existing local routing/runtime configuration is preserved.
++
++Dock–Engine's road, doors and loot were exercised with the actual player,
++camera, networking and trusted browser input. The next confirmed gap was
++Coolant East: two opposing enterable buildings now enclose a connected street,
++with an internal upper floor, real collision and loot. All established map
++objects, 66 trees, bridge piers and the Transit basin are preserved exactly.
++North Civic and the other ground-view-confirmed gaps remain open.
++
++The reported floor-phasing defect is addressed in authoritative loot support
++queries and geometry-derived presentation grounding. Generated items, inventory
++drops and crate scatter now resolve real floor/slab/ramp heights. Far markers
++stay above support as they scale. Inventory buttons remain attached across
++movement snapshots so ordinary clicks can complete.
++
++The final automated live checks pass 21 Coolant and 11 Dock–Engine route legs,
++including stairs in both directions and five inventory drop/recovery cycles.
++They use one initial fixture placement per site and are not human acceptance.
++Fresh typecheck/build and 949/949 unit/integration tests across 172 files pass,
++including the unchanged 10/20/40-player authoritative server budgets. E2E
++results, logs, screenshots, preserved failures and precise evidence scopes are
++recorded in `artifacts/br-active-recovery-oct09/README.md` and `validation.json`.
++
++Continue architecture, usable interiors, meaningful elevation, lighting and
++ground-level composition. Do not treat passing automated tests or additional
++object counts as whole-island or human gameplay acceptance.
++## October 9 local continuation — North Civic street and interiors
++
++Continued from the current local Coolant/loot working tree on DESKTOP-JL99F36.
++All existing map data and prior improvements remain; no reset, restore or stash
++was used. North Civic now has opposing enterable archive/exchange buildings,
++a collision-backed upper floor and internal incline, five appended loot sockets,
++and a connected lower street between Zero Point and the mall's level corner.
++The route bends around existing solid cover and preserves the literal garden
++and service pockets at unchanged required clearance. All 66 authoritative trees,
++old roads/grades, existing sockets, collision blocks and bridge piers remain.
++
++The initial full regression passed 968/970; two existing pocket-clearance tests
++rejected a straight lane. The geometry was rerouted, without weakening tests.
++The revised focused run passes 41/41 including those tests and both-direction
++traversal/parity. Fresh validation evidence and source hashes are recorded in
++`artifacts/br-north-civic-oct09/README.md` and `validation.json`. Earlier x-19
++renders/live-first evidence are intermediate and retain their original scope.
++
++Whole-island art/playability acceptance remains open. New static and active
++views still show generic shell language, dark archive massing and angular mall
++pavement/stripe joins. Continue architectural/interior identity and ground-level
++composition; use confirmed views rather than filling all density samples.
++Automated native input and tests are not human control-feel acceptance. This
++continuation remains local and uncommitted; no push or deployment is authorized.
++
++Final North Civic validation: fresh typecheck/build pass; 970/970 tests across
++175 files pass in 151.76s, including all five unchanged 10/20/40-player server
++performance cases. Full E2E passes 11/11 in 5.6 minutes. Final native-input
++walkthrough passes 34 route legs and three pickup/drop/recovery cycles, with
++68 trusted mouse and 380 trusted key events and zero page errors. One initial
++fixture placement is recorded; this is not human acceptance. All 342 source
++manifest hashes were verified after E2E. The ordinary 5173/3000 preview is
++restored; review/E2E servers are closed. No new commit, push or deployment.
+diff --git a/server/src/modes/battle-royale/br-loot-generation.ts b/server/src/modes/battle-royale/br-loot-generation.ts
+index fd896a1..90c6599 100644
+--- a/server/src/modes/battle-royale/br-loot-generation.ts
++++ b/server/src/modes/battle-royale/br-loot-generation.ts
+@@ -1,7 +1,8 @@
+ import {
+-  BR_HEALS, BR_WEAPONS, brItemMagazine, isBrHeal, seededRandom,
++  BR_HEALS, BR_WEAPONS, brFloorHeightAt, brItemMagazine, isBrHeal, seededRandom,
+   type BrItemId, type BrLootSocket, type BrLootState, type BrRarity, type BrWeaponId,
+ } from "@planetfall/shared";
++import type { BrLootPlacement } from "./br-loot-placement.js";
+ 
+ const WEAPONS = Object.keys(BR_WEAPONS) as BrWeaponId[];
+ const HEALS = Object.keys(BR_HEALS) as BrItemId[];
+@@ -18,6 +19,10 @@ export function generateBrLoot(
+   sockets: readonly BrLootSocket[],
+   seed: number,
+   idFactory: (kind: "loot" | "ammo") => string,
++  place: (origin: BrLootSocket["position"], requested: BrLootSocket["position"]) => BrLootPlacement = (_origin, position) => {
++    const surfaceY=brFloorHeightAt(position,position.y);
++    return {position:{...position,y:surfaceY+.58},surfaceY};
++  },
+ ): BrLootState[] {
+   const random = seededRandom(seed);
+   const seenStructures = new Set<string>();
+@@ -32,13 +37,11 @@ export function generateBrLoot(
+     const previous = lastItemByStructure.get(socket.structureId);
+     if (itemId === previous && pool.length > 1) itemId = pool[(pool.indexOf(itemId) + 1 + Math.floor(random() * (pool.length - 1))) % pool.length];
+     lastItemByStructure.set(socket.structureId, itemId);
+-    const surfaceY = socket.position.y - (socket.kind === "roof" ? .65 : .58);
+     const item: BrLootState = {
+       id: idFactory("loot"), itemId, rarity: rarity(random),
+       count: isBrHeal(itemId) ? 1 + Math.floor(random() * 2) : 1,
+       magazine: brItemMagazine(itemId),
+-      position: { x: socket.position.x + (random() - .5) * .8, y: socket.position.y, z: socket.position.z + (random() - .5) * .8 },
+-      surfaceY,
++      ...place(socket.position,{ x: socket.position.x + (random() - .5) * .8, y: socket.position.y, z: socket.position.z + (random() - .5) * .8 }),
+     };
+     output.push(item);
+     if (itemId in BR_WEAPONS) {
+@@ -46,7 +49,7 @@ export function generateBrLoot(
+       if (ammoType && (primary || random() < .78)) output.push({
+         id: idFactory("ammo"), ammoType, rarity: "common",
+         count: ammoType === "light" ? 36 : ammoType === "heavy" ? 12 : 8,
+-        position: { x: item.position.x + .95, y: socket.position.y, z: item.position.z - .72 }, surfaceY,
++        ...place(item.position,{ x: item.position.x + .95, y: item.position.y, z: item.position.z - .72 }),
+       });
+     }
+   }
+diff --git a/server/src/modes/battle-royale/br-room.ts b/server/src/modes/battle-royale/br-room.ts
+index e41911d..eaa2586 100644
+--- a/server/src/modes/battle-royale/br-room.ts
++++ b/server/src/modes/battle-royale/br-room.ts
+@@ -13,6 +13,7 @@ import {
+ import { SpatialGrid } from "./spatial-grid.js";
+ import { BrPhysicsWorld } from "./br-physics.js";
+ import { generateBrLoot } from "./br-loot-generation.js";
++import { placeBrLoot } from "./br-loot-placement.js";
+ 
+ type GameSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
+ type GameServer = Server<ClientToServerEvents, ServerToClientEvents>;
+@@ -302,7 +303,9 @@ export class BattleRoyaleRoom {
+     const item = player.inventory[slot];
+     if (!item) return;
+     if (slot === player.selectedSlot || slot === player.useSlot || slot === player.reloadSlot) this.cancelTimedActions(player);
+-    const loot: BrLootState = { id: id("loot"), itemId: item.itemId, rarity: item.rarity, count: item.count, magazine: item.magazine, position: { x: player.position.x + Math.sin(player.yaw) * 1.2, y: player.position.y + .5, z: player.position.z - Math.cos(player.yaw) * 1.2 },surfaceY:player.position.y };
++    const origin={...player.position,y:player.position.y+.58};
++    const placement=placeBrLoot(origin,{x:origin.x+Math.sin(player.yaw)*1.2,y:origin.y,z:origin.z-Math.cos(player.yaw)*1.2},(start,direction,maximum)=>this.physics.rayDistance(start,direction,maximum));
++    const loot: BrLootState = { id: id("loot"), itemId: item.itemId, rarity: item.rarity, count: item.count, magazine: item.magazine, ...placement };
+     this.loot.set(loot.id, loot); this.lootGridDirty = true; player.inventory[slot] = null; this.io.to(this.code).emit("br:loot:spawned", [loot]);
+   }
+ 
+@@ -312,7 +315,9 @@ export class BattleRoyaleRoom {
+     crate.opened = true; const random = seededRandom(this.seed ^ this.hash(crate.id)); const drops: BrLootState[] = [];
+     for (let index = 0; index < 3; index++) {
+       const itemId = ITEM_IDS[Math.floor(random() * ITEM_IDS.length)]; const rarityRoll = random(); const rarity: BrRarity = rarityRoll > .9 ? "legendary" : rarityRoll > .55 ? "epic" : "rare";
+-      const angle = index / 3 * Math.PI * 2; const drop: BrLootState = { id: id("crate-loot"), itemId, rarity, count: isBrHeal(itemId) ? 2 : 1, magazine: brItemMagazine(itemId), position: { x: crate.position.x + Math.cos(angle) * 1.6, y: crate.position.y + .45, z: crate.position.z + Math.sin(angle) * 1.6 },surfaceY:crate.position.y-.62 };
++      const angle = index / 3 * Math.PI * 2;
++      const placement=placeBrLoot(crate.position,{x:crate.position.x+Math.cos(angle)*1.6,y:crate.position.y,z:crate.position.z+Math.sin(angle)*1.6},(start,direction,maximum)=>this.physics.rayDistance(start,direction,maximum));
++      const drop: BrLootState = { id: id("crate-loot"), itemId, rarity, count: isBrHeal(itemId) ? 2 : 1, magazine: brItemMagazine(itemId), ...placement };
+       this.loot.set(drop.id, drop); drops.push(drop);
+     }
+     this.lootGridDirty = true;
+@@ -742,7 +747,7 @@ export class BattleRoyaleRoom {
+   private initialStorm(): BrStormState { return { phaseIndex: 0, center: { x: 0, z: 0 }, radius: BR_MAP.radius, nextCenter: { x: 0, z: 0 }, nextRadius: BR_STORM_PHASES[0].radius, stage: "waiting", stageEndsAt: null, damagePerSecond: BR_STORM_PHASES[0].damage }; }
+ 
+   private spawnLoot(): void {
+-    for (const loot of generateBrLoot(BR_LOOT_SOCKETS,this.seed,(kind)=>id(kind))) this.loot.set(loot.id,loot);
++    for (const loot of generateBrLoot(BR_LOOT_SOCKETS,this.seed,(kind)=>id(kind),(origin,requested)=>placeBrLoot(origin,requested,(start,direction,maximum)=>this.physics.rayDistance(start,direction,maximum)))) this.loot.set(loot.id,loot);
+     this.lootGrid.rebuild(this.loot.values()); this.lootGridDirty = false;
+     const crates = BR_CRATE_SOCKETS.map((position, index) => ({ id: `crate-${this.seed}-${index}`, position: { ...position }, opened: false }));
+     for (const crate of crates) this.crates.set(crate.id, crate);
+diff --git a/shared/src/battle-royale/battle-royale.test.ts b/shared/src/battle-royale/battle-royale.test.ts
+index 0f5ab3c..6f603c2 100644
+--- a/shared/src/battle-royale/battle-royale.test.ts
++++ b/shared/src/battle-royale/battle-royale.test.ts
+@@ -185,8 +185,8 @@ describe("Battle Royale shared rules", () => {
+     expect(BR_POIS).toHaveLength(9);
+     expect(BR_SECONDARY_LOCATIONS).toHaveLength(39);
+     expect(BR_ISLAND_OUTLINE.length).toBeGreaterThanOrEqual(16);
+-    expect(BR_STRUCTURES).toHaveLength(185);
+-    expect(BR_STRUCTURES.filter((structure)=>structure.enterable)).toHaveLength(103);
++    expect(BR_STRUCTURES).toHaveLength(189);
++    expect(BR_STRUCTURES.filter((structure)=>structure.enterable)).toHaveLength(107);
+     expect(BR_ROADS.length).toBeGreaterThanOrEqual(46);
+     expect(BR_TERRAIN_PATCHES.length).toBeGreaterThanOrEqual(BR_POIS.length);
+     for (const poi of BR_POIS) {
+diff --git a/shared/src/battle-royale/engine-gate-approach.test.ts b/shared/src/battle-royale/engine-gate-approach.test.ts
+index 21d31ab..8eb6fe7 100644
+--- a/shared/src/battle-royale/engine-gate-approach.test.ts
++++ b/shared/src/battle-royale/engine-gate-approach.test.ts
+@@ -4,7 +4,7 @@ import { BR_DISTRICT_PLANS, BR_LOOT_SOCKETS, BR_MAP_BLOCKS, BR_ROADS, BR_STRUCTU
+ const ids = ["engine-gate-approach-workshop", "engine-gate-approach-relay"];
+ describe("Dock–Engine occupied approach frontage", () => {
+   it("appends two real, enterable approach buildings without moving the secondary block", () => {
+-    expect(BR_STRUCTURES.slice(-2).map(s => s.id)).toEqual(ids);
++    expect(BR_STRUCTURES.slice(183,185).map(s => s.id)).toEqual(ids);
+     const plan = BR_DISTRICT_PLANS.find(p => p.id === "engine-gate")!;
+     expect(plan.parcels.map(p => p.id)).toEqual(["engine-gate-parcel-1", "engine-gate-parcel-2", "engine-gate-parcel-3"]);
+     expect(plan.origin).toEqual({ x:405, y:0, z:-180 });
+diff --git a/shared/src/battle-royale/map.ts b/shared/src/battle-royale/map.ts
+index 7ab7fe5..cdea5e9 100644
+--- a/shared/src/battle-royale/map.ts
++++ b/shared/src/battle-royale/map.ts
+@@ -248,6 +248,17 @@ const BR_ARTERIAL_ROADS:readonly BrRoadSegment[]=[
+   { id:"dock-engine-link-east", from:{x:340,y:.1,z:-275}, to:{x:340,y:.1,z:-180}, width:8, color:"#493f3a",kind:"arterial" },
+   { id:"dock-engine-link-gate", from:{x:340,y:.1,z:-180}, to:{x:375,y:.1,z:-180}, width:8, color:"#493f3a",kind:"arterial" },
+   { id:"engine-gate-approach-through", from:{x:340,y:.1,z:-180}, to:{x:340,y:.08,z:-130}, width:8, color:"#493f3a",kind:"arterial" },
++  // Occupied Coolant frontage connects Zero's perimeter to its existing avenue.
++  // Stop the north leg before the preserved garden trunks and plant shell.
++  { id:"coolant-frontage-street", from:{x:37,y:.1,z:58}, to:{x:37,y:.1,z:121}, width:6, color:"#304a58",kind:"local" },
++  { id:"coolant-frontage-north", from:{x:37,y:.1,z:121}, to:{x:70+10*63/95,y:.1,z:121}, width:6, color:"#304a58",kind:"local" },
++  // Pass east of the retained exchange garden pocket at (-25,125), then
++  // join the mall's exact ground-level corner instead of its sloping midspan.
++  { id:"north-civic-zero-entry",from:{x:-5,y:.1,z:58},to:{x:-5,y:.1,z:86},width:6,color:"#3c3a57",kind:"local" },
++  { id:"north-civic-garden-link",from:{x:-5,y:.1,z:86},to:{x:-15,y:.1,z:104},width:6,color:"#3c3a57",kind:"local" },
++  { id:"north-civic-street",from:{x:-15,y:.1,z:104},to:{x:-15,y:.1,z:170},width:6,color:"#3c3a57",kind:"local" },
++  { id:"north-civic-mall-link",from:{x:-15,y:.1,z:170},to:{x:-5,y:.1,z:184},width:6,color:"#3c3a57",kind:"local" },
++  { id:"north-civic-mall-arrival",from:{x:-5,y:.1,z:184},to:{x:-5,y:.1,z:190},width:6,color:"#3c3a57",kind:"local" },
+   { id:"east-freight-engine-deck", from:{x:360,y:8.1,z:-315}, to:{x:375,y:8.1,z:-315}, width:9, color:"#4e433c",kind:"arterial" },
+   // Keep the first leg level beside the freight shell, then descend on a
+   // shorter grade. Besides reading as a proper loading viaduct, this keeps
+@@ -768,7 +779,17 @@ const ENGINE_GATE_APPROACH_STRUCTURES:readonly BrStructure[]=[
+   S("engine-gate-approach-workshop","thruster-works",318,-198,16,18,6,"#579edf","industrial",1,"east",false,true,"utility"),
+   S("engine-gate-approach-relay","thruster-works",318,-162,16,16,8,"#579edf","industrial",1,"east",false,true,"industrial")
+ ];
+-export const BR_STRUCTURES:readonly BrStructure[]=[...PRIMARY_BR_STRUCTURES,...FIXED_SECONDARY_STRUCTURES,...SOLAR_SERVICE_STRUCTURES,...SOUTH_RING_STRUCTURES,...WEST_JUNCTION_STRUCTURES,...TRANSFER_YARD_STRUCTURES,...CIVIC_FRONTAGE_STRUCTURES,...NOVA_LANDING_STRUCTURES,...ENGINE_GATE_APPROACH_STRUCTURES];
++const COOLANT_FRONTAGE_STRUCTURES:readonly BrStructure[]=[
++  // Opposing doors frame a real lower street. Internal circulation creates
++  // elevation in the office without another exterior ramp or raised apron.
++  S("coolant-frontage-office","zero-point",18,98,20,24,11,"#65bfc8","academy",2,"east",false,true,"office"),
++  S("coolant-frontage-maintenance","zero-point",56,98,18,20,6,"#a99a78","industrial",1,"west",false,true,"utility")
++];
++const NORTH_CIVIC_STRUCTURES:readonly BrStructure[]=[
++  S("north-civic-archive","void-mall",-44,155,22,24,9,"#a599db","academy",2,"east",false,true,"office"),
++  S("north-civic-exchange","void-mall",0,155,18,20,6,"#d084a8","city",1,"west",false,true,"shop")
++];
++export const BR_STRUCTURES:readonly BrStructure[]=[...PRIMARY_BR_STRUCTURES,...FIXED_SECONDARY_STRUCTURES,...SOLAR_SERVICE_STRUCTURES,...SOUTH_RING_STRUCTURES,...WEST_JUNCTION_STRUCTURES,...TRANSFER_YARD_STRUCTURES,...CIVIC_FRONTAGE_STRUCTURES,...NOVA_LANDING_STRUCTURES,...ENGINE_GATE_APPROACH_STRUCTURES,...COOLANT_FRONTAGE_STRUCTURES,...NORTH_CIVIC_STRUCTURES];
+ 
+ /** District surfaces and smaller landscape beds follow the authored deck levels. */
+ export const BR_TERRAIN_PATCHES: readonly BrTerrainPatch[] = [

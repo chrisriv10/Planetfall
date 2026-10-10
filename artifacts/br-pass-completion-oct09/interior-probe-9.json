@@ -1,0 +1,252 @@
+{
+  "scope": "Every selected enterable structure and every ground/upper loot socket. 0.5m candidate grid with center headroom/support rays, real standing capsule authority/prediction movement on each edge, then continuous traversal of the complete route in both directions. Pickup uses production 2.7m 3D range with 0.1m arrival margin; parity<.001m, floor gap<.45m. This is a reachable route search, not human control acceptance or decorative mesh collision proof. Roof routes are separately validated.",
+  "passed": false,
+  "structures": [
+    {
+      "id": "salvage-row-1",
+      "archetype": "lab",
+      "nodes": 1357,
+      "routes": [
+        {
+          "socketId": "salvage-row-1-interior",
+          "passed": true,
+          "waypoints": [
+            {
+              "x": -301.25,
+              "y": 0.395,
+              "z": -293.25
+            },
+            {
+              "x": -301.75,
+              "y": 0.395,
+              "z": -293.25
+            },
+            {
+              "x": -302.25,
+              "y": 0.395,
+              "z": -293.25
+            },
+            {
+              "x": -302.75,
+              "y": 0.395,
+              "z": -293.25
+            },
+            {
+              "x": -303.25,
+              "y": 0.395,
+              "z": -293.25
+            },
+            {
+              "x": -303.75,
+              "y": 0.395,
+              "z": -293.25
+            },
+            {
+              "x": -304.25,
+              "y": 0.395,
+              "z": -293.25
+            },
+            {
+              "x": -304.75,
+              "y": 0.395,
+              "z": -293.25
+            },
+            {
+              "x": -305.25,
+              "y": 0.395,
+              "z": -293.25
+            },
+            {
+              "x": -305.75,
+              "y": 0.395,
+              "z": -293.25
+            },
+            {
+              "x": -306.25,
+              "y": 0.395,
+              "z": -293.25
+            },
+            {
+              "x": -306.75,
+              "y": 0.395,
+              "z": -293.25
+            },
+            {
+              "x": -307.25,
+              "y": 0.395,
+              "z": -293.25
+            },
+            {
+              "x": -307.75,
+              "y": 0.395,
+              "z": -293.25
+            },
+            {
+              "x": -308.25,
+              "y": 0.395,
+              "z": -293.25
+            }
+          ],
+          "traversals": [
+            {
+              "reverse": false,
+              "passed": true,
+              "gap": 0.03557634353637695,
+              "parity": 0,
+              "end": {
+                "x": -308.25,
+                "y": 0.395,
+                "z": -293.25
+              }
+            },
+            {
+              "reverse": true,
+              "passed": true,
+              "gap": 0.035321712493896484,
+              "parity": 0,
+              "end": {
+                "x": -301.2499994217431,
+                "y": 0.39431239783836647,
+                "z": -293.25000066901566
+              }
+            }
+          ],
+          "distance": 7,
+          "pickupApproachDistance": 2.449821422063256
+        },
+        {
+          "socketId": "salvage-row-1-interior-secondary",
+          "passed": true,
+          "waypoints": [
+            {
+              "x": -301.25,
+              "y": 0.395,
+              "z": -293.25
+            },
+            {
+              "x": -301.75,
+              "y": 0.395,
+              "z": -293.75
+            },
+            {
+              "x": -302.25,
+              "y": 0.395,
+              "z": -293.75
+            },
+            {
+              "x": -302.75,
+              "y": 0.395,
+              "z": -294.25
+            },
+            {
+              "x": -303.25,
+              "y": 0.395,
+              "z": -294.75
+            },
+            {
+              "x": -303.75,
+              "y": 0.395,
+              "z": -294.75
+            }
+          ],
+          "traversals": [
+            {
+              "reverse": false,
+              "passed": true,
+              "gap": 0.0369412899017334,
+              "parity": 0,
+              "end": {
+                "x": -303.7499999931982,
+                "y": 0.3944556981146161,
+                "z": -294.74999838144214
+              }
+            },
+            {
+              "reverse": true,
+              "passed": true,
+              "gap": 0.03508305549621582,
+              "parity": 0,
+              "end": {
+                "x": -301.25000015147634,
+                "y": 0.39431239135185026,
+                "z": -293.2500027233473
+              }
+            }
+          ],
+          "distance": 3.1213203435596424,
+          "pickupApproachDistance": 2.531489877522725
+        },
+        {
+          "socketId": "salvage-row-1-upper-loot",
+          "passed": false,
+          "waypoints": [],
+          "failure": "no collision-backed standing route",
+          "search": {
+            "visited": 596,
+            "portals": [
+              {
+                "point": {
+                  "x": -302.68,
+                  "y": 0.395,
+                  "z": -287.65,
+                  "id": 1355,
+                  "ix": 23,
+                  "iz": 23
+                },
+                "reachable": true
+              },
+              {
+                "point": {
+                  "x": -302.68,
+                  "y": 8.71,
+                  "z": -298.35,
+                  "id": 1356,
+                  "ix": 23,
+                  "iz": 2
+                },
+                "reachable": false
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "routes": 3,
+  "failures": [
+    {
+      "structure": "salvage-row-1",
+      "socketId": "salvage-row-1-upper-loot",
+      "passed": false,
+      "waypoints": [],
+      "failure": "no collision-backed standing route",
+      "search": {
+        "visited": 596,
+        "portals": [
+          {
+            "point": {
+              "x": -302.68,
+              "y": 0.395,
+              "z": -287.65,
+              "id": 1355,
+              "ix": 23,
+              "iz": 23
+            },
+            "reachable": true
+          },
+          {
+            "point": {
+              "x": -302.68,
+              "y": 8.71,
+              "z": -298.35,
+              "id": 1356,
+              "ix": 23,
+              "iz": 2
+            },
+            "reachable": false
+          }
+        ]
+      }
+    }
+  ]
+}

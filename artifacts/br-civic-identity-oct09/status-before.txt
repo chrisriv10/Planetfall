@@ -1,0 +1,37 @@
+ M client/src/main.ts
+ M client/src/modes/battle-royale/br-item-presentation.ts
+ M client/src/modes/battle-royale/br-loot-lod.ts
+ M client/src/modes/battle-royale/br-loot-rarity.ts
+ M client/src/modes/battle-royale/br-road-bends.test.ts
+ M client/src/modes/battle-royale/br-road-bends.ts
+ M client/src/modes/battle-royale/br-road-detail.test.ts
+ M client/src/modes/battle-royale/br-road-detail.ts
+ M client/src/modes/battle-royale/br-road-markings.test.ts
+ M client/src/modes/battle-royale/br-road-markings.ts
+ M client/src/modes/battle-royale/br-world.ts
+ M docs/BR_DESKTOP_HANDOFF_OCT09.md
+ M server/src/modes/battle-royale/br-loot-generation.ts
+ M server/src/modes/battle-royale/br-room.ts
+ M shared/src/battle-royale/battle-royale.test.ts
+ M shared/src/battle-royale/engine-gate-approach.test.ts
+ M shared/src/battle-royale/map.ts
+?? artifacts/br-active-recovery-oct09/
+?? artifacts/br-civic-identity-oct09/
+?? artifacts/br-north-civic-oct09/
+?? artifacts/br-road-recovery-oct09/
+?? client/src/modes/battle-royale/br-coolant-frontage.test.ts
+?? client/src/modes/battle-royale/br-coolant-frontage.ts
+?? client/src/modes/battle-royale/br-loot-grounding.test.ts
+?? client/src/modes/battle-royale/br-north-civic-frontage.test.ts
+?? client/src/modes/battle-royale/br-north-civic-frontage.ts
+?? server/src/modes/battle-royale/br-coolant-frontage.test.ts
+?? server/src/modes/battle-royale/br-loot-placement.test.ts
+?? server/src/modes/battle-royale/br-loot-placement.ts
+?? server/src/modes/battle-royale/br-north-civic.test.ts
+?? server/src/modes/battle-royale/br-road-presentation-support.test.ts
+?? shared/src/battle-royale/coolant-frontage.test.ts
+?? shared/src/battle-royale/north-civic.test.ts
+?? tools/br-active-spatial-review.mjs
+?? tools/br-coolant-frontage-review-views.json
+?? tools/br-north-civic-review-views.json
+?? tools/br-road-recovery-review-views.json

@@ -1,0 +1,18 @@
+{
+  "generatedAt": "2026-10-09T23:10:13.429Z",
+  "scope": "Actual secondary-location and transition props against all authored building envelopes; 0.4m wall/floor and 0.3m roof-contact margins.",
+  "limits": "One static pose and triangle surfaces, not a closed-volume or collision proof. Excludes sprites, other prop groups, interiors, players and landmark groups. Does not prove prop-to-prop or prop-to-road clearance. Intentional building-mounted detail must be reviewed rather than silently filtered.",
+  "checked": {
+    "groups": 43,
+    "meshObjects": 303,
+    "instances": 481,
+    "structures": 189,
+    "broadPhaseCandidates": 0,
+    "triangleChecks": 0
+  },
+  "hits": [],
+  "vehicles": [],
+  "vehicleErrors": [],
+  "errors": [],
+  "passed": true
+}

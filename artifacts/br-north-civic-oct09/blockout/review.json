@@ -1,0 +1,182 @@
+{
+  "scope": "Static actual-world assembly, normal materials and BR lighting, no gameplay/HUD/sky/bloom/shadows. Not FPS or human-control validation.",
+  "legacyParkingReconstructed": false,
+  "views": [
+    {
+      "id": "north-civic-gap",
+      "position": [
+        -20,
+        2.7,
+        180
+      ],
+      "focus": [
+        50,
+        3.5,
+        180
+      ],
+      "calls": 369,
+      "triangles": 401030,
+      "textures": 24,
+      "world": {
+        "objects": 2148,
+        "meshes": 1850,
+        "instances": 61752,
+        "visibleInstances": 26596,
+        "materials": 289,
+        "visibleDistricts": 29,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "street-from-zero",
+      "position": [
+        -19,
+        2.7,
+        120
+      ],
+      "focus": [
+        -19,
+        4,
+        166
+      ],
+      "calls": 223,
+      "triangles": 346914,
+      "textures": 35,
+      "world": {
+        "objects": 2148,
+        "meshes": 1850,
+        "instances": 61752,
+        "visibleInstances": 26135,
+        "materials": 289,
+        "visibleDistricts": 25,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "mall-corner-arrival",
+      "position": [
+        -5,
+        2.7,
+        190
+      ],
+      "focus": [
+        -20,
+        3.5,
+        151
+      ],
+      "calls": 388,
+      "triangles": 365400,
+      "textures": 48,
+      "world": {
+        "objects": 2148,
+        "meshes": 1850,
+        "instances": 61752,
+        "visibleInstances": 25614,
+        "materials": 289,
+        "visibleDistricts": 25,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "archive-door",
+      "position": [
+        -22,
+        2.2,
+        155
+      ],
+      "focus": [
+        -44,
+        2.4,
+        155
+      ],
+      "calls": 289,
+      "triangles": 354716,
+      "textures": 52,
+      "world": {
+        "objects": 2148,
+        "meshes": 1850,
+        "instances": 61752,
+        "visibleInstances": 25129,
+        "materials": 289,
+        "visibleDistricts": 23,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "exchange-door",
+      "position": [
+        -16,
+        2.2,
+        155
+      ],
+      "focus": [
+        0,
+        2.4,
+        155
+      ],
+      "calls": 381,
+      "triangles": 402062,
+      "textures": 53,
+      "world": {
+        "objects": 2148,
+        "meshes": 1850,
+        "instances": 61752,
+        "visibleInstances": 25129,
+        "materials": 289,
+        "visibleDistricts": 23,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "garden-pocket-retained",
+      "position": [
+        -19,
+        2.7,
+        113
+      ],
+      "focus": [
+        -25,
+        2.2,
+        125
+      ],
+      "calls": 260,
+      "triangles": 377484,
+      "textures": 53,
+      "world": {
+        "objects": 2148,
+        "meshes": 1850,
+        "instances": 61752,
+        "visibleInstances": 26135,
+        "materials": 289,
+        "visibleDistricts": 25,
+        "visibleSecondaryLabels": 4
+      }
+    },
+    {
+      "id": "archive-upper",
+      "position": [
+        -47,
+        6.5,
+        150
+      ],
+      "focus": [
+        -47,
+        6.8,
+        161
+      ],
+      "calls": 178,
+      "triangles": 272010,
+      "textures": 53,
+      "world": {
+        "objects": 2148,
+        "meshes": 1850,
+        "instances": 61752,
+        "visibleInstances": 26135,
+        "materials": 289,
+        "visibleDistricts": 25,
+        "visibleSecondaryLabels": 3
+      }
+    }
+  ],
+  "errors": []
+}

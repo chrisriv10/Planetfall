@@ -1,0 +1,97 @@
+{
+  "scope": "Static actual-world assembly, normal materials and BR lighting, no gameplay/HUD/sky/bloom/shadows. Not FPS or human-control validation.",
+  "legacyParkingReconstructed": false,
+  "views": [
+    {
+      "id": "west-park-tree-and-astronaut",
+      "position": [
+        -424,
+        5,
+        179
+      ],
+      "focus": [
+        -434,
+        4,
+        165
+      ],
+      "astronautPosition": [
+        -433,
+        0,
+        165
+      ],
+      "calls": 189,
+      "triangles": 187785,
+      "textures": 10,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 18805,
+        "materials": 297,
+        "visibleDistricts": 18,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "academy-tree-and-astronaut",
+      "position": [
+        -262,
+        10.5,
+        271
+      ],
+      "focus": [
+        -273,
+        9.5,
+        263
+      ],
+      "astronautPosition": [
+        -271.5,
+        5.5,
+        263
+      ],
+      "calls": 289,
+      "triangles": 258843,
+      "textures": 16,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 22538,
+        "materials": 297,
+        "visibleDistricts": 22,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "orbital-overlook-pocket-clearance",
+      "position": [
+        389,
+        8,
+        204
+      ],
+      "focus": [
+        375,
+        1,
+        195
+      ],
+      "astronautPosition": [
+        378,
+        0,
+        195
+      ],
+      "calls": 523,
+      "triangles": 311835,
+      "textures": 29,
+      "world": {
+        "objects": 2179,
+        "meshes": 1881,
+        "instances": 63144,
+        "visibleInstances": 17383,
+        "materials": 297,
+        "visibleDistricts": 15,
+        "visibleSecondaryLabels": 2
+      }
+    }
+  ],
+  "errors": []
+}

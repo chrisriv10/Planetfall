@@ -67,6 +67,15 @@ export function buildFacadeParts(structure: BrStructure): FacadePart[] {
     const entrance = structure.enterable && face === structure.entrance;
     const intervals = entrance ? [[-span / 2 + .8, -2.55], [2.55, span / 2 - .8]] : [[-span / 2 + .8, span / 2 - .8]];
     const add = (finish: FacadeFinish, lateral: number, y: number, w: number, h: number, offset: number, thickness: number) => {
+      // Two authored Comet walls share a 2m service passage. Keep their
+      // skins within .85m each, including planters and residential fins.
+      // Preserve the wallward attachment edge and the window/trim layering.
+      if ((structure.id === "comet-hotel-1" && face === "west") || (structure.id === "comet-hotel-2" && face === "east")) {
+        const near = Math.min(offset - thickness / 2, .79);
+        const far = Math.min(offset + thickness / 2, .85);
+        offset = (near + far) / 2;
+        thickness = far - near;
+      }
       parts.push({ finish, face,
         position: { x: x + (ns ? lateral : sign * (normal + offset)), y, z: z + (ns ? sign * (normal + offset) : lateral) },
         scale: { x: ns ? w : thickness, y: h, z: ns ? thickness : w }

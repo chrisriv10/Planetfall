@@ -101,7 +101,7 @@ describe("Battle Royale art-review cameras", () => {
 
   it("frames an actual authored roadside pocket instead of the South Terminal grade", () => {
     const review = BR_REVIEW_CAMERAS["roadside-south"];
-    const site = buildRoadsideInfrastructure().find(candidate => candidate.roadId === "crash-hotel-avenue");
+    const site = buildRoadsideInfrastructure().find(candidate => candidate.roadId === "crash-hotel-avenue-grade-part-2");
     expect(site).toBeDefined();
     expect(Math.hypot(review.focus[0] - site!.center.x, review.focus[2] - site!.center.z),JSON.stringify(site!.center)).toBeLessThan(1);
     expect(review.position[1]).toBeGreaterThan(2.5);

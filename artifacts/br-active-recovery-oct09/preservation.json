@@ -1,0 +1,42 @@
+{
+  "baseline": "d64d771",
+  "checks": {
+    "BR_STRUCTURES": {
+      "preserved": 185,
+      "current": 187
+    },
+    "BR_LOOT_SOCKETS": {
+      "preserved": 271,
+      "current": 276
+    },
+    "BR_CRATE_SOCKETS": {
+      "preserved": 22,
+      "current": 22
+    },
+    "BR_ROADS": {
+      "preserved": 320,
+      "current": 322
+    },
+    "BR_ROAD_ROUTES": {
+      "preserved": 237,
+      "current": 239
+    },
+    "BR_TERRACES": {
+      "preserved": 18,
+      "current": 18
+    },
+    "BR_MAP_BLOCKS": {
+      "preserved": 1683,
+      "current": 1705
+    },
+    "BR_GREENWAY_TREES": {
+      "preserved": 66,
+      "current": 66
+    },
+    "BR_BRIDGE_PIERS": {
+      "preserved": 46,
+      "current": 46
+    }
+  },
+  "passed": true
+}

@@ -1,0 +1,80 @@
+[
+  {
+    "id": "mall-arrival-ground",
+    "position": [
+      -5,
+      2.7,
+      195
+    ],
+    "focus": [
+      -10,
+      1,
+      177
+    ]
+  },
+  {
+    "id": "mall-grade-meeting",
+    "position": [
+      -24,
+      2.7,
+      190
+    ],
+    "focus": [
+      -5,
+      0.8,
+      187
+    ]
+  },
+  {
+    "id": "civic-oblique-link",
+    "position": [
+      -15,
+      2.7,
+      166
+    ],
+    "focus": [
+      -5,
+      1,
+      186
+    ]
+  },
+  {
+    "id": "zero-entry-bend",
+    "position": [
+      -5,
+      2.7,
+      80
+    ],
+    "focus": [
+      -15,
+      1,
+      108
+    ]
+  },
+  {
+    "id": "coolant-right-angle",
+    "position": [
+      37,
+      2.7,
+      114
+    ],
+    "focus": [
+      47,
+      1,
+      121
+    ]
+  },
+  {
+    "id": "freight-deck-boundary",
+    "position": [
+      340,
+      2.7,
+      -265
+    ],
+    "focus": [
+      340,
+      3,
+      -280
+    ]
+  }
+]

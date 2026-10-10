@@ -1,0 +1,457 @@
+{
+  "scope": "Static actual-world assembly, normal materials and BR lighting, no gameplay/HUD/sky/bloom/shadows. Not FPS or human-control validation.",
+  "legacyParkingReconstructed": false,
+  "views": [
+    {
+      "id": "south-boardwalk",
+      "position": [
+        -70,
+        7.2,
+        -460
+      ],
+      "focus": [
+        -70,
+        5,
+        -415
+      ],
+      "calls": 593,
+      "triangles": 308931,
+      "textures": 35,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 17903,
+        "materials": 298,
+        "visibleDistricts": 20,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "engine-east-rim",
+      "position": [
+        460,
+        2.7,
+        -110
+      ],
+      "focus": [
+        405,
+        4,
+        -160
+      ],
+      "calls": 298,
+      "triangles": 234713,
+      "textures": 36,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 15128,
+        "materials": 298,
+        "visibleDistricts": 6,
+        "visibleSecondaryLabels": 0
+      }
+    },
+    {
+      "id": "west-campus-edge",
+      "position": [
+        -410,
+        2.7,
+        230
+      ],
+      "focus": [
+        -350,
+        7,
+        220
+      ],
+      "calls": 538,
+      "triangles": 311755,
+      "textures": 41,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 17670,
+        "materials": 298,
+        "visibleDistricts": 16,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "south-central-ring",
+      "position": [
+        10,
+        2.7,
+        -340
+      ],
+      "focus": [
+        100,
+        5,
+        -350
+      ],
+      "calls": 209,
+      "triangles": 204253,
+      "textures": 45,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 17392,
+        "materials": 298,
+        "visibleDistricts": 19,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "west-overlook-edge",
+      "position": [
+        -460,
+        2.7,
+        70
+      ],
+      "focus": [
+        -405,
+        4,
+        30
+      ],
+      "calls": 595,
+      "triangles": 339937,
+      "textures": 52,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 18477,
+        "materials": 298,
+        "visibleDistricts": 15,
+        "visibleSecondaryLabels": 1
+      }
+    },
+    {
+      "id": "shipworks-freight-transition",
+      "position": [
+        270,
+        2.7,
+        -380
+      ],
+      "focus": [
+        300,
+        6,
+        -315
+      ],
+      "calls": 326,
+      "triangles": 251519,
+      "textures": 54,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 17112,
+        "materials": 298,
+        "visibleDistricts": 14,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "east-thruster-transition",
+      "position": [
+        460,
+        2.7,
+        -50
+      ],
+      "focus": [
+        395,
+        5,
+        -20
+      ],
+      "calls": 528,
+      "triangles": 320119,
+      "textures": 55,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 17782,
+        "materials": 298,
+        "visibleDistricts": 11,
+        "visibleSecondaryLabels": 2
+      }
+    },
+    {
+      "id": "south-transfer-edge",
+      "position": [
+        110,
+        2.7,
+        -440
+      ],
+      "focus": [
+        110,
+        5,
+        -405
+      ],
+      "calls": 511,
+      "triangles": 266135,
+      "textures": 56,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 15047,
+        "materials": 298,
+        "visibleDistricts": 12,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "engine-freight-edge",
+      "position": [
+        400,
+        2.7,
+        -260
+      ],
+      "focus": [
+        375,
+        6,
+        -290
+      ],
+      "calls": 211,
+      "triangles": 237771,
+      "textures": 56,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 18599,
+        "materials": 298,
+        "visibleDistricts": 12,
+        "visibleSecondaryLabels": 1
+      }
+    },
+    {
+      "id": "east-helios-transition",
+      "position": [
+        450,
+        2.7,
+        30
+      ],
+      "focus": [
+        395,
+        6,
+        100
+      ],
+      "calls": 359,
+      "triangles": 296475,
+      "textures": 57,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 18494,
+        "materials": 298,
+        "visibleDistricts": 13,
+        "visibleSecondaryLabels": 1
+      }
+    },
+    {
+      "id": "mall-farm-transition",
+      "position": [
+        30,
+        2.7,
+        340
+      ],
+      "focus": [
+        100,
+        6,
+        330
+      ],
+      "calls": 309,
+      "triangles": 271555,
+      "textures": 64,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 23176,
+        "materials": 298,
+        "visibleDistricts": 17,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "campus-commons-transition",
+      "position": [
+        -360,
+        2.7,
+        230
+      ],
+      "focus": [
+        -285,
+        6,
+        245
+      ],
+      "calls": 502,
+      "triangles": 364441,
+      "textures": 78,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 21686,
+        "materials": 298,
+        "visibleDistricts": 20,
+        "visibleSecondaryLabels": 3
+      }
+    },
+    {
+      "id": "island-aerial",
+      "position": [
+        650,
+        720,
+        -650
+      ],
+      "focus": [
+        0,
+        0,
+        0
+      ],
+      "calls": 467,
+      "triangles": 214039,
+      "textures": 78,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 12182,
+        "materials": 298,
+        "visibleDistricts": 0,
+        "visibleSecondaryLabels": 0
+      }
+    },
+    {
+      "id": "north-island-aerial",
+      "position": [
+        -550,
+        500,
+        550
+      ],
+      "focus": [
+        0,
+        0,
+        70
+      ],
+      "calls": 467,
+      "triangles": 214039,
+      "textures": 78,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 12182,
+        "materials": 298,
+        "visibleDistricts": 0,
+        "visibleSecondaryLabels": 0
+      }
+    },
+    {
+      "id": "nova-retaining",
+      "position": [
+        -80,
+        2.7,
+        -180
+      ],
+      "focus": [
+        -120,
+        5,
+        -170
+      ],
+      "calls": 313,
+      "triangles": 348653,
+      "textures": 86,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 26307,
+        "materials": 298,
+        "visibleDistricts": 23,
+        "visibleSecondaryLabels": 1
+      }
+    },
+    {
+      "id": "academy-retaining",
+      "position": [
+        -270,
+        2.7,
+        90
+      ],
+      "focus": [
+        -310,
+        7,
+        140
+      ],
+      "calls": 224,
+      "triangles": 246073,
+      "textures": 88,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 25299,
+        "materials": 298,
+        "visibleDistricts": 28,
+        "visibleSecondaryLabels": 8
+      }
+    },
+    {
+      "id": "helios-retaining",
+      "position": [
+        280,
+        2.7,
+        80
+      ],
+      "focus": [
+        320,
+        6,
+        110
+      ],
+      "calls": 180,
+      "triangles": 235053,
+      "textures": 90,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 20663,
+        "materials": 298,
+        "visibleDistricts": 20,
+        "visibleSecondaryLabels": 5
+      }
+    },
+    {
+      "id": "farm-retaining",
+      "position": [
+        60,
+        2.7,
+        210
+      ],
+      "focus": [
+        100,
+        4,
+        250
+      ],
+      "calls": 243,
+      "triangles": 324021,
+      "textures": 92,
+      "world": {
+        "objects": 2180,
+        "meshes": 1882,
+        "instances": 63016,
+        "visibleInstances": 30706,
+        "materials": 298,
+        "visibleDistricts": 26,
+        "visibleSecondaryLabels": 2
+      }
+    }
+  ],
+  "errors": []
+}

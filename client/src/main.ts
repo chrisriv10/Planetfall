@@ -752,12 +752,16 @@ function renderBrLootCard(loot:BrLootState|null,player:BrPlayerState):void{
   const action=disposition==="swap"?"SWAP HELD":"PICK UP";
   card.innerHTML=`<span class="br-loot-art">${artId?brItemIconSvg(artId):""}</span><div><small>${rarity} · ${action}</small><strong>${escapeHtml(brLootName(loot))}</strong><p>${escapeHtml(brLootDescription(loot))}</p></div><kbd>E</kbd>`;
 }
+let brInventoryPanelMarkup="";
 function renderBrInventoryPanel(player:BrPlayerState):void{
-  byId("br-inventory-panel-slots").innerHTML=player.inventory.map((item,index)=>{
+  const markup=player.inventory.map((item,index)=>{
     const color=item?({common:"#b8c4dc",rare:"#54b8ff",epic:"#c565ff",legendary:"#ffc84f"} as const)[item.rarity]:"#56617f";
     const ammo=item&&isBrWeapon(item.itemId)?item.itemId==="energy-saber"?"No ammo required":`${item.magazine} loaded · ${BR_WEAPONS[item.itemId].ammo?player.ammo[BR_WEAPONS[item.itemId].ammo!]:0} reserve`:item?`${item.count} carried`:"Available slot";
     return `<article class="br-inventory-panel-slot${index===player.selectedSlot?" selected":""}" style="--slot-color:${color}"><span>${item?brItemIconSvg(item.itemId):'<i aria-hidden="true">+</i>'}</span><div><small>SLOT ${index+1}${item?` · ${item.rarity.toUpperCase()}`:""}</small><strong>${item?escapeHtml(brItemName(item.itemId)):"EMPTY"}</strong><p>${ammo}</p></div><button type="button" data-slot="${index}" data-action="equip" ${item?"":"disabled"}>EQUIP</button><button type="button" data-slot="${index}" data-action="drop" ${item?"":"disabled"}>DROP</button></article>`;
   }).join("");
+  // Keep buttons attached across movement snapshots so an ordinary press and
+  // release can complete. Replace rows only when their displayed data changes.
+  if(markup!==brInventoryPanelMarkup){byId("br-inventory-panel-slots").innerHTML=markup;brInventoryPanelMarkup=markup;}
 }
 function toggleBrInventory(visible:boolean):void{
   if(currentScreen!=="brHud")visible=false;

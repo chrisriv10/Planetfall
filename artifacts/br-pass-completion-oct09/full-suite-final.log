@@ -1,0 +1,38 @@
+
+> planetfall@0.1.0 test
+> npm run build -w @planetfall/shared && vitest run --configLoader native --no-file-parallelism
+
+
+> @planetfall/shared@0.1.0 build
+> tsc -p tsconfig.json
+
+
+ RUN  v5.0.0 C:/Users/Chris/Desktop/planetfall
+
+ ❯ client/src/modes/battle-royale/br-review-cameras.test.ts (26 tests | 1 failed) 755ms
+   ❯ Battle Royale art-review cameras (26)
+     × frames an actual authored roadside pocket instead of the South Terminal grade 50ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  client/src/modes/battle-royale/br-review-cameras.test.ts > Battle Royale art-review cameras > frames an actual authored roadside pocket instead of the South Terminal grade
+AssertionError: expected undefined to be defined
+ ❯ client/src/modes/battle-royale/br-review-cameras.test.ts:105:18
+    103|     const review = BR_REVIEW_CAMERAS["roadside-south"];
+    104|     const site = buildRoadsideInfrastructure().find(candidate => candi…
+    105|     expect(site).toBeDefined();
+       |                  ^
+    106|     expect(Math.hypot(review.focus[0] - site!.center.x, review.focus[2…
+    107|     expect(review.position[1]).toBeGreaterThan(2.5);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 183 passed (184)
+      Tests  1 failed | 1008 passed (1009)
+   Start at  15:20:56
+   Duration  177.71s (tests 77%, import 20%, transform 2%, worker 1%)
+
+    Isolate  184 workers spawned · ~132ms startup each (spawn + environment, per file)
+             at least ~24.16s faster with isolate: false — reuses workers across files instead of one per file
+

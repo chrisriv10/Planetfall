@@ -1,0 +1,41 @@
+
+> planetfall@0.1.0 test:e2e
+> playwright test --workers=1
+
+[WebServer] (node:44460) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:43360) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:43540) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 11 tests using 1 worker
+
+(node:43616) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  1 e2e\multiplayer.spec.ts:181:1 › settings persist across reloads (12.4s)
+  ok  2 e2e\multiplayer.spec.ts:205:1 › the home menu previews the Fallbucks shop (10.2s)
+  ok  3 e2e\multiplayer.spec.ts:226:1 › Battle Royale lobby stays usable while its renderer module loads (8.0s)
+  ok  4 e2e\multiplayer.spec.ts:256:1 › Battle Royale creates an isolated room and enters the Starliner drop (1.1m)
+BR Solo timing: home loaded 402ms
+BR Solo timing: quick-start sent 9992ms
+BR Solo timing: HUD visible 10318ms
+BR Solo timing: HUD checks complete 18972ms
+BR Solo timing: map visible 22460ms
+BR Solo timing: viewport 1280x720 set 25164ms
+BR Solo timing: viewport 1280x720 layout read 28300ms
+BR Solo timing: viewport 1920x720 set 31407ms
+BR Solo timing: viewport 1920x720 layout read 35363ms
+BR Solo timing: viewport 1440x900 set 38959ms
+BR Solo timing: viewport 1440x900 layout read 39911ms
+  ok  5 e2e\multiplayer.spec.ts:348:1 › Battle Royale Solo requires confirmation and respects quick-play settings (42.7s)
+  ok  6 e2e\multiplayer.spec.ts:429:1 › the cannon guide marks its predicted planet impact (5.9s)
+  ok  7 e2e\multiplayer.spec.ts:445:1 › two players can create, join, ready, and start (8.0s)
+  ok  8 e2e\multiplayer.spec.ts:489:1 › a human can raid, steal, shove, sabotage, and resume cannon play (3.0m)
+  ok  9 e2e\multiplayer.spec.ts:771:1 › the host can start one clearly revealed Chaos modifier (6.8s)
+  ok 10 e2e\multiplayer.spec.ts:805:1 › six participants remain readable and within the visual budget (6.9s)
+  ok 11 e2e\multiplayer.spec.ts:829:1 › solo quick play starts with three clearly marked bots (2.2s)
+
+  Slow test file: e2e\multiplayer.spec.ts (5.7m)
+  Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+  11 passed (5.8m)

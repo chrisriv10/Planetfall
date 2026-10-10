@@ -1,0 +1,31 @@
+{
+  "scope": "Actual production instance transforms, borrowed unit-box geometry/materials, exactly one instance per identity part; absence of previous functional/retail helper parts on these two buildings.",
+  "limitations": "Not every generic kit part, facade/prop-to-prop clearance, FPS, GPU memory, human art or gameplay acceptance. Focused support and traversal checks provide separate evidence.",
+  "buildings": [
+    {
+      "id": "north-civic-archive",
+      "expected": 96,
+      "matched": 96,
+      "priorHelperPartsRemoved": 48,
+      "attachments": [
+        "wall",
+        "floor",
+        "ceiling"
+      ]
+    },
+    {
+      "id": "north-civic-exchange",
+      "expected": 22,
+      "matched": 22,
+      "priorHelperPartsRemoved": 50,
+      "attachments": [
+        "wall",
+        "floor",
+        "ceiling"
+      ]
+    }
+  ],
+  "issues": [],
+  "passed": true,
+  "pageErrors": []
+}

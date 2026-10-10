@@ -1,5 +1,6 @@
 import type { Vec3 } from "../index.js";
 import { buildBrBridgePiers } from "./orbital-isle-bridge-piers.js";
+import { buildBrEntranceHeader } from "./entrance-headers.js";
 import { buildBrGreenwayTrees, brGreenwayTrunk } from "./orbital-isle-greenways.js";
 import { BR_ELEVATION_REGIONS, BR_SUNKEN_REGIONS, brAuthoredDeckHeight, brGradeAuthoredRoad, brJoinServiceGrades } from "./orbital-isle-elevation.js";
 import {
@@ -248,6 +249,17 @@ const BR_ARTERIAL_ROADS:readonly BrRoadSegment[]=[
   { id:"dock-engine-link-east", from:{x:340,y:.1,z:-275}, to:{x:340,y:.1,z:-180}, width:8, color:"#493f3a",kind:"arterial" },
   { id:"dock-engine-link-gate", from:{x:340,y:.1,z:-180}, to:{x:375,y:.1,z:-180}, width:8, color:"#493f3a",kind:"arterial" },
   { id:"engine-gate-approach-through", from:{x:340,y:.1,z:-180}, to:{x:340,y:.08,z:-130}, width:8, color:"#493f3a",kind:"arterial" },
+  // Occupied Coolant frontage connects Zero's perimeter to its existing avenue.
+  // Stop the north leg before the preserved garden trunks and plant shell.
+  { id:"coolant-frontage-street", from:{x:37,y:.1,z:58}, to:{x:37,y:.1,z:121}, width:6, color:"#304a58",kind:"local" },
+  { id:"coolant-frontage-north", from:{x:37,y:.1,z:121}, to:{x:70+10*63/95,y:.1,z:121}, width:6, color:"#304a58",kind:"local" },
+  // Pass east of the retained exchange garden pocket at (-25,125), then
+  // join the mall's exact ground-level corner instead of its sloping midspan.
+  { id:"north-civic-zero-entry",from:{x:-5,y:.1,z:58},to:{x:-5,y:.1,z:86},width:6,color:"#3c3a57",kind:"local" },
+  { id:"north-civic-garden-link",from:{x:-5,y:.1,z:86},to:{x:-15,y:.1,z:104},width:6,color:"#3c3a57",kind:"local" },
+  { id:"north-civic-street",from:{x:-15,y:.1,z:104},to:{x:-15,y:.1,z:170},width:6,color:"#3c3a57",kind:"local" },
+  { id:"north-civic-mall-link",from:{x:-15,y:.1,z:170},to:{x:-5,y:.1,z:184},width:6,color:"#3c3a57",kind:"local" },
+  { id:"north-civic-mall-arrival",from:{x:-5,y:.1,z:184},to:{x:-5,y:.1,z:190},width:6,color:"#3c3a57",kind:"local" },
   { id:"east-freight-engine-deck", from:{x:360,y:8.1,z:-315}, to:{x:375,y:8.1,z:-315}, width:9, color:"#4e433c",kind:"arterial" },
   // Keep the first leg level beside the freight shell, then descend on a
   // shorter grade. Besides reading as a proper loading viaduct, this keeps
@@ -388,14 +400,16 @@ const PRIMARY_BR_STRUCTURES: readonly BrStructure[] = [
   S("nova-studio","nova-plaza",-150,-103,34,22,9,"#c65fb1","city",2,"south",true,true,undefined,"north"),
   S("nova-kiosk","nova-plaza",-190,-105,14,12,4,"#ffc2e8","city",1,"south"),
   S("dock-hangar","dockyard-7",190,-174,52,34,11,"#d97b37","dock",2,"south",false),
-  S("dock-office","dockyard-7",150,-130,26,20,8,"#ffb347","dock",2,"east",true),
+  S("dock-office","dockyard-7",150,-130,26,20,8,"#ffb347","dock",2,"east",true,true,undefined,"north"),
   S("dock-warehouse","dockyard-7",230,-129,38,24,7,"#bd6f38","dock",1,"west"),
   S("dock-customs","dockyard-7",191,-105,25,18,5,"#f2a65a","dock",1,"north"),
   S("helios-core","helios-reactor",262,78,34,34,42,"#ffd84d","reactor",3,"south",false),
   S("helios-turbine-a","helios-reactor",218,74,24,30,9,"#dc8c2d","reactor",2,"east"),
   S("helios-turbine-b","helios-reactor",306,74,24,30,9,"#dc8c2d","reactor",2,"west"),
   S("helios-control","helios-reactor",261,124,38,20,7,"#f7b43d","reactor",1,"north",true,true,undefined,"east"),
-  S("astra-hall","astra-academy",-278,75,48,24,9,"#a88cff","academy",2,"south",true),
+  // Keep the main south entrance and courtyard clear; roof access belongs to
+  // the west service alley, away from the laboratory's north wall.
+  S("astra-hall","astra-academy",-278,75,48,24,9,"#a88cff","academy",2,"south",true,true,undefined,"west"),
   S("astra-lab","astra-academy",-323,52,30,26,7,"#7e70ce","academy",2,"east"),
   S("astra-library","astra-academy",-233,52,30,26,7,"#927bdf","academy",2,"west"),
   S("astra-observatory","astra-academy",-278,119,28,24,26,"#beb1ff","academy",3,"north",false),
@@ -405,7 +419,7 @@ const PRIMARY_BR_STRUCTURES: readonly BrStructure[] = [
   S("void-cinema","void-mall",-93,309,46,24,7,"#71369d","mall",1,"north"),
   S("farm-dome-a","orbital-farms",94,291,34,30,8,"#63ef8b","farm",1,"east"),
   S("farm-dome-b","orbital-farms",137,319,38,30,8,"#73df9a","farm",1,"south"),
-  S("farm-processing","orbital-farms",165,271,30,24,7,"#409d72","farm",2,"west",true),
+  S("farm-processing","orbital-farms",165,271,30,24,7,"#409d72","farm",2,"west",true,true,undefined,"south"),
   S("farm-pump","orbital-farms",106,248,22,18,5,"#54c884","farm",1,"north"),
   S("crash-fuselage","crash-site",-326,-258,58,18,9,"#ff795f","wreck",1,"east"),
   S("crash-cargo","crash-site",-286,-226,27,22,6,"#a94c51","wreck",1,"west"),
@@ -414,11 +428,11 @@ const PRIMARY_BR_STRUCTURES: readonly BrStructure[] = [
   S("thruster-foundry","thruster-works",342,-70,46,32,22,"#65b8ff","industrial",2,"south",false),
   S("thruster-pump-a","thruster-works",297,-98,27,25,8,"#3f78bd","industrial",2,"east"),
   S("thruster-pump-b","thruster-works",387,-98,27,25,8,"#3f78bd","industrial",2,"west"),
-  S("thruster-control","thruster-works",342,-22,34,23,7,"#579edf","industrial",1,"north",true),
+  S("thruster-control","thruster-works",342,-22,34,23,7,"#579edf","industrial",1,"north",true,true,undefined,"east"),
   S("thruster-depot","thruster-works",392,-43,26,24,6,"#395e91","industrial",1,"west"),
   S("mid-transit-west","zero-point",-92,-22,31,18,5,"#3c557c","nexus",1,"east"),
   S("mid-transit-east","zero-point",95,24,31,18,5,"#3c557c","nexus",1,"west"),
-  S("south-relay","dockyard-7",35,-255,28,22,7,"#47608a","dock",2,"north",true),
+  S("south-relay","dockyard-7",35,-255,28,22,7,"#47608a","dock",2,"north",true,true,undefined,"west"),
   S("zero-gallery","zero-point",-48,35,25,19,7,"#3b9fca","nexus",2,"east",false),
   S("zero-works","zero-point",48,-31,29,20,8,"#28799e","nexus",2,"west",false),
   S("nova-arcade","nova-plaza",-232,-73,27,22,9,"#d45bac","city",2,"south",false),
@@ -528,7 +542,7 @@ export const BR_DISTRICT_PLANS:readonly BrDistrictPlan[]=[...AUTHORED_BR_SPATIAL
   id:"ring-service",origin:{x:-210,y:0,z:-340},elevation:0,kind:"workyard",approach:{x:-210,y:0,z:-290},
   streets:[
     {id:"ring-service-main",from:{x:-210,y:.1,z:-290},to:{x:-210,y:.1,z:-386},width:8,color:"#41404f",kind:"local",intentionalTerminus:true},
-    {id:"ring-service-court",from:{x:-242,y:.1,z:-386},to:{x:-178,y:.1,z:-386},width:8,color:"#41404f",kind:"local",intentionalTerminus:true}
+    {id:"ring-service-court",from:{x:-242,y:.1,z:-386},to:{x:-204.5,y:.1,z:-386},width:8,color:"#41404f",kind:"local",intentionalTerminus:true}
   ],
   parcels:[
     {id:"ring-service-shop",position:{x:-232,y:0,z:-315},entrance:"east",role:"anchor"},
@@ -602,6 +616,40 @@ export const BR_DISTRICT_PLANS:readonly BrDistrictPlan[]=[...AUTHORED_BR_SPATIAL
 // otherwise a pilot meets the old ring's end cap halfway up the new ramp.
 // The short feeder uses that same grade rather than an angled duplicate nub.
 const fixedRoadProfiles=new Map<string,readonly Vec3[]>([
+  ["south-rim-boardwalk-west",[{x:-160,y:5.6,z:-447},{x:-130,y:5.6,z:-459.8571428571429},{x:-125,y:5.1,z:-462}]],
+  // Separate the freight descent from the ground Cargo Spur feeder until both
+  // have reached a level landing. Overlapping ribbons with different grades
+  // previously lifted a pilot off one road while its endpoints still passed.
+  ["service-25-grade",[{x:306.17,y:8.1,z:-276},{x:300,y:8.1,z:-276},{x:300,y:8.1,z:-271},{x:289.5,y:.1,z:-251},{x:275,y:.1,z:-225}]],
+  ["service-13-grade",[{x:327.4,y:4.6,z:207},{x:324.525,y:4.6,z:202},{x:313.78872955,y:5.505041490527634,z:183.32822548},{x:309.30248943165805,y:5.505041490527634,z:175.5260685767966}]],
+  ["service-16",[{x:280,y:.1,z:330},{x:234,y:4.1,z:330},{x:225,y:4.1,z:330}]],
+  ["ring-helios-south",[{x:430,y:.1,z:40},{x:354,y:6.1,z:40},{x:345,y:6.1,z:40}]],
+  ["ring-wn",[{x:-185,y:.1,z:358},{x:-188.6764705882353,y:.1,z:208},{x:-188.97058823529412,y:2.433333333333333,z:196},{x:-189.11764705882354,y:2.433333333333333,z:190},{x:-189.7549019607843,y:7.707843137254901,z:164},{x:-189.95098039215685,y:8.1,z:156},{x:-190,y:8.1,z:154}]],
+  ["mall-circulation-w",[{x:-180,y:.1,z:345},{x:-180,y:.1,z:208},{x:-180,y:2.433333333333333,z:196},{x:-180,y:2.433333333333333,z:190}]],
+  ["radial-3",[{x:-70,y:.1,z:58},{x:-178,y:8.1,z:144.4},{x:-190,y:8.1,z:154}]],
+  ["crash-hotel-avenue",[{x:-254,y:2.1,z:-290},{x:-244,y:2.1,z:-290},{x:-232,y:.1,z:-290},{x:-76,y:.1,z:-290}]],
+  ["crash-circulation-e",[{x:-258,y:5.1,z:-195},{x:-258,y:5.1,z:-220},{x:-258,y:4.645454545454545,z:-226.36363636363637},{x:-258,y:.7,z:-325}]],
+  ["crash-circulation-s",[{x:-258,y:.7,z:-325},{x:-265,y:.7,z:-325},{x:-279,y:.1,z:-325},{x:-365,y:.1,z:-325}]],
+  ["crash-circulation-link",[{x:-258,y:3.3,z:-260},{x:-254,y:3.3,z:-260}]],
+  ["crash-circulation-n",[{x:-390,y:.1,z:-195},{x:-290,y:.1,z:-195},{x:-263,y:5.1,z:-195},{x:-258,y:5.1,z:-195}]],
+  ["thruster-circulation-w",[{x:270,y:.1,z:-130},{x:270,y:.1,z:15}]],
+  ["thruster-circulation-n",[{x:270,y:.1,z:15},{x:430,y:.1,z:15}]],
+  ["service-18",[{x:-45,y:.1,z:405},{x:-44.00977,y:.1,z:376},{x:-43.85607,y:1.3266466867140538,z:371.5},{x:-43.56003707753007,y:1.3266466867140538,z:362.82965727052334}]],
+  ["transit-court-main",[{x:137.5,y:-2.3545454545454545,z:58},{x:137.5,y:-2.3545454545454545,z:64},{x:137.5,y:-2.9,z:69},{x:137.5,y:-2.9,z:123},{x:137.5,y:.1,z:145}]],
+  ["transit-court-service",[{x:137.5,y:-2.3545454545454545,z:64},{x:137.5,y:-2.9,z:69},{x:137.5,y:-2.9,z:123}]],
+  // Literal junction recovery: keep local streets on their real slabs and
+  // finish each incline outside the full intersecting carriageway.
+  ["helios-relay-main",[{x:345,y:6.1,z:135},{x:405,y:6.1,z:135}]],
+  ["helios-relay-cross",[{x:375,y:6.1,z:108},{x:375,y:6.1,z:144},{x:375,y:.1,z:162}]],
+  ["service-14",[{x:375,y:6.1,z:135},{x:345,y:6.1,z:135}]],
+  ["orbital-overlook-main",[{x:275,y:.1,z:220},{x:305,y:.1,z:220},{x:305,y:.1,z:190},{x:310,y:.1,z:180},{x:340,y:.1,z:180},{x:340,y:4.6,z:201},{x:340,y:4.6,z:220},{x:335,y:4.6,z:220}]],
+  ["orbital-overlook-cross",[{x:305,y:.1,z:193},{x:305,y:.1,z:247}]],
+  ["service-15",[{x:305,y:.1,z:220},{x:301,y:.1,z:213},{x:286.8506341005167,y:2.609159229685297,z:188.43588539220292}]],
+  ["farm-service-main",[{x:250,y:2.708695652173913,z:330},{x:280,y:.1,z:330},{x:310,y:.1,z:330}]],
+  ["coolant-plant-main",[{x:50,y:.1,z:180},{x:110,y:.1,z:180}]],
+  ["coolant-plant-cross",[{x:80,y:.1,z:153},{x:80,y:.1,z:180},{x:80,y:.1,z:187},{x:80,y:3.062962962962963,z:207}]],
+  ["service-22",[{x:80,y:.1,z:180},{x:80,y:.1,z:187},{x:80,y:4.1,z:214},{x:80,y:4.1,z:220}]],
+  ["ring-service-court",[{x:-242,y:.1,z:-386},{x:-210,y:.1,z:-386},{x:-204.5,y:.1,z:-386}]],
   ["nova-north-descent",[{x:-175,y:4.836842105263158,z:-48},{x:-175,y:.1,z:-12}]],
   ["nova-landing-main",[{x:-175,y:.1,z:-12},{x:-175,y:.1,z:8}]],
   ["nova-landing-office-entry",[{x:-175,y:.1,z:-12},{x:-198,y:.1,z:-12}]],
@@ -768,7 +816,17 @@ const ENGINE_GATE_APPROACH_STRUCTURES:readonly BrStructure[]=[
   S("engine-gate-approach-workshop","thruster-works",318,-198,16,18,6,"#579edf","industrial",1,"east",false,true,"utility"),
   S("engine-gate-approach-relay","thruster-works",318,-162,16,16,8,"#579edf","industrial",1,"east",false,true,"industrial")
 ];
-export const BR_STRUCTURES:readonly BrStructure[]=[...PRIMARY_BR_STRUCTURES,...FIXED_SECONDARY_STRUCTURES,...SOLAR_SERVICE_STRUCTURES,...SOUTH_RING_STRUCTURES,...WEST_JUNCTION_STRUCTURES,...TRANSFER_YARD_STRUCTURES,...CIVIC_FRONTAGE_STRUCTURES,...NOVA_LANDING_STRUCTURES,...ENGINE_GATE_APPROACH_STRUCTURES];
+const COOLANT_FRONTAGE_STRUCTURES:readonly BrStructure[]=[
+  // Opposing doors frame a real lower street. Internal circulation creates
+  // elevation in the office without another exterior ramp or raised apron.
+  S("coolant-frontage-office","zero-point",18,98,20,24,11,"#65bfc8","academy",2,"east",false,true,"office"),
+  S("coolant-frontage-maintenance","zero-point",56,98,18,20,6,"#a99a78","industrial",1,"west",false,true,"utility")
+];
+const NORTH_CIVIC_STRUCTURES:readonly BrStructure[]=[
+  S("north-civic-archive","void-mall",-44,155,22,24,9,"#a599db","academy",2,"east",false,true,"office"),
+  S("north-civic-exchange","void-mall",0,155,18,20,6,"#d084a8","city",1,"west",false,true,"shop")
+];
+export const BR_STRUCTURES:readonly BrStructure[]=[...PRIMARY_BR_STRUCTURES,...FIXED_SECONDARY_STRUCTURES,...SOLAR_SERVICE_STRUCTURES,...SOUTH_RING_STRUCTURES,...WEST_JUNCTION_STRUCTURES,...TRANSFER_YARD_STRUCTURES,...CIVIC_FRONTAGE_STRUCTURES,...NOVA_LANDING_STRUCTURES,...ENGINE_GATE_APPROACH_STRUCTURES,...COOLANT_FRONTAGE_STRUCTURES,...NORTH_CIVIC_STRUCTURES];
 
 /** District surfaces and smaller landscape beds follow the authored deck levels. */
 export const BR_TERRAIN_PATCHES: readonly BrTerrainPatch[] = [
@@ -810,7 +868,9 @@ export const BR_TERRACES:readonly BrTerrace[]=[
   {id:"zero-point-steps",districtId:"zero-point",position:{x:0,y:0,z:-30},size:{x:16,z:14},height:1.6,accessSide:"south",color:"#476b83"},
   {id:"astra-lab-court",districtId:"astra-academy",position:{x:-290,y:0,z:45},size:{x:16,z:14},height:2.8,accessSide:"north",color:"#706a9b"},
   {id:"academy-commons-garden",districtId:"academy-commons",position:{x:-206.5,y:0,z:255.9},size:{x:15,z:14},height:2.8,accessSide:"north",color:"#706a9b"},
-  {id:"farm-irrigation-deck",districtId:"orbital-farms",position:{x:130,y:0,z:289},size:{x:16,z:14},height:2.2,accessSide:"west",color:"#42695a"},
+  // The raised irrigation station sits between the pump and processing house;
+  // its previous position filled the eastern greenhouse's entrance forecourt.
+  {id:"farm-irrigation-deck",districtId:"orbital-farms",position:{x:130,y:0,z:266},size:{x:16,z:14},height:2.2,accessSide:"west",color:"#42695a"},
   {id:"crash-salvage-platform",districtId:"crash-site",position:{x:-280,y:0,z:-260},size:{x:16,z:14},height:2.4,accessSide:"south",color:"#674b4c"}
 ];
 
@@ -867,6 +927,7 @@ function structureBlocks(structure: BrStructure): BrMapBlock[] {
     // decks left a full-depth hole, so walking off the incline caused a fall.
     const landingDepth=(depth-rampLength)/2;
     blocks.push({id:`${structure.id}-deck-${floor}-landing`,districtId:structure.districtId,position:{x:stairX,y:baseY+levelY,z:z-depth/2+landingDepth/2},size:{x:opening,y:.35,z:landingDepth},color:"#253554",kind:"platform"});
+    blocks.push({id:`${structure.id}-deck-${floor}-lower-landing`,districtId:structure.districtId,position:{x:stairX,y:baseY+levelY,z:z+depth/2-landingDepth/2},size:{x:opening,y:.35,z:landingDepth},color:"#253554",kind:"platform"});
   }
   blocks.push({ id:`${structure.id}-roof`, districtId:structure.districtId, position:{x,y:baseY+height,z}, size:{x:width,y:.42,z:depth}, color:structure.color, kind:"platform" });
   const addWall = (suffix:string,px:number,pz:number,sx:number,sz:number) => blocks.push({ id:`${structure.id}-${suffix}`, districtId:structure.districtId, position:{x:px,y:baseY+height/2,z:pz}, size:{x:sx,y:height,z:sz}, color:structure.color, kind:"wall" });
@@ -893,11 +954,23 @@ function structureBlocks(structure: BrStructure): BrMapBlock[] {
     else {px=x-width/2+v;pz=z+u;sx=sizeV;sz=sizeU;}
     const storeyHeight=height/structure.floors;
     const wallHeight=Math.min(segmentHeight,Math.max(1.6,storeyHeight-.45));
-    for(let floor=0;floor<structure.floors;floor++)blocks.push({
-      id:`${structure.id}-room-${suffix}${structure.floors>1?`-level-${floor+1}`:""}`,
+    const pieces=[{px,sx}];
+    if(structure.floors>1){
+      // The world-Z stairwell is shared by every storey. Entrance-relative
+      // room plans must end beside it rather than bisecting the incline.
+      const stairX=x+width*.27,opening=Math.min(5.2,width*.22),left=stairX-opening/2-.55,right=stairX+opening/2+.55;
+      const min=px-sx/2,max=px+sx/2;
+      if(max>left&&min<right){
+        pieces.length=0;
+        if(left-min>.5)pieces.push({px:(min+Math.min(max,left))/2,sx:Math.min(max,left)-min});
+        if(max-right>.5)pieces.push({px:(Math.max(min,right)+max)/2,sx:max-Math.max(min,right)});
+      }
+    }
+    for(let floor=0;floor<structure.floors;floor++)for(const [pieceIndex,piece]of pieces.entries())blocks.push({
+      id:`${structure.id}-room-${suffix}${structure.floors>1?`-level-${floor+1}`:""}${pieceIndex?"-stair-return":""}`,
       districtId:structure.districtId,
-      position:{x:px,y:baseY+floor*storeyHeight+wallHeight/2,z:pz},
-      size:{x:sx,y:wallHeight,z:sz},color:"#202f4a",kind:"wall"
+      position:{x:piece.px,y:baseY+floor*storeyHeight+wallHeight/2,z:pz},
+      size:{x:piece.sx,y:wallHeight,z:sz},color:"#202f4a",kind:"wall"
     });
   };
   const splitCrossWall=(suffix:string,v:number,gap:number)=>{
@@ -1141,7 +1214,8 @@ export const BR_GREENWAY_TREES = buildBrGreenwayTrees({
   deckHeight:brAuthoredDeckHeight,inside:isInsideBrIslandInterior,
 });
 /** Existing map solids retain their exact order; bridge supports append. */
-export const BR_MAP_BLOCKS: readonly BrMapBlock[] = [...baseMapBlocks,...BR_BRIDGE_PIERS,...BR_GREENWAY_TREES.map(brGreenwayTrunk)];
+export const BR_ENTRANCE_HEADERS:readonly BrMapBlock[]=BR_STRUCTURES.flatMap(s=>{const header=buildBrEntranceHeader(s);return header?[header]:[];});
+export const BR_MAP_BLOCKS: readonly BrMapBlock[] = [...baseMapBlocks,...BR_BRIDGE_PIERS,...BR_GREENWAY_TREES.map(brGreenwayTrunk),...BR_ENTRANCE_HEADERS];
 
 export function isInsideBrIsland(position: Vec3, margin = 0): boolean {
   if (pointInPolygon(position.x,position.z)) return true;

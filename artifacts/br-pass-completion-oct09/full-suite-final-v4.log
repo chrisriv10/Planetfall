@@ -1,0 +1,38 @@
+
+> planetfall@0.1.0 test
+> npm run build -w @planetfall/shared && vitest run --configLoader native --no-file-parallelism
+
+
+> @planetfall/shared@0.1.0 build
+> tsc -p tsconfig.json
+
+
+ RUN  v5.0.0 C:/Users/Chris/Desktop/planetfall
+
+ ❯ server/src/app.test.ts (16 tests | 1 failed) 20080ms
+   ❯ Planetfall multiplayer server (16)
+     × completes a mixed match by destruction and keeps the room for a rematch 8248ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  server/src/app.test.ts > Planetfall multiplayer server > completes a mixed match by destruction and keeps the room for a rematch
+Error: mixed match end timeout
+ ❯ Timeout._onTimeout server/src/app.test.ts:247:47
+    245|     const magnitude = Math.hypot(delta.x, delta.y, delta.z);
+    246|     const ended = new Promise<string | null>((resolve, reject) => {
+    247|       const timeout = setTimeout(() => reject(new Error("mixed match e…
+       |                                               ^
+    248|       human.once("match:ended", ({ winnerId }) => { clearTimeout(timeo…
+    249|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 183 passed (184)
+      Tests  1 failed | 1008 passed (1009)
+   Start at  15:26:40
+   Duration  178.97s (tests 79%, import 18%, transform 2%, worker 1%)
+
+    Isolate  184 workers spawned · ~130ms startup each (spawn + environment, per file)
+             at least ~23.87s faster with isolate: false — reuses workers across files instead of one per file
+

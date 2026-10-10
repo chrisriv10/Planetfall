@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { GraphicsQuality } from "../../settings";
 import type { BrLootCategory } from "./br-item-presentation";
+import { BrLootRarityVisual } from "./br-loot-rarity";
 
 /** A small three-dimensional silhouette, visible from every approach. One mesh
  * per marker, including the medical cross; materials remain ordinary depth-tested
@@ -28,12 +29,18 @@ export class BrLootLod extends THREE.Group {
   readonly marker: THREE.Mesh;
   private readonly beam: THREE.Object3D | undefined;
   private readonly worldPosition = new THREE.Vector3();
+  private readonly markerBottom: number;
+  private readonly surfaceOffsetY: number;
 
   constructor(readonly detail: THREE.Group, color: number, readonly category: BrLootCategory = "unknown") {
     super();
     this.marker = new THREE.Mesh(brLootMarkerGeometry(category), new THREE.MeshBasicMaterial({ color, toneMapped: false }));
     this.marker.name = `loot-marker-${category}`;
     this.marker.rotation.set(.16, Math.PI / 4, category === "weapon" ? .16 : 0);
+    // Measure the actual rotated silhouette once. Distance scaling must grow
+    // above the same support as its detailed item, not through the floor.
+    this.markerBottom = new THREE.Box3().setFromObject(this.marker).min.y;
+    this.surfaceOffsetY = detail instanceof BrLootRarityVisual ? detail.surfaceOffsetY : 0;
     this.marker.visible = false;
     this.beam = detail.getObjectByName("loot-beam");
     this.add(detail, this.marker);
@@ -50,6 +57,7 @@ export class BrLootLod extends THREE.Group {
     // bounded to avoid oversized floating icons on the skyline.
     const markerScale = Number.isFinite(distanceSquared) ? Math.min(2.4, Math.max(1, Math.sqrt(distanceSquared) / 55)) : 1;
     this.marker.scale.setScalar(markerScale);
+    this.marker.position.y = this.surfaceOffsetY + .07 - this.markerBottom * markerScale;
     if (this.beam) {
       const beamRange = quality === "high" ? 72 : quality === "medium" ? 48 : 26;
       this.beam.visible = distanceSquared < beamRange * beamRange;

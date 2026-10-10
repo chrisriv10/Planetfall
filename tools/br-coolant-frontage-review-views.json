@@ -1,0 +1,8 @@
+[
+  { "id": "coolant-frontage-street", "position": [37, 2.7, 72], "focus": [37, 3.5, 115] },
+  { "id": "coolant-frontage-north", "position": [72, 2.7, 121], "focus": [37, 3.5, 110] },
+  { "id": "coolant-office-door", "position": [35, 2.2, 98], "focus": [18, 2.3, 98] },
+  { "id": "coolant-maintenance-door", "position": [39, 2.2, 98], "focus": [56, 2.3, 98] },
+  { "id": "coolant-office-upper", "position": [17, 7.7, 91], "focus": [17, 7.9, 104] },
+  { "id": "north-civic-reference", "position": [-20, 2.7, 180], "focus": [50, 3.5, 180] }
+]

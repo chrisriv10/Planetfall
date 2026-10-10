@@ -1,0 +1,145 @@
+{
+  "date": "2026-10-09",
+  "machine": "DESKTOP-JL99F36",
+  "head": "d64d771ef62d519b8bd31324d6b1736c541ef761",
+  "workingTree": "local, uncommitted",
+  "pushed": false,
+  "deployed": false,
+  "typecheck": {
+    "passed": true,
+    "log": "typecheck-final.log"
+  },
+  "build": {
+    "passed": true,
+    "log": "build-final.log"
+  },
+  "focused": {
+    "passed": true,
+    "tests": 49,
+    "files": 6,
+    "log": "focused-final.log"
+  },
+  "fullSuite": {
+    "passed": true,
+    "tests": 980,
+    "files": 176,
+    "durationSeconds": 156.65,
+    "log": "full-suite-final.log"
+  },
+  "serverPerformance": {
+    "passed": true,
+    "includedInFullSuite": true,
+    "cases": [
+      {
+        "players": 10,
+        "identityOffset": 0
+      },
+      {
+        "players": 20,
+        "identityOffset": 0
+      },
+      {
+        "players": 40,
+        "identityOffset": 0
+      },
+      {
+        "players": 40,
+        "identityOffset": 1000
+      },
+      {
+        "players": 40,
+        "identityOffset": 5000
+      }
+    ],
+    "unchangedLimits": {
+      "averageTickMs": 16,
+      "p95TickMs": 45,
+      "worstTickMs": 150,
+      "maximumSnapshotBytes": 160000
+    },
+    "scope": "Thirty production-rate seconds per case, authoritative simulation and relevance snapshots with hard bots; not forty browser clients.",
+    "metrics": null,
+    "metricsNote": "Default Vitest reporter suppresses successful per-case console output; all five unchanged performance tests are included in the passing full suite."
+  },
+  "e2e": {
+    "passed": true,
+    "tests": 11,
+    "duration": "5.7m",
+    "log": "e2e-final.log",
+    "sourceEditsDuringRun": false,
+    "concurrentRenderOrUnitJobs": false
+  },
+  "live": {
+    "passed": true,
+    "routes": 12,
+    "samples": 230,
+    "allSamplesGrounded": true,
+    "input": {
+      "mouse": 17,
+      "keys": 218,
+      "trusted": true
+    },
+    "pageErrors": [],
+    "initialFixture": {
+      "position": {
+        "x": -5,
+        "y": 0.035,
+        "z": 58
+      },
+      "placementCount": 1,
+      "generatedLoot": 423
+    },
+    "scope": "Active production player/camera walkthrough in an isolated local match. One initial authoritative fixture placement, then trusted browser mouse/keyboard only. Not human gameplay acceptance.",
+    "evidence": "live/playthrough.json"
+  },
+  "preservation": {
+    "passed": true,
+    "baseline": "North Civic local source checkpoint",
+    "baselineFiles": 342,
+    "unchangedFiles": 334,
+    "changed": [
+      "client/src/modes/battle-royale/br-road-bends.test.ts",
+      "client/src/modes/battle-royale/br-road-bends.ts",
+      "client/src/modes/battle-royale/br-road-detail.test.ts",
+      "client/src/modes/battle-royale/br-road-detail.ts",
+      "client/src/modes/battle-royale/br-road-markings.test.ts",
+      "client/src/modes/battle-royale/br-road-markings.ts",
+      "client/src/modes/battle-royale/br-world.ts",
+      "tools/br-active-spatial-review.mjs"
+    ],
+    "added": [
+      "server/src/modes/battle-royale/br-road-presentation-support.test.ts",
+      "tools/br-road-recovery-review-views.json"
+    ],
+    "sharedAndServerProductionUnchanged": true,
+    "classicAndChaosSourceUnchanged": true,
+    "lootAndFrontageHelpersUnchanged": true,
+    "mapHash": "028da755785ff50a783252577b0c44f19f4e1ff04fffba84aa39dc554d625716"
+  },
+  "sourceManifest": {
+    "file": "source-manifest.json",
+    "files": 344,
+    "allHashesVerified": true
+  },
+  "cleanup": {
+    "passed": true,
+    "scope": "Two complete production world assemblies; each reachable instance batch, geometry, material and mapped texture releases exactly once despite repeated dispose calls.",
+    "limitations": "No WebGL allocation/memory measurement, live match, audio, sockets, players or Classic scene. Global borrowed Sprite geometry is retained. Does not prove every unreachable library resource is freed.",
+    "evidence": "cleanup.json"
+  },
+  "staticViews": {
+    "before": 5,
+    "final": 6,
+    "scope": "Static actual-world assembly, no player/HUD/sky/bloom/shadows; not FPS or human acceptance.",
+    "evidence": "final/review.json"
+  },
+  "limitations": [
+    "Whole-island spatial recovery remains unfinished.",
+    "Mall grade joins and raised-deck boundaries remain angular; no unsupported visual pavement was added.",
+    "Automated native inputs use one initial fixture; no human art or control-feel acceptance claimed.",
+    "Archive massing, repeated shells/interiors and further ground-level composition remain open.",
+    "Construction cache timings and static draw metrics are not live FPS or GPU memory acceptance.",
+    "The freight-deck-boundary static camera is wall-dominated, not sufficient composition acceptance.",
+    "No existing assertion, timeout, gameplay condition or performance budget was weakened."
+  ]
+}

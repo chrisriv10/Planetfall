@@ -1,0 +1,915 @@
+{
+  "generatedAt": "2026-10-10T20:12:40.162Z",
+  "scope": "All authored building envelopes and the production facade skin composition (glazing, service ribs, Nova storefront details and Solar service skins), doorway frames/awnings, freight pilasters, storefront uprights, facade LEDs and supported sign mounts. Shared physics/route tests separately validate bridge piers and tree trunks.",
+  "limits": "This does not certify every decorative mesh or animated figure. Bounding envelopes cannot prove triangle-level separation. Plant foliage, thin mullions and backing panels are intentional facade joins; broad boxes penetrating the outward glass face are flagged.",
+  "checked": {
+    "structures": 189,
+    "buildingPairs": 17766,
+    "facadeBoxes": 28138,
+    "bridgePiers": 46,
+    "greenwayTrees": 66
+  },
+  "buildingIntersections": [],
+  "facadeIntersections": [],
+  "neighboringFacadeIntersections": [],
+  "neighboringAttachmentIntersections": [
+    {
+      "a": "void-anchor",
+      "b": "void-west",
+      "partA": 524,
+      "partB": 249,
+      "boxA": {
+        "finish": "glass",
+        "face": "west",
+        "position": {
+          "x": -125.60499999999999,
+          "y": 5.5440000000000005,
+          "z": 256.52
+        },
+        "scale": {
+          "x": 0.06,
+          "y": 2.45,
+          "z": 5.829999999999999
+        }
+      },
+      "boxB": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -126.4,
+          "y": 4.45,
+          "z": 260
+        },
+        "scale": {
+          "x": 1.6,
+          "y": 0.22,
+          "z": 7.4
+        }
+      },
+      "overlap": {
+        "x": 0.034999999999984155,
+        "y": 0.24099999999999988,
+        "z": 3.134999999999982
+      }
+    },
+    {
+      "a": "void-anchor",
+      "b": "void-west",
+      "partA": 526,
+      "partB": 249,
+      "boxA": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": -125.66,
+          "y": 5.5440000000000005,
+          "z": 256.52
+        },
+        "scale": {
+          "x": 0.06,
+          "y": 2.45,
+          "z": 0.09
+        }
+      },
+      "boxB": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -126.4,
+          "y": 4.45,
+          "z": 260
+        },
+        "scale": {
+          "x": 1.6,
+          "y": 0.22,
+          "z": 7.4
+        }
+      },
+      "overlap": {
+        "x": 0.08999999999999098,
+        "y": 0.24099999999999988,
+        "z": 0.2649999999999819
+      }
+    },
+    {
+      "a": "void-anchor",
+      "b": "void-west",
+      "partA": 539,
+      "partB": 249,
+      "boxA": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": -125.62,
+          "y": 9,
+          "z": 259.76
+        },
+        "scale": {
+          "x": 0.3,
+          "y": 17.6,
+          "z": 0.18
+        }
+      },
+      "boxB": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -126.4,
+          "y": 4.45,
+          "z": 260
+        },
+        "scale": {
+          "x": 1.6,
+          "y": 0.22,
+          "z": 7.4
+        }
+      },
+      "overlap": {
+        "x": 0.16999999999999893,
+        "y": 4.36,
+        "z": 3.549999999999991
+      }
+    },
+    {
+      "a": "void-anchor",
+      "b": "void-west",
+      "partA": 545,
+      "partB": 249,
+      "boxA": {
+        "finish": "lit",
+        "face": "west",
+        "position": {
+          "x": -125.60499999999999,
+          "y": 5.5440000000000005,
+          "z": 263
+        },
+        "scale": {
+          "x": 0.06,
+          "y": 2.45,
+          "z": 5.829999999999999
+        }
+      },
+      "boxB": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -126.4,
+          "y": 4.45,
+          "z": 260
+        },
+        "scale": {
+          "x": 1.6,
+          "y": 0.22,
+          "z": 7.4
+        }
+      },
+      "overlap": {
+        "x": 0.034999999999984155,
+        "y": 0.24099999999999988,
+        "z": 3.615
+      }
+    },
+    {
+      "a": "void-anchor",
+      "b": "void-west",
+      "partA": 547,
+      "partB": 249,
+      "boxA": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": -125.66,
+          "y": 5.5440000000000005,
+          "z": 263
+        },
+        "scale": {
+          "x": 0.06,
+          "y": 2.45,
+          "z": 0.09
+        }
+      },
+      "boxB": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -126.4,
+          "y": 4.45,
+          "z": 260
+        },
+        "scale": {
+          "x": 1.6,
+          "y": 0.22,
+          "z": 7.4
+        }
+      },
+      "overlap": {
+        "x": 0.08999999999999098,
+        "y": 0.24099999999999988,
+        "z": 0.7450000000000001
+      }
+    },
+    {
+      "a": "void-anchor",
+      "b": "void-east",
+      "partA": 416,
+      "partB": 249,
+      "boxA": {
+        "finish": "glass",
+        "face": "east",
+        "position": {
+          "x": -60.395,
+          "y": 5.5440000000000005,
+          "z": 256.52
+        },
+        "scale": {
+          "x": 0.06,
+          "y": 2.45,
+          "z": 5.829999999999999
+        }
+      },
+      "boxB": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": -59.6,
+          "y": 4.45,
+          "z": 260
+        },
+        "scale": {
+          "x": 1.6,
+          "y": 0.22,
+          "z": 7.4
+        }
+      },
+      "overlap": {
+        "x": 0.034999999999998366,
+        "y": 0.24099999999999988,
+        "z": 3.134999999999982
+      }
+    },
+    {
+      "a": "void-anchor",
+      "b": "void-east",
+      "partA": 418,
+      "partB": 249,
+      "boxA": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -60.34,
+          "y": 5.5440000000000005,
+          "z": 256.52
+        },
+        "scale": {
+          "x": 0.06,
+          "y": 2.45,
+          "z": 0.09
+        }
+      },
+      "boxB": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": -59.6,
+          "y": 4.45,
+          "z": 260
+        },
+        "scale": {
+          "x": 1.6,
+          "y": 0.22,
+          "z": 7.4
+        }
+      },
+      "overlap": {
+        "x": 0.08999999999999808,
+        "y": 0.24099999999999988,
+        "z": 0.2649999999999819
+      }
+    },
+    {
+      "a": "void-anchor",
+      "b": "void-east",
+      "partA": 431,
+      "partB": 249,
+      "boxA": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -60.38,
+          "y": 9,
+          "z": 259.76
+        },
+        "scale": {
+          "x": 0.3,
+          "y": 17.6,
+          "z": 0.18
+        }
+      },
+      "boxB": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": -59.6,
+          "y": 4.45,
+          "z": 260
+        },
+        "scale": {
+          "x": 1.6,
+          "y": 0.22,
+          "z": 7.4
+        }
+      },
+      "overlap": {
+        "x": 0.16999999999999893,
+        "y": 4.36,
+        "z": 3.549999999999991
+      }
+    },
+    {
+      "a": "void-anchor",
+      "b": "void-east",
+      "partA": 437,
+      "partB": 249,
+      "boxA": {
+        "finish": "lit",
+        "face": "east",
+        "position": {
+          "x": -60.395,
+          "y": 5.5440000000000005,
+          "z": 263
+        },
+        "scale": {
+          "x": 0.06,
+          "y": 2.45,
+          "z": 5.829999999999999
+        }
+      },
+      "boxB": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": -59.6,
+          "y": 4.45,
+          "z": 260
+        },
+        "scale": {
+          "x": 1.6,
+          "y": 0.22,
+          "z": 7.4
+        }
+      },
+      "overlap": {
+        "x": 0.034999999999998366,
+        "y": 0.24099999999999988,
+        "z": 3.615
+      }
+    },
+    {
+      "a": "void-anchor",
+      "b": "void-east",
+      "partA": 439,
+      "partB": 249,
+      "boxA": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -60.34,
+          "y": 5.5440000000000005,
+          "z": 263
+        },
+        "scale": {
+          "x": 0.06,
+          "y": 2.45,
+          "z": 0.09
+        }
+      },
+      "boxB": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": -59.6,
+          "y": 4.45,
+          "z": 260
+        },
+        "scale": {
+          "x": 1.6,
+          "y": 0.22,
+          "z": 7.4
+        }
+      },
+      "overlap": {
+        "x": 0.08999999999999808,
+        "y": 0.24099999999999988,
+        "z": 0.7450000000000001
+      }
+    },
+    {
+      "a": "crash-salvage",
+      "b": "salvage-row-1",
+      "partA": 69,
+      "partB": 91,
+      "boxA": {
+        "finish": "metal",
+        "face": "west",
+        "position": {
+          "x": -297.12,
+          "y": 4.525,
+          "z": -294.375
+        },
+        "scale": {
+          "x": 0.12,
+          "y": 0.13,
+          "z": 6.849999999999999
+        }
+      },
+      "boxB": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -297.65,
+          "y": 4.45,
+          "z": -293
+        },
+        "scale": {
+          "x": 1.1,
+          "y": 0.22,
+          "z": 7.4
+        }
+      },
+      "overlap": {
+        "x": 0.08000000000002738,
+        "y": 0.09999999999999981,
+        "z": 5.75
+      }
+    },
+    {
+      "a": "crash-salvage",
+      "b": "salvage-row-1",
+      "partA": 93,
+      "partB": 49,
+      "boxA": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": -297.85,
+          "y": 4.45,
+          "z": -301
+        },
+        "scale": {
+          "x": 1.1,
+          "y": 0.22,
+          "z": 7.4
+        }
+      },
+      "boxB": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -298.38,
+          "y": 4.465,
+          "z": -297.375
+        },
+        "scale": {
+          "x": 0.12,
+          "y": 0.13,
+          "z": 3.0000000000000004
+        }
+      },
+      "overlap": {
+        "x": 0.08000000000002738,
+        "y": 0.1600000000000003,
+        "z": 1.5750000000000002
+      }
+    },
+    {
+      "a": "comet-hotel-1",
+      "b": "comet-hotel-2",
+      "partA": 367,
+      "partB": 42,
+      "boxA": {
+        "finish": "panel",
+        "face": "west",
+        "position": {
+          "x": -106.83,
+          "y": 7,
+          "z": -241.1
+        },
+        "scale": {
+          "x": 0.9,
+          "y": 13.6,
+          "z": 0.38
+        }
+      },
+      "boxB": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -107.31,
+          "y": 4.88,
+          "z": -234
+        },
+        "scale": {
+          "x": 0.58,
+          "y": 0.3,
+          "z": 16.4
+        }
+      },
+      "overlap": {
+        "x": 0.259999999999996,
+        "y": 4.83,
+        "z": 1.2900000000000045
+      }
+    },
+    {
+      "a": "comet-hotel-1",
+      "b": "comet-hotel-2",
+      "partA": 392,
+      "partB": 42,
+      "boxA": {
+        "finish": "panel",
+        "face": "west",
+        "position": {
+          "x": -106.83,
+          "y": 7,
+          "z": -236
+        },
+        "scale": {
+          "x": 0.9,
+          "y": 13.6,
+          "z": 0.38
+        }
+      },
+      "boxB": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -107.31,
+          "y": 4.88,
+          "z": -234
+        },
+        "scale": {
+          "x": 0.58,
+          "y": 0.3,
+          "z": 16.4
+        }
+      },
+      "overlap": {
+        "x": 0.259999999999996,
+        "y": 4.83,
+        "z": 6.389999999999999
+      }
+    },
+    {
+      "a": "comet-hotel-1",
+      "b": "comet-hotel-2",
+      "partA": 392,
+      "partB": 78,
+      "boxA": {
+        "finish": "panel",
+        "face": "west",
+        "position": {
+          "x": -106.83,
+          "y": 7,
+          "z": -236
+        },
+        "scale": {
+          "x": 0.9,
+          "y": 13.6,
+          "z": 0.38
+        }
+      },
+      "boxB": {
+        "face": "east",
+        "finish": "accent",
+        "position": {
+          "x": -107.24,
+          "y": 4.2725,
+          "z": -237.65
+        },
+        "scale": {
+          "x": 0.06,
+          "y": 0.06,
+          "z": 5.3
+        }
+      },
+      "overlap": {
+        "x": 0.07000000000000339,
+        "y": 4.1025,
+        "z": 1.1899999999999942
+      }
+    },
+    {
+      "a": "comet-hotel-1",
+      "b": "comet-hotel-2",
+      "partA": 417,
+      "partB": 42,
+      "boxA": {
+        "finish": "panel",
+        "face": "west",
+        "position": {
+          "x": -106.83,
+          "y": 7,
+          "z": -230.9
+        },
+        "scale": {
+          "x": 0.9,
+          "y": 13.6,
+          "z": 0.38
+        }
+      },
+      "boxB": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -107.31,
+          "y": 4.88,
+          "z": -234
+        },
+        "scale": {
+          "x": 0.58,
+          "y": 0.3,
+          "z": 16.4
+        }
+      },
+      "overlap": {
+        "x": 0.259999999999996,
+        "y": 4.83,
+        "z": 5.2900000000000045
+      }
+    },
+    {
+      "a": "comet-hotel-1",
+      "b": "comet-hotel-2",
+      "partA": 417,
+      "partB": 79,
+      "boxA": {
+        "finish": "panel",
+        "face": "west",
+        "position": {
+          "x": -106.83,
+          "y": 7,
+          "z": -230.9
+        },
+        "scale": {
+          "x": 0.9,
+          "y": 13.6,
+          "z": 0.38
+        }
+      },
+      "boxB": {
+        "face": "east",
+        "finish": "accent",
+        "position": {
+          "x": -107.24,
+          "y": 4.2725,
+          "z": -230.35
+        },
+        "scale": {
+          "x": 0.06,
+          "y": 0.06,
+          "z": 5.3
+        }
+      },
+      "overlap": {
+        "x": 0.07000000000000339,
+        "y": 4.1025,
+        "z": 2.2899999999999885
+      }
+    },
+    {
+      "a": "comet-hotel-1",
+      "b": "comet-hotel-2",
+      "partA": 442,
+      "partB": 49,
+      "boxA": {
+        "finish": "panel",
+        "face": "west",
+        "position": {
+          "x": -106.74,
+          "y": 0.35,
+          "z": -236
+        },
+        "scale": {
+          "x": 0.65,
+          "y": 0.35,
+          "z": 3.2
+        }
+      },
+      "boxB": {
+        "finish": "panel",
+        "face": "east",
+        "position": {
+          "x": -107.26,
+          "y": 0.35,
+          "z": -234
+        },
+        "scale": {
+          "x": 0.65,
+          "y": 0.35,
+          "z": 3.2
+        }
+      },
+      "overlap": {
+        "x": 0.1299999999999898,
+        "y": 0.35,
+        "z": 1.2000000000000002
+      }
+    },
+    {
+      "a": "comet-hotel-1",
+      "b": "comet-hotel-2",
+      "partA": 442,
+      "partB": 50,
+      "boxA": {
+        "finish": "panel",
+        "face": "west",
+        "position": {
+          "x": -106.74,
+          "y": 0.35,
+          "z": -236
+        },
+        "scale": {
+          "x": 0.65,
+          "y": 0.35,
+          "z": 3.2
+        }
+      },
+      "boxB": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -107.25,
+          "y": 0.55,
+          "z": -234
+        },
+        "scale": {
+          "x": 0.72,
+          "y": 0.1,
+          "z": 3.3200000000000003
+        }
+      },
+      "overlap": {
+        "x": 0.17499999999999494,
+        "y": 0.02499999999999991,
+        "z": 1.2600000000000002
+      }
+    },
+    {
+      "a": "comet-hotel-1",
+      "b": "comet-hotel-2",
+      "partA": 443,
+      "partB": 49,
+      "boxA": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": -106.75,
+          "y": 0.55,
+          "z": -236
+        },
+        "scale": {
+          "x": 0.72,
+          "y": 0.1,
+          "z": 3.3200000000000003
+        }
+      },
+      "boxB": {
+        "finish": "panel",
+        "face": "east",
+        "position": {
+          "x": -107.26,
+          "y": 0.35,
+          "z": -234
+        },
+        "scale": {
+          "x": 0.65,
+          "y": 0.35,
+          "z": 3.2
+        }
+      },
+      "overlap": {
+        "x": 0.17499999999999494,
+        "y": 0.02499999999999991,
+        "z": 1.2600000000000002
+      }
+    },
+    {
+      "a": "comet-hotel-1",
+      "b": "comet-hotel-2",
+      "partA": 443,
+      "partB": 50,
+      "boxA": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": -106.75,
+          "y": 0.55,
+          "z": -236
+        },
+        "scale": {
+          "x": 0.72,
+          "y": 0.1,
+          "z": 3.3200000000000003
+        }
+      },
+      "boxB": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -107.25,
+          "y": 0.55,
+          "z": -234
+        },
+        "scale": {
+          "x": 0.72,
+          "y": 0.1,
+          "z": 3.3200000000000003
+        }
+      },
+      "overlap": {
+        "x": 0.21999999999999997,
+        "y": 0.1,
+        "z": 1.3200000000000003
+      }
+    },
+    {
+      "a": "comet-hotel-1",
+      "b": "comet-hotel-2",
+      "partA": 443,
+      "partB": 51,
+      "boxA": {
+        "finish": "frame",
+        "face": "west",
+        "position": {
+          "x": -106.75,
+          "y": 0.55,
+          "z": -236
+        },
+        "scale": {
+          "x": 0.72,
+          "y": 0.1,
+          "z": 3.3200000000000003
+        }
+      },
+      "boxB": {
+        "finish": "foliage",
+        "face": "east",
+        "position": {
+          "x": -107.25,
+          "y": 0.73,
+          "z": -235.28
+        },
+        "scale": {
+          "x": 0.38,
+          "y": 0.32,
+          "z": 0.544
+        }
+      },
+      "overlap": {
+        "x": 0.050000000000000044,
+        "y": 0.030000000000000082,
+        "z": 1.2120000000000013
+      }
+    },
+    {
+      "a": "comet-hotel-1",
+      "b": "comet-hotel-2",
+      "partA": 448,
+      "partB": 50,
+      "boxA": {
+        "finish": "foliage",
+        "face": "west",
+        "position": {
+          "x": -106.75,
+          "y": 0.73,
+          "z": -234.72
+        },
+        "scale": {
+          "x": 0.38,
+          "y": 0.32,
+          "z": 0.544
+        }
+      },
+      "boxB": {
+        "finish": "frame",
+        "face": "east",
+        "position": {
+          "x": -107.25,
+          "y": 0.55,
+          "z": -234
+        },
+        "scale": {
+          "x": 0.72,
+          "y": 0.1,
+          "z": 3.3200000000000003
+        }
+      },
+      "overlap": {
+        "x": 0.050000000000000044,
+        "y": 0.030000000000000082,
+        "z": 1.2120000000000013
+      }
+    }
+  ],
+  "passed": false
+}
