@@ -22,8 +22,7 @@ describe("BR low-density connective pockets", () => {
     expect(new Set(clusters.map(cluster => cluster.theme)).size).toBeGreaterThanOrEqual(3);
     expect(buildConnectiveClusters()).toEqual(clusters);
     expect(buildConnectiveClusters({ roads: [...BR_ROADS].reverse() })).toEqual(clusters);
-    // Landscape adds eight shared-primitive details (four ankle-low rails,
-    // two narrow stakes and lenses); other kits retain the original14 cap.
+    // Existing clearance and total geometry budgets remain enforced.
     expect(clusters.reduce((sum,cluster)=>sum+cluster.parts.length,0)).toBeLessThanOrEqual(320);
     for (const cluster of clusters) {
       expect(cluster.radius).toBe(BR_CONNECTIVE_CLUSTER_RADIUS);
@@ -101,20 +100,19 @@ describe("BR low-density connective pockets", () => {
     expect(buildConnectiveClusters({ ...inputs, roads: [{ ...BR_ROADS[0], width: NaN }] })).toEqual([]);
   });
 
-  it("gives landscape pockets paired open planters and narrow status stakes while keeping the center clear", () => {
-    const landscapes = buildConnectiveClusters().filter(cluster => cluster.theme === "landscape");
+  it("gives every pocket paired planted irrigation beds without orphan posts or plates", () => {
+    const landscapes = buildConnectiveClusters();
     expect(landscapes.length).toBeGreaterThan(0);
     for (const cluster of landscapes) {
-      expect(cluster.parts).toHaveLength(20);
+      expect(cluster.parts).toHaveLength(12);
       const rails = cluster.parts.filter(part => part.geometry === "box" && !part.surface);
       const stakes = cluster.parts.filter(part => part.geometry === "cylinder" && part.finish === "brushedMetal");
       const lenses = cluster.parts.filter(part => part.finish === "windowLit");
       const leaves = cluster.parts.filter(part => part.geometry === "octahedron");
-      expect(rails).toHaveLength(4); expect(stakes).toHaveLength(2);
-      expect(lenses).toHaveLength(2); expect(leaves).toHaveLength(6);
+      expect(rails).toHaveLength(4); expect(stakes).toHaveLength(0);
+      expect(lenses).toHaveLength(0); expect(leaves).toHaveLength(6);
+      expect(cluster.parts.filter(part=>part.surface).every(part=>part.finish==="soil")).toBe(true);
       expect(rails.every(part => part.scale.x === .1 && part.scale.z === 3.8 && part.position.y + part.scale.y / 2 <= .23 + 1e-9)).toBe(true);
-      expect(stakes.every(part => part.scale.x === .055 && part.scale.z === .055 && part.scale.y === 1.38)).toBe(true);
-      expect(lenses.every(part => part.scale.x === .105 && part.scale.z === .105 && part.scale.y === .1)).toBe(true);
       for (const part of cluster.parts) {
         const dx = part.position.x - cluster.center.x, dz = part.position.z - cluster.center.z;
         const localX = dx * Math.cos(part.rotationY) - dz * Math.sin(part.rotationY);

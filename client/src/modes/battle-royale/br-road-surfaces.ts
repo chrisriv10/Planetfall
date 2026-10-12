@@ -1,8 +1,14 @@
-import { BR_STRUCTURES, type BrRoadSegment, type BrStructure, type Vec3 } from "@planetfall/shared";
+import { BR_ROADS, BR_STRUCTURES, type BrRoadSegment, type BrStructure, type Vec3 } from "@planetfall/shared";
 import { buildBrRoadBends } from "./br-road-bends";
 
 export interface BrRoadSurface { sourceRoadId:string; vertices:Vec3[]; junction:boolean; }
 const epsilon=1e-7;
+let productionSurfaces: BrRoadSurface[] | undefined;
+const copySurfaces = (surfaces: readonly BrRoadSurface[]) => surfaces.map(s => ({ ...s, vertices: s.vertices.map(p => ({ ...p })) }));
+const bounds = (vertices: readonly Vec3[]) => ({
+  minX: Math.min(...vertices.map(p=>p.x)), maxX: Math.max(...vertices.map(p=>p.x)),
+  minZ: Math.min(...vertices.map(p=>p.z)), maxZ: Math.max(...vertices.map(p=>p.z))
+});
 const side=(a:Vec3,b:Vec3,p:Vec3)=>(b.x-a.x)*(p.z-a.z)-(b.z-a.z)*(p.x-a.x);
 
 /** Clip a convex polygon, retaining its interpolated grade at every new vertex. */
@@ -63,6 +69,7 @@ function surfaceHeight(surface:BrRoadSurface,p:Vec3):number{
  * approach ribbons are cut against the actual polygon edges. Surfaces at
  * different heights remain independent (bridges are not holes in the road). */
 export function buildBrRoadSurfaces(roads:readonly BrRoadSegment[]):BrRoadSurface[]{
+  if (roads === BR_ROADS && productionSurfaces) return copySurfaces(productionSurfaces);
   const junctions:BrRoadSurface[]=[];
   const nodes=new Map<string,{point:Vec3;arms:Array<{road:BrRoadSegment;t:number}>}>();
   for(let i=0;i<roads.length;i++)for(let j=i+1;j<roads.length;j++){
@@ -92,20 +99,27 @@ export function buildBrRoadSurfaces(roads:readonly BrRoadSegment[]):BrRoadSurfac
   }
   const bends=buildBrRoadBends(roads).flatMap(bend=>[bend.vertices,...bend.insideFans].map(vertices=>({sourceRoadId:bend.id,vertices,junction:true})));
   const surfaces:BrRoadSurface[]=[];
+  const surfaceBounds:ReturnType<typeof bounds>[]=[];
   for(const source of [...bends,...junctions,...roads.map(road=>({sourceRoadId:road.id,vertices:roadRibbon(road),junction:false}))]){
     if(source.vertices.length<3)continue;
+    const sourceBounds=bounds(source.vertices);
     let fragments=[source.vertices];
-    for(const prior of surfaces){
+    for(let index=0;index<surfaces.length;index++){
+      const prior=surfaces[index],box=surfaceBounds[index];
+      // Exact clipping still owns overlap. Reject only disjoint bounding boxes
+      // before expensive plane/polygon work; distant roads cannot subtract it.
+      if(sourceBounds.maxX<box.minX||sourceBounds.minX>box.maxX||sourceBounds.maxZ<box.minZ||sourceBounds.minZ>box.maxZ)continue;
       // Sharing one endpoint height does not make two grades coplanar. Cutting
       // based on that one point could erase an entire rising road above a flat
       // road (or a descending entrance below it). Compare the complete planes.
       if(source.vertices.some(p=>Math.abs(surfaceHeight(prior,p)-p.y)>epsilon)
         ||prior.vertices.some(p=>Math.abs(surfaceHeight(source,p)-p.y)>epsilon))continue;
-      const minX=Math.min(...prior.vertices.map(v=>v.x)),maxX=Math.max(...prior.vertices.map(v=>v.x)),minZ=Math.min(...prior.vertices.map(v=>v.z)),maxZ=Math.max(...prior.vertices.map(v=>v.z));
+      const {minX,maxX,minZ,maxZ}=box;
       fragments=fragments.flatMap(poly=>poly.every(p=>p.x<minX)||poly.every(p=>p.x>maxX)||poly.every(p=>p.z<minZ)||poly.every(p=>p.z>maxZ)?[poly]:subtract(poly,prior.vertices));
     }
-    for(const vertices of fragments)surfaces.push({...source,vertices});
+    for(const vertices of fragments){surfaces.push({...source,vertices});surfaceBounds.push(bounds(vertices));}
   }
+  if(roads===BR_ROADS){productionSurfaces=surfaces;return copySurfaces(surfaces);}
   return surfaces;
 }
 

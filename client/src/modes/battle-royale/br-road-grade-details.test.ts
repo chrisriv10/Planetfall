@@ -36,7 +36,16 @@ describe("BR authored road-grade presentation",()=>{
         expect(Object.values(part.scale).every(value=>value>0)).toBe(true);
       }
       for(const part of parts.filter(part=>part.role==="edge"||part.role==="light")){
-        const piece=pieces.find(piece=>Math.abs(-Math.atan2(piece.to.z-piece.from.z,piece.to.x-piece.from.x)-(part.rotationY??0))<1e-8)!;
+        // Parallel easing segments can have the same heading on different
+        // centerlines. Match the actual station, not the first equal heading.
+        const piece=pieces.find(piece=>{
+          const dx=piece.to.x-piece.from.x,dz=piece.to.z-piece.from.z;
+          const t=((part.position.x-piece.from.x)*dx+(part.position.z-piece.from.z)*dz)/(dx*dx+dz*dz);
+          return Math.abs(-Math.atan2(dz,dx)-(part.rotationY??0))<1e-8
+            &&t>=-1e-8&&t<=1+1e-8;
+        });
+        expect(piece).toBeDefined();
+        if(!piece)throw new Error(`Missing grade station for ${road.id}`);
         const dx=piece.to.x-piece.from.x,dz=piece.to.z-piece.from.z,horizontal=Math.hypot(dx,dz);
         const signed=((part.position.x-piece.from.x)*-dz+(part.position.z-piece.from.z)*dx)/horizontal;
         expect(Math.abs(signed)).toBeGreaterThan(road.width/2);

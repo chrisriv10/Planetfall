@@ -1,8 +1,9 @@
 import { BR_BALANCE } from "./balance.js";
 import { BR_MAP_BLOCKS, BR_TRAVERSAL, brBlockPlanarHalfExtents, brBlocksNear, brRoadGradeFloorAt, isInsideBrIsland } from "./map.js";
-import { brClamp } from "./math.js";
+import { brClamp, brMoveTowards } from "./math.js";
 import { brBaseDeckHeight } from "./orbital-isle-elevation.js";
 import {brBlockTopSurfaceAt} from "./block-surface.js";
+import { brLandformsNear, brLandformSurfaceAt } from "./orbital-isle-landforms.js";
 import type { BrDeploymentState, BrShipState } from "./types.js";
 import type { Vec3 } from "../index.js";
 
@@ -96,10 +97,12 @@ export function brConstrainBaseDeckMovement(feet:Vec3,movement:Vec3):number {
 export function brFlatDeckCollision(feet:Vec3,desiredMovement:Vec3,jumping:boolean):BrCollisionResult|null {
   const horizontal=Math.hypot(desiredMovement.x,desiredMovement.z);
   const midpoint={x:feet.x+desiredMovement.x*.5,y:feet.y,z:feet.z+desiredMovement.z*.5};
+  if (brLandformsNear(midpoint,horizontal*.5+BR_BALANCE.playerRadius+.25).length) return null;
   const next={x:feet.x+desiredMovement.x,y:feet.y+desiredMovement.y,z:feet.z+desiredMovement.z};
   const sweptBottom=Math.min(feet.y,next.y),sweptTop=Math.max(feet.y,next.y)+BR_BALANCE.playerHeight;
   const minX=Math.min(feet.x,next.x),maxX=Math.max(feet.x,next.x),minZ=Math.min(feet.z,next.z),maxZ=Math.max(feet.z,next.z);
   let floorTop=isInsideBrIsland(next)?brBaseDeckHeight(next):Number.NEGATIVE_INFINITY;
+  let supportedRoadStart=false;
   for(const block of brBlocksNear(midpoint,horizontal*.5+BR_BALANCE.playerRadius+.25)){
     const planarHalf=brBlockPlanarHalfExtents(block);
     const halfX=planarHalf.x+BR_BALANCE.playerRadius,halfZ=planarHalf.z+BR_BALANCE.playerRadius;
@@ -111,7 +114,14 @@ export function brFlatDeckCollision(feet:Vec3,desiredMovement:Vec3,jumping:boole
     // server. Other rotated ramps remain on Rapier's exact path.
     if(block.rotation){
       const gradeFloor=brRoadGradeFloorAt(block,next,BR_BALANCE.playerRadius);
-      if(gradeFloor!==null&&desiredMovement.y<=0&&feet.y>=gradeFloor-.45){floorTop=Math.max(floorTop,gradeFloor);continue;}
+      if(!supportedRoadStart&&!jumping&&desiredMovement.y<=0){
+        const startFloor=brRoadGradeFloorAt(block,feet,BR_BALANCE.playerRadius);
+        if(startFloor!==null&&feet.y>=startFloor&&feet.y<=startFloor+.08)supportedRoadStart=true;
+      }
+      if(gradeFloor!==null&&desiredMovement.y<=0&&feet.y>=gradeFloor-.45){
+        floorTop=Math.max(floorTop,gradeFloor);
+        continue;
+      }
       if(gradeFloor!==null&&feet.y+BR_BALANCE.playerHeight<gradeFloor-.34)continue;
       // Diagonal-road broadphase boxes include empty space beside the ribbon.
       if(block.id.endsWith("-surface")&&gradeFloor===null)continue;
@@ -131,7 +141,11 @@ export function brFlatDeckCollision(feet:Vec3,desiredMovement:Vec3,jumping:boole
     }
     if(sweptTop>=blockBottom&&sweptBottom<=blockTop)return null;
   }
-  if(Number.isFinite(floorTop)&&desiredMovement.y<=0&&next.y<=floorTop+.08&&feet.y>=floorTop-.45){
+  // Preserve supported road descents at server cadence, including the join
+  // onto the real base deck. A genuine next floor must be within the KCC's
+  // .18m snap range; unsupported edges and airborne pilots get no extra snap.
+  const supportedRoadDescent=supportedRoadStart&&feet.y>floorTop&&feet.y-floorTop<=.18;
+  if(Number.isFinite(floorTop)&&desiredMovement.y<=0&&next.y<=floorTop+(supportedRoadDescent?.18:.08)&&feet.y>=floorTop-.45){
     // Match the controller's small contact offset so a grounded capsule does
     // not flicker between exact y=0 and airborne on consecutive fast frames.
     return {movement:{x:desiredMovement.x,y:floorTop+.035-feet.y,z:desiredMovement.z},grounded:!jumping,ceiling:false};
@@ -174,6 +188,8 @@ export function brFloorHeightAt(position: Vec3, previousY: number): number {
   // The fallback and vehicle surface queries must use the same real base
   // cutout as Rapier; y=0 would create a phantom floor above a sunken court.
   let floor = brBaseDeckHeight(position);
+  const terrain=brLandformSurfaceAt(position);
+  if(terrain!==null&&previousY>=terrain-.5)floor=Math.max(floor,terrain);
   for (const block of BR_MAP_BLOCKS) {
     if(block.rotation){
       const gradeFloor=brRoadGradeFloorAt(block,position);
@@ -209,11 +225,26 @@ export function stepBrMovement(current: BrMotionState, input: BrMotionInput, raw
   const desired = { x: right.x * mx + forward.x * my, z: right.z * mx + forward.z * my };
   if (state.deployment === "freefall" || state.deployment === "chute") {
     if (state.position.y <= BR_BALANCE.autoDeployHeight) state.deployment = "chute";
-    const maxFall = state.deployment === "chute" ? BR_BALANCE.chuteSpeed : BR_BALANCE.freefallSpeed;
-    const airSpeed=state.deployment==="chute"?BR_BALANCE.chuteHorizontalSpeed:BR_BALANCE.freefallHorizontalSpeed;
-    state.velocity.x+=(desired.x*airSpeed-state.velocity.x)*Math.min(1,dt*BR_BALANCE.airSteering);
-    state.velocity.z+=(desired.z*airSpeed-state.velocity.z)*Math.min(1,dt*BR_BALANCE.airSteering);
-    state.velocity.y = Math.max(-maxFall, state.velocity.y - BR_BALANCE.gravity * dt);
+    if (state.deployment === "chute") {
+      const speed = Math.hypot(state.velocity.x, state.velocity.z);
+      let heading = speed > .001 ? Math.atan2(state.velocity.x, -state.velocity.z) : state.yaw;
+      if (magnitude > .001) {
+        const target = Math.atan2(desired.x, -desired.z);
+        const difference = Math.atan2(Math.sin(target - heading), Math.cos(target - heading));
+        heading += brClamp(difference, -BR_BALANCE.chuteTurnRate * dt, BR_BALANCE.chuteTurnRate * dt);
+      }
+      // Release the controls to carry the current glide, including after a
+      // camera turn. Steering changes heading rather than discarding speed.
+      const targetSpeed=magnitude>.001?BR_BALANCE.chuteHorizontalSpeed:Math.min(speed,BR_BALANCE.chuteHorizontalSpeed);
+      const nextSpeed = brMoveTowards(speed, targetSpeed, BR_BALANCE.chuteAcceleration * dt);
+      state.velocity.x = Math.sin(heading) * nextSpeed;
+      state.velocity.z = -Math.cos(heading) * nextSpeed;
+      state.velocity.y = brMoveTowards(state.velocity.y, -BR_BALANCE.chuteSpeed, BR_BALANCE.chuteVerticalBraking * dt);
+    } else {
+      state.velocity.x+=(desired.x*BR_BALANCE.freefallHorizontalSpeed-state.velocity.x)*Math.min(1,dt*BR_BALANCE.airSteering);
+      state.velocity.z+=(desired.z*BR_BALANCE.freefallHorizontalSpeed-state.velocity.z)*Math.min(1,dt*BR_BALANCE.airSteering);
+      state.velocity.y = Math.max(-BR_BALANCE.freefallSpeed, state.velocity.y - BR_BALANCE.gravity * dt);
+    }
   } else {
     const crouchSignal = Boolean(input.crouch);
     if (crouchSignal && !state.lastCrouchSignal && state.grounded && !state.downed && Math.hypot(state.velocity.x, state.velocity.z) > BR_BALANCE.walkSpeed) {
@@ -265,6 +296,16 @@ export function stepBrMovement(current: BrMotionState, input: BrMotionInput, raw
       next.y = floor; if (state.velocity.y < 0) state.velocity.y = 0;
       state.grounded = true; state.lastGroundedAt = now; if (state.deployment === "freefall" || state.deployment === "chute") state.deployment = "grounded"; state.landed = wasAirborne;
     } else if (!isInsideBrIsland(next)) state.grounded = false;
+  }
+  if (state.landed && (current.deployment === "chute" || current.deployment === "freefall")) {
+    // Ground contact dissipates flight speed. Carry direction and a bounded
+    // running-speed rollout, rather than turning a 38m/s glide into a long
+    // uncontrolled ground slide. Airborne steering/deployment is untouched.
+    const speed = Math.hypot(state.velocity.x, state.velocity.z);
+    if (speed > BR_BALANCE.sprintSpeed) {
+      const scale = BR_BALANCE.sprintSpeed / speed;
+      state.velocity.x *= scale; state.velocity.z *= scale;
+    }
   }
   if (state.landed && !state.downed && state.jumpBufferedUntil >= now) {
     state.velocity.y = BR_BALANCE.jumpSpeed; state.grounded = false; state.jumpBufferedUntil = 0; state.lastGroundedAt = Number.NEGATIVE_INFINITY;
@@ -332,7 +373,14 @@ function applyBrTraversal(state: BrMotionState, next: Vec3, now: number): boolea
   if (now < state.traversalCooldownUntil || state.deployment === "freefall" || state.deployment === "chute") return false;
   for (const traversal of BR_TRAVERSAL) {
     if (Math.hypot(next.x - traversal.position.x, next.z - traversal.position.z) > 3.2 || Math.abs(next.y - traversal.position.y) > 3) continue;
-    if (traversal.kind === "grav-lift") { state.velocity.y = 15; state.grounded = false; }
+    if (traversal.kind === "grav-lift") {
+      // Reach the authored lift destination under the actual gravity. The old
+      // fixed 15m/s impulse rose only ~4.5m, then repeatedly bounced at the pad.
+      // A small crest allowance covers discrete integration at 30/60Hz.
+      const rise = Math.max(0, traversal.target.y - next.y) + 1.25;
+      state.velocity.y = Math.sqrt(2 * BR_BALANCE.gravity * rise);
+      state.grounded = false;
+    }
     else { const dx = traversal.target.x - next.x; const dz = traversal.target.z - next.z; const magnitude = Math.max(1, Math.hypot(dx, dz)); state.velocity = { x: dx / magnitude * 18, y: 15, z: dz / magnitude * 18 }; state.grounded = false; }
     state.traversalCooldownUntil = now + 1300; return true;
   }

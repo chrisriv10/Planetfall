@@ -1,17 +1,19 @@
 import * as THREE from "three";
-import { BR_ELEVATION_REGIONS, BR_POIS, BR_SECONDARY_LOCATIONS, BR_STRUCTURES, BR_TERRACES, type BrMapBlock, type BrStructure } from "@planetfall/shared";
+import { BR_ELEVATION_REGIONS, BR_ROADS, BR_POIS, BR_SECONDARY_LOCATIONS, BR_STRUCTURES, BR_TERRACES, type BrMapBlock, type BrStructure } from "@planetfall/shared";
 import { brDistrictPalette } from "./br-district-palette";
 
-export type BrAuthoredWallFinishKind="room-wall"|"retaining-wall"|"district-slab"|"interior-slab"|"unchanged";
+export type BrAuthoredWallFinishKind="room-wall"|"retaining-wall"|"district-slab"|"exterior-roof-ramp"|"exterior-road-slab"|"interior-slab"|"unchanged";
 export interface BrAuthoredWallFinish {
   kind:BrAuthoredWallFinishKind;
   family:ReturnType<typeof brDistrictPalette>["id"];
   sourceColor:string;
+  slabBatchKey:string;
   wallTint:THREE.Color;
   slab:{top:THREE.Color;side:THREE.Color;underside:THREE.Color};
 }
 const districts=[...BR_POIS,...BR_SECONDARY_LOCATIONS];
 const terraceIds=new Set(BR_TERRACES.flatMap(t=>[`${t.id}-platform`,`${t.id}-ramp`]));
+const roadSurfaceIds=new Set(BR_ROADS.map(road=>`${road.id}-surface`));
 const retainingIds=new Set(BR_ELEVATION_REGIONS.filter(r=>r.height<0).flatMap(r=>["north","south","east","west"].map(side=>`${r.id}-retaining-${side}`)));
 
 /** Medium matte partition paint: a warm neutral body with a restrained district
@@ -25,7 +27,7 @@ export function brAuthoredRoomTint(color:THREE.ColorRepresentation):THREE.Color 
  * structure-owned floor/roof/stair slabs. Unknown slabs preserve their current
  * readable interior treatment. Slab colors are linear THREE.Color values for
  * the existing unit-box's local top/side/underside normals, before rotation.
- * Eight district color sets plus one interior set suffice for all slabs. */
+ * At most eight terrace sets, eight roof-ramp sets one road set and one interior set. */
 export function brAuthoredWallFinish(
   block:BrMapBlock,
   structures:readonly BrStructure[]=BR_STRUCTURES,
@@ -39,8 +41,12 @@ export function brAuthoredWallFinish(
   let kind:BrAuthoredWallFinishKind="unchanged";
   if(block.kind==="wall"&&owner&&block.id.startsWith(`${owner.id}-room-`))kind="room-wall";
   else if(block.kind==="wall"&&retainingIds.has(block.id))kind="retaining-wall";
+  else if((block.kind==="ramp"||block.kind==="platform")&&roadSurfaceIds.has(block.id))kind="exterior-road-slab";
+  else if(block.kind==="ramp"&&owner?.roofAccess&&block.id===`${owner.id}-roof-ramp`)kind="exterior-roof-ramp";
   else if(block.kind==="platform"||block.kind==="ramp")kind=!owner&&terraceIds.has(block.id)?"district-slab":"interior-slab";
-  const side=kind==="district-slab"?palette.facade.clone().lerp(new THREE.Color("#74818a"),.18):new THREE.Color("#b7c6cb");
-  return {kind,family:palette.id,sourceColor,wallTint:kind==="room-wall"?brAuthoredRoomTint(sourceColor):palette.shell.clone(),
-    slab:{top:new THREE.Color("#263548"),side,underside:kind==="district-slab"?side.clone().multiplyScalar(.8):side.clone()}};
+  const exterior=kind==="exterior-roof-ramp",road=kind==="exterior-road-slab";
+  const side=road?new THREE.Color("#424e5b"):exterior?new THREE.Color("#56616b").lerp(palette.facade,.16):kind==="district-slab"?palette.facade.clone().lerp(new THREE.Color("#74818a"),.18):new THREE.Color("#b7c6cb");
+  const slabBatchKey=road?"road-slab":exterior?`roof-ramp:${palette.id}`:kind==="district-slab"?`district:${palette.id}`:"interior";
+  return {kind,family:palette.id,sourceColor,slabBatchKey,wallTint:kind==="room-wall"?brAuthoredRoomTint(sourceColor):palette.shell.clone(),
+    slab:{top:new THREE.Color("#263548"),side,underside:road?new THREE.Color("#303b48"):exterior?side.clone().multiplyScalar(.72):kind==="district-slab"?side.clone().multiplyScalar(.8):side.clone()}};
 }

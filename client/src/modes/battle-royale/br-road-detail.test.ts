@@ -74,3 +74,19 @@ it("recognizes only local supported distinct-route elbows, retaining branch and 
   const crossing={...a,id:"crossing",from:{x:-30,y:.1,z:168},to:{x:10,y:.1,z:168}};
   expect(buildBrRoadDetailClear([a,b,crossing],[])(a,-12,168)).toBe(false);
 });
+
+it("keeps strict footprint clearance across positive and negative spatial-cell boundaries",()=>{
+  const road={...BR_ROADS[0],id:"indexed",width:8,from:{x:-100,y:.1,z:-32},to:{x:100,y:.1,z:-32}};
+  const other={...road,id:"other"};
+  const structure={...BR_STRUCTURES[0],position:{x:32,y:0,z:32},size:{x:12,y:10,z:12},enterable:true,entrance:"north" as const};
+  const clear=buildBrRoadDetailClear([road],[structure]);
+  for(const x of [-64,-32,0,32,64]){
+    expect(clear(other,x,-32)).toBe(false);
+    expect(clear(road,x,-32)).toBe(true);
+    expect(clear(other,x,-32+road.width*.54+1.5+.00001)).toBe(true);
+  }
+  expect(clear(other,24,32)).toBe(true); // Strict building edge.
+  expect(clear(other,24.00001,32)).toBe(false);
+  expect(clear(other,32,41)).toBe(false); // Entrance extends past the shell.
+  expect(clear(other,34.5,41)).toBe(true); // Strict doorway edge.
+});

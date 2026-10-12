@@ -1,5 +1,7 @@
 import {BR_BALANCE} from "./balance.js";
 import {brClamp} from "./math.js";
+import {brFloorHeightAt} from "./movement.js";
+import {brAuthoredDeckHeight} from "./orbital-isle-elevation.js";
 import type {Vec3} from "../index.js";
 import type {BrVehicleState} from "./types.js";
 
@@ -7,7 +9,7 @@ export interface BrVehicleSpawn {id:string;position:Vec3;yaw:number;}
 
 /** Fixed parking/service bays. Physical placement is authored and identical
  * every match; these are transit infrastructure, not random loot. */
-export const BR_VEHICLE_SPAWNS:readonly BrVehicleSpawn[]=[
+const vehicleBays:readonly BrVehicleSpawn[]=[
   {id:"nova-transit",position:{x:-111,y:.44,z:-196},yaw:0},
   {id:"dock-freight",position:{x:152,y:.44,z:-226},yaw:Math.PI/2},
   {id:"south-terminal",position:{x:2,y:3.94,z:-386},yaw:Math.PI},
@@ -17,6 +19,14 @@ export const BR_VEHICLE_SPAWNS:readonly BrVehicleSpawn[]=[
   {id:"helios-service",position:{x:320,y:.44,z:142},yaw:-Math.PI/2},
   {id:"thruster-gate",position:{x:382,y:.44,z:-144},yaw:Math.PI}
 ] as const;
+
+// Query from the authored district deck rather than the old parked height:
+// a buried bay cannot discover a raised platform with a downward floor query.
+// Keep the probe below upper floors/roofs at covered ground-level bays.
+export const BR_VEHICLE_SPAWNS:readonly BrVehicleSpawn[]=vehicleBays.map(spawn=>({
+  ...spawn,
+  position:{...spawn.position,y:brFloorHeightAt(spawn.position,Math.max(spawn.position.y,brAuthoredDeckHeight(spawn.position))+.5)+BR_BALANCE.vehicle.hoverHeight}
+}));
 
 export interface BrVehicleInput {moveX:number;moveY:number;}
 

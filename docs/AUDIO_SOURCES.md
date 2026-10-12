@@ -1,6 +1,18 @@
 # Audio sources
 
-Planetfall's authored music remains unchanged. The Battle Royale sound layer combines the existing procedural Web Audio cues with the following small, locally hosted CC0 sample set. Samples are accents rather than complete replacements, so input feedback remains immediate if a browser has not decoded an asset yet.
+Classic and menu music remain unchanged. Battle Royale uses an original quiet ambient score alongside procedural Web Audio cues and the locally hosted CC0 sample set below. Samples are accents rather than complete replacements, so input feedback remains immediate if a browser has not decoded an asset yet.
+
+## Planetfall — Orbital Drift
+
+- File: `client/public/audio/br/orbital-drift.ogg`
+- Original asset name: Orbital Drift
+- Author: Planetfall project; original synthesized composition, 2026-10-10
+- Source: `tools/compose-br-music.py` in this repository
+- License: project-authored asset under the repository's terms; no third-party samples, melodies or recordings
+- Modifications: synthesized stereo pads and sparse notes, phase-aligned loop, encoded as Vorbis; 192 seconds
+- Runtime: independent `battle-royale` music scene, approximately half Classic's music gain, smooth scene fades; stays on the same track through lobby, Starliner and combat
+
+The existing Starliner sample is now low-pass filtered at 680 Hz, given a modest low shelf and played at lower gain/rate. Remote shots use the existing listed weapon samples with bounded distance attenuation, stereo direction and a distant low-pass treatment. No additional third-party assets were introduced on 2026-10-10.
 
 ## Kenney — Sci-fi Sounds
 

@@ -1,7 +1,7 @@
 import * as THREE from "three";
 
-export const BR_CANOPY_FADE_START = .7;
-export const BR_CANOPY_FADE_END = 2.35;
+export const BR_CANOPY_FADE_START = 2.35;
+export const BR_CANOPY_FADE_END = 2.5;
 
 type ShaderSource = {
   vertexShader: string;
@@ -10,9 +10,9 @@ type ShaderSource = {
 
 /**
  * Camera collision intentionally ignores decorative vegetation so a tree cannot
- * shove the third-person boom into the player. Screen-door fading just the
- * canopy fragments around the camera keeps that decision without letting an
- * opaque crown fill the view when the player lands or backs beneath a tree.
+ * shove the third-person boom into the player. Clear close fragments entirely
+ * so they cannot resemble stippled ground. Only the outer 15cm transition uses
+ * alpha hashing; fragments beyond the existing 2.5m envelope remain unchanged.
  */
 export function patchBrCanopyShader(shader: ShaderSource): void {
   shader.vertexShader = shader.vertexShader
@@ -33,7 +33,7 @@ vBrCanopyWorldPosition = ( modelMatrix * brCanopyWorldPosition ).xyz;`
     .replace("#include <common>", "#include <common>\nvarying vec3 vBrCanopyWorldPosition;")
     .replace(
       "#include <alphahash_fragment>",
-      `diffuseColor.a *= smoothstep(${BR_CANOPY_FADE_START.toFixed(2)}, ${BR_CANOPY_FADE_END.toFixed(2)}, distance(vBrCanopyWorldPosition, cameraPosition));\n#include <alphahash_fragment>`
+      `float brCanopyCameraDistance = distance(vBrCanopyWorldPosition, cameraPosition);\nif (brCanopyCameraDistance <= ${BR_CANOPY_FADE_START.toFixed(2)}) discard;\ndiffuseColor.a *= smoothstep(${BR_CANOPY_FADE_START.toFixed(2)}, ${BR_CANOPY_FADE_END.toFixed(2)}, brCanopyCameraDistance);\n#include <alphahash_fragment>`
     );
 }
 
@@ -42,7 +42,7 @@ export function createBrCanopyMaterial(base: THREE.MeshStandardMaterial): THREE.
   material.name = "br-canopy-camera-fade";
   material.alphaHash = true;
   material.onBeforeCompile = patchBrCanopyShader;
-  material.customProgramCacheKey = () => "br-canopy-camera-fade-v2";
+  material.customProgramCacheKey = () => "br-canopy-camera-fade-v3";
   material.needsUpdate = true;
   return material;
 }

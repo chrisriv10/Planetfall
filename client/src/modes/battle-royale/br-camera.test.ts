@@ -1,8 +1,33 @@
 import { describe, expect, it } from "vitest";
 import { stepBrMovement, type BrMotionState } from "@planetfall/shared";
-import { brAimProfile, brCameraGeometry, brCameraMode, brDropEntryPitch, brForcedDropLookYaw, brLookAngles, brShipCameraFrame, brShipLookState } from "./br-camera";
+import { brLocalRigCameraVisible, brAimProfile, brCameraGeometry, brCameraMode, brDropEntryPitch, brForcedDropLookYaw, brLookAngles, brShipCameraFrame, brShipLookState, brVehicleEntryYaw } from "./br-camera";
 
 describe("Battle Royale camera rig", () => {
+  it("clears the reproduced 1.81m wall view and avoids toggling around its return threshold",()=>{
+    expect(brLocalRigCameraVisible(1.81,true,false)).toBe(false);
+    let visible=false;
+    for(const distance of [2.41,2.7,2.79,2.5]){
+      visible=brLocalRigCameraVisible(distance,visible,false);expect(visible).toBe(false);
+    }
+    visible=brLocalRigCameraVisible(2.9,visible,false);expect(visible).toBe(true);
+    expect(brLocalRigCameraVisible(2.5,visible,false)).toBe(true);
+    expect(brLocalRigCameraVisible(5.95,false,false)).toBe(true);
+    expect(brLocalRigCameraVisible(5.95,true,true)).toBe(false);
+    expect(brLocalRigCameraVisible(Number.NaN,true,false)).toBe(false);
+    expect(brLocalRigCameraVisible(3.5,true,false,.35)).toBe(false);
+    expect(brLocalRigCameraVisible(3.5,false,false,.27)).toBe(false);
+    expect(brLocalRigCameraVisible(5.95,false,false,.16)).toBe(true);
+    expect(brLocalRigCameraVisible(5.95,true,false,Infinity)).toBe(false);
+  });
+  it("starts vehicle look behind the skimmer, then preserves player look and exit orientation",()=>{
+    expect(brVehicleEntryYaw(0,null,{id:"skimmer",yaw:Math.PI})).toBe(Math.PI);
+    expect(brVehicleEntryYaw(.7,"skimmer",{id:"skimmer",yaw:Math.PI})).toBe(.7);
+    expect(brVehicleEntryYaw(.7,"skimmer",null)).toBe(.7);
+    const vehicle=brCameraGeometry({x:0,y:0,z:0},0,-.08,"vehicle");
+    const walking=brCameraGeometry({x:0,y:0,z:0},0,-.08,"grounded");
+    expect(vehicle.boom).toBeGreaterThan(walking.boom);
+    expect(vehicle.height).toBeGreaterThan(walking.height);
+  });
   it.each([["mouse",100,.0022],["right stick",.7,2.2/60]] as const)("turns toward screen-right for positive %s look input at every orbit yaw",(_method,delta,scale)=>{
     for(const yaw of [-Math.PI,-1.25,0,Math.PI/2,Math.PI,5.9]){
       const before=brCameraGeometry({x:0,y:0,z:0},yaw,0,"grounded");

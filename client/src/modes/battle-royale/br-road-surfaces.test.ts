@@ -6,6 +6,11 @@ import { brRoadPolygonArea, buildBrRoadSurfaces, buildBrVisibleRoadSpans } from 
 
 const contains=(polygon:readonly {x:number;z:number}[],x:number,z:number)=>polygon.every((p,i)=>{const q=polygon[(i+1)%polygon.length];return(q.x-p.x)*(z-p.z)-(q.z-p.z)*(x-p.x)>1e-7;});
 describe("continuous road junction pavement",()=>{
+  it("does not let a caller mutate the cached canonical pavement",()=>{
+    const first=buildBrRoadSurfaces(BR_ROADS),expected=structuredClone(first);
+    first[0].vertices[0].x=1e9;first.pop();
+    expect(buildBrRoadSurfaces(BR_ROADS)).toEqual(expected);
+  });
   it("covers the full authored network through bends and grade endpoints at the correct height",()=>{
     const surfaces=buildBrRoadSurfaces(BR_ROADS).map(surface=>({
       ...surface,plane:new THREE.Plane().setFromCoplanarPoints(...surface.vertices.slice(0,3).map(p=>new THREE.Vector3(p.x,p.y,p.z)) as [THREE.Vector3,THREE.Vector3,THREE.Vector3])

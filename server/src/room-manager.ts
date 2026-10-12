@@ -40,6 +40,26 @@ export class RoomManager {
   }
 
   bind(socket: GameSocket): void {
+    socket.on("room:leave", (payload, ack) => {
+      const code = String(payload?.code ?? "").trim().toUpperCase();
+      const current = this.current(socket);
+      const reply = (result: import("@planetfall/shared").LeaveRoomResult) => { if (typeof ack === "function") ack(result); };
+      if (!/^[A-Z2-9]{6}$/.test(code)) return reply({ ok: false, error: "Enter the six-character room code." });
+      if (current && current.room.code !== code) return reply({ ok: false, error: "That is not your current room." });
+      // Clear routing before any authoritative broadcasts or later input packets.
+      void socket.leave(code);
+      delete socket.data.roomCode;
+      delete socket.data.playerId;
+      delete socket.data.gameFamily;
+      if (current) {
+        current.room.leave(current.playerId);
+        if (current.room.isEmpty()) {
+          current.room.dispose();
+          this.rooms.delete(code);
+        }
+      }
+      reply({ ok: true });
+    });
     socket.on("room:create", (payload, ack) => {
       if (this.current(socket)) return this.reply(ack, { ok: false, error: "Already in a room." });
       const code = this.makeCode();

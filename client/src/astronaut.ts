@@ -1,8 +1,10 @@
 import * as THREE from "three";
+import { configureAstronautVisorMask } from "./astronaut-visor-mask";
 
 /** Canonical Planetfall astronaut construction shared by every game mode. */
 export type AstronautVisual = {
   group: THREE.Group;
+  upperBody: THREE.Group;
   torso: THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
   helmet: THREE.Group;
   visor: THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
@@ -11,6 +13,8 @@ export type AstronautVisual = {
   rightArm: THREE.Group;
   leftLeg: THREE.Group;
   rightLeg: THREE.Group;
+  leftFoot: THREE.Group;
+  rightFoot: THREE.Group;
   suitMaterial: THREE.MeshStandardMaterial;
   lodDetails: THREE.Object3D[];
 };
@@ -31,6 +35,7 @@ export function createAstronautVisual(options: AstronautOptions): AstronautVisua
   const dark = new THREE.MeshStandardMaterial({ color: 0x202747, roughness: .72, flatShading: true });
   const glow = new THREE.MeshStandardMaterial({ color: options.identityColor, emissive: options.identityColor, emissiveIntensity: .75, metalness: .25, roughness: .3 });
   const visorMaterial = new THREE.MeshStandardMaterial({ color: 0x102344, metalness: .82, roughness: .12, emissive: 0x0b4167, emissiveIntensity: .6 });
+  configureAstronautVisorMask(visorMaterial);
 
   const torso = new THREE.Mesh(new THREE.CapsuleGeometry(.48, .52, 5, 9), white);
   torso.position.y = .72;
@@ -54,11 +59,37 @@ export function createAstronautVisual(options: AstronautOptions): AstronautVisua
   const visor = new THREE.Mesh(new THREE.SphereGeometry(.43, 12, 8, 0, Math.PI * 2, 0, Math.PI * .58), visorMaterial);
   visor.position.set(0, .02, .31);
   visor.scale.set(.98, .74, .42);
-  const visorGlint = new THREE.Mesh(new THREE.SphereGeometry(.08, 6, 4), new THREE.MeshBasicMaterial({ color: 0xbef8ff, transparent: true, opacity: .75 }));
-  visorGlint.position.set(-.2, .17, .58);
-  visorGlint.scale.set(1.8, .6, .35);
-  helmet.add(helmetShell, helmetBand, visor, visorGlint);
-  lodDetails.push(chestLight, belt, helmetBand, visorGlint);
+  helmet.add(helmetShell, helmetBand, visor);
+  // Static digital eyes follow the front shell facets. Highlights stay inside
+  // each oval, while the canonical shell and visor remain unchanged.
+  const eyeGeometry = new THREE.SphereGeometry(.08, 6, 4);
+  const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+  const highlightMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const eyes = new THREE.InstancedMesh(eyeGeometry, eyeMaterial, 2);
+  eyes.name = "astronaut-eyes";
+  const highlights = new THREE.InstancedMesh(eyeGeometry, highlightMaterial, 2);
+  highlights.name = "astronaut-eye-highlights";
+  const eye = new THREE.Object3D();
+  const highlight = new THREE.Object3D();
+  for (const [index, side] of [-1, 1].entries()) {
+    const x = side * .16;
+    const slope = Math.tan(Math.PI / 12) * .98 / 1.02;
+    eye.position.set(x, .025, .56 * Math.sin(4 * Math.PI / 9) * .98 - Math.abs(x) * slope + .0036);
+    eye.rotation.y = side * Math.atan(slope);
+    eye.scale.set(.6804, 1.1664, .08);
+    eye.updateMatrix();
+    eyes.setMatrixAt(index, eye.matrix);
+    const offset = new THREE.Vector3(-.0144, .0312, .007).applyQuaternion(eye.quaternion);
+    highlight.position.copy(eye.position).add(offset);
+    highlight.quaternion.copy(eye.quaternion);
+    highlight.scale.set(.126, .156, .025);
+    highlight.updateMatrix();
+    highlights.setMatrixAt(index, highlight.matrix);
+  }
+  eyes.instanceMatrix.needsUpdate = true;
+  highlights.instanceMatrix.needsUpdate = true;
+  helmet.add(eyes, highlights);
+  lodDetails.push(chestLight, belt, helmetBand);
 
   const backpack = new THREE.Group();
   backpack.position.set(0, .86, -.45);
@@ -87,12 +118,14 @@ export function createAstronautVisual(options: AstronautOptions): AstronautVisua
     const knee = new THREE.Mesh(new THREE.SphereGeometry(.15, 7, 5), suit);
     knee.position.set(0, -.28, .1);
     const boot = new THREE.Mesh(bootGeometry, white);
-    boot.position.set(0, -.58, .13);
     boot.scale.set(1.05, .72, 1.5);
     const sole = new THREE.Mesh(new THREE.BoxGeometry(.36, .08, .48), dark);
-    sole.position.set(0, -.73, .18);
+    // An identity ankle parent preserves the canonical bind appearance while
+    // allowing the existing boot/sole to stay level when the leg bends.
+    const foot = new THREE.Group();foot.position.set(0,-.58,.13);
+    sole.position.set(0,-.15,.05);foot.add(boot,sole);
     lodDetails.push(knee, sole);
-    rig.add(leg, knee, boot, sole);
+    rig.add(leg, knee, foot);
     return rig;
   };
   const makeArm = (x: number): THREE.Group => {
@@ -113,6 +146,8 @@ export function createAstronautVisual(options: AstronautOptions): AstronautVisua
   };
   const leftLeg = makeLeg(-.26);
   const rightLeg = makeLeg(.26);
+  const leftFoot=leftLeg.children[2] as THREE.Group;
+  const rightFoot=rightLeg.children[2] as THREE.Group;
   const leftArm = makeArm(-.57);
   const rightArm = makeArm(.57);
   const antenna = new THREE.Mesh(new THREE.CylinderGeometry(.025, .025, .38, 5), white);
@@ -123,9 +158,11 @@ export function createAstronautVisual(options: AstronautOptions): AstronautVisua
   helmet.add(antenna, antennaTip);
   lodDetails.push(antenna, antennaTip);
 
-  group.add(torso, chest, chestLight, belt, helmet, backpack, leftLeg, rightLeg, leftArm, rightArm);
+  const upperBody = new THREE.Group();
+  upperBody.add(torso, chest, chestLight, belt, helmet, backpack, leftArm, rightArm);
+  group.add(upperBody, leftLeg, rightLeg);
   group.traverse((child) => {
     if (child instanceof THREE.Mesh) child.castShadow = castShadow;
   });
-  return { group, torso, helmet, visor, backpack, leftArm, rightArm, leftLeg, rightLeg, suitMaterial: suit, lodDetails };
+  return { group, upperBody, torso, helmet, visor, backpack, leftArm, rightArm, leftLeg, rightLeg, leftFoot, rightFoot, suitMaterial: suit, lodDetails };
 }

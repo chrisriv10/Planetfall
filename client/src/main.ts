@@ -3,12 +3,14 @@ import { BALANCE, BR_BALANCE, BR_HEALS, BR_MAP, BR_POIS, BR_SECONDARY_LOCATIONS,
 import { createGameSocket } from "./network";
 import { inputLabel, type InputMethod } from "./input";
 import { SETTINGS_STORAGE_KEY, parseStoredSettings, type UserSettings } from "./settings";
+import { AutoQualityController } from "./auto-quality";
+import { musicSceneForScreen } from "./audio";
 import { brStormReadout } from "./modes/battle-royale/br-feedback";
 import { updateBrMinimapArt } from "./modes/battle-royale/br-map-art";
 import { updateBrTacticalMap } from "./modes/battle-royale/br-tactical-map";
 import { brPresentedTeammates, brTeammateStatus } from "./modes/battle-royale/br-team-presentation";
 import { brItemIconSvg, type BrItemArtId } from "./modes/battle-royale/br-item-art";
-import { createShopCosmeticPreview } from "./shop-cosmetic-preview";
+import { createShopCosmeticPreview, mountShopCosmeticPreviews } from "./shop-cosmetic-preview";
 import { brContextPromptFor } from "./modes/battle-royale/br-interaction-presentation";
 
 const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -90,6 +92,8 @@ const brQuickDifficulty = byId<HTMLSelectElement>("br-quick-difficulty");
 const brQuickStart = byId<HTMLButtonElement>("br-quick-start");
 const brQuickCancel = byId<HTMLButtonElement>("br-quick-cancel");
 let shopCategory: CosmeticCategory = "suit";
+let releaseShopPreviews = () => {};
+let releasePassPreviews = () => {};
 createButton.disabled = true; soloButton.disabled = true; joinButton.disabled = true; settingsOpenButton.disabled = true; shopHomeButton.disabled = true;
 nameInput.value = nameInput.value || localStorage.getItem("planetfall:name") || "";
 
@@ -99,7 +103,14 @@ let settings = parseStoredSettings(localStorage.getItem(SETTINGS_STORAGE_KEY), p
 const socket = createGameSocket();
 const { PlanetfallGame } = await import("./game");
 const game = new PlanetfallGame(canvas);
-game.setSettings(settings);
+const autoQuality = new AutoQualityController({
+  maxTextureSize: game.renderer.capabilities.maxTextureSize,
+  maxSamples: game.renderer.capabilities.maxSamples,
+  devicePixelRatio,
+  deviceMemory: (navigator as Navigator & { deviceMemory?: number }).deviceMemory
+}, settings.graphicsQuality);
+const runtimeSettings = () => ({ ...settings, graphicsQuality: autoQuality.quality });
+game.setSettings(runtimeSettings());
 
 type BrGame = import("./modes/battle-royale/br-game").BattleRoyaleGame;
 let brGame: BrGame | null = null;
@@ -115,6 +126,8 @@ let playerId = "";
 let currentCode = "";
 let currentName = "";
 let joining = false;
+let leaving = false;
+let membershipGeneration = 0;
 let countdownTimer = 0;
 let countdownNumber = -1;
 let announcedWinner: string | null | undefined;
@@ -212,6 +225,7 @@ socket.on("match:stat", (stats) => {
 });
 socket.on("match:callout", ({ type }) => showMajorCallout(type));
 socket.on("match:ended", ({ winnerId, result }) => {
+  if(leaving||!room||currentFamily!=="planetfall")return;
   if (room) {
     room.matchResult = result;
     room.winStreak = result.winStreak;
@@ -241,7 +255,7 @@ socket.on("match:ended", ({ winnerId, result }) => {
 
 socket.on("br:error", ({ message }) => toast(message));
 socket.on("br:room:state", (nextRoom) => { void applyBrRoom(nextRoom); });
-socket.on("br:match:snapshot", (snapshot) => { if(currentFamily==="battle-royale")brGame?.applySnapshot(snapshot); });
+socket.on("br:match:snapshot", (snapshot) => { if(!leaving&&brRoom&&currentFamily==="battle-royale")brGame?.applySnapshot(snapshot); });
 socket.on("br:match:countdown", () => undefined);
 socket.on("br:ship:jumped", (payload) => brGame?.shipJumped(payload));
 socket.on("br:loot:spawned", (loot) => { if (brGame) brGame.spawnLoot(loot); else pendingBrLoot.push(...loot); });
@@ -256,7 +270,7 @@ socket.on("br:player:eliminated", ({ playerId: targetId, attackerId, weaponId, p
 socket.on("br:kill-feed", () => undefined);
 socket.on("br:ping", ({ playerId: sourceId, position }) => { const source = brRoom?.players.find((player) => player.id === sourceId); brGame?.showPing(source?.name ?? "Pilot", position, source?.color ?? "#70f5ff"); });
 socket.on("br:emote", ({ playerId: sourceId, emote, startedAt }) => { brGame?.playEmote(sourceId, emote, startedAt); showLobbyEmote(sourceId, emote, "battle-royale"); });
-socket.on("br:match:ended", (result) => showBrResults(result));
+socket.on("br:match:ended", (result) => {if(!leaving&&brRoom&&currentFamily==="battle-royale")showBrResults(result);});
 
 game.onInput = (input) => socket.emit("player:input", input);
 game.onFire = (weapon, direction) => socket.emit("cannon:fire", { weapon, direction });
@@ -307,7 +321,7 @@ settingsCloseButton.addEventListener("click", closeSettings);
 pauseButton.addEventListener("click", () => togglePause(true));
 resumeButton.addEventListener("click", closePause);
 pauseSettingsButton.addEventListener("click", () => openSettings("pause"));
-pauseLeaveButton.addEventListener("click", () => location.reload());
+pauseLeaveButton.addEventListener("click", () => void leaveRoom());
 for (const control of [mouseSensitivity, controllerSensitivity, invertY, musicVolume, sfxVolume, cameraShake, graphicsQuality]) {
   control.addEventListener("input", updateSettingsFromUi);
   control.addEventListener("change", updateSettingsFromUi);
@@ -387,7 +401,9 @@ byId("weapon-button").addEventListener("click", () => {
   updateWeapon(game.weapon); game.audio.click();
 });
 byId("rematch-button").addEventListener("click", () => { socket.emit("match:rematch"); game.audio.click(); });
-byId("leave-button").addEventListener("click", () => location.reload());
+byId("leave-button").addEventListener("click", () => void leaveRoom());
+byId("leave-lobby").addEventListener("click", () => void leaveRoom());
+byId("br-leave-lobby").addEventListener("click", () => void leaveRoom());
 brReadyButton.addEventListener("click", () => {
   const me = brRoom?.players.find((player) => player.id === playerId); if (me) socket.emit("br:room:ready", { ready: !me.ready });
 });
@@ -413,13 +429,14 @@ byId("br-inventory-panel-slots").addEventListener("click", (event) => {
 });
 byId("br-return-lobby").addEventListener("click", () => socket.emit("br:match:return"));
 byId("br-shop-results").addEventListener("click", openShop);
-byId("br-leave").addEventListener("click", () => location.reload());
-byId("br-elimination-quit").addEventListener("click", () => location.reload());
+byId("br-leave").addEventListener("click", () => void leaveRoom());
+byId("br-elimination-quit").addEventListener("click", () => void leaveRoom());
 familyPlanetfallButton.disabled = false; familyBrButton.disabled = false;
 createButton.disabled = false; soloButton.disabled = false; joinButton.disabled = false; settingsOpenButton.disabled = false; shopHomeButton.disabled = false;
 
 function selectFamily(family: GameFamily): void {
   selectedFamily = family;
+  if(currentScreen==="home"&&!room&&!brRoom)currentFamily=family;
   game.setHomeFamily(family);
   familyPlanetfallButton.classList.toggle("selected", family === "planetfall"); familyBrButton.classList.toggle("selected", family === "battle-royale");
   byId("home-intro").textContent = family === "planetfall" ? "Last planet standing wins." : "Drop onto Orbital Isle. Loot up. Be the last crew standing.";
@@ -446,8 +463,44 @@ async function copyRoomCode(code?: string): Promise<void> {
   try { await navigator.clipboard.writeText(code); toast("Room code copied!"); } catch { toast(`Room code: ${code}`); }
 }
 
+async function leaveRoom(): Promise<void> {
+  if (leaving || !currentCode) return;
+  if (!socket.connected) { toast("Reconnect before leaving the room."); return; }
+  leaving = true;
+  membershipGeneration++;
+  captureUi(true);
+  const code = currentCode;
+  const family = currentFamily;
+  try {
+    const result = await socket.timeout(5000).emitWithAck("room:leave", { code });
+    if (!result.ok) throw new Error(result.error);
+    sessionStorage.removeItem(family === "battle-royale" ? `planetfall:br:${code}` : `planetfall:${code}`);
+    currentCode = ""; playerId = ""; room = null; brRoom = null;
+    pendingBrLoot = []; pendingBrCrates = [];
+    brGame?.deactivate(); brGame?.reset(); game.clearRoom();
+    for (const overlay of [brQuickPlay, brInventoryOverlay, brMapOverlay, shopOverlay, passOverlay, settingsOverlay, pauseOverlay, emoteWheel]) overlay.hidden = true;
+    releaseShopPreviews(); releasePassPreviews();
+    for (const timer of [hintTimer, controlsTimer, modifierRevealTimer, majorCalloutTimer, brEventTimer]) clearTimeout(timer);
+    clearInterval(countdownTimer); countdownTimer = 0; countdownNumber = -1;
+    eventFeed.replaceChildren(); byId("br-kill-feed").replaceChildren();
+    byId("br-event-banner").hidden = true; byId("br-void-warning").hidden = true;
+    byId("br-elimination-summary").hidden = true; byId("br-altitude").hidden = true;
+    for (const node of brMiniTeammates.values()) node.remove(); brMiniTeammates.clear();
+    brInventoryMarkup = ""; brTeammateMarkup = ""; lastBrHudPlayer = null;
+    lastBrStormStage = null; lastBrStormPhase = -1; lastBrOutsideVoid = false; nextBrVoidCueAt = 0;
+    announcedWinner = undefined; lastMinuteCue = 0; leaderboardExpanded = false;
+    leaderboard.classList.remove("visible", "expanded"); controlHelp.classList.remove("visible");
+    game.audio.setUrgency(0); currentFamily = selectedFamily;
+    game.setHomeFamily(selectedFamily); game.setActive(true); game.setMode("home");
+    captureUi(false); showScreen("home"); focusFirst(screens.home);
+  } catch (error) {
+    toast(error instanceof Error ? error.message : "Could not leave. Please try again.");
+    captureUi(Boolean(activeOverlay()));
+  } finally { leaving = false; }
+}
+
 function joinOrCreate(kind: "create" | "join" | "solo", family = selectedFamily): void {
-  if (joining) return;
+  if (joining || leaving) return;
   const name = nameInput.value.trim();
   const code = codeInput.value.trim().toUpperCase();
   // Quick-play room creation is asynchronous. Capture the confirmed choices
@@ -490,9 +543,12 @@ function joinOrCreate(kind: "create" | "join" | "solo", family = selectedFamily)
 }
 
 function resumeRoom(): void {
+  if (leaving) return;
+  const generation = membershipGeneration;
   if (currentFamily === "battle-royale") {
     const sessionToken = sessionStorage.getItem(`planetfall:br:${currentCode}`) ?? undefined;
     socket.emit("br:room:join", { code: currentCode, name: currentName, sessionToken }, (result) => {
+      if (generation !== membershipGeneration || leaving) return;
       if (!result.ok) {
         toast("Room closed.");
         currentCode = ""; playerId = ""; brRoom = null; currentFamily = "planetfall";
@@ -506,6 +562,7 @@ function resumeRoom(): void {
   }
   const sessionToken = sessionStorage.getItem(`planetfall:${currentCode}`) ?? undefined;
   socket.emit("room:join", { code: currentCode, name: currentName, sessionToken }, (result) => {
+    if (generation !== membershipGeneration || leaving) return;
     if (!result.ok) {
       toast("Room closed.");
       currentCode = ""; playerId = ""; room = null; showScreen("home"); game.setMode("home");
@@ -516,6 +573,7 @@ function resumeRoom(): void {
 }
 
 function applyRoom(nextRoom: RoomView): void {
+  if (leaving || nextRoom.code !== currentCode || !playerId) return;
   const previousPhase = room?.phase;
   currentFamily = "planetfall";
   brGame?.deactivate();
@@ -542,10 +600,11 @@ function applyRoom(nextRoom: RoomView): void {
   }
 }
 
-async function ensureBrGame(nextRoom: BrRoomView): Promise<BrGame> {
+async function ensureBrGame(nextRoom: BrRoomView): Promise<BrGame | null> {
+  const generation = membershipGeneration;
+  const expectedPlayer = playerId;
   if (!brGamePromise) brGamePromise = import("./modes/battle-royale/br-game").then(({ BattleRoyaleGame }) => {
-    game.setActive(false);
-    const instance = new BattleRoyaleGame(canvas, game.renderer, game.getInputController(), game.audio, settings);
+    const instance = new BattleRoyaleGame(canvas, game.renderer, game.getInputController(), game.audio, runtimeSettings());
     instance.onInput = (input) => socket.emit("br:player:input", input);
     instance.onJumpShip = () => socket.emit("br:player:jump");
     instance.onDeploy = () => socket.emit("br:player:deploy");
@@ -554,7 +613,7 @@ async function ensureBrGame(nextRoom: BrRoomView): Promise<BrGame> {
     instance.onReload = () => socket.emit("br:weapon:reload");
     instance.onUseItem = () => socket.emit("br:item:use");
     instance.onPickup = (lootId, replaceSlot) => socket.emit("br:inventory:pickup", { lootId, replaceSlot }, (result) => {
-      if (result.ok) game.audio.pickup();
+      if (result.ok) game.audio.brLoot();
       else { game.audio.denied(); toast(result.error ?? "Pickup failed."); }
     });
     instance.onOpenCrate = (crateId) => socket.emit("br:crate:open", { crateId });
@@ -577,29 +636,40 @@ async function ensureBrGame(nextRoom: BrRoomView): Promise<BrGame> {
     return instance;
   });
   const instance = await brGamePromise;
+  if (leaving || generation !== membershipGeneration || brRoom !== nextRoom || currentFamily !== "battle-royale" || playerId !== expectedPlayer) return null;
+  if(nextRoom.phase==="lobby"){
+    // The existing canonical overview supplies the ready-room background.
+    // Preparing gameplay assets must not keep a second full world rendering
+    // behind lobby controls; countdown takes ownership below.
+    instance.deactivate();
+    return instance;
+  }
   game.setActive(false);
   instance.activate(nextRoom, playerId);
+  instance.setUiCaptured(Boolean(activeOverlay()));
   if (pendingBrLoot.length) { instance.spawnLoot(pendingBrLoot); pendingBrLoot = []; }
   if (pendingBrCrates.length) { instance.spawnCrates(pendingBrCrates); pendingBrCrates = []; }
   return instance;
 }
 
 async function applyBrRoom(nextRoom: BrRoomView): Promise<void> {
+  if (leaving || nextRoom.code !== currentCode || !playerId) return;
   const previousBrPhase = brRoom?.phase;
   brRoom = nextRoom; currentFamily = "battle-royale";
   modifierReveal.classList.remove("visible"); countdown.textContent = ""; leaderboard.classList.remove("visible");
   renderInputUi(brGame?.getInputMethod() ?? game.getInputMethod());
   if (nextRoom.phase === "lobby") {
     if (brGame && previousBrPhase && previousBrPhase !== "lobby") brGame.reset(); pendingBrLoot = []; pendingBrCrates = []; byId("br-kill-feed").replaceChildren(); brInventoryMarkup = ""; brTeammateMarkup = "";lastBrHudPlayer=null;lastBrStormStage=null;lastBrStormPhase=-1;lastBrOutsideVoid=false;nextBrVoidCueAt=0;byId("br-void-warning").hidden=true;byId("br-event-banner").hidden=true;for (const node of brMiniTeammates.values()) node.remove(); brMiniTeammates.clear(); game.setActive(false); showScreen("brLobby");
+    brGame?.deactivate();game.setHomeFamily("battle-royale");game.setMode("home");game.setActive(true);
     // The room is already authoritative. Its code, roster and controls must
     // not wait for a large renderer import/initialization to finish.
     renderBrLobby();
     if (!shopOverlay.hidden) renderShop(); if (!passOverlay.hidden) renderPass();
     const instance = await ensureBrGame(nextRoom);
-    if (brRoom === nextRoom && currentFamily === "battle-royale") instance.setRoom(nextRoom);
+    instance?.setRoom(nextRoom);
     return;
   }
-  if (nextRoom.phase === "results") { const instance = await ensureBrGame(nextRoom); instance.setRoom(nextRoom); if (nextRoom.matchResult) showBrResults(nextRoom.matchResult); return; }
+  if (nextRoom.phase === "results") { const instance = await ensureBrGame(nextRoom); if (!instance) return; instance.setRoom(nextRoom); if (nextRoom.matchResult) showBrResults(nextRoom.matchResult); return; }
   // The BR module is loaded asynchronously. Prime the visible count strip
   // from the authoritative room view before revealing the HUD so a configured
   // 10/20-player quick match never flashes the markup's 40-player default.
@@ -625,7 +695,7 @@ async function applyBrRoom(nextRoom: BrRoomView): Promise<void> {
     miniStorm.style.width = miniStorm.style.height = `${nextRoom.storm.radius / span * 100}%`;
   }
   showScreen("brHud");
-  const instance = await ensureBrGame(nextRoom); instance.setRoom(nextRoom);
+  const instance = await ensureBrGame(nextRoom); instance?.setRoom(nextRoom);
 }
 
 function renderBrLobby(): void {
@@ -972,12 +1042,14 @@ function openShop(): void {
 }
 
 function closeShop(): void {
+  releaseShopPreviews();
   shopOverlay.hidden = true;
   captureUi(false);
   focusFirst(screens[currentScreen]);
 }
 
 function renderShop(): void {
+  releaseShopPreviews();
   const me = (currentFamily === "battle-royale" ? brRoom?.players : room?.players)?.find((player) => player.id === playerId);
   const previewing = !me;
   byId("shop-balance").textContent = String(me?.fallbucks ?? 0);
@@ -1011,6 +1083,7 @@ function renderShop(): void {
     });
     return card;
   }));
+  releaseShopPreviews = mountShopCosmeticPreviews(shopGrid);
 }
 
 function openPass(): void {
@@ -1024,12 +1097,14 @@ function openPass(): void {
 }
 
 function closePass(): void {
+  releasePassPreviews();
   passOverlay.hidden = true;
   captureUi(false);
   focusFirst(screens[currentScreen]);
 }
 
 function renderPass(): void {
+  releasePassPreviews();
   const me = (currentFamily === "battle-royale" ? brRoom?.players : room?.players)?.find((player) => player.id === playerId);
   const level = me?.sessionLevel ?? 1;
   const xp = me?.sessionXp ?? 0;
@@ -1043,9 +1118,10 @@ function renderPass(): void {
     tier.innerHTML = `<strong>${reward.level}</strong><i></i><span>${escapeHtml(reward.label)}</span>`;
     const cosmetic = reward.cosmeticId ? SHOP_CATALOG.find((item) => item.id === reward.cosmeticId) : undefined;
     tier.style.setProperty("--reward-color", cosmetic?.color ?? "#70f5ff");
-    if (cosmetic?.color) (tier.querySelector("i") as HTMLElement).style.background = cosmetic.color;
+    if (cosmetic) tier.querySelector("i")!.replaceWith(createShopCosmeticPreview(cosmetic));
     return tier;
   }));
+  releasePassPreviews = mountShopCosmeticPreviews(byId("pass-track"));
 }
 
 function hydrateSettings(): void {
@@ -1070,10 +1146,24 @@ function updateSettingsFromUi(): void {
     graphicsQuality: graphicsQuality.value
   } satisfies Record<keyof UserSettings, unknown>), prefersReducedMotion);
   localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
-  game.setSettings(settings);
-  brGame?.setSettings(settings);
+  autoQuality.setSelection(settings.graphicsQuality);
+  game.setSettings(runtimeSettings());
+  brGame?.setSettings(runtimeSettings());
   updateSettingOutputs();
 }
+
+let qualitySampleAt = performance.now();
+function sampleAutoQuality(now: number): void {
+  const elapsed = now - qualitySampleAt; qualitySampleAt = now;
+  const gameplay = !document.hidden && !activeOverlay() && !joining && !leaving &&
+    (currentScreen === "hud" && (room?.phase === "playing" || room?.phase === "overtime") ||
+     currentScreen === "brHud" && (brRoom?.phase === "ship" || brRoom?.phase === "combat"));
+  if (autoQuality.sample(elapsed, gameplay)) {
+    game.setSettings(runtimeSettings()); brGame?.setSettings(runtimeSettings());
+  }
+  requestAnimationFrame(sampleAutoQuality);
+}
+requestAnimationFrame(sampleAutoQuality);
 
 function updateSettingOutputs(): void {
   byId<HTMLOutputElement>("mouse-sensitivity-value").value = `${settings.mouseSensitivity.toFixed(1)}x`;
@@ -1116,7 +1206,8 @@ function togglePause(forceOpen = false): void {
 function closePause(): void {
   pauseOverlay.hidden = true;
   captureUi(false);
-  if ((brGame?.getInputMethod() ?? game.getInputMethod()) === "keyboard") void canvas.requestPointerLock().catch(() => undefined);
+  const gameplay = currentScreen === "hud" && (room?.phase === "playing" || room?.phase === "overtime") || currentScreen === "brHud" && (brRoom?.phase === "ship" || brRoom?.phase === "combat");
+  if (gameplay && !activeOverlay() && (currentFamily === "battle-royale" ? brGame?.getInputMethod() : game.getInputMethod()) === "keyboard") void canvas.requestPointerLock().catch(() => undefined);
 }
 
 function renderInputUi(method: InputMethod): void {
@@ -1178,7 +1269,7 @@ function navigateUi(action: "up" | "down" | "left" | "right" | "confirm" | "back
     if (!passOverlay.hidden) return closePass();
     if (!settingsOverlay.hidden) return closeSettings();
     if (!pauseOverlay.hidden) return closePause();
-    if (currentScreen === "lobby" || currentScreen === "brLobby") location.reload();
+    if (currentScreen === "lobby" || currentScreen === "brLobby") void leaveRoom();
     return;
   }
   const root = !brInventoryOverlay.hidden ? brInventoryOverlay : !brMapOverlay.hidden ? brMapOverlay : !shopOverlay.hidden ? shopOverlay : !passOverlay.hidden ? passOverlay : !settingsOverlay.hidden ? settingsOverlay : !pauseOverlay.hidden ? pauseOverlay : screens[currentScreen];
@@ -1226,7 +1317,11 @@ function setGameMode(mode: GameMode): void {
 function showScreen(name: keyof typeof screens): void {
   const previousFamily=document.body.dataset.gameFamily;
   currentScreen = name;
-  game.audio.setMusicScene(name === "hud" || name === "brHud" ? "game" : "menu");
+  if (name !== "hud" && name !== "brHud") {
+    document.exitPointerLock?.();
+    byId("br-scope-overlay").hidden = true;
+  }
+  game.audio.setMusicScene(musicSceneForScreen(name));
   for (const [key, screen] of Object.entries(screens)) screen.classList.toggle("active", key === name);
   const brScreen = name === "brLobby" || name === "brHud" || name === "brResults";
   document.body.dataset.gameFamily = brScreen ? "battle-royale" : "planetfall";

@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { frameDeltaSeconds } from "./frame-time";
+import { BackgroundDrawBudget } from "./background-draw-budget";
 import RAPIER from "@dimforge/rapier3d-compat";
 import {
   BALANCE,
@@ -54,11 +56,15 @@ import {
 } from "@planetfall/shared";
 import { GameAudio } from "./audio";
 import { createAstronautVisual } from "./astronaut";
+import { createAstronautMotion } from "./astronaut-motion";
+import { createCosmeticFlightTrail, configureCosmeticFlightTrail, updateCosmeticFlightTrail } from "./cosmetic-flight-trail";
+import { applyCosmeticEmotePose } from "./cosmetic-pose";
+import { homeIslandLayout } from "./home-island-layout";
 import { classicSpectatorCycleDirection, classicSpectatorPrompt } from "./classic-spectator";
 import { createVerityPlanetVisual, updateVerityPlanetVisual, type VerityPlanetVisual } from "./planet-cosmetics";
 import { GameInput, inputLabel, type InputAction, type InputFrame, type InputMethod } from "./input";
 import { ReconciliationTracker, interpolationAlpha, shouldAcceptSnapshot, type ReconciliationMetrics } from "./reconciliation";
-import { QUALITY_PRESETS, defaultSettings, shakeMultiplier, type QualityPreset, type UserSettings } from "./settings";
+import { QUALITY_PRESETS, defaultSettings, shakeMultiplier, type QualityPreset, type RuntimeSettings as UserSettings } from "./settings";
 
 type PlanetVisual = {
   group: THREE.Group;
@@ -99,6 +105,9 @@ type PlanetVisual = {
   body?: RAPIER.RigidBody;
 };
 type PlayerVisual = {
+  motion: ReturnType<typeof createAstronautMotion>;
+  motionQuaternion: THREE.Quaternion;
+  motionPosition: THREE.Vector3;
   group: THREE.Group;
   target: THREE.Vector3;
   state: PlayerState;
@@ -253,7 +262,7 @@ export class PlanetfallGame {
   private particles: Particle[] = [];
   private readonly input: GameInput;
   private inputFrame: InputFrame | null = null;
-  private settings: UserSettings = defaultSettings(matchMedia("(prefers-reduced-motion: reduce)").matches);
+  private settings: UserSettings = {...defaultSettings(matchMedia("(prefers-reduced-motion: reduce)").matches), graphicsQuality:"medium"};
   private quality: QualityPreset = QUALITY_PRESETS.high;
   private uiCaptured = false;
   private yaw = 0;
@@ -278,6 +287,8 @@ export class PlanetfallGame {
   private grappleTension = 0;
   private localSurfacePlanetId: string | null = null;
   private localGravityPlanetId: string | null = null;
+  private readonly motionVelocity = new THREE.Vector3();
+  private readonly motionQuaternion = new THREE.Quaternion();
   private localGrounded = false;
   private lastLocalGroundedAt = 0;
   private previousRadialSpeed = 0;
@@ -317,6 +328,7 @@ export class PlanetfallGame {
   private nextChaosParticleAt = 0;
   private measuredFps = 60;
   private performanceFrames = 0;
+  private readonly backgroundDrawBudget = new BackgroundDrawBudget();
   private performanceSampleAt = performance.now();
   private lastSnapshotServerTime = Number.NEGATIVE_INFINITY;
   private reconciliationTracker = new ReconciliationTracker();
@@ -389,6 +401,18 @@ export class PlanetfallGame {
 
   getInputController(): GameInput { return this.input; }
 
+  clearRoom(): void {
+    this.setUiCaptured(true);
+    this.setMode("home");
+    this.resetVisualEffects();
+    this.syncPlanets([]); this.syncPlayers([]); this.syncScraps([]); this.syncLobbyPlayers([]);
+    this.room = null;
+    this.setLocalId("");
+    this.localVelocity.set(0, 0, 0);
+    this.correction.set(0, 0, 0);
+    this.setUiCaptured(false);
+  }
+
   setMode(mode: "home" | "lobby" | "match" | "results"): void {
     this.mode = mode;
     this.demo.visible = mode === "home" && this.homeFamily === "planetfall";
@@ -420,13 +444,9 @@ export class PlanetfallGame {
     if (this.brHomeWorld) this.brHomeWorld.root.visible = this.mode === "home" && family === "battle-royale";
     if (family !== "battle-royale" || this.brHomeWorld || this.brHomeWorldPromise) return;
     this.brHomeWorldPromise = import("./modes/battle-royale/br-world").then(({ BrWorldRenderer }) => {
-      const world = new BrWorldRenderer("low");
+      const world = new BrWorldRenderer("low", false, true);
       world.root.name = "home-orbital-isle-preview";
-      world.root.scale.setScalar(.025);
-      // Keep the island clear of the left-hand home card while preserving an
-      // aerial angle that shows both the inhabited deck and engine underside.
-      world.root.position.set(innerWidth >= 1100 ? 12 : innerWidth >= 820 ? 9.5 : 7, 5, -8);
-      world.root.rotation.y = -.32;
+      world.root.rotation.set(.25, -.32, .06);
       world.root.visible = this.mode === "home" && this.homeFamily === "battle-royale";
       this.scene.add(world.root);
       this.brHomeWorld = world;
@@ -450,7 +470,7 @@ export class PlanetfallGame {
   setSettings(settings: UserSettings): void {
     this.settings = settings;
     this.quality = QUALITY_PRESETS[settings.graphicsQuality];
-    if (this.active) this.renderer.setPixelRatio(Math.min(devicePixelRatio, this.quality.pixelRatioCap));
+    if (this.active) this.renderer.setPixelRatio(Math.min(devicePixelRatio, this.quality.pixelRatioCap) * this.quality.resolutionScale);
     this.audio.setVolumes(settings.musicVolume, settings.sfxVolume);
   }
 
@@ -1064,7 +1084,7 @@ export class PlanetfallGame {
       if (states.some((state) => state.id === id)) continue;
       this.lobbyStage.remove(visual.platform);
       this.disposeObject(visual.platform);
-      visual.player.flightTrail.geometry.dispose(); this.disposeMaterial(visual.player.flightTrail.material);
+      this.disposeObject(visual.player.flightTrail);
       this.lobbyPlayers.delete(id);
     }
     const ordered = states.map((state) => this.lobbyPlayers.get(state.id)).filter(Boolean) as LobbyPlayerVisual[];
@@ -1395,12 +1415,10 @@ export class PlanetfallGame {
     localChevron.position.y = 2.55; localChevron.rotation.z = Math.PI;
     localMarker.add(localRing, localChevron); localMarker.visible = false; group.add(localMarker);
     group.position.copy(vec(state.position));
-    const trailGeometry = new THREE.BufferGeometry();
-    trailGeometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(12 * 3), 3).setUsage(THREE.DynamicDrawUsage));
-    trailGeometry.setDrawRange(0, 0);
-    const flightTrail = new THREE.Line(trailGeometry, new THREE.LineBasicMaterial({ color: cosmeticColor(state.equippedCosmetics.trail, state.color), transparent: true, opacity: 0.72 }));
+    const flightTrail = createCosmeticFlightTrail(cosmeticColor(state.equippedCosmetics.trail, state.color),state.equippedCosmetics.trail);
     flightTrail.visible = false;
     return {
+      motion:createAstronautMotion(astronaut), motionQuaternion:group.quaternion.clone(), motionPosition:group.position.clone(),
       group, target: group.position.clone(), state, leftArm, rightArm, leftLeg, rightLeg, torso, helmet, visor, backpack,
       flightTrail, flightTrailPoints: [], intruderMarker, intruderDiamond: markerDiamond, nameLabel: label, localMarker,
       suitMaterial: suit, emote: null, emoteUntil: 0, shoveUntil: 0, hitPulse: 0, landingPulse: 0,
@@ -1534,7 +1552,7 @@ export class PlanetfallGame {
       visual.state = state;
       updateWorldLabel(visual.nameLabel, `${state.name.toUpperCase()}${state.isBot ? "  BOT" : ""}`, state.color);
       visual.suitMaterial.color.set(cosmeticColor(state.equippedCosmetics.suit, state.color));
-      (visual.flightTrail.material as THREE.LineBasicMaterial).color.set(cosmeticColor(state.equippedCosmetics.trail, state.color));
+      configureCosmeticFlightTrail(visual.flightTrail,cosmeticColor(state.equippedCosmetics.trail, state.color),state.equippedCosmetics.trail);
       visual.target.copy(vec(state.position));
       visual.group.visible = state.alive && (this.mode === "match" || this.mode === "results");
       visual.intruderMarker.visible = Boolean(state.alive && this.mode === "match");
@@ -1573,7 +1591,7 @@ export class PlanetfallGame {
     }
     for (const [id, visual] of this.players) if (!states.some((s) => s.id === id)) {
       this.scene.remove(visual.group, visual.flightTrail); this.disposeObject(visual.group);
-      visual.flightTrail.geometry.dispose(); this.disposeMaterial(visual.flightTrail.material); this.players.delete(id);
+      this.disposeObject(visual.flightTrail); this.players.delete(id);
     }
   }
 
@@ -1625,7 +1643,7 @@ export class PlanetfallGame {
   }
 
   private frame(now: number): void {
-    const dt = Math.min(0.05, (now - this.lastFrame) / 1000);
+    const dt = frameDeltaSeconds(now, this.lastFrame);
     this.lastFrame = now;
     this.inputFrame = this.input.sample();
     this.processControls(this.inputFrame, dt);
@@ -1640,8 +1658,10 @@ export class PlanetfallGame {
     else this.updateMatch(dt, now);
     this.updateEffects(dt);
     if (this.physics) this.physics.step();
-    this.renderer.render(this.scene, this.camera);
-    this.performanceFrames += 1;
+    const drawDue = this.backgroundDrawBudget.drawDue(now, this.mode === "home" && this.homeFamily === "battle-royale");
+    if (drawDue) this.renderer.render(this.scene, this.camera);
+    // Report rendered frames rather than the faster UI/update RAF frequency.
+    if (drawDue) this.performanceFrames += 1;
     if (now - this.performanceSampleAt >= 1000) {
       this.measuredFps = this.performanceFrames * 1000 / (now - this.performanceSampleAt);
       this.performanceFrames = 0; this.performanceSampleAt = now;
@@ -1777,8 +1797,6 @@ export class PlanetfallGame {
       for (const child of this.demo.children) child.rotation.y += dt * 0.08;
     } else if (this.brHomeWorld) {
       this.brHomeWorld.root.rotation.y = -.32 + Math.sin(this.demoTime * .08) * .055;
-      const previewX = innerWidth >= 1100 ? 12 : innerWidth >= 820 ? 9.5 : 7;
-      this.brHomeWorld.root.position.x += (previewX - this.brHomeWorld.root.position.x) * (1 - Math.exp(-dt * 5));
     }
     const compact = innerWidth < 820;
     const homeComposition = this.mode === "home" && !compact;
@@ -1791,6 +1809,14 @@ export class PlanetfallGame {
     this.camera.position.lerp(cameraPosition, 0.025);
     this.camera.lookAt(target);
     if (this.brHomeWorld?.root.visible) {
+      this.camera.updateMatrixWorld();
+      const card=document.querySelector<HTMLElement>("#home-screen .home-card")?.getBoundingClientRect();
+      const layout=homeIslandLayout(innerWidth,innerHeight,card?.right??innerWidth*.46);
+      const distance=42,worldHeight=2*distance*Math.tan(THREE.MathUtils.degToRad(this.camera.fov/2)),worldWidth=worldHeight*this.camera.aspect;
+      const forward=new THREE.Vector3(),right=new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld,0),up=new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld,1);
+      this.camera.getWorldDirection(forward);
+      this.brHomeWorld.root.position.copy(this.camera.position).addScaledVector(forward,distance).addScaledVector(right,layout.centerX*worldWidth/2).addScaledVector(up,layout.centerY*worldHeight/2);
+      this.brHomeWorld.root.scale.setScalar(worldWidth*layout.radiusFraction/520);
       this.brHomeWorld.root.updateMatrixWorld(true);
       this.brHomeCamera.position.copy(this.camera.position);
       this.brHomeWorld.root.worldToLocal(this.brHomeCamera.position);
@@ -2561,11 +2587,27 @@ export class PlanetfallGame {
       for (const detail of visual.lodDetails) detail.visible = showMascotDetails;
       const velocity = visual.state.id === this.localId ? this.localVelocity : vec(visual.state.velocity);
       const speed = velocity.length();
-      const stride = Math.sin(this.demoTime * (5 + Math.min(speed, 7))) * Math.min(.62, speed * .09);
-      visual.leftLeg.rotation.x = stride; visual.rightLeg.rotation.x = -stride;
-      visual.leftArm.rotation.x = -stride * .72; visual.rightArm.rotation.x = stride * .72;
-      visual.leftArm.rotation.z = .17; visual.rightArm.rotation.z = -.17;
-      visual.torso.rotation.z = 0;
+      const isLocal=visual.state.id===this.localId;
+      const surface=isLocal?this.localSurfacePlanetId:visual.state.surfacePlanetId;
+      const teleported=visual.motionPosition.distanceToSquared(visual.group.position)>64;
+      if(teleported)visual.motion.reset();
+      this.motionQuaternion.copy(visual.group.quaternion).invert();
+      this.motionVelocity.copy(velocity).applyQuaternion(this.motionQuaternion);
+      this.motionQuaternion.copy(visual.motionQuaternion).invert().multiply(visual.group.quaternion);
+      const input=visual.motion.input;
+      input.dt=dt;input.timeSeconds=animationNow/1000;input.forwardSpeed=this.motionVelocity.z;input.lateralSpeed=this.motionVelocity.x;input.verticalSpeed=this.motionVelocity.y;
+      const turn=2*Math.atan2(this.motionQuaternion.y,this.motionQuaternion.w);
+      input.turnRate=teleported?0:Math.atan2(Math.sin(turn),Math.cos(turn))/Math.max(.001,dt);
+      input.grounded=isLocal?this.localGrounded:Boolean(surface)&&Math.abs(this.motionVelocity.y)<2;
+      input.walkSpeed=BALANCE.moveSpeed*.5;input.runSpeed=BALANCE.moveSpeed;input.aiming=false;input.crouched=false;input.item='none';
+      input.detail=isLocal||playerDistance<10?'near':'far';input.landingPulse=visual.landingPulse;
+      input.special=Boolean(this.mode!=='match'||!visual.state.alive||!surface&&speed>10||animationNow<visual.emoteUntil&&visual.emote||animationNow<visual.shoveUntil||isLocal&&(this.grappleHeld||this.activeSabotage));
+      visual.motion.update();visual.motionQuaternion.copy(visual.group.quaternion);visual.motionPosition.copy(visual.group.position);
+      visual.torso.rotation.set(0,0,0);visual.torso.position.y=.72;
+      if(input.special&&this.mode==='match'){
+        visual.leftArm.rotation.set(0,0,.17);visual.rightArm.rotation.set(0,0,-.17);
+        visual.leftLeg.rotation.set(0,0,0);visual.rightLeg.rotation.set(0,0,0);
+      }
       if (animationNow < visual.emoteUntil && visual.emote) this.applyEmotePose(visual, visual.emote, animationNow);
       if (animationNow < visual.shoveUntil) { visual.rightArm.rotation.x = -1.7; visual.rightArm.rotation.z = -0.7; }
       if (visual.state.id === this.localId && this.grappleHeld) visual.rightArm.rotation.x = -2.15;
@@ -2577,16 +2619,16 @@ export class PlanetfallGame {
         visual.leftArm.rotation.x = -1.35; visual.rightArm.rotation.x = -1.35;
         visual.leftLeg.rotation.x = .35; visual.rightLeg.rotation.x = .35;
       }
-      visual.torso.position.y = .72 + Math.abs(stride) * .045;
+
       const burstLean = visual.state.id === this.localId && animationNow - this.lastLocalBurst < 220 ? .16 : 0;
       const grappleLean = visual.state.id === this.localId ? Math.min(.13, this.grappleTension * .012) : 0;
-      visual.torso.rotation.x = clamp(-speed * .018 - burstLean - grappleLean, -.38, 0);
-      visual.helmet.position.y = 1.46 + Math.abs(stride) * .025;
-      visual.helmet.rotation.z = Math.sin(this.demoTime * 2.2 + visual.group.position.x) * (speed < .25 ? .025 : .01) + visual.hitPulse * .14;
-      visual.backpack.rotation.x = clamp(speed * .012, 0, .12);
+      if(input.special)visual.torso.rotation.x = clamp(-speed * .018 - burstLean - grappleLean, -.38, 0);
+
+      visual.helmet.rotation.z += visual.hitPulse * .14;
+      if(input.special)visual.backpack.rotation.x = clamp(speed * .012, 0, .12);
       visual.hitPulse *= Math.pow(.025, dt);
       visual.landingPulse *= Math.pow(.018, dt);
-      const idleScale = 1 + (speed < .25 ? Math.sin(this.demoTime * 2.4 + visual.group.position.x) * .018 : 0);
+      const idleScale = 1;
       visual.group.scale.set(
         idleScale + visual.hitPulse * .12 + visual.landingPulse * .14,
         idleScale - visual.hitPulse * .09 - visual.landingPulse * .18,
@@ -2620,9 +2662,7 @@ export class PlanetfallGame {
         const point = visual.group.position.clone().addScaledVector(velocity.clone().normalize(), -0.8);
         if (!visual.flightTrailPoints.length || point.distanceTo(visual.flightTrailPoints[0]) > .45) visual.flightTrailPoints.unshift(point);
         visual.flightTrailPoints.length = Math.min(visual.flightTrailPoints.length, Math.max(6, Math.round(12 * this.quality.trailScale)));
-        const attribute = visual.flightTrail.geometry.getAttribute("position") as THREE.BufferAttribute;
-        visual.flightTrailPoints.forEach((trailPoint, index) => attribute.setXYZ(index, trailPoint.x, trailPoint.y, trailPoint.z));
-        attribute.needsUpdate = true; visual.flightTrail.geometry.setDrawRange(0, visual.flightTrailPoints.length);
+        updateCosmeticFlightTrail(visual.flightTrail, visual.flightTrailPoints);
       } else {
         visual.flightTrailPoints.length = 0; visual.flightTrail.geometry.setDrawRange(0, 0);
       }
@@ -2905,26 +2945,7 @@ export class PlanetfallGame {
   }
 
   private applyEmotePose(visual: PlayerVisual, emote: EmoteType, now: number): void {
-    const phase = now * .012;
-    if (emote === "wave") {
-      visual.rightArm.rotation.x = -2.25; visual.rightArm.rotation.z = -.45 + Math.sin(phase * 1.8) * .45;
-    } else if (emote === "laugh") {
-      visual.leftArm.rotation.x = -1.3; visual.leftArm.rotation.z = .62;
-      visual.torso.rotation.z = Math.sin(phase * 2.3) * .1;
-    } else if (emote === "point") {
-      visual.rightArm.rotation.x = -1.55; visual.rightArm.rotation.z = -.08;
-    } else if (emote === "panic") {
-      visual.leftArm.rotation.x = -1.7 + Math.sin(phase * 2.4) * .55;
-      visual.rightArm.rotation.x = -1.7 - Math.sin(phase * 2.4) * .55;
-      visual.leftArm.rotation.z = .72; visual.rightArm.rotation.z = -.72;
-    } else if (emote === "taunt") {
-      visual.leftArm.rotation.x = -1.1; visual.rightArm.rotation.x = -1.1;
-      visual.torso.rotation.z = Math.sin(phase) * .13;
-    } else {
-      visual.leftArm.rotation.x = -2.45; visual.rightArm.rotation.x = -2.45;
-      visual.leftArm.rotation.z = .45; visual.rightArm.rotation.z = -.45;
-      visual.torso.position.y += Math.max(0, Math.sin(phase)) * .08;
-    }
+    applyCosmeticEmotePose(visual, emote, now);
   }
 
   private toggleWeapon(): void {
@@ -2982,7 +3003,7 @@ export class PlanetfallGame {
     // Both modes share one renderer; an inactive mode must not resize its
     // framebuffer or override the active mode's quality settings.
     if (!this.active) return;
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, this.quality.pixelRatioCap));
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio, this.quality.pixelRatioCap) * this.quality.resolutionScale);
     this.renderer.setSize(innerWidth, innerHeight);
   }
 }

@@ -2,6 +2,17 @@ import { describe, expect, it } from "vitest";
 import { BR_BASE_DECK_CELLS, BR_ELEVATION_REGIONS, BR_SECONDARY_GRADE_REGIONS, BR_TERRACES, BR_LOOT_SOCKETS, BR_MAP_BLOCKS, BR_POIS, BR_ROADS, BR_ROAD_ROUTES, BR_STRUCTURES, brAuthoredDeckHeight, brBaseDeckHeight, brFlatDeckCollision, brFloorHeightAt, brRoadGradeFloorAt, brJoinServiceGrades } from "./index.js";
 
 describe("authored multilevel Orbital Isle",()=>{
+  it("does not snap jumps or unsupported falls to a descending road",()=>{
+    const feet={x:-82,y:brFloorHeightAt({x:-82,y:5,z:-214},5)+.035,z:-214};
+    const step={x:.2466666667,y:0,z:0};
+    expect(brFlatDeckCollision(feet,step,true)?.grounded).toBe(false);
+    const falling=brFlatDeckCollision({...feet,y:feet.y+.3},{...step,y:-.02},false)!;
+    expect(falling.grounded).toBe(false);
+    expect(falling.movement.y).toBe(-.02);
+    const beyond=brFlatDeckCollision({x:-81,y:5.035,z:-208},{x:.24,y:0,z:0},false)!;
+    expect(beyond.grounded).toBe(false);
+    expect(beyond.movement.y).toBe(0);
+  });
   it("does not extend a grade endpoint into its descending continuation",()=>{
     const road=BR_ROADS.filter(r=>r.id.startsWith("transit-court-north-link")).at(-1)!;
     const block=BR_MAP_BLOCKS.find(b=>b.id===`${road.id}-surface`)!;

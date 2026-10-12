@@ -43,12 +43,34 @@ export function raySphereDistance(origin: Vec3, direction: Vec3, center: Vec3, r
 }
 
 export function brPlayerHitDistance(origin: Vec3, direction: Vec3, feet: Vec3, crouched = false, downed = false): { distance: number; headshot: boolean } | null {
-  const bodyY = downed ? .32 : crouched ? .42 : .5;
-  const headY = downed ? .55 : crouched ? .79 : 1.13;
-  const body = raySphereDistance(origin, direction, { x: feet.x, y: feet.y + bodyY, z: feet.z }, downed ? .52 : .43);
+  // Match the canonical helmet center (1.46m) plus the existing BR rig lift:
+  // .26m standing / .05m crouched. The old centers sat in the visible torso.
+  const headY = downed ? .55 : crouched ? 1.51 : 1.72;
+  // A modestly wider, taller torso covers the suit continuously from feet
+  // through shoulders. Movement collision and the precision head stay intact.
+  const bodyHeight = crouched ? .78 : 1.1;
+  const lowerBody = downed
+    ? raySphereDistance(origin, direction, { x: feet.x, y: feet.y + .32, z: feet.z }, .52)
+    : rayEllipsoidDistance(origin, direction, { x: feet.x, y: feet.y + bodyHeight / 2, z: feet.z }, { x: .5, y: bodyHeight / 2, z: .5 });
+  // Preserve the modest lower-body width and connect the actual upper suit to
+  // its helmet with a narrower chest region, rather than enlarging everything.
+  const upperBody=downed?null:rayEllipsoidDistance(origin,direction,{x:feet.x,y:feet.y+headY-.52,z:feet.z},{x:.45,y:.35,z:.45});
+  const body=lowerBody===null?upperBody:upperBody===null?lowerBody:Math.min(lowerBody,upperBody);
   const head = raySphereDistance(origin, direction, { x: feet.x, y: feet.y + headY, z: feet.z }, downed ? .25 : .3);
   if (head !== null && (body === null || head <= body)) return { distance: head, headshot: !downed };
   return body === null ? null : { distance: body, headshot: false };
+}
+
+function rayEllipsoidDistance(origin: Vec3, direction: Vec3, center: Vec3, radii: Vec3): number | null {
+  const transformed = { x: direction.x / radii.x, y: direction.y / radii.y, z: direction.z / radii.z };
+  const length = Math.hypot(transformed.x, transformed.y, transformed.z);
+  if (length < 1e-8) return null;
+  const distance = raySphereDistance(
+    { x: (origin.x - center.x) / radii.x, y: (origin.y - center.y) / radii.y, z: (origin.z - center.z) / radii.z },
+    { x: transformed.x / length, y: transformed.y / length, z: transformed.z / length },
+    { x: 0, y: 0, z: 0 }, 1
+  );
+  return distance === null ? null : distance / length;
 }
 
 export function seededRandom(seed: number): () => number {

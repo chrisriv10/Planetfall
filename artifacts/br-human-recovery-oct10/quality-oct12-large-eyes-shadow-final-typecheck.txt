@@ -1,0 +1,24 @@
+
+> planetfall@0.1.0 pretypecheck
+> npm run build -w @planetfall/shared
+
+
+> @planetfall/shared@0.1.0 build
+> tsc -p tsconfig.json
+
+
+> planetfall@0.1.0 typecheck
+> npm run typecheck --workspaces --if-present
+
+
+> @planetfall/client@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> @planetfall/server@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> @planetfall/shared@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+

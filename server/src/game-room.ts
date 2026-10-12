@@ -179,6 +179,7 @@ export class GameRoom {
       ? [...this.players.values()].find((p) => p.sessionToken === sessionToken && !p.connected && p.disconnectedAt !== null && now - p.disconnectedAt < BALANCE.reconnectGraceMs)
       : undefined;
     if (returning) {
+      if (!this.hostId) this.hostId = returning.id;
       returning.connected = true;
       returning.socketId = socket.id;
       returning.disconnectedAt = null;
@@ -324,6 +325,20 @@ export class GameRoom {
     const human = this.players.get(playerId);
     if (human) human.ready = true;
     this.start(playerId);
+  }
+
+  leave(playerId: string): void {
+    const player = this.players.get(playerId);
+    if (!player || player.isBot) return;
+    this.disconnect(playerId);
+    player.sessionToken = "";
+    const now = Date.now();
+    player.disconnectedAt = now - BALANCE.reconnectGraceMs;
+    this.removeExpiredDisconnects(now);
+    if (this.phase === "results") {
+      const humans = [...this.players.values()].filter((entry) => !entry.isBot && entry.connected);
+      if (humans.length && humans.every((entry) => this.rematchVotes.has(entry.id))) this.voteRematch(humans[0].id);
+    }
   }
 
   disconnect(playerId: string): void {
@@ -1447,7 +1462,7 @@ export class GameRoom {
 
   private removeExpiredDisconnects(now: number): void {
     let changed = false;
-    const matchActive = this.phase === "playing" || this.phase === "overtime";
+    const matchActive = this.phase === "countdown" || this.phase === "playing" || this.phase === "overtime";
     for (const player of [...this.players.values()]) {
       if (!player.connected && player.disconnectedAt && now - player.disconnectedAt >= BALANCE.reconnectGraceMs) {
         for (const other of this.players.values()) if (other.grappleTargetPlayerId === player.id) this.clearGrapple(other);

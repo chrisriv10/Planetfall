@@ -136,6 +136,7 @@ export class BattleRoyaleRoom {
     const now = Date.now();
     const returning = sessionToken ? [...this.players.values()].find((player) => player.sessionToken === sessionToken && !player.connected && player.disconnectedAt !== null && now - player.disconnectedAt < BR_BALANCE.reconnectGraceMs) : undefined;
     if (returning) {
+      if (!this.hostId) this.hostId = returning.id;
       returning.connected = true; returning.socketId = socket.id; returning.disconnectedAt = null; returning.name = name; returning.input = null;
       socket.join(this.code); socket.data.roomCode = this.code; socket.data.playerId = returning.id; socket.data.gameFamily = this.family;
       this.emitRoom();
@@ -405,7 +406,7 @@ export class BattleRoyaleRoom {
     if (!humans.every((player) => this.returnVotes.has(player.id))) { this.emitRoom(); return; }
     this.phase = "lobby"; this.matchResult = null; this.ship = null; this.countdownEndsAt = null; this.loot.clear(); this.lootGridDirty = true; this.crates.clear(); this.projectiles.clear();
     this.returnVotes.clear();
-    for (const [id, player] of this.players) if (player.isBot) { this.physics.remove(id); this.players.delete(id); }
+    for (const [id, player] of this.players) if (player.isBot || (!player.connected && !player.sessionToken)) { this.physics.remove(id); this.players.delete(id); }
     for (const player of this.players.values()) { player.ready = player.isBot; player.input = null; }
     this.assignTeams(); this.emitRoom();
   }
@@ -447,6 +448,33 @@ export class BattleRoyaleRoom {
     }
     this.snapshotAccumulator += dt;
     if (this.snapshotAccumulator >= 1 / BR_BALANCE.snapshotRate) { this.snapshotAccumulator %= 1 / BR_BALANCE.snapshotRate; this.emitSnapshots(now); }
+  }
+
+  leave(playerId: string): void {
+    const player = this.players.get(playerId);
+    if (!player || player.isBot) return;
+    this.disconnect(playerId);
+    player.sessionToken = "";
+    player.disconnectedAt = null;
+    this.returnVotes.delete(playerId);
+    this.physics.remove(playerId);
+    if (this.phase === "lobby") {
+      this.players.delete(playerId);
+      this.assignTeams();
+    } else if (this.phase !== "results") {
+      // Keep placements and team history, but permanently relinquish control.
+      this.eliminate(player, undefined, undefined, Date.now());
+      this.checkWinner(Date.now());
+    }
+    for (const other of this.players.values()) if (other.reviveTargetId === playerId) {
+      other.reviveTargetId = null;
+      other.reviveStartedAt = 0;
+    }
+    if (this.phase === "results") {
+      const humans = [...this.players.values()].filter((entry) => !entry.isBot && entry.connected);
+      if (humans.length && humans.every((entry) => this.returnVotes.has(entry.id))) this.returnToLobby(humans[0].id);
+    }
+    this.emitRoom();
   }
 
   disconnect(playerId: string): void {
@@ -543,6 +571,14 @@ export class BattleRoyaleRoom {
     if(!isInsideBrIsland(position,radius+3))return false;
     return !brBlocksNear(position,radius+.2).some(block=>{
       if(block.kind==="platform"||block.kind==="bridge"||block.kind==="ramp")return false;
+      // Pier broadphase footprints overlap the road above them. Only solids
+      // overlapping the chassis/pilot height can block travel or dismounts.
+      let halfY=block.size.y/2;
+      if(block.rotation){
+        const {x,y,z}=block.rotation,a=Math.cos(x),b=Math.sin(x),c=Math.cos(y),d=Math.sin(y),e=Math.cos(z),f=Math.sin(z);
+        halfY=Math.abs(a*f+b*e*d)*block.size.x/2+Math.abs(a*e-b*f*d)*block.size.y/2+Math.abs(b*c)*block.size.z/2;
+      }
+      if(block.position.y+halfY<position.y-.25||block.position.y-halfY>position.y+BR_BALANCE.playerHeight)return false;
       const half=brBlockPlanarHalfExtents(block);
       return Math.abs(position.x-block.position.x)<=half.x+radius&&Math.abs(position.z-block.position.z)<=half.z+radius;
     });

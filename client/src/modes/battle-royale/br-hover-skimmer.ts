@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { batchBrSkimmerStaticParts } from "./br-skimmer-static-batching";
 
 export interface BrHoverSkimmerOptions {
   bodyColor?: THREE.ColorRepresentation;
@@ -139,6 +140,9 @@ export function createBrHoverSkimmer(options: Readonly<BrHoverSkimmerOptions> = 
   // .26m internally and the capsule torso extends .02m below its rig origin.
   const driverAnchor = new THREE.Object3D(); driverAnchor.name = "skimmer-driver-anchor"; driverAnchor.position.set(0, 1.04, -.08);
   model.add(seatAnchor, driverAnchor);
+  const animatedParts = new Set<THREE.Object3D>([...headLights, ...tailLights]);
+  batchBrSkimmerStaticParts(model, animatedParts);
+  for (const pod of hoverModules) batchBrSkimmerStaticParts(pod, animatedParts);
   const resources = { geometries: [...geometries], materials: [...materials] };
   return { group, model, driverAnchor, seatAnchor, hoverModules, headLights, tailLights, resources, disposed: false };
 }
@@ -163,6 +167,7 @@ export function disposeBrHoverSkimmer(visual: BrHoverSkimmerVisual): void {
   if (visual.disposed) return;
   visual.disposed = true;
   visual.group.removeFromParent();
+  visual.group.traverse(object => { if (object instanceof THREE.InstancedMesh) object.dispose(); });
   for (const geometry of visual.resources.geometries) geometry.dispose();
   for (const material of visual.resources.materials) material.dispose();
   visual.model.clear();

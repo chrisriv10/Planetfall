@@ -1,4 +1,5 @@
 export type GraphicsQuality = "low" | "medium" | "high";
+export type GraphicsSelection = GraphicsQuality | "auto";
 export type CameraShake = "off" | "reduced" | "full";
 
 export interface UserSettings {
@@ -8,11 +9,15 @@ export interface UserSettings {
   musicVolume: number;
   sfxVolume: number;
   cameraShake: CameraShake;
-  graphicsQuality: GraphicsQuality;
+  graphicsQuality: GraphicsSelection;
 }
+export type RuntimeSettings = Omit<UserSettings, "graphicsQuality"> & { graphicsQuality: GraphicsQuality };
 
 export interface QualityPreset {
   pixelRatioCap: number;
+  resolutionScale: number;
+  worldDetailDistance: number;
+  vehicleDetailDistance: number;
   particleCap: number;
   particleScale: number;
   trailScale: number;
@@ -27,6 +32,9 @@ export const SETTINGS_STORAGE_KEY = "planetfall:settings:v1";
 export const QUALITY_PRESETS: Record<GraphicsQuality, QualityPreset> = {
   low: {
     pixelRatioCap: 1,
+    resolutionScale: .72,
+    worldDetailDistance: 100,
+    vehicleDetailDistance: 100,
     particleCap: 90,
     particleScale: 0.55,
     trailScale: 0.55,
@@ -37,6 +45,9 @@ export const QUALITY_PRESETS: Record<GraphicsQuality, QualityPreset> = {
   },
   medium: {
     pixelRatioCap: 1.35,
+    resolutionScale: .9,
+    worldDetailDistance: 165,
+    vehicleDetailDistance: 180,
     particleCap: 135,
     particleScale: 0.78,
     trailScale: 0.78,
@@ -47,6 +58,9 @@ export const QUALITY_PRESETS: Record<GraphicsQuality, QualityPreset> = {
   },
   high: {
     pixelRatioCap: 1.8,
+    resolutionScale: 1,
+    worldDetailDistance: 240,
+    vehicleDetailDistance: 260,
     particleCap: 180,
     particleScale: 1,
     trailScale: 1,
@@ -68,7 +82,7 @@ export function defaultSettings(prefersReducedMotion = false): UserSettings {
     musicVolume: 0.8,
     sfxVolume: 0.9,
     cameraShake: prefersReducedMotion ? "reduced" : "full",
-    graphicsQuality: "high"
+    graphicsQuality: "auto"
   };
 }
 
@@ -85,7 +99,7 @@ export function validateSettings(value: unknown, prefersReducedMotion = false): 
     cameraShake: record.cameraShake === "off" || record.cameraShake === "reduced" || record.cameraShake === "full"
       ? record.cameraShake
       : defaults.cameraShake,
-    graphicsQuality: record.graphicsQuality === "low" || record.graphicsQuality === "medium" || record.graphicsQuality === "high"
+    graphicsQuality: record.graphicsQuality === "auto" || record.graphicsQuality === "low" || record.graphicsQuality === "medium" || record.graphicsQuality === "high"
       ? record.graphicsQuality
       : defaults.graphicsQuality
   };

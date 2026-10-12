@@ -14,7 +14,7 @@ function fixture(active: boolean) {
   });
   const br = Object.assign(Object.create(BattleRoyaleGame.prototype), {
     active: !active, renderer, camera: { ...camera, updateProjectionMatrix: vi.fn() },
-    settings: defaultSettings(), world: { setQuality: vi.fn() }, sun: { castShadow: false },
+    settings: { ...defaultSettings(), graphicsQuality: "high" }, world: { setQuality: vi.fn() }, sun: { castShadow: false },
     syncPlayers: vi.fn(), syncVehicles: vi.fn(), input: { method: "keyboard" }
   });
   return { classic, br, renderer };
@@ -58,6 +58,17 @@ describe("shared renderer mode ownership", () => {
     expect(renderer.setAnimationLoop).toHaveBeenCalledOnce();
   });
 
+  it("does not stop the active home/lobby renderer when an inactive BR module finishes loading", () => {
+    const { classic, br, renderer } = fixture(true);
+    classic.setActive(true);
+    renderer.setAnimationLoop.mockClear();
+    // No BR cleanup dependencies are installed: none may be touched while
+    // Classic's canonical overview owns the canvas.
+    br.deactivate();
+    expect(classic.active).toBe(true);
+    expect(renderer.setAnimationLoop).not.toHaveBeenCalled();
+  });
+
   it("restores BR settings on activation but does not reallocate on room updates", () => {
     const { br, renderer } = fixture(true);
     br.settings.graphicsQuality = "low";
@@ -65,7 +76,7 @@ describe("shared renderer mode ownership", () => {
     br.activate(room, "pilot");
     expect(renderer.shadowMap.enabled).toBe(false);
     expect(renderer.setSize).toHaveBeenCalledExactlyOnceWith(1440, 900);
-    expect(renderer.setPixelRatio).toHaveBeenCalledExactlyOnceWith(1);
+    expect(renderer.setPixelRatio).toHaveBeenCalledExactlyOnceWith(QUALITY_PRESETS.low.pixelRatioCap * QUALITY_PRESETS.low.resolutionScale);
     br.activate(room, "pilot");
     expect(renderer.setSize).toHaveBeenCalledOnce();
   });

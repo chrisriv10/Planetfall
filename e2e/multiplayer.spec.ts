@@ -205,7 +205,7 @@ test("settings persist across reloads", async ({ page }) => {
 test("the home menu previews the Fallbucks shop", async ({ page }) => {
   const browserErrors = collectBrowserErrors(page);
   await page.goto("/");
-  await page.getByRole("button", { name: "SHOP · COSMETICS" }).click();
+  await page.getByRole("button", { name: "SHOP", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Shop" })).toBeVisible();
   await expect(page.locator("#shop-note")).toContainText("JOIN A ROOM TO EARN AND SPEND FALLBUCKS");
   await expect(page.locator("#shop-grid").getByRole("button", { name: "PLAY TO UNLOCK" }).first()).toBeDisabled();

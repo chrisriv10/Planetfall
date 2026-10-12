@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { brAuthoredDeckHeight } from "@planetfall/shared";
+import { BR_LANDFORMS } from "@planetfall/shared";
 import {
   BR_ISLAND_OUTLINE,
   BR_ENTRANCE_HEADERS,
@@ -15,19 +16,25 @@ import {
   type BrPoi,
   type BrStructure
 } from "@planetfall/shared";
-import type { GraphicsQuality } from "../../settings";
+import { QUALITY_PRESETS, type GraphicsQuality } from "../../settings";
 import { BrMaterialLibrary } from "./br-materials";
 import { layoutBrPoiLabel } from "./br-poi-label-layout";
 import { brPoiLabelPresentation } from "./br-poi-label-presentation";
+import { brWayfindingOpacity } from "./br-wayfinding-presentation";
+import { brGravityColumnOpacity } from "./br-gravity-column-presentation";
+import { buildBrNovaTowerPanelIdentity, type NovaPanelBounds } from "./br-nova-tower-panel-identity";
 import { buildDistantFacadeParts, buildStorefrontFrameParts } from "./br-facades";
 import { buildBrEntranceHeaderFinish } from "./br-entrance-header-finish";
 import { buildBrFacadeSkin } from "./br-facade-skin";
 import { createBrNexusCrown } from "./br-nexus-crown";
+import { createBrReactorCrown } from "./br-reactor-crown";
 import { buildBrWreckEngineMounts } from "./br-wreck-engines";
 import { buildBrDoorwayParts, buildBrFreightPilasters } from "./br-facade-attachments";
 import { brPlazaUvScale } from "./br-plaza-finish";
 import { BR_COLONY_DECK_COLOR } from "./br-district-palette";
+import { buildBrLandformColors, buildBrLandformBlend, configureBrLandformMaterial } from "./br-landform-finish";
 import { brAuthoredWallFinish } from "./br-authored-wall-finish";
+import { buildBrUtilityCoverBatches } from "./br-utility-cover-finish";
 import { buildBrConnectiveGreens } from "./br-connective-greens";
 import { buildBrFacadeLeds } from "./br-facade-leds";
 import { buildBrFacadeSign, getBrFacadeSignText } from "./br-facade-signs";
@@ -39,6 +46,7 @@ import { buildReactorFloorChannels } from "./br-reactor-floor";
 import { buildNexusPlaza } from "./br-nexus-plaza";
 import { buildBrRoadMarkings } from "./br-road-markings";
 import { spinBrMachinery } from "./br-machinery";
+import { freezeBrStaticTransforms } from "./br-static-transforms";
 import { buildGrowhouseRoof } from "./br-growhouse";
 import { buildRetailInterior } from "./br-retail-interiors";
 import { buildInteriorSurfaces } from "./br-interior-surfaces";
@@ -46,6 +54,7 @@ import { buildFunctionalInterior } from "./br-functional-interiors";
 import { buildResidentialInterior, buildResidentialCeiling, buildResidentialLandingMarkers, buildResidentialServiceWall, buildResidentialEntranceWall, buildResidentialRampSkins } from "./br-residential-interiors";
 import { buildCargoCrane, buildIndustrialRoof } from "./br-industrial";
 import { buildWreckRoof, buildWreckInterior } from "./br-wreck";
+import { buildBrWreckPanelIdentity } from "./br-wreck-panel-identity";
 import { buildWreckExterior } from "./br-wreck-exterior";
 import { buildFoundryEngines } from "./br-foundry";
 import { buildRoadsideInfrastructure, type RoadsideFinish } from "./br-roadside-infrastructure";
@@ -100,6 +109,7 @@ export type BrPoiLabel = { sprite: THREE.Sprite; position: THREE.Vector3 };
 type DistrictDetail = {
   group: THREE.Group;
   distant?: THREE.Group;
+  silhouette?: THREE.Group;
   center: THREE.Vector3;
   visible: boolean;
   distanceScale?: number;
@@ -127,6 +137,7 @@ export class BrWorldRenderer {
   private readonly presentationDisposers: Array<() => void> = [];
   private readonly energyMaterials: THREE.Material[] = [];
   private readonly secondaryLabels:THREE.Sprite[]=[];
+  private readonly wayfindingLabels: THREE.Sprite[] = [];
   private readonly roadsideSites = buildRoadsideInfrastructure();
   private connectiveClusterDetail: THREE.Group | null = null;
   private maintenanceDetail: THREE.Group | null = null;
@@ -140,12 +151,24 @@ export class BrWorldRenderer {
   private quality: GraphicsQuality;
   private disposed = false;
 
-  constructor(quality: GraphicsQuality) {
+  constructor(quality: GraphicsQuality, fixedWorld = false, overview = false) {
     this.quality = quality;
     this.root.name = "orbital-isle";
     this.buildSurface();
-    this.buildRoads();
-    this.buildGameplayGeometry();
+    this.buildLandforms();
+    this.buildRoads(overview);
+    this.buildGameplayGeometry(overview);
+    if(overview){
+      // The home card shows the real island from hundreds of metres away.
+      // Build its authored solids, distant facades, landmarks and vegetation;
+      // room furniture and street-level micro-details cannot be read there.
+      this.buildOverviewFacades();
+      this.buildDistricts(true);
+      this.buildGreenways();
+      this.buildUnderside();
+      freezeBrStaticTransforms(this.root,this.animated,fixedWorld);
+      return;
+    }
     this.buildTerraceDetails();
     this.buildArchitecture();
     this.buildDistricts();
@@ -165,6 +188,7 @@ export class BrWorldRenderer {
     this.root.traverse((object) => {
       if (object instanceof THREE.Mesh && object.userData.cameraCollision === true) this.collidableMeshes.push(object);
     });
+    freezeBrStaticTransforms(this.root, this.animated, fixedWorld);
   }
 
   setQuality(quality: GraphicsQuality): void {
@@ -185,6 +209,34 @@ export class BrWorldRenderer {
         object.castShadow = quality === "high" && object.userData.cameraCollision === true;
       }
     });
+    for (const detail of this.districtDetails) this.updateSilhouetteShadows(detail);
+  }
+
+  private updateSilhouetteShadows(detail: DistrictDetail): void {
+    // Retain the existing near-sector shadow budget even though the solid
+    // envelope now survives facade LOD. Distant silhouettes need no shadow pass.
+    detail.silhouette?.traverse(object => {
+      if (object instanceof THREE.Mesh) object.castShadow = this.quality === "high" && detail.visible && object.userData.cameraCollision === true;
+    });
+  }
+
+  private buildLandforms():void {
+    const material=this.materials.own((this.materials.surface("grass",8) as THREE.MeshStandardMaterial).clone());
+    material.color.setHex(0xffffff);material.vertexColors=true;
+    configureBrLandformMaterial(material);
+    const deckTint=new THREE.Color(BR_COLONY_DECK_COLOR);
+    for(const h of BR_LANDFORMS){
+      const geometry=this.geometry(new THREE.BufferGeometry());
+      geometry.setAttribute("position",new THREE.BufferAttribute(h.vertices.slice(),3));
+      geometry.setIndex(new THREE.BufferAttribute(h.indices.slice(),1));
+      geometry.setAttribute("uv",new THREE.Float32BufferAttribute(Array.from(h.vertices).flatMap((value,index)=>index%3===0?[value/8,h.vertices[index+2]/8]:[]),2));
+      geometry.computeVertexNormals();
+      const colors=buildBrLandformColors(h,deckTint);
+      geometry.setAttribute("color",new THREE.BufferAttribute(colors,3));
+      geometry.setAttribute("landformBlend",new THREE.BufferAttribute(buildBrLandformBlend(h),1));
+      const mesh=new THREE.Mesh(geometry,material);
+      mesh.name=`landform-${h.id}`;mesh.userData.cameraCollision=true;mesh.receiveShadow=true;this.root.add(mesh);
+    }
   }
 
   debugStats(): { objects: number; meshes: number; instances: number; visibleInstances:number; materials: number; visibleDistricts: number; visibleSecondaryLabels:number } {
@@ -209,7 +261,7 @@ export class BrWorldRenderer {
     // High keeps a full nearby neighborhood rather than activating most of the
     // 1 km island at once. Distant shells still preserve skyline and landmark
     // silhouettes; only facade/interior/prop layers use this tighter budget.
-    const maxDetailDistance = this.quality === "high" ? 240 : this.quality === "medium" ? 185 : 125;
+    const maxDetailDistance = QUALITY_PRESETS[this.quality].worldDetailDistance;
     for (const detail of this.districtDetails) {
       const distance = camera.position.distanceTo(detail.center);
       const nextVisible = distance < maxDetailDistance * (detail.distanceScale ?? 1) + (detail.visible ? 36 : 0);
@@ -217,6 +269,7 @@ export class BrWorldRenderer {
         detail.visible = nextVisible;
         detail.group.visible = nextVisible;
         if (detail.distant) detail.distant.visible = !nextVisible;
+        this.updateSilhouetteShadows(detail);
       }
     }
     for (let index = 0; index < this.animated.length; index++) {
@@ -228,16 +281,21 @@ export class BrWorldRenderer {
         object.scale.setScalar(base + Math.sin(now * .0024 + index) * .035);
       }
     }
-    for (let index = 0; index < this.energyMaterials.length; index++) {
-      const material = this.energyMaterials[index] as THREE.MeshBasicMaterial;
-      material.opacity = THREE.MathUtils.clamp(.45 + Math.sin(now * .002 + index * 1.7) * .16, .22, .76);
-    }
+    const columnOpacity = brGravityColumnOpacity(now * .001);
+    for (const material of this.energyMaterials) material.opacity = columnOpacity;
     for(const label of this.secondaryLabels){
       const presentation=brPoiLabelPresentation(camera.position,label.position,camera.position,false);
       label.visible=camera.position.y<110&&presentation.visible&&camera.position.distanceTo(label.position)<175;
       if(!label.visible)continue;
       label.scale.set(presentation.scale*2,presentation.scale*.58,1);
       label.material.opacity=presentation.opacity;
+    }
+    // Route guidance is an annotation, not an overhead physical sign. A
+    // camera-facing 17m quad must fade before the camera can pass through it.
+    for (const label of this.wayfindingLabels) {
+      const opacity = brWayfindingOpacity(camera.position.distanceTo(label.position));
+      label.visible = opacity > 0;
+      label.material.opacity = opacity;
     }
   }
 
@@ -261,6 +319,7 @@ export class BrWorldRenderer {
     this.animated.length = 0;
     this.energyMaterials.length = 0;
     this.secondaryLabels.length=0;
+    this.wayfindingLabels.length = 0;
     this.qualityStreetscapes.length = 0;
     this.connectiveClusterDetail = null;
     this.maintenanceDetail = null;
@@ -374,7 +433,7 @@ export class BrWorldRenderer {
     );
   }
 
-  private buildRoads(): void {
+  private buildRoads(overview=false): void {
     const curbs: MatrixSpec[] = [];
     const edgeLights: MatrixSpec[] = [];
     const dashMatrices: MatrixSpec[] = [];
@@ -386,15 +445,15 @@ export class BrWorldRenderer {
     const gradeSupports: MatrixSpec[] = [];
     const gradeLights: MatrixSpec[] = [];
     const markingGroups={curb:curbs,"edge-light":edgeLights,dash:dashMatrices,crossing:crossings,"lamp-post":lampPosts,"lamp-bulb":lampBulbs};
-    for(const part of buildBrRoadMarkings())markingGroups[part.role].push({
+    for(const part of overview?[]:buildBrRoadMarkings())markingGroups[part.role].push({
       position:position(part.position.x,part.position.y,part.position.z),
       scale:position(part.scale.x,part.scale.y,part.scale.z),rotationY:part.rotationY,rotationZ:part.rotationZ,
     });
-    for(const part of buildBrRoadRouteGradeDetails()){
+    for(const part of overview?[]:buildBrRoadRouteGradeDetails()){
       const spec={position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z),rotationY:part.rotationY,rotationZ:part.rotationZ};
       (part.role==="edge"?gradeEdges:part.role==="support"?gradeSupports:gradeLights).push(spec);
     }
-    for(const bend of buildBrRoadBends(BR_ROADS))for(const edge of [bend.edge,bend.outerEdge])for(let i=1;i<edge.length;i++){
+    for(const bend of overview?[]:buildBrRoadBends(BR_ROADS))for(const edge of [bend.edge,bend.outerEdge])for(let i=1;i<edge.length;i++){
       const a=edge[i-1],b=edge[i],dx=b.x-a.x,dz=b.z-a.z;
       curbs.push({position:position((a.x+b.x)/2,a.y+.039,(a.z+b.z)/2),scale:position(Math.hypot(dx,dz),.07,.24),rotationY:-Math.atan2(dz,dx)});
       if(i%2===1)edgeLights.push({position:position((a.x+b.x)/2,a.y+.08,(a.z+b.z)/2),scale:position(Math.hypot(dx,dz)*.7,.018,.07),rotationY:-Math.atan2(dz,dx)});
@@ -424,22 +483,22 @@ export class BrWorldRenderer {
     this.addInstances(this.root,this.materials.unitBox,this.materials.get("energyCyan"),gradeLights,false);
   }
 
-  private buildGameplayGeometry(): void {
-    // Literal solids remain identical. Nine bounded vertex-color box finishes
-    // distinguish exposed district retaining faces from readable room slabs.
+  private buildGameplayGeometry(overview=false): void {
+    // Literal solids remain identical. Bounded vertex-color box finishes
+    // distinguish district terraces, exterior roof ramps and readable room slabs.
     const slabGeometries=new Map<string,THREE.BufferGeometry>();
     const batches=new Map<string,{geometry:THREE.BufferGeometry;material:THREE.Material;blocks:typeof BR_MAP_BLOCKS[number][]}>();
     for (const block of BR_MAP_BLOCKS) {
       const bridgePier=block.id.startsWith("bridge-pier-");
-      const greenwayTrunk=block.id.startsWith("greenway-")&&block.id.endsWith("-trunk");
-      const authoredVisible=bridgePier||greenwayTrunk||block.kind==="platform"||block.kind==="ramp"||block.kind==="cover"||(block.kind==="wall"&&(block.id.includes("-room-")||block.id.includes("-retaining-")));
+      const greenwayTrunk=(block.id.startsWith("greenway-")||block.id.startsWith("landform-"))&&block.id.endsWith("-trunk");
+      const authoredVisible=bridgePier||greenwayTrunk||block.kind==="platform"||block.kind==="ramp"||block.kind==="cover"||(block.kind==="wall"&&(overview||block.id.includes("-room-")||block.id.includes("-retaining-")))||(overview&&block.kind==="building");
       if(!authoredVisible)continue;
       const finish=brAuthoredWallFinish(block),slab=block.kind==="platform"||block.kind==="ramp";
       let geometry=this.materials.unitBox as THREE.BufferGeometry;
       let material=bridgePier||greenwayTrunk?this.materials.get("structuralDark"):block.kind==="cover"?this.materials.get("paintedMetal"):this.materials.get("structuralWhite");
       let finishKey="default";
       if(slab){
-        finishKey=finish.kind==="district-slab"?`district:${finish.family}`:"interior";
+        finishKey=finish.slabBatchKey;
         let cached=slabGeometries.get(finishKey);
         if(!cached){
           cached=this.geometry(this.materials.unitBox.clone());
@@ -451,6 +510,8 @@ export class BrWorldRenderer {
           cached.setAttribute("color",new THREE.BufferAttribute(colors,3));slabGeometries.set(finishKey,cached);
         }
         geometry=cached;material=this.materials.authoredSlabMaterial();
+      }else if(overview&&(block.kind==="wall"||block.kind==="building")){
+        finishKey=`overview:${block.color}`;material=this.materials.districtShell(block.color);
       }else if(finish.kind==="room-wall"){
         finishKey=`room:${finish.family}`;material=this.materials.authoredRoomWall(finish.sourceColor);
       }else if(finish.kind==="retaining-wall"){
@@ -507,6 +568,11 @@ export class BrWorldRenderer {
       const group = new THREE.Group();
       group.name = `detail-${poi.id}`;
       group.position.y=poi.position.y;
+      // Structural envelopes remain visible when interiors and facade detail
+      // are culled. Otherwise distant towers collapse into floating floor bands.
+      const silhouette = new THREE.Group();
+      silhouette.name = `architecture-silhouette-${poi.id}`;
+      silhouette.position.y = poi.position.y;
       const distant = new THREE.Group();
       distant.name = `distant-facade-${poi.id}`;
       distant.position.y=poi.position.y;
@@ -542,7 +608,7 @@ export class BrWorldRenderer {
       const solarCorners:Record<SolarServicePart["finish"],MatrixSpec[]>={structuralDark:[],structuralWhite:[],paintedMetal:[],brushedMetal:[],concrete:[]};
       const solarShells:Record<SolarServicePart["finish"],MatrixSpec[]>={structuralDark:[],structuralWhite:[],paintedMetal:[],brushedMetal:[],concrete:[]};
       const solarBacking:MatrixSpec[]=[];
-      const structureBatches=[distantWindows,columns,trims,windowsDark,windowsLit,facadePlants,roofUnits,roofEdges,roofAccents,roofSolar,roofVents,doorFrames,interiorProps,facadePanels,interiorDark,interiorLights,railings,shells,massing,glassVolumes,accentVolumes,machinery,displayGlass,mallEnergyPurple,mallEnergyCyan,floorSeams,floorTrim,entrancePavers,entranceInsets,entranceDrains,reactorFrames,reactorPanels,reactorEnergy,reactorWarnings,growFrames,growGlass,growBases,solarBacking,...Object.values(industrial),...Object.values(solarCorners),...Object.values(solarShells)];
+      const structureBatches=[distantWindows,columns,trims,windowsDark,windowsLit,facadePlants,roofUnits,roofEdges,roofAccents,roofSolar,roofVents,doorFrames,interiorProps,facadePanels,facadeLeds,interiorDark,interiorLights,railings,shells,massing,glassVolumes,accentVolumes,machinery,displayGlass,mallEnergyPurple,mallEnergyCyan,floorSeams,floorTrim,entrancePavers,entranceInsets,entranceDrains,reactorFrames,reactorPanels,reactorEnergy,reactorWarnings,growFrames,growGlass,growBases,solarBacking,...Object.values(industrial),...Object.values(solarCorners),...Object.values(solarShells)];
       for (const structure of structures) {
         const batchStarts=structureBatches.map(batch=>batch.length),childStart=group.children.length;
         // Presentation helpers author local height above a district's deck;
@@ -556,12 +622,6 @@ export class BrWorldRenderer {
           position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z),
           rotationX:part.rotationX,rotationY:part.rotationY
         });
-        for (const part of buildReactorInterior(visualStructure)) {
-          (part.finish === "frame" ? reactorFrames : part.finish === "panel" ? reactorPanels : part.finish === "energy" ? reactorEnergy : reactorWarnings).push({
-            position: position(part.position.x, part.position.y, part.position.z),
-            scale: position(part.scale.x, part.scale.y, part.scale.z)
-          });
-        }
         for(const part of buildReactorFloorChannels(visualStructure)){
           (part.finish==="channel"?reactorFrames:part.finish==="energy"?reactorEnergy:reactorWarnings).push({
             position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z)
@@ -686,10 +746,27 @@ export class BrWorldRenderer {
         }
         this.architectureMatrices(
           visualStructure, shells, columns, trims, windowsDark, windowsLit, roofUnits, doorFrames,
-          interiorProps, interiorDark, interiorLights, railings, massing, glassVolumes, accentVolumes, machinery, facadePlants, structure, solarCorners, solarShells, solarBacking, facadePanels
+          interiorProps, interiorDark, interiorLights, railings, massing, glassVolumes, accentVolumes, machinery, facadePlants, structure, solarCorners, solarShells, solarBacking, facadePanels, facadeLeds
         );
+        // Control hardware must mount to the real wall and clear the complete
+        // existing interior kit. Both helper output and exclusions use local Y.
+        if (structure.id === "helios-core") {
+          const exclusions = [interiorProps, interiorDark, interiorLights].flatMap(batch => {
+            const start = batchStarts[structureBatches.indexOf(batch)];
+            return batch.slice(start).map(part => ({
+              min: {x:part.position.x-part.scale.x/2,y:part.position.y-part.scale.y/2,z:part.position.z-part.scale.z/2},
+              max: {x:part.position.x+part.scale.x/2,y:part.position.y+part.scale.y/2,z:part.position.z+part.scale.z/2}
+            }));
+          });
+          for (const part of buildReactorInterior(structure, exclusions)) {
+            (part.finish === "frame" ? reactorFrames : part.finish === "panel" ? reactorPanels : part.finish === "energy" ? reactorEnergy : reactorWarnings).push({
+              position: position(part.position.x, part.position.y, part.position.z),
+              scale: position(part.scale.x, part.scale.y, part.scale.z)
+            });
+          }
+        }
         for(const part of buildBrFacadeLeds(visualStructure))facadeLeds.push({
-          position:position(part.position.x,part.position.y+structure.position.y-poi.position.y,part.position.z),
+          position:position(part.position.x,part.position.y,part.position.z),
           scale:position(part.scale.x,part.scale.y,part.scale.z)
         });
         const signText = getBrFacadeSignText(structure);
@@ -719,7 +796,7 @@ export class BrWorldRenderer {
           for(let child=childStart;child<group.children.length;child++)group.children[child].position.y+=relativeHeight;
         }
       }
-      this.addInstances(group, this.materials.unitBox, this.materials.districtShell(poi.color), shells, true);
+      this.addInstances(silhouette, this.materials.unitBox, this.materials.districtShell(poi.color), shells, true);
       this.addInstances(group, this.materials.unitBox, this.materials.districtFacade(poi.color), facadePanels, false);
       this.addInstances(group, this.materials.unitBox, this.materials.led(poi.color), facadeLeds, false);
       this.addInstances(group, this.materials.unitChamferedBox, this.materials.get("structuralDark"), columns, false);
@@ -751,7 +828,7 @@ export class BrWorldRenderer {
       this.addInstances(group, this.materials.unitBox, this.materials.get("structuralDark"), railings, false);
       // Roof crowns and major silhouette masses must not disappear at the
       // same threshold as tiny interior props and facade signs.
-      this.addInstances(group, this.materials.unitChamferedBox, this.materials.districtShell(poi.color), massing, false);
+      this.addInstances(silhouette, this.materials.unitChamferedBox, this.materials.districtShell(poi.color), massing, false);
       this.addInstances(group, this.materials.unitChamferedBox, this.materials.get("glass"), glassVolumes, false);
       this.addInstances(group, this.materials.unitChamferedBox, this.materials.architecturalPaint(poi.color), accentVolumes, false);
       this.addInstances(group, this.materials.unitCylinder, this.materials.get("brushedMetal"), machinery, false);
@@ -765,11 +842,17 @@ export class BrWorldRenderer {
       for(const finish of Object.keys(solarCorners) as SolarServicePart["finish"][])
         this.addInstances(group,this.materials.unitChamferedBox,this.materials.get(finish),solarCorners[finish],false);
       for(const finish of Object.keys(solarShells) as SolarServicePart["finish"][])
-        this.addInstances(group,this.materials.unitBox,this.materials.get(finish),solarShells[finish],true);
+        this.addInstances(silhouette,this.materials.unitBox,this.materials.get(finish),solarShells[finish],true);
       this.addInstances(group,this.materials.unitBox,this.materials.get("concrete"),solarBacking,false);
-      this.root.add(group, distant);
-      this.districtDetails.push({ group, distant, center: position(poi.position.x, poi.position.y, poi.position.z), visible: true });
+      this.root.add(silhouette, group, distant);
+      this.districtDetails.push({ group, distant, silhouette, center: position(poi.position.x, poi.position.y, poi.position.z), visible: true });
     }
+  }
+
+  private buildOverviewFacades():void {
+    const parts=BR_STRUCTURES.flatMap(structure=>buildDistantFacadeParts({...structure,position:{...structure.position,y:0}})
+      .map(part=>({position:position(part.position.x,part.position.y+structure.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z)})));
+    this.addInstances(this.root,this.materials.unitBox,this.materials.get("windowDark"),parts,false);
   }
 
   private architectureMatrices(
@@ -781,7 +864,7 @@ export class BrWorldRenderer {
     accentVolumes: MatrixSpec[], machinery: MatrixSpec[], facadePlants: MatrixSpec[], sourceStructure: BrStructure,
     solarCorners:Record<SolarServicePart["finish"],MatrixSpec[]>,
     solarShells:Record<SolarServicePart["finish"],MatrixSpec[]>,
-    solarBacking:MatrixSpec[], facadePanels:MatrixSpec[]
+    solarBacking:MatrixSpec[], facadePanels:MatrixSpec[], facadeLeds:MatrixSpec[]
   ): void {
     const { x, z } = structure.position;
     const { x: width, y: height, z: depth } = structure.size;
@@ -818,7 +901,7 @@ export class BrWorldRenderer {
         scale: position(part.scale.x,part.scale.y,part.scale.z)});
     }
     for (const part of buildBrFacadeSkin(structure,solarFrontage)) {
-      facadeTargets[part.finish].push({position: position(part.position.x, part.position.y, part.position.z), scale: position(part.scale.x, part.scale.y, part.scale.z)});
+      (part.identityLed ? facadeLeds : facadeTargets[part.finish]).push({position: position(part.position.x, part.position.y, part.position.z), scale: position(part.scale.x, part.scale.y, part.scale.z)});
     }
     // The facade helper owns clear solid-wall accent intervals. Legacy bars at
     // fixed fractions of the shell crossed those panels and display glazing.
@@ -891,7 +974,7 @@ export class BrWorldRenderer {
       // A single canopy is emitted with the doorway; three nearly coplanar
       // versions used to stack into a large fluorescent slab here.
       for (const part of buildStorefrontFrameParts(structure)) {
-        massing.push({ position: position(part.position.x, part.position.y, part.position.z), scale: position(part.scale.x, part.scale.y, part.scale.z) });
+        accents.push({ position: position(part.position.x, part.position.y, part.position.z), scale: position(part.scale.x, part.scale.y, part.scale.z) });
       }
     } else if (structure.archetype === "office" || structure.archetype === "lab" || structure.archetype === "academy") {
       // The doorway assembly already owns the entrance canopy.
@@ -944,7 +1027,7 @@ export class BrWorldRenderer {
     if(buildBrNorthCivicIdentity(sourceStructure).supported)return;
     if (structure.id === "crash-fuselage") {
       const targets={panel:light,frame:dark,light:emissive};
-      for(const part of buildWreckInterior(structure)) targets[part.finish].push({
+      for(const part of buildBrWreckPanelIdentity(structure, buildWreckInterior(structure))) targets[part.finish].push({
         position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z)
       });
       return;
@@ -954,6 +1037,8 @@ export class BrWorldRenderer {
     const archetype = structure.archetype;
     const serviceRoom = ["industrial", "reactor", "dock"].includes(structure.style) || ["lab", "office", "academy"].includes(archetype);
     const floorHeight=structure.size.y/structure.floors;
+    const kitStarts = [light.length, dark.length, emissive.length];
+    const originalBoards: MatrixSpec[] = [];
     for(let floor=0;floor<structure.floors;floor++) {
       const base=floor*floorHeight,ceiling=base+floorHeight-.35;
       // Ceiling luminaires sit against the actual floor above, not suspended
@@ -975,7 +1060,8 @@ export class BrWorldRenderer {
           dark.push({position:position(x+width*offset,base+floorHeight/2,wallZ),scale:position(.19,floorHeight-.9,.26)});
         }
         for(const offset of [-.3,0,.3]) {
-          light.push({position:position(x+width*offset,base+2.1,wallZ-side*.1),scale:position(width*.23,Math.min(2.5,floorHeight-1.5),.12)});
+          const board = {position:position(x+width*offset,base+2.1,wallZ-side*.1),scale:position(width*.23,Math.min(2.5,floorHeight-1.5),.12)};
+          light.push(board); originalBoards.push(board);
           if(serviceRoom){
             const panelX=x+width*offset;
             dark.push({position:position(panelX,base+1.72,wallZ-side*.22),scale:position(2.5,1.4,.22)});
@@ -1011,14 +1097,37 @@ export class BrWorldRenderer {
         scale:position(part.scale.x,part.scale.y,part.scale.z)
       });
     }
+    if (structure.id === "nova-tower-b") {
+      const bounds = (p: {x:number;y:number;z:number}, s: {x:number;y:number;z:number}, rotationX = 0): NovaPanelBounds => {
+        const y = Math.abs(Math.cos(rotationX))*s.y + Math.abs(Math.sin(rotationX))*s.z;
+        const z = Math.abs(Math.sin(rotationX))*s.y + Math.abs(Math.cos(rotationX))*s.z;
+        return {min:{x:p.x-s.x/2,y:p.y-y/2,z:p.z-z/2},max:{x:p.x+s.x/2,y:p.y+y/2,z:p.z+z/2}};
+      };
+      const blocks = BR_MAP_BLOCKS.filter(b=>b.id.startsWith(`${sourceStructure.id}-`));
+      const boards = new Set(originalBoards);
+      const dressing = [light.slice(kitStarts[0]),dark.slice(kitStarts[1]),emissive.slice(kitStarts[2])].flat()
+        .filter(p=>!boards.has(p)).map(p=>bounds({...p.position,y:p.position.y+sourceStructure.position.y},p.scale));
+      const forbidden = [...dressing,...blocks.filter(b=>b.kind==="ramp").map(b=>bounds(b.position,b.size,b.rotation?.x)),
+        ...BR_LOOT_SOCKETS.filter(s=>s.structureId===sourceStructure.id).map(s=>bounds({...s.position,y:s.position.y+.7},{x:1.5,y:1.6,z:1.5}))];
+      const replacements = buildBrNovaTowerPanelIdentity(sourceStructure,originalBoards,
+        blocks.filter(b=>b.kind==="wall").map(b=>bounds(b.position,b.size)),
+        blocks.filter(b=>b.kind==="platform"&&!b.id.endsWith("-roof")).map(b=>bounds(b.position,b.size)),forbidden);
+      const targets = {light,dark,emissive};
+      for (const replacement of replacements) {
+        const boardIndex = light.indexOf(originalBoards[replacement.index]);
+        if (boardIndex >= 0) light.splice(boardIndex,1);
+        for (const part of replacement.parts) targets[part.finish].push({position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z)});
+      }
+    }
   }
 
-  private buildDistricts(): void {
+  private buildDistricts(overview=false): void {
     for (const poi of BR_POIS) {
       const radius = poi.style === "city" || poi.style === "mall" ? 75 : 62;
       // Authored streets/courtyards replace circular POI carpets over roads.
       const landmark = this.buildLandmark(poi);
       this.root.add(landmark);
+      if(overview)continue;
       landmark.updateWorldMatrix(true, true);
       const landmarkBounds = new THREE.Box3().setFromObject(landmark);
       const labelLayout = layoutBrPoiLabel(poi.position, { landmarkBounds });
@@ -1266,33 +1375,13 @@ export class BrWorldRenderer {
       });
       group.add(crown.group);this.animated.push(...crown.animated);
     } else if (poi.style === "reactor") {
-      // Containment hardware sits above the 42m playable core building. The
-      // previous tilted conduits pierced its floors and looked like solid
-      // obstacles despite having no authoritative collision.
-      const core = new THREE.Mesh(this.geometry(new THREE.CylinderGeometry(5.5, 8, 32, 16)), this.materials.get("energyCyan")); core.position.y = 59; group.add(core);
-      const light = new THREE.PointLight(0xffd84d, 7, 115, 1.7); light.position.y = 48; group.add(light);
-      for (const [radius, y] of [[13, 46], [16, 59], [12, 72]] as const) {
-        const ring = new THREE.Mesh(this.geometry(new THREE.TorusGeometry(radius, 1, 9, 36)), dark); ring.position.y = y; ring.rotation.x = Math.PI / 2; ring.userData.rotationSpeed = y === 59 ? -.00022 : .00017; group.add(ring); this.animated.push(ring);
-      }
-      // A containment cage ties the suspended rings back into the playable
-      // reactor roof. Without these load paths the landmark read as effects
-      // hovering over an otherwise ordinary office tower.
-      const cageBeam=this.materials.unitChamferedBox;
-      for(const [sx,sz] of [[-1,-1],[-1,1],[1,-1],[1,1]] as const){
-        const pylon=new THREE.Mesh(cageBeam,dark);pylon.name="helios-containment-pylon";
-        pylon.position.set(sx*10.5,58.5,sz*10.5);pylon.scale.set(1.45,29,1.45);group.add(pylon);
-        const bus=new THREE.Mesh(cageBeam,this.materials.get("industrialOrange"));bus.position.set(sx*10.5,49,sz*10.5);bus.scale.set(1.8,.7,1.8);group.add(bus);
-        const energy=new THREE.Mesh(cageBeam,this.materials.get("energyCyan"));energy.position.set(sx*10.5,61,sz*10.5);energy.scale.set(.28,20,.28);group.add(energy);
-      }
-      for(const y of [48.5,70.5])for(const axis of ["x","z"] as const)for(const side of [-1,1]){
-        const brace=new THREE.Mesh(cageBeam,this.materials.get(y>60?"brushedMetal":"structuralDark"));brace.name="helios-containment-brace";
-        brace.position.set(axis==="x"?0:side*10.5,y,axis==="z"?0:side*10.5);
-        brace.scale.set(axis==="x"?22.5:.75,.75,axis==="z"?22.5:.75);group.add(brace);
-      }
-      const crown=new THREE.Mesh(this.geometry(new THREE.CylinderGeometry(4.4,7.2,3.2,10)),this.materials.get("brushedMetal"));crown.name="helios-reactor-crown";crown.position.y=76;group.add(crown);
-      const crownPulse=new THREE.Mesh(this.geometry(new THREE.TorusGeometry(5.8,.34,7,28)),this.materials.get("energyCyan"));crownPulse.position.y=77.7;crownPulse.rotation.x=Math.PI/2;crownPulse.userData.rotationSpeed=-.00034;group.add(crownPulse);this.animated.push(crownPulse);
-      for(let index=0;index<4;index++){const angle=index/4*Math.PI*2;const conduit=new THREE.Mesh(this.geometry(new THREE.TorusGeometry(22,.72,7,30,Math.PI*.7)),this.materials.get(index%2?"industrialOrange":"energyCyan"));conduit.position.set(Math.cos(angle)*6,46+index*.9,Math.sin(angle)*6);conduit.rotation.set(Math.PI/2,0,angle);group.add(conduit);}
-      for (let index = 0; index < 6; index++) { const angle = index / 6 * Math.PI * 2; const turbine = this.makeTurbine(Math.cos(angle) * 21, Math.sin(angle) * 21, poi.color); turbine.position.y = 44; group.add(turbine); }
+      const crown=createBrReactorCrown(poi.color,{
+        geometry:g=>this.geometry(g),box:this.materials.unitChamferedBox,dark,
+        energy:this.materials.get("energyCyan"),orange:this.materials.get("industrialOrange"),metal:this.materials.get("brushedMetal"),
+        makeTurbine:(x,z,color)=>this.makeTurbine(x,z,color)
+      });
+      group.add(crown.group);this.animated.push(...crown.animated);
+      this.presentationDisposers.push(...crown.disposers);
     } else if (poi.style === "dock") {
       for (const offset of [-25, 25]) group.add(this.makeCrane(offset, 8, offset < 0 ? 1 : -1));
     } else if (poi.style === "academy") {
@@ -1352,7 +1441,9 @@ export class BrWorldRenderer {
       if (traversal.kind === "grav-lift") {
         const height = traversal.target.y - traversal.position.y;
         const column = new THREE.Mesh(this.geometry(new THREE.CylinderGeometry(2.3, 2.3, height, 20, 1, true)), this.materials.translucent(color, .14, true));
-        column.name = `grav-column-${traversal.id}`; column.position.y = height / 2; group.add(column); this.energyMaterials.push(column.material as THREE.Material);
+        column.name = `grav-column-${traversal.id}`; column.position.y = height / 2; group.add(column);
+        // The material library shares identical columns; animate each material once.
+        if (!this.energyMaterials.includes(column.material)) this.energyMaterials.push(column.material);
       } else {
         const arrow = new THREE.Mesh(this.geometry(new THREE.ConeGeometry(.9, 2.6, 5)), this.materials.get("energyCyan")); arrow.rotation.x = Math.PI / 2; arrow.position.y = .9; group.add(arrow);
       }
@@ -1362,15 +1453,10 @@ export class BrWorldRenderer {
   }
 
   private buildConnectiveDressing(): void {
-    const hazardCaps: MatrixSpec[] = [];
     // Retire the old one-cabinet-per-road-piece scatter. It multiplied with
     // grade subdivision, ignored deck elevation, crossed junctions and looked
     // like cover despite having no collider. Authored district furniture and
     // the route-based streetscape below supply deliberate roadside context.
-    for (const block of BR_MAP_BLOCKS) if (block.kind === "cover") hazardCaps.push({
-      position: position(block.position.x, block.position.y + block.size.y / 2 + .06, block.position.z),
-      scale: position(block.size.x * .92, .1, block.size.z * .92), rotationY: block.rotation?.y
-    });
     const transitionGroup = new THREE.Group();
     transitionGroup.name = "deck-transition-fields";
     transitionGroup.visible = this.quality !== "low";
@@ -1391,7 +1477,14 @@ export class BrWorldRenderer {
     }
     this.root.add(transitionGroup);
     this.deckTransitionDetail = transitionGroup;
-    this.addInstances(this.root, this.materials.unitBox, this.materials.get("industrialOrange"), hazardCaps, false);
+    for (const batch of buildBrUtilityCoverBatches(BR_MAP_BLOCKS)) {
+      const specs = batch.parts.map(part => ({
+        position: position(part.position.x, part.position.y, part.position.z),
+        scale: position(part.scale.x, part.scale.y, part.scale.z),
+        rotationX: part.rotation.x, rotationY: part.rotation.y, rotationZ: part.rotation.z
+      }));
+      this.addInstances(this.root, this.materials.unitBox, this.materials.get(batch.finish), specs, false);
+    }
     for (const [x, z, number] of [[-35, -305, "07"], [25, -298, "12"], [85, -290, "21"]] as const) {
       const marker = this.materials.createSign(`PAD ${number}`, { border: "#ffd84d", subtitle: "AUTHORIZED LANDING" }); marker.position.set(x, 1.2, z); marker.scale.set(12, 3.7, 1); this.root.add(marker);
       const ring = new THREE.Mesh(this.geometry(new THREE.RingGeometry(9, 9.7, 32)), this.materials.translucent(0xffd84d, .56, true)); ring.rotation.x = -Math.PI / 2; ring.position.set(x, .62, z); ring.userData.cameraCollision = false; this.root.add(ring);
@@ -1401,7 +1494,18 @@ export class BrWorldRenderer {
       [-78, 88, "ASTRA  ←   VOID MALL  →"],
       [92, 78, "HELIOS  →   FARMS  ↑"]
     ] as const;
-    for (const [x, z, text] of wayfinding) { const sign = this.materials.createSign(text, { border: "#70f5ff" }); sign.position.set(x, 5.2, z); sign.scale.set(17, 4.2, 1); this.root.add(sign); }
+    for (const [x, z, text] of wayfinding) {
+      const sign = this.materials.createSign(text, { border: "#70f5ff" });
+      // Opacity belongs to this label; never mutate a cached sign material
+      // that a future facade/other world label might also borrow.
+      sign.material = this.materials.own(sign.material.clone());
+      sign.name = `route-wayfinding-${x}-${z}`;
+      sign.position.set(x, 5.2, z);
+      sign.scale.set(17, 4.2, 1);
+      sign.visible = false;
+      this.wayfindingLabels.push(sign);
+      this.root.add(sign);
+    }
     const grove = new THREE.Group(); grove.name = "corridor-space-tree-groves";
     grove.visible = this.quality !== "low";
     this.corridorGroveDetail = grove;

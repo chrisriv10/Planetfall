@@ -778,7 +778,9 @@ describe("Battle Royale shared rules", () => {
     expect(jump.grounded).toBe(false); expect(jump.velocity.y).toBeGreaterThan(0);
     const falling: BrMotionState = { ...base, position: { x: 80, y: 20, z: 80 }, velocity: { x: 0, y: -10, z: 0 }, grounded: false, deployment: "freefall" };
     const chute = stepBrMovement(falling, { moveX: 0, moveY: 0, yaw: 0, jump: false, sprint: false, crouch: false }, .1, 2000);
-    expect(chute.deployment).toBe("chute"); expect(chute.velocity.y).toBeGreaterThanOrEqual(-BR_BALANCE.chuteSpeed);
+    expect(chute.deployment).toBe("chute");
+    expect(chute.velocity.y).toBeGreaterThan(falling.velocity.y);
+    expect(chute.velocity.y-falling.velocity.y).toBeLessThanOrEqual(BR_BALANCE.chuteVerticalBraking*.1);
   });
 
   it("bounds planar acceleration and braking without diagonal gain or reversal",()=>{
@@ -805,7 +807,7 @@ describe("Battle Royale shared rules", () => {
 
   it("shares finite camera aim, muzzle, body, and head hit math", () => {
     const muzzle=brMuzzlePosition({ x: 2, y: 3, z: 4 }, 0, 0);expect(muzzle.x).toBeCloseTo(2);expect(muzzle.y).toBeCloseTo(3.72);expect(muzzle.z).toBeCloseTo(3.12);
-    const origin = { x: 0, y: 1.13, z: 5 }; const direction = { x: 0, y: 0, z: -1 }; const feet = { x: 0, y: 0, z: 0 };
+    const origin = { x: 0, y: 1.72, z: 5 }; const direction = { x: 0, y: 0, z: -1 }; const feet = { x: 0, y: 0, z: 0 };
     expect(brPlayerHitDistance(origin, direction, feet)?.headshot).toBe(true);
     expect(brPlayerHitDistance({ x: 0, y: .5, z: 5 }, direction, feet)?.headshot).toBe(false);
     expect(brPlayerHitDistance({ x: 3, y: .5, z: 5 }, direction, feet)).toBeNull();

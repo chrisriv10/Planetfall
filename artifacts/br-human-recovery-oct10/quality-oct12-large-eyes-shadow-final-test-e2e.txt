@@ -1,0 +1,46 @@
+
+> planetfall@0.1.0 test:e2e
+> playwright test
+
+[WebServer] (node:45176) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:48884) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:22172) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 14 tests using 2 workers
+
+(node:13728) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:54748) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  2 e2e\multiplayer.spec.ts:181:1 › settings persist across reloads (8.1s)
+  ok  1 e2e\lobby-lifecycle.spec.ts:4:3 › Classic lobby leave transfers authority and restores home without reloading (11.1s)
+  ok  3 e2e\multiplayer.spec.ts:205:1 › the home menu previews the Fallbucks shop (11.8s)
+  ok  5 e2e\multiplayer.spec.ts:226:1 › Battle Royale lobby stays usable while its renderer module loads (8.5s)
+  ok  4 e2e\lobby-lifecycle.spec.ts:4:3 › BR lobby leave transfers authority and restores home without reloading (21.5s)
+  ok  7 e2e\lobby-lifecycle.spec.ts:54:1 › leaving a BR lobby during module loading cannot reactivate it over home (9.3s)
+  ok  6 e2e\multiplayer.spec.ts:256:1 › Battle Royale creates an isolated room and enters the Starliner drop (53.6s)
+BR Solo timing: home loaded 626ms
+BR Solo timing: quick-start sent 5183ms
+BR Solo timing: HUD visible 5262ms
+BR Solo timing: HUD checks complete 10778ms
+BR Solo timing: map visible 13979ms
+BR Solo timing: viewport 1280x720 set 16411ms
+BR Solo timing: viewport 1280x720 layout read 19456ms
+BR Solo timing: viewport 1920x720 set 22284ms
+BR Solo timing: viewport 1920x720 layout read 25458ms
+BR Solo timing: viewport 1440x900 set 28035ms
+BR Solo timing: viewport 1440x900 layout read 28828ms
+  ok  8 e2e\multiplayer.spec.ts:348:1 › Battle Royale Solo requires confirmation and respects quick-play settings (29.1s)
+  ok  9 e2e\multiplayer.spec.ts:429:1 › the cannon guide marks its predicted planet impact (6.1s)
+  ok 10 e2e\multiplayer.spec.ts:445:1 › two players can create, join, ready, and start (9.4s)
+  ok 11 e2e\multiplayer.spec.ts:489:1 › a human can raid, steal, shove, sabotage, and resume cannon play (3.0m)
+  ok 12 e2e\multiplayer.spec.ts:771:1 › the host can start one clearly revealed Chaos modifier (8.0s)
+  ok 13 e2e\multiplayer.spec.ts:805:1 › six participants remain readable and within the visual budget (6.7s)
+  ok 14 e2e\multiplayer.spec.ts:829:1 › solo quick play starts with three clearly marked bots (2.3s)
+
+  Slow test file: e2e\multiplayer.spec.ts (5.4m)
+  Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+  14 passed (5.5m)

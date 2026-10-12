@@ -1,4 +1,5 @@
 import RAPIER from "@dimforge/rapier3d-compat";
+import { BR_LANDFORMS, brLandformsNear, brControllerGrounded } from "@planetfall/shared";
 import { BR_BASE_DECK_CELLS, brConstrainBaseDeckMovement, brInteriorStairSubsteps, brInteriorStairProbeY } from "@planetfall/shared";
 import { BR_BALANCE, brBlocksForPhysicsSector, brFlatDeckCollision, brHasStandingClearance, brMantleTopAt, brPhysicsSector, isInsideBrIsland, type BrCollisionResult, type BrMapBlock, type Vec3 } from "@planetfall/shared";
 
@@ -13,6 +14,7 @@ const downwardContact=(desired:Vec3,actual:Vec3)=>desired.y<=0&&actual.y>desired
 /** One-character Rapier prediction world built from the exact authoritative collider schema. */
 export class BrPredictionPhysics {
   private readonly sectors=new Map<string,MovementSector>();
+  private readonly viewRay = new RAPIER.Ray({x:0,y:0,z:0}, {x:0,y:0,z:-1});
 
   constructor() {
     // Sectors are built lazily. Prediction uses the same overlap and collider
@@ -42,7 +44,7 @@ export class BrPredictionPhysics {
     const next={x:feet.x+movement.x,y:feet.y+movement.y,z:feet.z+movement.z};const inside=isInsideBrIsland(next);
     const movementY=!inside&&downwardContact(desiredMovement,movement)?desiredMovement.y:brConstrainBaseDeckMovement(feet,movement);next.y=feet.y+movementY;
     sector.collider.setTranslation({x:next.x,y:next.y+centerY(actualCrouch),z:next.z});
-    return {movement:{x:movement.x,y:movementY,z:movement.z},grounded:inside&&!jumping&&(sector.controller.computedGrounded()||downwardContact(desiredMovement,movement)),ceiling:desiredMovement.y>0&&movementY<desiredMovement.y-.01,crouched:actualCrouch};
+    return {movement:{x:movement.x,y:movementY,z:movement.z},grounded:inside&&!jumping&&brControllerGrounded(sector.controller,desiredMovement,movement),ceiling:desiredMovement.y>0&&movementY<desiredMovement.y-.01,crouched:actualCrouch};
   }
 
   /** Distance from the pilot's feet to the first gameplay support below.
@@ -55,10 +57,28 @@ export class BrPredictionPhysics {
     return Math.max(0,Math.min(maximum,hit?.timeOfImpact??maximum));
   }
 
+  /** Camera queries use the same broadphase and collision geometry as the
+   * pilot. This avoids raycasting every decorative instance five times/frame. */
+  cameraDistance(origin:Vec3, direction:Vec3, maximum:number):number {
+    const sector = this.sector(origin);
+    Object.assign(this.viewRay.origin, origin); Object.assign(this.viewRay.dir, direction);
+    const hit = sector.world.castRay(this.viewRay, maximum, true, undefined, undefined, sector.collider);
+    let distance = hit?.timeOfImpact ?? maximum;
+    // The camera boom can extend beyond the movement sector's four-metre
+    // overlap. Query its end sector too, so boundary walls cannot disappear.
+    const end = {x:origin.x+direction.x*maximum,y:origin.y+direction.y*maximum,z:origin.z+direction.z*maximum};
+    if (brPhysicsSector(end).key !== brPhysicsSector(origin).key) {
+      const other = this.sector(end);
+      const next = other.world.castRay(this.viewRay, maximum, true, undefined, undefined, other.collider);
+      distance = Math.min(distance, next?.timeOfImpact ?? maximum);
+    }
+    return distance;
+  }
+
   reset(feet:Vec3={x:0,y:0,z:0}):void {for(const sector of this.sectors.values()){sector.crouched=false;sector.collider.setHalfHeight(STANDING_HALF_HEIGHT);sector.collider.setTranslation({x:feet.x,y:feet.y+centerY(false),z:feet.z});}}
   dispose():void {for(const sector of this.sectors.values()){sector.world.removeCharacterController(sector.controller);sector.world.free();}this.sectors.clear();}
 
-  private sector(position:Vec3):MovementSector{const key=brPhysicsSector(position).key;let sector=this.sectors.get(key);if(sector)return sector;const world=new RAPIER.World({x:0,y:0,z:0});addMovementDeck(world);addBlocks(world,brBlocksForPhysicsSector(position));const collider=world.createCollider(RAPIER.ColliderDesc.capsule(STANDING_HALF_HEIGHT,BR_BALANCE.playerRadius).setFriction(0));const controller=world.createCharacterController(.035);controller.enableAutostep(.52,.22,false);controller.enableSnapToGround(.18);controller.setSlideEnabled(true);controller.setMaxSlopeClimbAngle(Math.PI*.32);world.step();sector={world,collider,controller,crouched:false};this.sectors.set(key,sector);return sector;}
+  private sector(position:Vec3):MovementSector{const key=brPhysicsSector(position).key;let sector=this.sectors.get(key);if(sector)return sector;const world=new RAPIER.World({x:0,y:0,z:0});addMovementDeck(world);addBlocks(world,brBlocksForPhysicsSector(position));for(const h of brLandformsNear(brPhysicsSector(position).center,54))world.createCollider(RAPIER.ColliderDesc.trimesh(h.vertices,h.indices));const collider=world.createCollider(RAPIER.ColliderDesc.capsule(STANDING_HALF_HEIGHT,BR_BALANCE.playerRadius).setFriction(0));const controller=world.createCharacterController(.035);controller.enableAutostep(.52,.22,false);controller.enableSnapToGround(.18);controller.setSlideEnabled(true);controller.setMaxSlopeClimbAngle(Math.PI*.32);world.step();sector={world,collider,controller,crouched:false};this.sectors.set(key,sector);return sector;}
 }
 
 type MovementSector={world:RAPIER.World;collider:RAPIER.Collider;controller:RAPIER.KinematicCharacterController;crouched:boolean};

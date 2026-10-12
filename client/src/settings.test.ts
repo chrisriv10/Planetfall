@@ -16,6 +16,14 @@ describe("user settings", () => {
     expect(parseStoredSettings("{nope")).toEqual(defaultSettings());
   });
 
+  it("persists Auto and respects an explicit manual quality", () => {
+    expect(defaultSettings().graphicsQuality).toBe("auto");
+    expect(parseStoredSettings(JSON.stringify({ graphicsQuality: "auto" })).graphicsQuality).toBe("auto");
+    for (const quality of ["low", "medium", "high"] as const) {
+      expect(validateSettings({ graphicsQuality: quality }).graphicsQuality).toBe(quality);
+    }
+  });
+
   it("keeps quality presets ordered and shake centralized", () => {
     expect(QUALITY_PRESETS.low.particleCap).toBeLessThan(QUALITY_PRESETS.medium.particleCap);
     expect(QUALITY_PRESETS.medium.particleCap).toBeLessThan(QUALITY_PRESETS.high.particleCap);

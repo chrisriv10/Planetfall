@@ -2,6 +2,7 @@ import type { Vec3 } from "../index.js";
 import { buildBrBridgePiers } from "./orbital-isle-bridge-piers.js";
 import { buildBrEntranceHeader } from "./entrance-headers.js";
 import { buildBrGreenwayTrees, brGreenwayTrunk } from "./orbital-isle-greenways.js";
+import { BR_LANDFORMS, BR_LANDFORM_TREES, brLandformHeightAt } from "./orbital-isle-landforms.js";
 import { BR_ELEVATION_REGIONS, BR_SUNKEN_REGIONS, brAuthoredDeckHeight, brGradeAuthoredRoad, brJoinServiceGrades } from "./orbital-isle-elevation.js";
 import {
   AUTHORED_BR_SECONDARY_STRUCTURE_BLUEPRINTS,
@@ -615,12 +616,21 @@ export const BR_DISTRICT_PLANS:readonly BrDistrictPlan[]=[...AUTHORED_BR_SPATIAL
 // Finish the grade outside the WHOLE 11m-wide upper ring, not at its center:
 // otherwise a pilot meets the old ring's end cap halfway up the new ramp.
 // The short feeder uses that same grade rather than an angled duplicate nub.
+// Short vertical transition curves ease the Academy access ramps into their
+// landings. These literal pieces drive rendering, authority and prediction.
+// Heights retain the map's decimetre grid and stay below the existing .4 grade.
+const academyAccessProfile=(z:number,startX:number,endX:number):Vec3[]=>[
+  {x:startX,y:.1,z},{x:-394,y:.1,z},
+  {x:-393.25,y:.2,z},{x:-392.5,y:.4,z},
+  {x:-373.5,y:7.8,z},{x:-372.75,y:8,z},
+  {x:-372,y:8.1,z},{x:endX,y:8.1,z}
+];
 const fixedRoadProfiles=new Map<string,readonly Vec3[]>([
   ["south-rim-boardwalk-west",[{x:-160,y:5.6,z:-447},{x:-130,y:5.6,z:-459.8571428571429},{x:-125,y:5.1,z:-462}]],
   // Separate the freight descent from the ground Cargo Spur feeder until both
   // have reached a level landing. Overlapping ribbons with different grades
   // previously lifted a pilot off one road while its endpoints still passed.
-  ["service-25-grade",[{x:306.17,y:8.1,z:-276},{x:300,y:8.1,z:-276},{x:300,y:8.1,z:-271},{x:289.5,y:.1,z:-251},{x:275,y:.1,z:-225}]],
+  ["service-25-grade",[{x:306.17,y:8.1,z:-276},{x:300,y:8.1,z:-276},{x:300,y:8.1,z:-271},{x:299.5,y:7.9,z:-270.1},{x:298.8,y:7.4,z:-268.8},{x:290.7,y:.8,z:-253.2},{x:290,y:.3,z:-251.9},{x:289.5,y:.1,z:-251},{x:275,y:.1,z:-225}]],
   ["service-13-grade",[{x:327.4,y:4.6,z:207},{x:324.525,y:4.6,z:202},{x:313.78872955,y:5.505041490527634,z:183.32822548},{x:309.30248943165805,y:5.505041490527634,z:175.5260685767966}]],
   ["service-16",[{x:280,y:.1,z:330},{x:234,y:4.1,z:330},{x:225,y:4.1,z:330}]],
   ["ring-helios-south",[{x:430,y:.1,z:40},{x:354,y:6.1,z:40},{x:345,y:6.1,z:40}]],
@@ -640,7 +650,7 @@ const fixedRoadProfiles=new Map<string,readonly Vec3[]>([
   // Literal junction recovery: keep local streets on their real slabs and
   // finish each incline outside the full intersecting carriageway.
   ["helios-relay-main",[{x:345,y:6.1,z:135},{x:405,y:6.1,z:135}]],
-  ["helios-relay-cross",[{x:375,y:6.1,z:108},{x:375,y:6.1,z:144},{x:375,y:.1,z:162}]],
+  ["helios-relay-cross",[{x:375,y:6.1,z:108},{x:375,y:6.1,z:144},{x:375,y:5.9,z:145},{x:375,y:.3,z:161},{x:375,y:.1,z:162}]],
   ["service-14",[{x:375,y:6.1,z:135},{x:345,y:6.1,z:135}]],
   ["orbital-overlook-main",[{x:275,y:.1,z:220},{x:305,y:.1,z:220},{x:305,y:.1,z:190},{x:310,y:.1,z:180},{x:340,y:.1,z:180},{x:340,y:4.6,z:201},{x:340,y:4.6,z:220},{x:335,y:4.6,z:220}]],
   ["orbital-overlook-cross",[{x:305,y:.1,z:193},{x:305,y:.1,z:247}]],
@@ -678,18 +688,21 @@ const fixedRoadProfiles=new Map<string,readonly Vec3[]>([
   ["west-overlook-cross",[{x:-405,y:.1,z:-12},{x:-405,y:.1,z:42}]],
   ["service-5",[{x:-405,y:.1,z:15},{x:-430,y:.1,z:15}]],
   ["horizon-homes-main",[{x:-285,y:.1,z:-30},{x:-225,y:.1,z:-30}]],
-  ["horizon-homes-cross",[{x:-255,y:5.1,z:-57},{x:-255,y:5.1,z:-50},{x:-255,y:.1,z:-36},{x:-255,y:.1,z:-3}]],
-  ["service-3",[{x:-255,y:.1,z:-30},{x:-255,y:.1,z:-36},{x:-255,y:5.1,z:-50},{x:-255,y:5.1,z:-56}]],
+  // The short Horizon ramp has little spare grade budget. One-metre easing
+  // pieces halve the landing angle while the middle stays below .4 slope.
+  // Keep both overlapping routes on precisely the same support surface.
+  ["horizon-homes-cross",[{x:-255,y:5.1,z:-57},{x:-255,y:5.1,z:-50},{x:-255,y:4.9,z:-49},{x:-255,y:.3,z:-37},{x:-255,y:.1,z:-36},{x:-255,y:.1,z:-3}]],
+  ["service-3",[{x:-255,y:.1,z:-30},{x:-255,y:.1,z:-36},{x:-255,y:.3,z:-37},{x:-255,y:4.9,z:-49},{x:-255,y:5.1,z:-50},{x:-255,y:5.1,z:-56}]],
   ["west-neighborhood-link-a",[{x:-285,y:.1,z:-30},{x:-350,y:.1,z:-105}]],
   // Central Heights is a split-level neighborhood: the service building sits
   // on Nova, while its apartment/shop entrances face a ground-level street.
   // Hold the upper approach past the FULL east-ring edge (-84.5), then grade
   // outside the solid deck and finish before the cross street's west edge.
   // Its feeder and radial use this same ramp, not two independent apron planes.
-  ["central-heights-main",[{x:-105,y:5.1,z:-82},{x:-84,y:5.1,z:-82},{x:-69,y:.1,z:-82},{x:-45,y:.1,z:-82}]],
+  ["central-heights-main",[{x:-105,y:5.1,z:-82},{x:-84,y:5.1,z:-82},{x:-83,y:4.9,z:-82},{x:-70,y:.3,z:-82},{x:-69,y:.1,z:-82},{x:-45,y:.1,z:-82}]],
   ["central-heights-cross",[{x:-65,y:.1,z:-109},{x:-65,y:.1,z:-33}]],
-  ["service-0",[{x:-65,y:.1,z:-82},{x:-69,y:.1,z:-82},{x:-84,y:5.1,z:-82},{x:-92,y:5.1,z:-82}]],
-  ["radial-0",[{x:-70,y:.1,z:-58},{x:-65,y:.1,z:-58},{x:-65,y:.1,z:-82},{x:-69,y:.1,z:-82},{x:-84,y:5.1,z:-82},{x:-92,y:5.1,z:-82}]],
+  ["service-0",[{x:-65,y:.1,z:-82},{x:-69,y:.1,z:-82},{x:-70,y:.3,z:-82},{x:-83,y:4.9,z:-82},{x:-84,y:5.1,z:-82},{x:-92,y:5.1,z:-82}]],
+  ["radial-0",[{x:-70,y:.1,z:-58},{x:-65,y:.1,z:-58},{x:-65,y:.1,z:-82},{x:-69,y:.1,z:-82},{x:-70,y:.3,z:-82},{x:-83,y:4.9,z:-82},{x:-84,y:5.1,z:-82},{x:-92,y:5.1,z:-82}]],
   // Zero's civic streets serve ground-level buildings. Nova's apron must not
   // turn them into inaccessible overhead slabs or tilt one side of a junction.
   ["zero-circulation-s",[{x:-70,y:.1,z:-58},{x:70,y:.1,z:-58}]],
@@ -697,9 +710,9 @@ const fixedRoadProfiles=new Map<string,readonly Vec3[]>([
   // Comet's entrance is below Nova. The old apron raised a road through its
   // doorway, and the independently graded civic feeder met a different plane.
   // Keep the whole frontage/through route level; only its west access climbs.
-  ["comet-hotel-main",[{x:-106,y:5.1,z:-214},{x:-84,y:5.1,z:-214},{x:-69,y:.1,z:-214},{x:-46,y:.1,z:-214}]],
+  ["comet-hotel-main",[{x:-106,y:5.1,z:-214},{x:-84,y:5.1,z:-214},{x:-83,y:4.9,z:-214},{x:-70,y:.3,z:-214},{x:-69,y:.1,z:-214},{x:-46,y:.1,z:-214}]],
   ["comet-hotel-cross",[{x:-65,y:.1,z:-241},{x:-65,y:.1,z:-187}]],
-  ["service-2",[{x:-65,y:.1,z:-214},{x:-69,y:.1,z:-214},{x:-84,y:5.1,z:-214},{x:-92,y:5.1,z:-214}]],
+  ["service-2",[{x:-65,y:.1,z:-214},{x:-69,y:.1,z:-214},{x:-70,y:.3,z:-214},{x:-83,y:4.9,z:-214},{x:-84,y:5.1,z:-214},{x:-92,y:5.1,z:-214}]],
   ["central-hotel-promenade",[{x:0,y:.1,z:-80},{x:-65,y:.1,z:-175}]],
   ["central-hotel-promenade-south",[{x:-65,y:.1,z:-175},{x:-65,y:.1,z:-214}]],
   ["central-hotel-promenade-entry",[{x:-65,y:.1,z:-214},{x:-46,y:.1,z:-214}]],
@@ -718,12 +731,12 @@ const fixedRoadProfiles=new Map<string,readonly Vec3[]>([
   // previously put their street 7.67m overhead, with no supported frontage.
   // Keep their loop on the real floor and climb only on the two east accesses.
   // The upper landing extends beyond the full west circulation road (-370).
-  ["academy-dorms-main",[{x:-400,y:.1,z:125},{x:-394,y:.1,z:125},{x:-372,y:8.1,z:125},{x:-340,y:8.1,z:125}]],
+  ["academy-dorms-main",academyAccessProfile(125,-400,-340)],
   ["academy-dorms-cross",[{x:-400,y:.1,z:123},{x:-400,y:.1,z:185}]],
   ["academy-dorms-north",[{x:-400,y:.1,z:185},{x:-369,y:.1,z:185}]],
   ["academy-dorms-frontage",[{x:-369,y:.1,z:185},{x:-369,y:.1,z:159}]],
-  ["service-4",[{x:-400,y:.1,z:125},{x:-394,y:.1,z:125},{x:-372,y:8.1,z:125},{x:-365,y:8.1,z:125}]],
-  ["west-park-main",[{x:-430,y:.1,z:150},{x:-394,y:.1,z:150},{x:-372,y:8.1,z:150},{x:-365,y:8.1,z:150}]],
+  ["service-4",academyAccessProfile(125,-400,-365)],
+  ["west-park-main",academyAccessProfile(150,-430,-365)],
   ["west-park-cross",[{x:-400,y:.1,z:123},{x:-400,y:.1,z:177}]],
   ["service-21",[{x:-400,y:.1,z:150},{x:-422.92452830188677,y:.1,z:162.73584905660377}]]
 ]);
@@ -899,16 +912,63 @@ for(const road of BR_ROADS)for(const endpoint of [road.from,road.to]){
     linkNavNodes(endpointNode,ensureNavNode(other.to));
   }
 }
+// Deliberate pedestrian rotations over the planted hills. Attach each end to
+// a visible ground-level street only when the connecting approach is clear of
+// buildings and raised retaining decks. Height samples follow the real mesh.
+for(const h of BR_LANDFORMS){
+  let previous:MutableNavNode|undefined;
+  for(const fraction of [-.5,-.25,0,.25,.5]){
+    const point={x:h.center.x,y:0,z:h.center.z+h.depth*fraction};point.y=(brLandformHeightAt(h,point)??0)+.1;
+    const node=ensureNavNode(point);if(previous)linkNavNodes(previous,node);previous=node;
+    if(Math.abs(fraction)!==.5)continue;
+    const approaches=BR_ROADS.filter(r=>Math.abs(r.from.y-.1)<.001&&Math.abs(r.to.y-.1)<.001).map(road=>{
+      const dx=road.to.x-road.from.x,dz=road.to.z-road.from.z,len=dx*dx+dz*dz,t=Math.max(0,Math.min(1,((point.x-road.from.x)*dx+(point.z-road.from.z)*dz)/len));
+      const target={x:road.from.x+dx*t,y:.1,z:road.from.z+dz*t};
+      return {road,target,distance:Math.hypot(point.x-target.x,point.z-target.z)};
+    }).sort((a,b)=>a.distance-b.distance);
+    for(const {road,target} of approaches){
+      const approach={id:`${h.id}-approach`,from:point,to:target,width:2,color:"#63ef8b"};
+      if(BR_STRUCTURES.some(s=>brRoadIntersectsFootprint(approach,s.position,s.size,2)))continue;
+      if(BR_TERRACES.some(t=>brRoadIntersectsFootprint(approach,t.position,{...t.size,y:1},1)))continue;
+      const street=ensureNavNode(target);linkNavNodes(node,street);linkNavNodes(street,ensureNavNode(road.from));linkNavNodes(street,ensureNavNode(road.to));break;
+    }
+  }
+}
 export const BR_NAV_NODES: readonly BrNavNode[] = [...mutableNavNodes.values()].map(node=>({id:node.id,position:node.position,neighbors:[...node.neighbors]}));
 const navNodesById=new Map(BR_NAV_NODES.map(node=>[node.id,node]));
+const roadNavNodes=BR_ROADS.map(road=>{
+  const dx=road.to.x-road.from.x,dz=road.to.z-road.from.z,lengthSquared=dx*dx+dz*dz;
+  const fraction=(point:Vec3)=>lengthSquared>0?Math.max(0,Math.min(1,((point.x-road.from.x)*dx+(point.z-road.from.z)*dz)/lengthSquared)):0;
+  return {road,dx,dz,lengthSquared,nodes:BR_NAV_NODES.filter(node=>pointSegmentDistance(node.position,road.from,road.to)<.05&&Math.abs(node.position.y-(road.from.y+(road.to.y-road.from.y)*fraction(node.position)+.2))<.05)};
+});
 
 /** Returns a road-network waypoint, keeping simple bots out of dense building footprints. */
 export function brNextWaypoint(start:Vec3,target:Vec3):Vec3 {
   const closest=(point:Vec3)=>BR_NAV_NODES.reduce((best,node)=>Math.hypot(node.position.x-point.x,node.position.z-point.z)<Math.hypot(best.position.x-point.x,best.position.z-point.z)?node:best,BR_NAV_NODES[0]);
-  const source=closest(start),destination=closest(target); if(source.id===destination.id)return target;
+  // Nearest-node Voronoi cells can belong to another nearby street. Replanning
+  // midway through Nova's bend then selected its parallel arterial and sent
+  // the pilot back to the junction. On pavement, choose only nodes on the road
+  // actually underfoot; off-road starts retain the existing network approach.
+  let currentRoad:typeof roadNavNodes[number]|undefined,bestRoadDistance=Infinity;
+  for(const segment of roadNavNodes){
+    const {road,dx,dz,lengthSquared}=segment;
+    const t=lengthSquared>0?Math.max(0,Math.min(1,((start.x-road.from.x)*dx+(start.z-road.from.z)*dz)/lengthSquared)):0;
+    const distance=Math.hypot(start.x-road.from.x-dx*t,start.z-road.from.z-dz*t);
+    const floor=road.from.y+(road.to.y-road.from.y)*t-.1;
+    const nearer=distance<bestRoadDistance-1e-6;
+    const sameCenterline=Math.abs(distance-bestRoadDistance)<=1e-6&&road.width>(currentRoad?.road.width??0);
+    if((nearer||sameCenterline)&&distance<=road.width/2+.5&&Math.abs(start.y-floor)<1.5&&segment.nodes.length){currentRoad=segment;bestRoadDistance=distance;}
+  }
+  const source=currentRoad?currentRoad.nodes.reduce((best,node)=>Math.hypot(node.position.x-start.x,node.position.z-start.z)<Math.hypot(best.position.x-start.x,best.position.z-start.z)?node:best):closest(start),destination=closest(target);
+  const sourceDistance=Math.hypot(source.position.x-start.x,source.position.z-start.z);
+  if(source.id===destination.id)return target;
   const queue=[source.id],previous=new Map<string,string|null>([[source.id,null]]);
   while(queue.length){const current=queue.shift()!;if(current===destination.id)break;const node=navNodesById.get(current)!;for(const neighbor of node.neighbors)if(!previous.has(neighbor)){previous.set(neighbor,current);queue.push(neighbor);}}
-  let step=destination.id,parent=previous.get(step);while(parent&&parent!==source.id){step=parent;parent=previous.get(step);}return {...(navNodesById.get(step)?.position??target)};
+  let step=destination.id,parent=previous.get(step);while(parent&&parent!==source.id){step=parent;parent=previous.get(step);}
+  // Reach the junction before turning onto a different segment. This avoids
+  // cutting the corner as the next endpoint becomes nearer than the last.
+  if(currentRoad&&previous.has(destination.id)&&sourceDistance>1.25&&!currentRoad.nodes.some(node=>node.id===step))return {...source.position};
+  return {...(navNodesById.get(step)?.position??target)};
 }
 
 function structureBlocks(structure: BrStructure): BrMapBlock[] {
@@ -1197,7 +1257,8 @@ export const BR_CRATE_SOCKETS: readonly Vec3[] = [...BR_POIS.map((district,index
 
 export const BR_TRAVERSAL = [
   { id:"lift-zero", kind:"grav-lift" as const, position:{x:20,y:0,z:18}, target:{x:20,y:25,z:18} },
-  { id:"lift-nova", kind:"grav-lift" as const, position:{x:-137,y:0,z:-168}, target:{x:-137,y:21,z:-168} },
+  // Open north court: the former location was inside Tower B's floor stack.
+  { id:"lift-nova", kind:"grav-lift" as const, position:{x:-134,y:0,z:-140}, target:{x:-134,y:21,z:-140} },
   { id:"lift-helios", kind:"grav-lift" as const, position:{x:262,y:0,z:38}, target:{x:262,y:25,z:38} },
   { id:"jump-east", kind:"jump-pad" as const, position:{x:112,y:0,z:28}, target:{x:238,y:24,z:75} },
   { id:"jump-west", kind:"jump-pad" as const, position:{x:-112,y:0,z:24}, target:{x:-252,y:23,z:77} }
@@ -1215,7 +1276,7 @@ export const BR_GREENWAY_TREES = buildBrGreenwayTrees({
 });
 /** Existing map solids retain their exact order; bridge supports append. */
 export const BR_ENTRANCE_HEADERS:readonly BrMapBlock[]=BR_STRUCTURES.flatMap(s=>{const header=buildBrEntranceHeader(s);return header?[header]:[];});
-export const BR_MAP_BLOCKS: readonly BrMapBlock[] = [...baseMapBlocks,...BR_BRIDGE_PIERS,...BR_GREENWAY_TREES.map(brGreenwayTrunk),...BR_ENTRANCE_HEADERS];
+export const BR_MAP_BLOCKS: readonly BrMapBlock[] = [...baseMapBlocks,...BR_BRIDGE_PIERS,...BR_GREENWAY_TREES.map(brGreenwayTrunk),...BR_LANDFORM_TREES.map(brGreenwayTrunk),...BR_ENTRANCE_HEADERS];
 
 export function isInsideBrIsland(position: Vec3, margin = 0): boolean {
   if (pointInPolygon(position.x,position.z)) return true;

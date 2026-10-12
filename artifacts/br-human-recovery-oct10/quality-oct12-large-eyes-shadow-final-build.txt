@@ -1,0 +1,40 @@
+
+> planetfall@0.1.0 build
+> npm run build -w @planetfall/shared && npm run build -w @planetfall/server && npm run build -w @planetfall/client
+
+
+> @planetfall/shared@0.1.0 build
+> tsc -p tsconfig.json
+
+
+> @planetfall/server@0.1.0 build
+> tsc -p tsconfig.json
+
+
+> @planetfall/client@0.1.0 build
+> tsc -p tsconfig.json --noEmit && vite build --configLoader native
+
+vite v8.2.2 building client environment for production...
+transforming...
+✓ 212 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                   22.01 kB │ gzip:     5.22 kB
+dist/assets/index-Dl6VgDna.css                    68.33 kB │ gzip:    15.75 kB
+dist/assets/br-world-DgxpNX-k.js                   0.07 kB │ gzip:     0.08 kB
+dist/assets/br-feedback-CQd_nxrm.js                1.85 kB │ gzip:     0.96 kB │ map:    10.61 kB
+dist/assets/cosmetic-flight-trail-D79i0DCF.js     15.12 kB │ gzip:     5.79 kB │ map:    50.70 kB
+dist/assets/game-_KgeYcaN.js                     101.09 kB │ gzip:    29.18 kB │ map:   296.38 kB
+dist/assets/index-CCqi_D9h.js                    110.34 kB │ gzip:    36.21 kB │ map:   380.82 kB
+dist/assets/br-game-CM9g_9pe.js                  138.92 kB │ gzip:    42.95 kB │ map:   458.89 kB
+dist/assets/br-world-C1gtvfS6.js                 240.50 kB │ gzip:    70.97 kB │ map:   897.51 kB
+dist/assets/preload-helper-sP3Rsnry.js           360.94 kB │ gzip:    89.55 kB │ map:   969.23 kB
+dist/assets/three.core-fxJVvYQR.js               383.70 kB │ gzip:   104.38 kB │ map: 2,441.04 kB
+dist/assets/reconciliation-pHaNIOWE.js         2,857.43 kB │ gzip: 1,096.05 kB │ map: 3,039.38 kB
+
+✓ built in 698ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 1600 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.

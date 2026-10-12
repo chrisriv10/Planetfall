@@ -1,6 +1,6 @@
 import type { BrWeaponId, Vec3 } from "@planetfall/shared";
 
-export type BrCameraMode = "grounded" | "aiming" | "freefall" | "chute" | "downed" | "spectator";
+export type BrCameraMode = "grounded" | "aiming" | "freefall" | "chute" | "downed" | "spectator" | "vehicle";
 
 export interface BrCameraPreset {
   boom: number;
@@ -21,6 +21,13 @@ export interface BrCameraGeometry extends BrCameraPreset {
 export interface BrShipLookState { yaw: number; initialized: boolean; }
 export interface BrShipCameraFrame { focus: Vec3; desired: Vec3; }
 export interface BrAimProfile { fov:number; sensitivity:number; scope:"rail"|"pulse"|null; }
+
+/** A shortened collision boom can obscure the view well before first-person
+ * distance. Separate exit/return distances prevent flicker beside a wall. */
+export function brLocalRigCameraVisible(boom:number,previous:boolean,scoped:boolean,helmetScreenHeight=0):boolean {
+  if(scoped||!Number.isFinite(boom)||!Number.isFinite(helmetScreenHeight))return false;
+  return boom>(previous?2.4:2.8)&&helmetScreenHeight<(previous?.30:.24);
+}
 
 /** Mouse deltas and the right-stick X axis are positive toward screen-right.
  * Keep input mapping explicit beside the canonical camera/aim forward basis. */
@@ -48,6 +55,7 @@ export function brShipLookState(currentYaw:number,route:{x:number;z:number},init
 }
 
 const PRESETS: Record<BrCameraMode, BrCameraPreset> = {
+  vehicle: { boom: 8.4, height: 3.7, focusHeight: 1.2, shoulder: .28, fov: 72 },
   grounded: { boom: 6.15, height: 2.42, focusHeight: 1.22, shoulder: .68, fov: 70 },
   aiming: { boom: 5.65, height: 2.32, focusHeight: 1.2, shoulder: .8, fov: 62 },
   freefall: { boom: 10.2, height: 3.15, focusHeight: 1.05, shoulder: .22, fov: 76 },
@@ -55,6 +63,11 @@ const PRESETS: Record<BrCameraMode, BrCameraPreset> = {
   downed: { boom: 5.45, height: 1.22, focusHeight: .48, shoulder: .28, fov: 68 },
   spectator: { boom: 7.15, height: 2.4, focusHeight: 1.02, shoulder: .28, fov: 70 }
 };
+
+/** Enter behind the skimmer once; subsequent mouse input still owns free look. */
+export function brVehicleEntryYaw(currentYaw:number,previousId:string|null,vehicle:{id:string;yaw:number}|null):number {
+  return vehicle&&vehicle.id!==previousId?vehicle.yaw:currentYaw;
+}
 
 /** The transport uses the SAME yaw/pitch basis as movement and aiming. Route
  * facing is seeded once by brShipLookState; it does not own the boom afterward.

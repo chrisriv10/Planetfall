@@ -5,6 +5,11 @@ import { brRoadDetailClear } from "./br-road-detail";
 import { buildBrRoadBends } from "./br-road-bends";
 
 describe("route-stationed presentation detail",()=>{
+  it("keeps cached canonical transforms isolated from caller edits",()=>{
+    const parts=buildBrRoadMarkings(),expected=structuredClone(parts);
+    parts[0].position.x=1e9;parts[0].scale.y=100;parts.pop();
+    expect(buildBrRoadMarkings()).toEqual(expected);
+  });
   const route:BrRoadSegment={...BR_ROAD_ROUTES[0],id:"test-route",from:{x:0,y:.1,z:0},to:{x:240,y:12.1,z:0},width:12};
   const split=(count:number)=>Array.from({length:count},(_,i)=>({...route,id:`test-route-grade-part-${i}`,from:{x:240*i/count,y:.1+12*i/count,z:0},to:{x:240*(i+1)/count,y:.1+12*(i+1)/count,z:0}}));
   // These fixtures use axis-aligned legs; compare full footprints, not centers.

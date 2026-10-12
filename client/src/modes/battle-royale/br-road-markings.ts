@@ -13,6 +13,8 @@ export interface BrRoadMarking {
   rotationZ:number;
 }
 type Clear=(road:BrRoadSegment,x:number,z:number)=>boolean;
+let productionMarkings:BrRoadMarking[]|undefined;
+const copyMarkings=(parts:readonly BrRoadMarking[])=>parts.map(p=>({...p,position:{...p.position},scale:{...p.scale}}));
 
 /** Static presentation transforms. Stations belong to whole authored routes;
  * Pieces are supplied in authored path order; split geometry at grade seams
@@ -24,6 +26,8 @@ export function buildBrRoadMarkings(
   pieces:readonly BrRoadSegment[]=BR_ROADS,
   isClear:Clear=brRoadDetailClear,
 ):BrRoadMarking[]{
+  const production=routes===BR_ROAD_ROUTES&&pieces===BR_ROADS&&isClear===brRoadDetailClear;
+  if(production&&productionMarkings)return copyMarkings(productionMarkings);
   const result:BrRoadMarking[]=[];
   const elbows=buildBrRoadBends(pieces).filter(b=>b.arms.length===2
     &&brRoadRouteId({id:b.arms[0].roadId})!==brRoadRouteId({id:b.arms[1].roadId}));
@@ -130,5 +134,6 @@ export function buildBrRoadMarkings(
         result.push({role,routeId:route.id,pieceId:segment.piece.id,position:{...p,y:surface+lift},scale:{x,y,z},rotationY:segment.angle,rotationZ:0});
     }
   }
+  if(production){productionMarkings=result;return copyMarkings(result);}
   return result;
 }

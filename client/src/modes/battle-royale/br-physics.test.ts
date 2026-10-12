@@ -3,6 +3,21 @@ import { BR_MAP_BLOCKS,BR_ROADS,stepBrMovement,type BrMotionState } from "@plane
 import { BrPredictionPhysics } from "./br-physics";
 
 describe("Battle Royale prediction support queries",()=>{
+  it("camera rays hit authoritative walls and cross sector boundaries",()=>{
+    const physics=new BrPredictionPhysics();
+    try {
+      const walls=BR_MAP_BLOCKS.filter(b=>b.kind==="wall"&&!b.rotation&&b.size.y>2);
+      expect(walls.length).toBeGreaterThan(0);
+      for(const wall of walls.slice(0,30)) {
+        const alongX=wall.size.x<wall.size.z;
+        const half=(alongX?wall.size.x:wall.size.z)/2;
+        const origin={...wall.position};if(alongX)origin.x-=half+2;else origin.z-=half+2;
+        const hit=physics.cameraDistance(origin,alongX?{x:1,y:0,z:0}:{x:0,y:0,z:1},8);
+        expect(hit,wall.id).toBeLessThanOrEqual(2.01);
+      }
+      expect(physics.cameraDistance({x:99,y:200,z:72},{x:1,y:0,z:0},10)).toBe(10);
+    }finally{physics.dispose();}
+  });
   it("predicts continuous grounded travel into and out of the lowered court",()=>{
     const physics=new BrPredictionPhysics();
     try{

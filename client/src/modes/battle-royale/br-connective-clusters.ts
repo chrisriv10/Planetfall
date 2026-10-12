@@ -87,52 +87,24 @@ function createParts(center: Vec3, angle: number, theme: ConnectiveClusterTheme)
     position: { x: center.x + Math.cos(angle) * x - Math.sin(angle) * z, y, z: center.z + Math.sin(angle) * x + Math.cos(angle) * z },
     scale: { x: sx, y: sy, z: sz }
   });
-  // Broken edge ticks are a common visual language, without another filled pad.
-  for (const x of [-4.8, 4.8]) for (const z of [-3, 3]) add("sidewalk", x, .04, z, .8, .012, .12, true);
-  if (theme === "landscape") {
+  // Open irrigation beds replace the orphan posts, empty loading cradles and
+  // isolated metal plates. Low planting has an obvious purpose without adding
+  // non-colliding cabinets, shelter roofs or opaque combat cover.
     for (const x of [-3.2, 3.2]) {
       add("soil", x, .028, 0, 2.2, .014, 3.8, true);
       // Open-ended irrigation rails make each planted strip read as an
       // intentional orbital garden, not loose shrubs scattered on bare deck.
       // All opaque planter mass stays below the existing ankle-height limit.
-      for (const side of [-1, 1]) add("brushedMetal", x + side * 1.15, .14, 0, .1, .18, 3.8);
+      for (const side of [-1, 1]) add(theme === "cargo" || theme === "service" ? "paintedMetal" : "brushedMetal", x + side * 1.15, .14, 0, .1, .18, 3.8);
       for (const z of [-1.1, 0, 1.1]) {
         // Radius-one octahedra: scale is the actual leaf extent, not diameter.
         add("grass", x, .3, z, .42, .25, .55, false, "octahedron");
       }
-      // One slim irrigation/status stake per bed provides restrained vertical
-      // identity. No signboard, canopy, point light, or bulky utility cabinet.
-      // Stakes sit beyond the planted ends, leaving the wide center lane open.
-      add("brushedMetal", x, .69, -2.25, .055, 1.38, .055, false, "cylinder");
-      add("windowLit", x, 1.44, -2.25, .105, .1, .105, false, "cylinder");
     }
-  } else if (theme === "cargo") {
-    for (const x of [-2.8, 2.8]) {
-      // Empty loading cradles are visibly open and only ankle-high; no crates.
-      for (const side of [-1, 1]) add("paintedMetal", x + side * .85, .095, 0, .12, .16, 3.4);
-      for (const z of [-1.4, 1.4]) add("brushedMetal", x, .065, z, 1.8, .1, .12);
-      add("industrialOrange", x, .04, -2.2, 1.1, .012, .12, true);
-    }
-  } else if (theme === "service") {
-    for (const x of [-2.9, 2.9]) {
-      add("paintedMetal", x, .029, 0, 2.5, .012, 3.4, true);
-      for (const z of [-1, 1]) add("brushedMetal", x, .047, z, 1.5, .012, .08, true);
-      add("industrialOrange", x, .04, -2.2, .9, .012, .12, true);
-    }
-    add("brushedMetal", 0, .035, 2.7, .5, .02, .5, true, "cylinder");
-  } else {
-    for (const x of [-2.2, 0, 2.2]) add("sidewalk", x, .04, 0, .85, .012, .12, true);
-    for (const x of [-3.9, 3.9]) {
-      // Slender warm-light markers give the waiting pocket vertical identity,
-      // but have no opaque sign, canopy or bench that could read as hard cover.
-      add("brushedMetal", x, 1.4, 2.2, .1, 2.8, .1, false, "cylinder");
-      add("windowLit", x, 2.85, 2.2, .16, .1, .16, false, "cylinder");
-    }
-  }
   return parts;
 }
 
-/** Up to sixteen low-density pockets with 11–20 parts each. Geometry keys map directly to
+/** Up to sixteen low-density planted pockets with twelve parts each. Geometry keys map directly to
  * existing unitBox/unitCylinder/unitOctahedron (radius-one cylinders/octas).
  * Batch by geometry+finish+surface, using surface(finish,6) for flush parts and
  * get(finish) otherwise; cameraCollision=false. No textures, lights or updates.

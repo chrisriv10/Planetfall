@@ -23,8 +23,11 @@ export const BR_BALANCE = {
   // Descend decisively enough that automatic deployment does not turn the
   // final 95m into a long passive float. Horizontal authority rises with the
   // descent rate so a faster landing does not sacrifice reachable districts.
-  chuteSpeed: 8.5,
-  chuteHorizontalSpeed: 32,
+  chuteSpeed: 8,
+  chuteHorizontalSpeed: 38,
+  chuteAcceleration: 22,
+  chuteTurnRate: 1.9,
+  chuteVerticalBraking: 36,
   airSteering: 6.5,
   autoDeployHeight: 95,
   playerRadius: .45,

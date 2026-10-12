@@ -1,5 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { SHOP_CATALOG } from "@planetfall/shared";
+import { shopCosmeticPreviewPlan } from "./shop-cosmetic-preview";
 
 const css=readFileSync(new URL("./style.css",import.meta.url),"utf8");
 function rule(selector:string){
@@ -13,20 +15,16 @@ describe("shop preview alignment",()=>{
     // Width plus modal padding used to exceed narrow viewports and expose a
     // horizontal scrollbar across the entire shop.
     expect(rule(".overlay-card")).toContain("box-sizing:border-box");
-    expect(rule(".shop-item")).toContain("grid-template-rows:96px minmax(2.4em,1fr) auto auto");
+    expect(rule(".shop-item")).toContain("grid-template-rows:148px minmax(2.4em,1fr) auto auto");
     expect(rule(".shop-item > b")).toContain("overflow-wrap:anywhere");
     const preview=rule(".shop-cosmetic-preview");
-    expect(preview).toContain("width:100%;height:96px");
+    expect(preview.replaceAll(" ","")).toContain("width:100%;height:148px");
     expect(preview).toContain("overflow:hidden");
   });
-  it("centers the Verity smile in a circular actual-cosmetic preview",()=>{
-    const face=rule(".shop-preview-planet");
-    expect(face).toContain("border-radius:50%");
-    const smile=rule(".shop-preview-smile");
-    expect(smile).toContain("left:50%");
-    expect(smile).toContain("transform:translateX(-50%)");
-    expect(smile).toContain("top:34px");
-    expect(rule(".shop-preview-eye.left")).toContain("left:19px");
-    expect(rule(".shop-preview-eye.right")).toContain("right:19px");
+  it("gives the canonical rotating planet the full clipped preview surface",()=>{
+    const verity=SHOP_CATALOG.find(item=>item.id==="verity")!;
+    expect(shopCosmeticPreviewPlan(verity).markup).toContain('canvas class="cosmetic-preview-image"');
+    expect(rule(".cosmetic-preview-image")).toContain("width:100%; height:100%");
+    expect(rule(".shop-cosmetic-preview")).toContain("overflow:hidden");
   });
 });

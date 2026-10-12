@@ -113,14 +113,14 @@ export function buildBrCorridorGroves(overrides: Partial<Inputs> = {}): BrCorrid
           add("box", "soil", anchor, 0, 0, .08, 2.3, .12, 2.3);
           add("cylinder", "soil", anchor, 0, 0, height / 2, .16, height, .16);
           add("octahedron", "canopy", anchor, 0, 0, height + 1.05,
-            1.05 + (tree % 3) * .18, 1.25 + (tree % 2) * .45, 1.05 + ((tree + 1) % 3) * .12);
+            1.9 + (tree % 3) * .22, 1.65 + (tree % 2) * .45, 1.8 + ((tree + 1) % 3) * .18);
           kit[kit.length - 1].rotationY += tree * .31;
           // Two low irrigation rails frame each soil cell without surrounding
           // it with a wall. The open ends and gaps preserve the grove's rhythm.
           for (const across of [-1.18, 1.18]) add("box", "brushedMetal", anchor, 0, across, .16, 2.5, .1, .09);
           // Only two of the four trees receive a subordinate crown. Keep their
           // silhouettes airy and reuse the existing camera-fading canopy finish.
-          if (tree % 2) add("octahedron", "canopy", anchor, .58, .12, height + 1.8, .6, .72, .54);
+          if (tree % 2) add("octahedron", "canopy", anchor, .7, .12, height + 1.8, 1.05, .95, .92);
         }
         // A broken alignment strip follows the same road heading as the trees.
         // Three.js rotates local X toward -Z, hence rotationY=-heading above.

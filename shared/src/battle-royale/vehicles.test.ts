@@ -8,6 +8,14 @@ describe("BR hover skimmer movement",()=>{
     expect(new Set(BR_VEHICLE_SPAWNS.map(spawn=>spawn.id)).size).toBe(BR_VEHICLE_SPAWNS.length);
     expect(BR_VEHICLE_SPAWNS.every(spawn=>Object.values(spawn.position).every(Number.isFinite))).toBe(true);
   });
+  it("places raised-deck service bays above their real deck without choosing overhead roofs",()=>{
+    const heights=Object.fromEntries(BR_VEHICLE_SPAWNS.map(spawn=>[spawn.id,spawn.position.y]));
+    expect(heights["nova-transit"]).toBeCloseTo(5.44);
+    expect(heights["helios-service"]).toBeCloseTo(6.44);
+    expect(heights["south-terminal"]).toBeCloseTo(3.94);
+    expect(heights["mall-arrivals"]).toBeCloseTo(.8);
+    expect(heights["thruster-gate"]).toBeCloseTo(.44);
+  });
   it("parks every authored skimmer on a supported, obstruction-free bay",()=>{
     for(const spawn of BR_VEHICLE_SPAWNS){
       const floor=brFloorHeightAt(spawn.position,spawn.position.y+2.5);

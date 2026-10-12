@@ -1,4 +1,5 @@
 import RAPIER from "@dimforge/rapier3d-compat";
+import { BR_LANDFORMS, brLandformsNear, brControllerGrounded } from "@planetfall/shared";
 import { BR_BASE_DECK_CELLS, brBaseDeckPolygons, brTriangulateDeckPolygon, brConstrainBaseDeckMovement, brInteriorStairSubsteps, brInteriorStairProbeY } from "@planetfall/shared";
 import { BR_BALANCE, BR_ISLAND_OUTLINE, BR_MAP_BLOCKS, brBlocksForPhysicsSector, brFlatDeckCollision, brHasStandingClearance, brMantleTopAt, brPhysicsSector, isInsideBrIsland, type BrCollisionResult, type BrMapBlock, type Vec3 } from "@planetfall/shared";
 
@@ -16,7 +17,7 @@ export class BrPhysicsWorld {
   private readonly sectors=new Map<string,MovementSector>();
 
   constructor(){
-    addIsland(this.rayWorld); addBlocks(this.rayWorld,BR_MAP_BLOCKS); this.rayWorld.step();
+    addIsland(this.rayWorld); addBlocks(this.rayWorld,BR_MAP_BLOCKS); addLandforms(this.rayWorld,BR_LANDFORMS); this.rayWorld.step();
   }
 
   ensureCharacter(_id:string,feet:Vec3):void {this.sector(feet);}
@@ -46,7 +47,7 @@ export class BrPhysicsWorld {
     if(jumping&&Math.hypot(movement.x,movement.z)<Math.hypot(desiredMovement.x,desiredMovement.z)*.45){const mantle=brMantleTopAt(feet,desiredMovement);if(mantle!==null)return{movement:{x:desiredMovement.x,y:mantle-feet.y+.03,z:desiredMovement.z},grounded:false,ceiling:false,crouched:false};}
     const next={x:feet.x+movement.x,y:feet.y+movement.y,z:feet.z+movement.z};
     const inside=isInsideBrIsland(next);const movementY=!inside&&downwardContact(desiredMovement,movement)?desiredMovement.y:brConstrainBaseDeckMovement(feet,movement);next.y=feet.y+movementY;
-    sector.collider.setTranslation({x:next.x,y:next.y+centerY(actualCrouch),z:next.z});return{movement:{x:movement.x,y:movementY,z:movement.z},grounded:inside&&!jumping&&(sector.controller.computedGrounded()||downwardContact(desiredMovement,movement)),ceiling:desiredMovement.y>0&&movementY<desiredMovement.y-.01,crouched:actualCrouch};
+    sector.collider.setTranslation({x:next.x,y:next.y+centerY(actualCrouch),z:next.z});return{movement:{x:movement.x,y:movementY,z:movement.z},grounded:inside&&!jumping&&brControllerGrounded(sector.controller,desiredMovement,movement),ceiling:desiredMovement.y>0&&movementY<desiredMovement.y-.01,crouched:actualCrouch};
   }
 
   remove(_id:string):void { /* The query capsule is shared because BR pilots do not collide with each other. */ }
@@ -56,7 +57,7 @@ export class BrPhysicsWorld {
 
   private sector(position:Vec3):MovementSector {
     const key=brPhysicsSector(position).key;let sector=this.sectors.get(key);if(sector)return sector;
-    const world=new RAPIER.World({x:0,y:0,z:0});addMovementDeck(world);addBlocks(world,brBlocksForPhysicsSector(position));
+    const world=new RAPIER.World({x:0,y:0,z:0});addMovementDeck(world);addBlocks(world,brBlocksForPhysicsSector(position));addLandforms(world,brLandformsNear(brPhysicsSector(position).center,54));
     const collider=world.createCollider(RAPIER.ColliderDesc.capsule(STANDING_HALF_HEIGHT,BR_BALANCE.playerRadius).setFriction(0));
     const controller=world.createCharacterController(.035);controller.enableAutostep(.52,.22,false);controller.enableSnapToGround(.18);controller.setSlideEnabled(true);controller.setMaxSlopeClimbAngle(Math.PI*.32);world.step();
     sector={world,collider,controller,crouched:false};this.sectors.set(key,sector);return sector;
@@ -64,6 +65,7 @@ export class BrPhysicsWorld {
 }
 
 type MovementSector={world:RAPIER.World;collider:RAPIER.Collider;controller:RAPIER.KinematicCharacterController;crouched:boolean};
+function addLandforms(world:RAPIER.World,landforms:typeof BR_LANDFORMS):void{for(const h of landforms)world.createCollider(RAPIER.ColliderDesc.trimesh(h.vertices,h.indices));}
 function addIsland(world:RAPIER.World):void{
   const vertices:number[]=[],indices:number[]=[];
   for(const polygon of brBaseDeckPolygons(BR_ISLAND_OUTLINE)){const offset=vertices.length/3;for(const p of polygon)vertices.push(p.x,p.y,p.z);indices.push(...brTriangulateDeckPolygon(polygon).map(index=>index+offset));}

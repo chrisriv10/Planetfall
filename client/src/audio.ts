@@ -1,7 +1,16 @@
+import { brSpatialMix, type AudioPosition } from "./br-spatial-audio";
+export type MusicScene = "menu" | "game" | "battle-royale";
+export function musicSceneForScreen(screen: string): MusicScene {
+  return screen === "brLobby" || screen === "brHud" || screen === "brResults"
+    ? "battle-royale" : screen === "hud" ? "game" : "menu";
+}
+type MediaRoute = { source: MediaElementAudioSourceNode; filter: BiquadFilterNode; shelf: BiquadFilterNode; gain: GainNode; pan: StereoPannerNode };
+type SampleVoice = { element: HTMLAudioElement; route: MediaRoute | null; mix: number; timer: ReturnType<typeof setTimeout> };
+
 export class GameAudio {
   private context: AudioContext | null = null;
-  private readonly music: Record<"menu" | "game", HTMLAudioElement>;
-  private musicScene: "menu" | "game" = "menu";
+  private readonly music: Record<MusicScene, HTMLAudioElement>;
+  private musicScene: MusicScene = "menu";
   private musicUnlocked = false;
   private musicFade: ReturnType<typeof setInterval> | null = null;
   private musicTransition = 0;
@@ -10,14 +19,18 @@ export class GameAudio {
   private urgency = 0;
   private readonly samples = new Map<string, HTMLAudioElement>();
   private readonly brLoops = new Map<"starliner" | "skimmer" | "drop", HTMLAudioElement>();
+  private readonly routes = new WeakMap<HTMLAudioElement, MediaRoute>();
+  private readonly loopStops = new Map<HTMLAudioElement, ReturnType<typeof setTimeout>>();
+  private readonly voices = new Set<SampleVoice>();
 
   private get activeMusic(): HTMLAudioElement { return this.music[this.musicScene]; }
-  private get musicTarget(): number { return (this.musicScene === "menu" ? .14 : .18) * this.musicVolume; }
+  private get musicTarget(): number { return (this.musicScene === "battle-royale" ? .085 : this.musicScene === "menu" ? .14 : .18) * this.musicVolume; }
 
   constructor() {
     this.music = {
       menu: this.makeMusic("/audio/low-battery.ogg"),
-      game: this.makeMusic("/audio/bot-city.ogg")
+      game: this.makeMusic("/audio/bot-city.ogg"),
+      "battle-royale": this.makeMusic("/audio/br/orbital-drift.ogg")
     };
     this.registerSample("laser-small", "/audio/br/br-laser-small.ogg");
     this.registerSample("laser-large", "/audio/br/br-laser-large.ogg");
@@ -37,6 +50,12 @@ export class GameAudio {
   unlock(): void {
     if (!this.context) this.context = new AudioContext();
     if (this.context.state === "suspended") void this.context.resume();
+    for (const [scene, track] of Object.entries(this.music)) {
+      const route = this.mediaRoute(track);
+      if (route) route.filter.frequency.value = scene === "battle-royale" ? 1800 : 20_000;
+    }
+    for (const [kind, loop] of this.brLoops) this.configureLoop(kind, loop);
+    if (this.musicUnlocked && !this.activeMusic.paused) return;
     this.musicUnlocked = true;
     const active = this.activeMusic;
     const transition = ++this.musicTransition;
@@ -56,16 +75,14 @@ export class GameAudio {
     }
   }
 
-  setMusicScene(scene: "menu" | "game"): void {
+  setMusicScene(scene: MusicScene): void {
     if (scene === this.musicScene) {
-      this.stopInactiveMusic(this.activeMusic);
       return;
     }
     this.musicScene = scene;
     const incoming = this.activeMusic;
     const transition = ++this.musicTransition;
     this.cancelMusicFade();
-    this.stopInactiveMusic(incoming);
     incoming.playbackRate = scene === "game" ? 1 + this.urgency * .035 : 1;
     if (!this.musicUnlocked) {
       this.stopMusic(incoming);
@@ -94,7 +111,11 @@ export class GameAudio {
     if (!active.paused) active.volume = this.musicTarget;
     for (const loop of this.brLoops.values()) {
       const mix = Number(loop.dataset.mix ?? "0");
-      loop.volume = Math.min(1, mix * this.sfxVolume);
+      this.setLoopGain(loop, mix * this.sfxVolume);
+    }
+    for (const voice of this.voices) {
+      if (voice.route) this.ramp(voice.route.gain.gain, voice.mix * this.sfxVolume, .04);
+      else voice.element.volume = Math.min(1, voice.mix * this.sfxVolume);
     }
   }
 
@@ -102,20 +123,35 @@ export class GameAudio {
     const loop = this.brLoops.get(kind);
     if (!loop) return;
     const clamped = Math.min(1, Math.max(0, intensity));
-    const mix = active ? (kind === "starliner" ? .22 : kind === "drop" ? .13 : .2) * (.45 + clamped * .55) : 0;
+    const mix = active ? (kind === "starliner" ? .065 : kind === "drop" ? .085 : .15) * (.45 + clamped * .55) : 0;
     loop.dataset.mix = String(mix);
     loop.playbackRate = kind === "starliner" ? .72 + clamped * .08 : kind === "drop" ? .78 + clamped * .35 : .72 + clamped * .5;
-    loop.volume = mix * this.sfxVolume;
+    this.configureLoop(kind, loop);
+    this.setLoopGain(loop, mix * this.sfxVolume);
+    const pending = this.loopStops.get(loop);
+    if (pending && active) { clearTimeout(pending); this.loopStops.delete(loop); }
     if (!active || !this.musicUnlocked) {
-      if (!active) { loop.pause(); loop.currentTime = 0; }
+      if (!active) this.pauseLoopAfterFade(loop);
       return;
     }
     if (loop.paused) void loop.play().catch(() => undefined);
   }
 
   stopBrLoops(): void {
-    for (const loop of this.brLoops.values()) { loop.pause(); loop.currentTime = 0; loop.dataset.mix = "0"; }
+    for (const loop of this.brLoops.values()) { loop.dataset.mix = "0"; this.setLoopGain(loop, 0); this.pauseLoopAfterFade(loop); }
+    for (const voice of [...this.voices]) this.releaseVoice(voice);
   }
+
+  brRemoteWeapon(weapon: string, source: AudioPosition, listener: AudioPosition, yaw: number): void {
+    const sample = weapon === "plasma-launcher" ? "plasma-explosion" : weapon === "arc-blaster" ? "shield-hit" : weapon === "rail-laser" || weapon === "photon-shotgun" ? "laser-large" : "laser-small";
+    this.spatialSample(sample, source, listener, yaw, .13, 180);
+  }
+  brRemoteFootstep(source: AudioPosition, listener: AudioPosition, yaw: number, sprinting = false): void {
+    this.spatialSample(Math.random() > .5 ? "footstep-1" : "footstep-2", source, listener, yaw, sprinting ? .075 : .05, 32);
+  }
+  brImpact(source: AudioPosition, listener: AudioPosition, yaw: number): void { this.spatialSample("metal-impact", source, listener, yaw, .1, 70); }
+  brFlyby(source: AudioPosition, listener: AudioPosition, yaw: number): void { this.spatialSample("laser-small", source, listener, yaw, .065, 24, .65); }
+  brLoot(crate = false): void { this.playSample("metal-impact", crate ? .065 : .04, crate ? .72 : 1.25); this.tone(crate ? 390 : 720, .12, "sine", .018, crate ? 760 : 1100); }
 
   click(): void { this.tone(360, 0.04, "square", 0.025, 520); }
   pickup(): void { this.tone(720, 0.1, "sine", 0.05, 1180); }
@@ -198,6 +234,7 @@ export class GameAudio {
 
   private fadeMusicIn(active: HTMLAudioElement, transition: number): void {
     this.cancelMusicFade();
+    const outgoing = Object.values(this.music).filter(track => track !== active && !track.paused);
     const timer = setInterval(() => {
       if (transition !== this.musicTransition || active !== this.activeMusic) {
         clearInterval(timer);
@@ -206,7 +243,11 @@ export class GameAudio {
         return;
       }
       active.volume = Math.min(this.musicTarget, active.volume + .01);
-      if (active.volume >= this.musicTarget) {
+      for (const track of outgoing) {
+        track.volume = Math.max(0, track.volume - .015);
+        if (track.volume === 0) this.stopMusic(track);
+      }
+      if (active.volume >= this.musicTarget && outgoing.every(track => track.paused)) {
         clearInterval(timer);
         if (this.musicFade === timer) this.musicFade = null;
       }
@@ -270,13 +311,67 @@ export class GameAudio {
   }
 
   private playSample(name: string, volume: number, playbackRate = 1): void {
+    this.spatialSample(name, {x:0,y:0,z:0}, {x:0,y:0,z:0}, 0, volume, 180, playbackRate);
+  }
+
+  private ramp(parameter: AudioParam, target: number, seconds: number): void {
+    if (!this.context) return;
+    const now = this.context.currentTime;
+    parameter.cancelScheduledValues(now); parameter.setValueAtTime(parameter.value, now);
+    parameter.linearRampToValueAtTime(target, now + seconds);
+  }
+
+  private mediaRoute(element: HTMLAudioElement, initialGain = 1): MediaRoute | null {
+    if (!this.context) return null;
+    const existing = this.routes.get(element); if (existing) return existing;
+    const source = this.context.createMediaElementSource(element);
+    const filter = this.context.createBiquadFilter(), shelf = this.context.createBiquadFilter();
+    filter.type = "lowpass"; filter.frequency.value = 20000; filter.Q.value = .5;
+    shelf.type = "lowshelf"; shelf.frequency.value = 180; shelf.gain.value = 0;
+    const gain = this.context.createGain(), pan = this.context.createStereoPanner();
+    gain.gain.value = initialGain;
+    source.connect(filter).connect(shelf).connect(gain).connect(pan).connect(this.context.destination);
+    const route = {source, filter, shelf, gain, pan}; this.routes.set(element, route); return route;
+  }
+
+  private configureLoop(kind: "starliner" | "skimmer" | "drop", loop: HTMLAudioElement): void {
+    const route = this.mediaRoute(loop, 0); if (!route) return;
+    route.filter.frequency.value = kind === "starliner" ? 680 : kind === "drop" ? 1000 : 1800;
+    route.shelf.gain.value = kind === "starliner" ? 3 : 0;
+  }
+
+  private setLoopGain(loop: HTMLAudioElement, mix: number): void {
+    const route = this.mediaRoute(loop, 0);
+    if (route) { loop.volume = 1; this.ramp(route.gain.gain, mix, .18); }
+    else loop.volume = mix;
+  }
+
+  private pauseLoopAfterFade(loop: HTMLAudioElement): void {
+    if (this.loopStops.has(loop) || loop.paused) return;
+    const pause = () => { this.loopStops.delete(loop); if (Number(loop.dataset.mix) === 0) { loop.pause(); loop.currentTime = 0; } };
+    if (!this.context) { pause(); return; }
+    this.loopStops.set(loop, setTimeout(pause, 220));
+  }
+
+  private spatialSample(name: string, source: AudioPosition, listener: AudioPosition, yaw: number, volume: number, range: number, rate = 1): void {
     if (!this.musicUnlocked) return;
-    const template = this.samples.get(name);
-    if (!template) return;
-    const voice = template.cloneNode(true) as HTMLAudioElement;
-    voice.volume = Math.min(1, Math.max(0, volume * this.sfxVolume));
-    voice.playbackRate = Math.min(2, Math.max(.5, playbackRate));
-    void voice.play().catch(() => undefined);
+    const mix = brSpatialMix(source, listener, yaw, range);
+    const template = this.samples.get(name); if (!template || mix.gain < .002) return;
+    if (this.voices.size >= 16) this.releaseVoice(this.voices.values().next().value!);
+    const element = template.cloneNode(true) as HTMLAudioElement;
+    const route = this.mediaRoute(element), gain = Math.min(1, Math.max(0, volume * mix.gain));
+    element.playbackRate = Math.min(2, Math.max(.5, rate));
+    if (route) { element.volume = 1; route.gain.gain.value = gain * this.sfxVolume; route.pan.pan.value = mix.pan; route.filter.frequency.value = mix.cutoff; }
+    else element.volume = gain * this.sfxVolume;
+    const voice: SampleVoice = {element, route, mix:gain, timer:setTimeout(() => this.releaseVoice(voice), 2500)};
+    this.voices.add(voice); element.onended = () => this.releaseVoice(voice);
+    void element.play().catch(() => this.releaseVoice(voice));
+  }
+
+  private releaseVoice(voice: SampleVoice): void {
+    if (!this.voices.delete(voice)) return;
+    clearTimeout(voice.timer); voice.element.pause(); voice.element.onended = null;
+    if (voice.route) for (const node of Object.values(voice.route)) node.disconnect();
   }
 
   private tone(start: number, duration: number, type: OscillatorType, gain: number, end = start): void {

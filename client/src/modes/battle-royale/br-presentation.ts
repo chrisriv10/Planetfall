@@ -54,14 +54,27 @@ export function createBrBackdrop(): THREE.Group {
   }
 
   const trafficGeometry = new THREE.BufferGeometry();
-  const trafficPoints: THREE.Vector3[] = [];
-  for (let index = 0; index < 18; index++) {
-    const x = -850 + random() * 1700, y = 110 + random() * 390, z = -760 + random() * 1550;
-    trafficPoints.push(new THREE.Vector3(x, y, z), new THREE.Vector3(x + 18 + random() * 28, y + 1, z + 3));
-  }
+  const trafficPoints = brBackdropTrafficPoints(random);
   trafficGeometry.setFromPoints(trafficPoints);
-  root.add(new THREE.LineSegments(trafficGeometry, new THREE.LineBasicMaterial({ color: 0x80eaff, transparent: true, opacity: .34 })));
+  const traffic = new THREE.LineSegments(trafficGeometry, new THREE.LineBasicMaterial({ color: 0x80eaff, transparent: true, opacity: .34 }));
+  traffic.name = "br-distant-traffic";
+  root.add(traffic);
   return root;
+}
+
+/** Background flight lanes lie outside the full island/flight cylinder.
+ * Short tangent segments stay outside that radius along their entire length,
+ * unlike endpoints sampled independently from a box over the playable deck. */
+export function brBackdropTrafficPoints(random: () => number = seededRandom(9821)): THREE.Vector3[] {
+  const points: THREE.Vector3[] = [];
+  for (let index = 0; index < 18; index++) {
+    const angle = random() * Math.PI * 2, radius = 900 + random() * 280;
+    const y = 160 + random() * 320, halfLength = 9 + random() * 10;
+    const x = Math.cos(angle) * radius, z = Math.sin(angle) * radius;
+    const tx = -Math.sin(angle) * halfLength, tz = Math.cos(angle) * halfLength;
+    points.push(new THREE.Vector3(x - tx, y - .5, z - tz), new THREE.Vector3(x + tx, y + .5, z + tz));
+  }
+  return points;
 }
 
 export function createStarliner(): THREE.Group {
@@ -154,6 +167,18 @@ export function updateStarliner(ship: THREE.Group, room: BrRoomView | null, now:
   });
 }
 
+/** Short high-altitude energy accents; the continuous veil owns the boundary
+ * at player height. Long ground-to-sky filaments read as stray world lines. */
+export function brStormStreakPositions():Float32Array {
+  const random=seededRandom(7303),positions=new Float32Array(32*6);
+  for(let i=0;i<32;i++){
+    const angle=i/32*Math.PI*2+(random()-.5)*.08,radius=1.006+(random()-.5)*.008;
+    const y=60+random()*90,length=8+random()*10;
+    positions.set([Math.cos(angle)*radius,y,Math.sin(angle)*radius,Math.cos(angle)*radius,y+length,Math.sin(angle)*radius],i*6);
+  }
+  return positions;
+}
+
 export function createVoidStorm(): THREE.Group {
   const root = new THREE.Group(); root.name = "void-storm"; root.visible = false;
   const curtain=createBrStormTexture();
@@ -190,23 +215,8 @@ export function createVoidStorm(): THREE.Group {
   for (let index = 0; index < 360; index++) { const angle = random() * Math.PI * 2; sparkPositions[index * 3] = Math.cos(angle); sparkPositions[index * 3 + 1] = random() * 170; sparkPositions[index * 3 + 2] = Math.sin(angle); }
   sparkGeometry.setAttribute("position", new THREE.BufferAttribute(sparkPositions, 3));
   const sparks = new THREE.Points(sparkGeometry, new THREE.PointsMaterial({ color: 0xb6b2ff, size: .18, transparent: true, opacity: .38, blending: THREE.AdditiveBlending, depthWrite: false })); sparks.userData.stormSparks = true; root.add(sparks);
-  // Sparse filaments give the wall a vertical silhouette without increasing
-  // the opacity of the continuous veil. One pooled line mesh supports every
-  // quality preset and simply changes its draw range as the circle contracts.
-  const streakPositions=new Float32Array(32*2*3);
-  for(let index=0;index<32;index++){
-    const angle=index/32*Math.PI*2+(random()-.5)*.08;
-    const radius=1.006+(random()-.5)*.008;
-    const base=index*6;
-    streakPositions[base]=Math.cos(angle)*radius;
-    streakPositions[base+1]=random()*4;
-    streakPositions[base+2]=Math.sin(angle)*radius;
-    streakPositions[base+3]=Math.cos(angle)*radius;
-    streakPositions[base+4]=34+random()*116;
-    streakPositions[base+5]=Math.sin(angle)*radius;
-  }
   const streakGeometry=new THREE.BufferGeometry();
-  streakGeometry.setAttribute("position",new THREE.BufferAttribute(streakPositions,3));
+  streakGeometry.setAttribute("position",new THREE.BufferAttribute(brStormStreakPositions(),3));
   const streaks=new THREE.LineSegments(streakGeometry,new THREE.LineBasicMaterial({
     color:0xb9eaff,transparent:true,opacity:.14,blending:THREE.AdditiveBlending,
     depthWrite:false,toneMapped:false

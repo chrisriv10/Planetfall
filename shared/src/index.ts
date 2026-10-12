@@ -379,7 +379,10 @@ export interface ServerSnapshot {
   matchEndsAt: number | null;
 }
 
+export type LeaveRoomResult = { ok: true } | { ok: false; error: string };
+
 export interface ClientToServerEvents extends BrClientToServerEvents {
+  "room:leave": (payload: { code: string }, ack: (result: LeaveRoomResult) => void) => void;
   "room:create": (payload: { name: string; sessionToken?: string }, ack: (result: JoinResult) => void) => void;
   "room:solo": (payload: { name: string }, ack: (result: JoinResult) => void) => void;
   "room:join": (payload: { code: string; name: string; sessionToken?: string }, ack: (result: JoinResult) => void) => void;

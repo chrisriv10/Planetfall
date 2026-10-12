@@ -118,6 +118,26 @@ describe("Battle Royale room", () => {
     expect(room.toggleVehicle(player.id)).toBe(true);expect(player.vehicleId).toBeNull();expect(vehicle.driverId).toBeNull();
   });
 
+  it("drives both ways across the southwest grade above its support piers",async()=>{
+    const {server,url}=await setup();const host=await client(url);const joined=await createRoom(host,"Grade pilot");
+    if(!joined.ok)throw new Error(joined.error);
+    const room=server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom;
+    const now=Date.now();room.configure(joined.playerId,{targetPlayers:10,fillBots:true});room.setReady(joined.playerId,true);room.start(joined.playerId,now);room.phase="combat";
+    const player=room.players.get(joined.playerId)!;const vehicle=[...room.vehicles.values()][0];
+    for(const bot of room.players.values())if(bot.isBot)bot.nextBotDecisionAt=now+3600000;
+    for(const descending of [false,true]){
+      vehicle.position=descending?{x:-184,y:5.94,z:-421.67}:{x:-252,y:.44,z:-399};
+      vehicle.yaw=1.249+(descending?Math.PI:0);vehicle.velocity={x:0,y:0,z:0};vehicle.driverId=player.id;
+      player.vehicleId=vehicle.id;player.alive=true;player.downed=false;player.deployment="grounded";
+      for(let tick=0;tick<115;tick++){
+        room.setInput(player.id,{sequence:tick+1,dt:1/30,moveX:0,moveY:1,yaw:vehicle.yaw,pitch:0,jump:false,sprint:false,crouch:false,fire:false,aim:false,reload:false});
+        room.update(1/30,now+tick*1000/30);
+      }
+      expect(descending?vehicle.position.x<-249:vehicle.position.x>-190,JSON.stringify(vehicle.position)).toBe(true);
+      expect(vehicle.position.y).toBeCloseTo(descending?.44:5.94,1);
+    }
+  });
+
   it("expires stale human movement input instead of authoritatively running forever", async () => {
     const {server,url}=await setup();const host=await client(url);const joined=await createRoom(host,"Stale input");if(!joined.ok)throw new Error(joined.error);
     const room=server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom;

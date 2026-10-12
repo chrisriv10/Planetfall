@@ -1,0 +1,14 @@
+
+ RUN  v5.0.0 C:/Users/Chris/Desktop/planetfall
+
+BR_PERF {"idOffset":0,"participants":10,"averageTickMs":0.9314821111111067,"p95TickMs":2.0580999999999676,"worstTickMs":26.514599999999973,"averageSnapshotBytes":10054.248247078463,"p95SnapshotBytes":10628,"maximumSnapshotBytes":10747,"heapDeltaMb":-1.6233673095703125}
+BR_PERF {"idOffset":0,"participants":20,"averageTickMs":2.169000346620449,"p95TickMs":4.273099999999886,"worstTickMs":10.169900000000325,"averageSnapshotBytes":17613.927994791666,"p95SnapshotBytes":18303,"maximumSnapshotBytes":19205,"heapDeltaMb":5.9106597900390625}
+BR_PERF {"idOffset":0,"participants":40,"averageTickMs":5.826101111111112,"p95TickMs":9.74290000000019,"worstTickMs":15.382599999999911,"averageSnapshotBytes":32240.072662771287,"p95SnapshotBytes":33670,"maximumSnapshotBytes":34155,"heapDeltaMb":-0.23089599609375}
+BR_PERF {"idOffset":1000,"participants":40,"averageTickMs":5.72297366666664,"p95TickMs":9.478700000001481,"worstTickMs":14.962999999999738,"averageSnapshotBytes":31962.294824707846,"p95SnapshotBytes":33694,"maximumSnapshotBytes":34386,"heapDeltaMb":-3.4818038940429688}
+BR_PERF {"idOffset":5000,"participants":40,"averageTickMs":5.749566444444402,"p95TickMs":9.449099999999817,"worstTickMs":13.063599999999497,"averageSnapshotBytes":32528.210350584308,"p95SnapshotBytes":34065,"maximumSnapshotBytes":34941,"heapDeltaMb":-8.09600830078125}
+
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  17:41:47
+   Duration  18.61s (tests 96%, transform 2%, import 1%)
+
