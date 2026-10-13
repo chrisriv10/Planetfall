@@ -1153,6 +1153,12 @@ function updateSettingsFromUi(): void {
 }
 
 let qualitySampleAt = performance.now();
+document.addEventListener("visibilitychange", () => {
+  // RAF can stop completely in a background tab. Reset continuity at the
+  // transition itself, including when returning before another hidden RAF.
+  qualitySampleAt = performance.now();
+  autoQuality.sample(0, false);
+});
 function sampleAutoQuality(now: number): void {
   const elapsed = now - qualitySampleAt; qualitySampleAt = now;
   const gameplay = !document.hidden && !activeOverlay() && !joining && !leaving &&

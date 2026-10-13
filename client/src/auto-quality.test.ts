@@ -88,4 +88,37 @@ describe("automatic graphics quality", () => {
     frames(controller,1_200,200);
     expect(controller.quality).toBe("low");
   });
+
+  it("recognizes sustained foreground GPU wait across one-second intervals", () => {
+    const controller = new AutoQualityController(capable);
+    controller.sample(1_500);
+    controller.sample(1_500);
+    expect(controller.quality).toBe("medium");
+    // Preserve eight completed buckets even when a slow frame spans a bucket.
+    for (let index = 0; index < 20; index++) controller.sample(index % 2 ? 800 : 1_500);
+    expect(controller.quality).toBe("low");
+  });
+
+  it("discards provisional pressure after a pause, healthy frames or suspension", () => {
+    const controller = new AutoQualityController(capable);
+    controller.sample(1_500);
+    controller.sample(1_500);
+    controller.sample(16, false);
+    controller.sample(1_500);
+    frames(controller, 128, 16);
+    controller.sample(1_500);
+    controller.sample(5_000);
+    frames(controller, 9_000, 40);
+    expect(controller.quality).toBe("medium");
+    frames(controller, 1_200, 40);
+    expect(controller.quality).toBe("low");
+  });
+
+  it("recognizes GPU pressure interleaved with fast compositor callbacks", () => {
+    const controller = new AutoQualityController(capable);
+    for (let index = 0; index < 16; index++) {
+      for (const frameMs of [750, 16, 1_400, 16]) controller.sample(frameMs);
+    }
+    expect(controller.quality).toBe("low");
+  });
 });

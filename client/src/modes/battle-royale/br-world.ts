@@ -378,7 +378,9 @@ export class BrWorldRenderer {
       geometry.setAttribute("position",new THREE.Float32BufferAttribute(vertices,3));
       geometry.setAttribute("uv",new THREE.Float32BufferAttribute(uvs,2));
       geometry.setIndex(indices);geometry.computeVertexNormals();
-      const deck = new THREE.Mesh(geometry, patch.kind === "plaza" ? this.materials.plazaSurface(patch.color,2) : this.materials.surface(key,2));
+      // Lawns deliberately overlay civic/farm plazas. Give their coplanar
+      // finish its own decal layer rather than letting equal-depth surfaces fight.
+      const deck = new THREE.Mesh(geometry, patch.kind === "plaza" ? this.materials.plazaSurface(patch.color,2) : this.materials.surface(key,patch.kind === "park" ? 3 : 2));
       deck.name=`terrain-finish-${patch.id}`;
       deck.receiveShadow = true;
       this.root.add(deck);

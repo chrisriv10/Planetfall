@@ -48,6 +48,11 @@ export function configureBrLandformMaterial(material: THREE.MeshStandardMaterial
   material.customProgramCacheKey = () => `${previousKey}|br-landform-blend-v1`;
   material.transparent = true;
   material.depthWrite = true;
+  // This is actual sloped terrain, not a coplanar decal. Inherited surface
+  // depth bias pulls the hill through trunk contacts and creates striped edges.
+  material.polygonOffset = false;
+  material.polygonOffsetFactor = 0;
+  material.polygonOffsetUnits = 0;
   material.alphaTest = .001;
   material.needsUpdate = true;
   configuredMaterials.add(material);

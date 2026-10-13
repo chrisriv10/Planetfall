@@ -14,6 +14,9 @@ const BASE_REVIEW_CAMERAS: Readonly<Record<string, BrReviewCamera>> = {
   // with an aerial camera or looking at the opposite cafe block.
   "nova-east-block": { position: [-96, 2.7, -85], focus: [-145, 3.2, -108] },
   "nova-roof": { position: [-209, 40, -137], focus: [-171, 20, -125] },
+  // The generic POI offset now falls inside recovered occupied architecture.
+  // Use the established clear street framing for the primary review link.
+  "nova-plaza": { position: [-175, 2.7, -112], focus: [-175, 7, -165] },
   // Ground-level edge views expose surface patches spanning a retaining wall;
   // aerial/rooftop views can hide an unsupported decorative overhang.
   "astra-deck-edge": { position: [-278, 2.7, 3], focus: [-278, 3, 30] },

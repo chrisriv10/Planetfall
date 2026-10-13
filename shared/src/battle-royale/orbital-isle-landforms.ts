@@ -32,6 +32,7 @@ export const BR_LANDFORMS:readonly BrLandform[]=[
   landform("east-rim-grove",454,-110,28,56,4.5),
   landform("south-engine-garden",259,-368,48,48,6.5),
   landform("western-overlook-grove",-460,70,26,44,4),
+  landform("west-collector-garden",-413,222,22,34,3.2),
 ];
 
 export function brLandformsNear(point:{x:number;z:number},radius=0):readonly BrLandform[]{

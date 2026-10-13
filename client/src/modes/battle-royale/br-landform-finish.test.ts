@@ -29,6 +29,9 @@ describe("landform shoulder finish", () => {
 
   it("preserves compile hooks and patches alpha before discard with a stable distinct cache key", () => {
     const material = new THREE.MeshStandardMaterial();
+    material.polygonOffset = true;
+    material.polygonOffsetFactor = -8;
+    material.polygonOffsetUnits = -8;
     let calls = 0;
     material.onBeforeCompile = shader => { calls++; shader.fragmentShader += "\n// prior hook"; };
     material.customProgramCacheKey = () => "existing-hook-key";
@@ -52,13 +55,16 @@ describe("landform shoulder finish", () => {
     expect(alpha).toBeLessThan(shader.fragmentShader.indexOf("#include <alphatest_fragment>"));
     expect(material.transparent).toBe(true);
     expect(material.depthWrite).toBe(true);
+    expect(material.polygonOffset).toBe(false);
+    expect(material.polygonOffsetFactor).toBe(0);
+    expect(material.polygonOffsetUnits).toBe(0);
     expect(material.alphaTest).toBe(.001);
     material.dispose();
   });
-  it("colors all three canonical hills without changing terrain or caller tint", () => {
+  it("colors all four canonical hills without changing terrain or caller tint", () => {
     const deck = new THREE.Color(BR_COLONY_DECK_COLOR);
     const tintBefore = deck.clone();
-    expect(BR_LANDFORMS).toHaveLength(3);
+    expect(BR_LANDFORMS).toHaveLength(4);
     for (const hill of BR_LANDFORMS) {
       const vertices = hill.vertices.slice();
       const indices = hill.indices.slice();

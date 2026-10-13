@@ -17,6 +17,8 @@ const COOLDOWN_MS = 30_000;
 // Very slow rendering is still performance evidence. Exclude long suspension
 // gaps, but allow sustained 150–500ms frames to lower the preset.
 const STALL_MS = 1_000;
+const SUSPENSION_MS = 5_000;
+const VERY_SLOW_MS = 150;
 
 /**
  * Fixed-memory, frame-time-only policy. Call sample after rendering with the RAF
@@ -37,6 +39,7 @@ export class AutoQualityController {
   private completedBuckets = 0;
   private slowBuckets = 0;
   private benchmarkPending = true;
+  private pressureWindow = 0;
 
   constructor(capabilities: AutoQualityCapabilities, selection: GraphicsSelection = "auto") {
     const memory = capabilities.deviceMemory;
@@ -64,10 +67,23 @@ export class AutoQualityController {
 
   sample(frameMs: number, active = true): GraphicsQuality | null {
     if (this.selection !== "auto") return null;
-    if (!active || !Number.isFinite(frameMs) || frameMs <= 0 || frameMs >= STALL_MS) {
+    if (!active || !Number.isFinite(frameMs) || frameMs <= 0 || frameMs >= SUSPENSION_MS) {
       this.resetSampling();
       return null;
     }
+    // An isolated long gap is not a benchmark. Repeated very slow foreground
+    // frames can instead be GPU wait: synchronous draw submission may be cheap.
+    // Require three very slow intervals among the last eight callbacks; a fast
+    // compositor callback between GPU frames should not erase that evidence.
+    const pressureWindow = ((this.pressureWindow << 1) | (frameMs >= VERY_SLOW_MS ? 1 : 0)) & 0xff;
+    let pressure = 0;
+    for (let bits = pressureWindow; bits; bits &= bits - 1) pressure++;
+    if (frameMs >= STALL_MS && pressure < 3) {
+      this.resetSampling();
+      this.pressureWindow = pressureWindow;
+      return null;
+    }
+    this.pressureWindow = pressureWindow;
     if (this.warmupMs > 0) {
       this.warmupMs -= frameMs;
       return null;
@@ -111,6 +127,7 @@ export class AutoQualityController {
 
   private resetSampling(): void {
     this.warmupMs = WARMUP_MS;
+    this.pressureWindow = 0;
     this.clearWindow();
   }
 
