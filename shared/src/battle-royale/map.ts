@@ -1,6 +1,7 @@
 import type { Vec3 } from "../index.js";
 import { buildBrBridgePiers } from "./orbital-isle-bridge-piers.js";
 import { buildBrEntranceHeader } from "./entrance-headers.js";
+import { buildBrRoofMassing } from "./roof-massing.js";
 import { buildBrGreenwayTrees, brGreenwayTrunk } from "./orbital-isle-greenways.js";
 import { BR_LANDFORMS, BR_LANDFORM_TREES, brLandformHeightAt } from "./orbital-isle-landforms.js";
 import { BR_ELEVATION_REGIONS, BR_SUNKEN_REGIONS, brAuthoredDeckHeight, brGradeAuthoredRoad, brJoinServiceGrades } from "./orbital-isle-elevation.js";
@@ -1276,7 +1277,8 @@ export const BR_GREENWAY_TREES = buildBrGreenwayTrees({
 });
 /** Existing map solids retain their exact order; bridge supports append. */
 export const BR_ENTRANCE_HEADERS:readonly BrMapBlock[]=BR_STRUCTURES.flatMap(s=>{const header=buildBrEntranceHeader(s);return header?[header]:[];});
-export const BR_MAP_BLOCKS: readonly BrMapBlock[] = [...baseMapBlocks,...BR_BRIDGE_PIERS,...BR_GREENWAY_TREES.map(brGreenwayTrunk),...BR_LANDFORM_TREES.map(brGreenwayTrunk),...BR_ENTRANCE_HEADERS];
+export const BR_ROOF_MASSES: readonly BrMapBlock[] = BR_STRUCTURES.flatMap(buildBrRoofMassing);
+export const BR_MAP_BLOCKS: readonly BrMapBlock[] = [...baseMapBlocks,...BR_BRIDGE_PIERS,...BR_GREENWAY_TREES.map(brGreenwayTrunk),...BR_LANDFORM_TREES.map(brGreenwayTrunk),...BR_ROOF_MASSES,...BR_ENTRANCE_HEADERS];
 
 export function isInsideBrIsland(position: Vec3, margin = 0): boolean {
   if (pointInPolygon(position.x,position.z)) return true;

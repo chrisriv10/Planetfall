@@ -678,6 +678,9 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
     throw new Error(`shove validation failed: accepted=${successful}; presentation=${JSON.stringify(presentation)}; ${denials.join(" | ") || "no server reason"}; predicted=${pointDistance(state.localPosition, target.position).toFixed(2)} authoritative=${pointDistance(attacker.position, target.position).toFixed(2)} surfaces=${attacker.surfacePlanetId}/${target.surfacePlanetId}`, { cause: error });
   }
   await moveTo(host, (state) => state.repairs.find((repair) => repair.planetId === guestPlanetId)!.position, 2.5);
+  // Proximity can already be satisfied after the shove. Explicitly turn to
+  // the station, rather than retaining combat intent toward the defender.
+  await aimAt(host, (state) => state.repairs.find((repair) => repair.planetId === guestPlanetId)!.position, "player");
   await expect(host.locator("#context-prompt")).toContainText("JAM REPAIR");
   const repairJamFeed = expect(host.locator("#event-feed")).toContainText("Chris jammed Nova's repair");
   await host.keyboard.down("e");

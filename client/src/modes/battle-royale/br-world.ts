@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { brAuthoredDeckHeight } from "@planetfall/shared";
+import { buildBrRoofMassing } from "@planetfall/shared";
 import { BR_LANDFORMS } from "@planetfall/shared";
 import {
   BR_ISLAND_OUTLINE,
@@ -983,13 +984,11 @@ export class BrWorldRenderer {
       // Service ribs are mounted outside the back wall by buildExteriorServiceParts.
       // The old solid annex occupied an entire strip of the playable interior.
     } else if (structure.archetype === "apartment" || structure.archetype === "hotel" || structure.archetype === "tower") {
-      const tiers = structure.roofAccess ? 1 : 2;
-      for (let tier = 0; tier < tiers; tier++) {
-        const tierHeight = Math.min(4.6, height * .15);
-        massing.push({ position: position(x + (tier ? width * .08 : -width * .05), height + tierHeight * (tier + .5), z + (tier ? -depth * .06 : depth * .05)), scale: position(width * (.66 - tier * .12), tierHeight, depth * (.68 - tier * .1)) });
-      }
-      machinery.push({ position: position(x, height + (structure.archetype === "tower" ? 5.1 : 3.8), z), scale: position(width * .28, structure.archetype === "tower" ? 5.8 : 3.2, depth * .28) });
-      accents.push({ position: position(x, height + (structure.archetype === "tower" ? 8.15 : 5.55), z), scale: position(width * .35, .32, depth * .35) });
+      const targets = { massing, machinery, accent: accents };
+      for (const part of buildBrRoofMassing(structure)) targets[part.finish].push({
+        position: position(part.position.x, part.position.y, part.position.z),
+        scale: position(part.size.x, part.size.y, part.size.z)
+      });
     } else if (structure.archetype === "warehouse" || structure.archetype === "hangar") {
       for(const part of buildBrFreightPilasters(structure))massing.push({
         position:position(part.position.x,part.position.y,part.position.z),scale:position(part.scale.x,part.scale.y,part.scale.z)

@@ -10,10 +10,11 @@ export type BrReactorCrownResources={
 export function createBrReactorCrown(_color:string,r:BrReactorCrownResources){
  const group=new THREE.Group();group.name="helios-reactor-presentation";group.userData.cameraCollision=false;
  // The authored tower has two roof tiers. Mount on the upper tier, whose
- // center is offset from the main tower; the landmark parent supplies 6.45m.
+ // cap is offset, but the emitter stays centered on the main tower. The
+ // narrowed footprint fits that cap; the landmark parent supplies 6.45m.
  // Base underside: 42.35 + 8.4 + 6.45 = 57.2m, exactly the cap surface.
- group.position.set(2.72,8.4,-2.04);
- group.scale.set(.88,1,.88);
+ group.position.set(0,8.4,0);
+ group.scale.set(.66,1,.66);
  const add=(name:string,material:THREE.Material,x:number,y:number,z:number,sx:number,sy:number,sz:number)=>{
   const m=new THREE.Mesh(r.box,material);m.name=name;m.position.set(x,y,z);m.scale.set(sx,sy,sz);group.add(m);return m;
  };
@@ -43,7 +44,7 @@ export function createBrReactorCrown(_color:string,r:BrReactorCrownResources){
    pose.rotation.set(0,angle,0);pose.scale.set(w,h,1);pose.updateMatrix();return pose.matrix.clone();
   };
   skinMatrices.push(matrix(0,54.6,span,19));
-  for(let row=0;row<10;row++)for(const side of [-1,1])scanMatrices.push(matrix(side*1.9,45.35+row*2.05,3.1,.045));
+  for(let row=0;row<10;row++)for(const side of [-1,1])scanMatrices.push(matrix(side*1.9,45.35+row*2.05,3.1,.07));
   for(let tick=0;tick<3;tick++)scanMatrices.push(matrix(span*.43,50+tick*.48,.22,.09));
  }
  for(const [name,material,matrices]of [["helios-hologram-veil",veil,skinMatrices],["helios-hologram-scan",scan,scanMatrices]] as const){

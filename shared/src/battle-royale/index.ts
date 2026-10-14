@@ -2,6 +2,7 @@ export * from "./types.js";
 export * from "./balance.js";
 export * from "./map.js";
 export * from "./entrance-headers.js";
+export * from "./roof-massing.js";
 export * from "./block-surface.js";
 export * from "./orbital-isle-elevation.js";
 export * from "./orbital-isle-landforms.js";
