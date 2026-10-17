@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as THREE from "three";
+import { BR_SKIMMER_HULL_OUTLINE, BR_SKIMMER_UNDERBODY_OUTLINE } from "@planetfall/shared";
 import { createBrHoverSkimmer, disposeBrHoverSkimmer, updateBrHoverSkimmer, type BrHoverSkimmerVisual } from "./br-hover-skimmer";
 import { BR_ENVIRONMENT_SCALE, isWithinBrPresentationScale } from "./br-environment-scale";
 
@@ -7,6 +8,22 @@ const visuals: BrHoverSkimmerVisual[] = [];
 afterEach(() => { for (const visual of visuals.splice(0)) disposeBrHoverSkimmer(visual); });
 
 describe("Orbital Hover Skimmer visual", () => {
+  it("uses every canonical hull outline vertex at the unchanged body heights",()=>{
+    const visual=createBrHoverSkimmer();visuals.push(visual);
+    for(const [name,outline,bottom,top] of [
+      ["skimmer-tapered-hull",BR_SKIMMER_HULL_OUTLINE,.59,1.07],
+      ["skimmer-underbody",BR_SKIMMER_UNDERBODY_OUTLINE,.50,.72],
+    ] as const){
+      const part=visual.group.getObjectByName(name) as THREE.Mesh;
+      const positions=part.geometry.getAttribute("position");
+      for(let i=0;i<positions.count;i++){
+        expect(outline.some(([x,z])=>Math.abs(x-positions.getX(i))<1e-6&&Math.abs(z-positions.getZ(i))<1e-6)).toBe(true);
+        const y=positions.getY(i)+part.position.y;
+        expect(Math.min(Math.abs(y-bottom),Math.abs(y-top))).toBeLessThan(1e-6);
+      }
+      for(const [x,z] of outline)expect(Array.from({length:positions.count},(_,i)=>i).some(i=>Math.abs(x-positions.getX(i))<1e-6&&Math.abs(z-positions.getZ(i))<1e-6)).toBe(true);
+    }
+  });
   it("has a compact one-seat transport silhouette with ground-centred anchors", () => {
     const visual = createBrHoverSkimmer(); visuals.push(visual);
     visual.group.updateMatrixWorld(true);

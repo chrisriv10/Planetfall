@@ -7,7 +7,7 @@ export interface AstronautMotionInput {
   forwardSpeed: number; lateralSpeed: number; verticalSpeed: number; turnRate: number;
   grounded: boolean; walkSpeed: number; runSpeed: number;
   aiming: boolean; crouched: boolean;
-  item: "none" | "two-hand" | "heavy" | "melee" | "utility";
+  item: "none" | "one-hand" | "two-hand" | "heavy" | "melee" | "utility";
   detail: "near" | "far" | "skip"; special: boolean;
   /** Existing landing feedback: when nonzero, suppress the additional landing dip. */
   landingPulse: number;
@@ -99,6 +99,13 @@ export function createAstronautMotion(rig: AstronautVisual) {
       // These arms have no elbow joints: keep the gloves ahead of the chest
       // rather than forcing them together inside the torso.
       lz = .55; rz = -.55;
+    } else if (input.item === "one-hand") {
+      // A compact sidearm stays on the right glove. The free arm counter-swings
+      // at the side; ADS steadies it without pretending there is an elbow joint.
+      rx = -1.02 - state.aim * .27 + running * (1-state.aim) * .28 + armSwing * .08;
+      rz = -.28 + state.aim * .07;
+      lx = -.18 - armSwing * .65 - state.aim * .22;
+      lz = .19 + state.aim * .07;
     } else if (input.item === "utility") {
       lx = -.9 + armSwing * .08; rx = -1 + armSwing * .08; lz = .55; rz = -.32;
     } else if (input.item === "melee") {

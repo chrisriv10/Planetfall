@@ -1,4 +1,5 @@
 import RAPIER from "@dimforge/rapier3d-compat";
+import {brVehicleCollisionHulls,brNearVehicleHull,type BrVehicleState} from "@planetfall/shared";
 import { BR_LANDFORMS, brLandformsNear, brControllerGrounded } from "@planetfall/shared";
 import { BR_BASE_DECK_CELLS, brConstrainBaseDeckMovement, brInteriorStairSubsteps, brInteriorStairProbeY } from "@planetfall/shared";
 import { BR_BALANCE, brBlocksForPhysicsSector, brFlatDeckCollision, brHasStandingClearance, brMantleTopAt, brPhysicsSector, isInsideBrIsland, type BrCollisionResult, type BrMapBlock, type Vec3 } from "@planetfall/shared";
@@ -13,6 +14,9 @@ const downwardContact=(desired:Vec3,actual:Vec3)=>desired.y<=0&&actual.y>desired
 
 /** One-character Rapier prediction world built from the exact authoritative collider schema. */
 export class BrPredictionPhysics {
+  private vehicles:readonly BrVehicleState[]=[];
+  private vehicleStamp:Array<{id:string;x:number;y:number;z:number;yaw:number}>=[];
+  private readonly vehicleWorlds=new Map<RAPIER.World,{center?:Vec3;entries:Map<string,{colliders:RAPIER.Collider[];x:number;y:number;z:number;yaw:number;enabled:boolean}>}>();
   private readonly sectors=new Map<string,MovementSector>();
   private readonly viewRay = new RAPIER.Ray({x:0,y:0,z:0}, {x:0,y:0,z:-1});
 
@@ -22,7 +26,7 @@ export class BrPredictionPhysics {
   }
 
   move(feet:Vec3,desiredMovement:Vec3,jumping:boolean,crouched=false):BrCollisionResult {
-    const flat=brFlatDeckCollision(feet,desiredMovement,jumping);if(flat)return{...flat,crouched};
+    const flat=brNearVehicleHull(feet,desiredMovement,this.vehicles)?null:brFlatDeckCollision(feet,desiredMovement,jumping);if(flat)return{...flat,crouched};
     const steps=brInteriorStairSubsteps(feet,desiredMovement,jumping);
     if(steps>1){
       let position={...feet},grounded=false,ceiling=false,actualCrouch=crouched;
@@ -57,6 +61,39 @@ export class BrPredictionPhysics {
     return Math.max(0,Math.min(maximum,hit?.timeOfImpact??maximum));
   }
 
+  setVehicles(vehicles:readonly BrVehicleState[],ignoredId:string|null=null):void {
+    this.vehicles=ignoredId?vehicles.filter(vehicle=>vehicle.id!==ignoredId):vehicles;
+    if(this.vehicles.length===this.vehicleStamp.length&&this.vehicles.every((vehicle,index)=>{const old=this.vehicleStamp[index];return old.id===vehicle.id&&old.x===vehicle.position.x&&old.y===vehicle.position.y&&old.z===vehicle.position.z&&old.yaw===vehicle.yaw;}))return;
+    this.vehicleStamp=this.vehicles.map(vehicle=>({id:vehicle.id,...vehicle.position,yaw:vehicle.yaw}));
+    for(const world of this.vehicleWorlds.keys())this.syncVehicleWorld(world);
+  }
+  private registerVehicleWorld(world:RAPIER.World,center?:Vec3):void {
+    this.vehicleWorlds.set(world,{center,entries:new Map()});this.syncVehicleWorld(world);
+  }
+  private syncVehicleWorld(world:RAPIER.World):void {
+    const state=this.vehicleWorlds.get(world)!;const seen=new Set<string>();let changed=false;
+    for(const vehicle of this.vehicles){
+      if(state.center&&(Math.abs(vehicle.position.x-state.center.x)>65||Math.abs(vehicle.position.z-state.center.z)>65))continue;
+      seen.add(vehicle.id);let entry=state.entries.get(vehicle.id);
+      if(!entry){
+        const colliders=brVehicleCollisionHulls(vehicle.kind).map(vertices=>{
+          const shape=RAPIER.ColliderDesc.convexHull(vertices);if(!shape)throw new Error("Invalid skimmer collision hull");
+          return world.createCollider(shape.setFriction(.4));
+        });
+        entry={colliders,x:NaN,y:NaN,z:NaN,yaw:NaN,enabled:false};state.entries.set(vehicle.id,entry);
+      }
+      const {x,y,z}=vehicle.position;
+      if(entry.enabled&&entry.x===x&&entry.y===y&&entry.z===z&&entry.yaw===vehicle.yaw)continue;
+      const angle=Math.PI-vehicle.yaw,rotation={x:0,y:Math.sin(angle/2),z:0,w:Math.cos(angle/2)};
+      for(const collider of entry.colliders){collider.setEnabled(true);collider.setTranslation(vehicle.position);collider.setRotation(rotation);}
+      Object.assign(entry,{x,y,z,yaw:vehicle.yaw,enabled:true});changed=true;
+    }
+    for(const [id,entry]of state.entries)if(entry.enabled&&!seen.has(id)){for(const collider of entry.colliders)collider.setEnabled(false);entry.enabled=false;changed=true;}
+    // Collider transforms need a broadphase refresh before character/ray queries.
+    // Stationary vehicles do not step their query worlds again.
+    if(changed)world.step();
+  }
+
   /** Camera queries use the same broadphase and collision geometry as the
    * pilot. This avoids raycasting every decorative instance five times/frame. */
   cameraDistance(origin:Vec3, direction:Vec3, maximum:number):number {
@@ -76,9 +113,9 @@ export class BrPredictionPhysics {
   }
 
   reset(feet:Vec3={x:0,y:0,z:0}):void {for(const sector of this.sectors.values()){sector.crouched=false;sector.collider.setHalfHeight(STANDING_HALF_HEIGHT);sector.collider.setTranslation({x:feet.x,y:feet.y+centerY(false),z:feet.z});}}
-  dispose():void {for(const sector of this.sectors.values()){sector.world.removeCharacterController(sector.controller);sector.world.free();}this.sectors.clear();}
+  dispose():void {for(const sector of this.sectors.values()){sector.world.removeCharacterController(sector.controller);sector.world.free();}this.sectors.clear();this.vehicleWorlds.clear();}
 
-  private sector(position:Vec3):MovementSector{const key=brPhysicsSector(position).key;let sector=this.sectors.get(key);if(sector)return sector;const world=new RAPIER.World({x:0,y:0,z:0});addMovementDeck(world);addBlocks(world,brBlocksForPhysicsSector(position));for(const h of brLandformsNear(brPhysicsSector(position).center,54))world.createCollider(RAPIER.ColliderDesc.trimesh(h.vertices,h.indices));const collider=world.createCollider(RAPIER.ColliderDesc.capsule(STANDING_HALF_HEIGHT,BR_BALANCE.playerRadius).setFriction(0));const controller=world.createCharacterController(.035);controller.enableAutostep(.52,.22,false);controller.enableSnapToGround(.18);controller.setSlideEnabled(true);controller.setMaxSlopeClimbAngle(Math.PI*.32);world.step();sector={world,collider,controller,crouched:false};this.sectors.set(key,sector);return sector;}
+  private sector(position:Vec3):MovementSector{const key=brPhysicsSector(position).key;let sector=this.sectors.get(key);if(sector)return sector;const world=new RAPIER.World({x:0,y:0,z:0});addMovementDeck(world);addBlocks(world,brBlocksForPhysicsSector(position));for(const h of brLandformsNear(brPhysicsSector(position).center,54))world.createCollider(RAPIER.ColliderDesc.trimesh(h.vertices,h.indices));const collider=world.createCollider(RAPIER.ColliderDesc.capsule(STANDING_HALF_HEIGHT,BR_BALANCE.playerRadius).setFriction(0));const controller=world.createCharacterController(.035);controller.enableAutostep(.52,.22,false);controller.enableSnapToGround(.18);controller.setSlideEnabled(true);controller.setMaxSlopeClimbAngle(Math.PI*.32);this.registerVehicleWorld(world,brPhysicsSector(position).center);world.step();sector={world,collider,controller,crouched:false};this.sectors.set(key,sector);return sector;}
 }
 
 type MovementSector={world:RAPIER.World;collider:RAPIER.Collider;controller:RAPIER.KinematicCharacterController;crouched:boolean};

@@ -41,7 +41,9 @@ describe("Battle Royale shared rules", () => {
     for (const weapon of Object.values(BR_WEAPONS)) {
       expect(weapon.damage).toBeGreaterThan(0);
       expect(weapon.fireIntervalMs).toBeGreaterThan(0);
-      expect(brRarityDamage(weapon.id, "legendary") / brRarityDamage(weapon.id, "common")).toBeCloseTo(1.18);
+      // Ordinary tiers now distribute refinement across reload, spread and
+      // damage instead of putting the entire former 18% bonus into damage.
+      expect(brRarityDamage(weapon.id, "legendary") / brRarityDamage(weapon.id, "common")).toBeCloseTo(1.1);
     }
   });
 

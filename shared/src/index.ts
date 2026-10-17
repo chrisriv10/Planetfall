@@ -19,6 +19,10 @@ export interface EquippedCosmetics {
   victory: string;
   planet: string;
 }
+export interface GuestProfile {
+  fallbucks:number;crowns:number;sessionTotalXp:number;sessionLevel:number;sessionXp:number;
+  ownedCosmetics:string[];equippedCosmetics:EquippedCosmetics;unlockedPassRewards:string[];
+}
 
 export interface ShopItem {
   id: string;
@@ -403,6 +407,8 @@ export interface ClientToServerEvents extends BrClientToServerEvents {
 }
 
 export interface ServerToClientEvents extends BrServerToClientEvents {
+  "profile:ready": (payload: { token: string; profile:GuestProfile }) => void;
+  "profile:state": (profile:GuestProfile) => void;
   "room:state": (room: RoomView) => void;
   "match:snapshot": (snapshot: ServerSnapshot) => void;
   "match:countdown": (payload: { startsAt: number; mode: GameMode; modifier: ChaosModifier | null; rules: MatchRules }) => void;

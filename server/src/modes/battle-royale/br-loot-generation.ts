@@ -1,16 +1,10 @@
 import {
-  BR_HEALS, BR_WEAPONS, brFloorHeightAt, brItemMagazine, isBrHeal, seededRandom,
-  type BrItemId, type BrLootSocket, type BrLootState, type BrRarity, type BrWeaponId,
+  BR_WEAPONS, brFloorHeightAt, brItemMagazine, isBrHeal, seededRandom,
+  type BrItemId, type BrLootSocket, type BrLootState, type BrWeaponId,
+  BR_GROUND_WEAPONS, BR_NORMAL_HEALS, BR_GROUND_RARITIES, BR_CONSUMABLE_RARITIES, brWeightedChoice,
+  BR_UTILITY_WEIGHTS,BR_UTILITIES,isBrUtility,
 } from "@planetfall/shared";
 import type { BrLootPlacement } from "./br-loot-placement.js";
-
-const WEAPONS = Object.keys(BR_WEAPONS) as BrWeaponId[];
-const HEALS = Object.keys(BR_HEALS) as BrItemId[];
-
-function rarity(random: () => number): BrRarity {
-  const roll = random();
-  return roll > .97 ? "legendary" : roll > .84 ? "epic" : roll > .48 ? "rare" : "common";
-}
 
 /** Seeded, authored-socket loot with one basic combat kit per enterable
  * structure. Randomness still changes weapon/heal/rarity outcomes, but never
@@ -32,13 +26,13 @@ export function generateBrLoot(
     const primary = !seenStructures.has(socket.structureId);
     seenStructures.add(socket.structureId);
     const chooseWeapon = primary || socket.kind === "roof" ? true : random() < .48;
-    let pool = chooseWeapon ? WEAPONS : HEALS;
-    let itemId = pool[Math.floor(random() * pool.length)];
+    const pool = chooseWeapon ? BR_GROUND_WEAPONS : random()<.15?BR_UTILITY_WEIGHTS:BR_NORMAL_HEALS;
+    let itemId:BrItemId = brWeightedChoice<BrItemId>(pool,random);
     const previous = lastItemByStructure.get(socket.structureId);
-    if (itemId === previous && pool.length > 1) itemId = pool[(pool.indexOf(itemId) + 1 + Math.floor(random() * (pool.length - 1))) % pool.length];
+    if (itemId === previous && pool.length > 1) itemId = brWeightedChoice<BrItemId>(pool.filter(([candidate])=>candidate!==previous),random);
     lastItemByStructure.set(socket.structureId, itemId);
     const item: BrLootState = {
-      id: idFactory("loot"), itemId, rarity: rarity(random),
+      id: idFactory("loot"), itemId, rarity: isBrUtility(itemId)?BR_UTILITIES[itemId].rarity:isBrHeal(itemId)?BR_CONSUMABLE_RARITIES[itemId]:brWeightedChoice(BR_GROUND_RARITIES,random),
       count: isBrHeal(itemId) ? 1 + Math.floor(random() * 2) : 1,
       magazine: brItemMagazine(itemId),
       ...place(socket.position,{ x: socket.position.x + (random() - .5) * .8, y: socket.position.y, z: socket.position.z + (random() - .5) * .8 }),

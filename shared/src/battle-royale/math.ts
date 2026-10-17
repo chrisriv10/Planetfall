@@ -10,6 +10,15 @@ export function brNormalize(value: Vec3): Vec3 {
 export function brAimDirection(yaw: number, pitch: number): Vec3 {
   return brNormalize({ x: Math.sin(yaw) * Math.cos(pitch), y: Math.sin(pitch), z: -Math.cos(yaw) * Math.cos(pitch) });
 }
+
+/** Same bounded muzzle convergence on the client and authority. Reject targets
+ * behind the muzzle instead of presenting a shot the server must discard. */
+export function brShotDirectionAllowed(direction:Vec3,yaw:number,pitch:number):boolean {
+  const length=Math.hypot(direction.x,direction.y,direction.z);
+  if(!Number.isFinite(length)||length<1e-5||!Number.isFinite(yaw)||!Number.isFinite(pitch))return false;
+  const aim=brAimDirection(yaw,pitch);
+  return (direction.x*aim.x+direction.y*aim.y+direction.z*aim.z)/length>=.72;
+}
 export function brMuzzlePosition(position: Vec3, yaw: number, pitch: number): Vec3 {
   const aim = brAimDirection(yaw, pitch);
   return { x: position.x + aim.x * .88, y: position.y + .72 + aim.y * .2, z: position.z + aim.z * .88 };

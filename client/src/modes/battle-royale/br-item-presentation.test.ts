@@ -1,8 +1,24 @@
 import { describe,expect,it } from "vitest";
 import { BR_WEAPONS,type BrWeaponId } from "@planetfall/shared";
+import * as THREE from "three";
+import {buildBrWeaponModel} from "./br-weapons";
+import {brLootModelSupportLift} from "./br-item-presentation";
 import { brHeldWeaponTransform,brLootCategory,brLootSurfaceOffset,brLootWeaponTransform } from "./br-item-presentation";
 
 describe("BR item presentation transforms",()=>{
+  it("keeps every authored weapon above support through the full loot bob",()=>{
+    for(const id of Object.keys(BR_WEAPONS) as BrWeaponId[]){
+      const model=new THREE.Group();buildBrWeaponModel(model,id,0xffffff);
+      const pose=brLootWeaponTransform(id);
+      model.rotation.set(...pose.rotation);model.scale.setScalar(pose.scale);
+      const lift=brLootModelSupportLift(model);
+      const bounds=new THREE.Box3().setFromObject(model);
+      expect(bounds.min.y+lift-.1,id).toBeGreaterThanOrEqual(.0699);
+      const meshes=model.children as THREE.Mesh[];
+      for(const g of new Set(meshes.map(m=>m.geometry)))g.dispose();
+      for(const m of new Set(meshes.flatMap(m=>Array.isArray(m.material)?m.material:[m.material])))m.dispose();
+    }
+  });
   it("defines finite held and loot transforms for every weapon",()=>{
     for(const id of Object.keys(BR_WEAPONS) as BrWeaponId[]){
       for(const transform of [brHeldWeaponTransform(id),brLootWeaponTransform(id)]){

@@ -1,6 +1,9 @@
 import "./style.css";
+import "./br-squad-hud.css";
+import { brItemName, brItemDescription, BR_RARITIES } from "@planetfall/shared";
+import { mouseButtonIcon } from "./mouse-button-icon";
 import { BALANCE, BR_BALANCE, BR_HEALS, BR_MAP, BR_POIS, BR_SECONDARY_LOCATIONS, BR_WEAPONS, CHAOS_COPY, PLANET_PASS_REWARDS, SESSION_PROGRESSION, SHOP_CATALOG, WEAPON_COPY, WEAPON_ORDER, brPickupDisposition, isBrWeapon, type BotDifficulty, type BrCrateState, type BrItemId, type BrJoinResult, type BrLootState, type BrMatchResult, type BrPlayerState, type BrRoomView, type BrTeamMode, type ChaosModifier, type CosmeticCategory, type EmoteType, type GameFamily, type GameMode, type JoinResult, type MatchCalloutType, type MatchEvent, type MatchResult, type RoomView, type WeaponType } from "@planetfall/shared";
-import { createGameSocket } from "./network";
+import { createGameSocket,getGuestProfile } from "./network";
 import { inputLabel, type InputMethod } from "./input";
 import { SETTINGS_STORAGE_KEY, parseStoredSettings, type UserSettings } from "./settings";
 import { AutoQualityController } from "./auto-quality";
@@ -166,6 +169,8 @@ socket.on("connect", () => {
 socket.on("disconnect", () => setConnection("offline", "Reconnecting..."));
 socket.io.on("reconnect_attempt", () => setConnection("", "Server waking up..."));
 socket.on("server:error", ({ message }) => toast(message));
+socket.on("profile:state",()=>{if(!shopOverlay.hidden)renderShop();});
+socket.on("profile:ready",()=>{if(!shopOverlay.hidden)renderShop();});
 socket.on("room:state", (nextRoom) => applyRoom(nextRoom));
 socket.on("match:snapshot", (snapshot) => {
   const accepted = game.applySnapshot(snapshot);
@@ -612,10 +617,10 @@ async function ensureBrGame(nextRoom: BrRoomView): Promise<BrGame | null> {
     instance.onFire = (origin, direction, clientTime) => socket.emit("br:weapon:fire", { origin, direction, clientTime });
     instance.onReload = () => socket.emit("br:weapon:reload");
     instance.onUseItem = () => socket.emit("br:item:use");
-    instance.onPickup = (lootId, replaceSlot) => socket.emit("br:inventory:pickup", { lootId, replaceSlot }, (result) => {
-      if (result.ok) game.audio.brLoot();
+    instance.onPickup = (lootId, replaceSlot) => {const rarity=instance.lootRarityFor(lootId);socket.emit("br:inventory:pickup", { lootId, replaceSlot }, (result) => {
+      if (result.ok) {game.audio.brLoot();if(rarity==="prototype"||rarity==="singularity"){game.audio.pickup();toast(`${rarity.toUpperCase()} EQUIPMENT ACQUIRED`);}}
       else { game.audio.denied(); toast(result.error ?? "Pickup failed."); }
-    });
+    });};
     instance.onOpenCrate = (crateId) => socket.emit("br:crate:open", { crateId });
     instance.onSelectSlot = (slot) => socket.emit("br:inventory:select", { slot });
     instance.onRevive = (targetId, active) => socket.emit("br:revive", { targetId, active });
@@ -797,27 +802,26 @@ function ordinal(value: number): string { const mod100 = value % 100; return `${
 
 function brInventoryMarkupFor(player: BrPlayerState): string {
   return player.inventory.map((item, index) => {
-    const color = item ? ({ common: "#b8c4dc", rare: "#54b8ff", epic: "#c565ff", legendary: "#ffc84f" }[item.rarity]) : "#56617f";
+    const color = item ? BR_RARITIES[item.rarity].color : "#56617f";
     const name = item ? brItemName(item.itemId) : "EMPTY";
-    const ammo = item && isBrWeapon(item.itemId) ? item.itemId === "energy-saber" ? "∞" : `${item.magazine} / ${BR_WEAPONS[item.itemId].ammo ? player.ammo[BR_WEAPONS[item.itemId].ammo!] : 0}` : item ? `×${item.count}` : "";
+    const ammo = item && isBrWeapon(item.itemId) ? item.itemId === "energy-saber" ? "∞" : item.itemId==="prism-beam"?`${player.weaponStatus?.instanceId===item.instanceId?Math.round(player.weaponStatus.heat):0}% HEAT · ${item.magazine} CELLS`:item.itemId==="vortex-cannon"&&player.weaponStatus?.instanceId===item.instanceId&&player.weaponStatus.chargeStartedAt?`CHARGE ${Math.round((player.weaponStatus.chargeProgress??0)*100)}%`:`${item.magazine} / ${BR_WEAPONS[item.itemId].ammo ? player.ammo[BR_WEAPONS[item.itemId].ammo!] : 0}` : item ? `×${item.count}` : "";
     const art = item ? brItemIconSvg(item.itemId) : '<span class="br-empty-slot" aria-hidden="true">+</span>';
     return `<div class="br-slot${index === player.selectedSlot ? " selected" : ""}" style="--slot-color:${color}"><span class="br-slot-key">${index+1}</span><span class="br-slot-art">${art}</span><b>${name}</b><small>${ammo}</small></div>`;
   }).join("");
 }
 
-function brItemName(itemId:BrItemId):string{return isBrWeapon(itemId)?BR_WEAPONS[itemId].name:BR_HEALS[itemId].name;}
+
 function brLootArtId(loot:BrLootState):BrItemArtId|null{return loot.itemId??(loot.ammoType?`ammo-${loot.ammoType}`:null);}
 function brLootName(loot:BrLootState):string{return loot.itemId?brItemName(loot.itemId):loot.ammoType?`${loot.ammoType.toUpperCase()} CELLS`:"UNKNOWN LOOT";}
 function brLootDescription(loot:BrLootState):string{
   if(loot.ammoType)return `AMMO · ×${loot.count}`;
   if(!loot.itemId)return `×${loot.count}`;
-  if(isBrWeapon(loot.itemId)){const weapon=BR_WEAPONS[loot.itemId];return `${weapon.role.toUpperCase()} · ${weapon.damage} DMG · ${weapon.range}m`;}
-  const heal=BR_HEALS[loot.itemId];return `${heal.hp?`+${heal.hp} HP`:`+${heal.shield} SHIELD`} · ${(heal.durationMs/1000).toFixed(heal.durationMs%1000?1:0)}s USE`;
+  return brItemDescription(loot.itemId,loot.rarity);
 }
 function renderBrLootCard(loot:BrLootState|null,player:BrPlayerState):void{
   const card=byId("br-loot-card");card.hidden=!loot;if(!loot)return;
   const artId=brLootArtId(loot);const rarity=loot.rarity.toUpperCase();
-  card.style.setProperty("--loot-rarity",({common:"#b8c4dc",rare:"#54b8ff",epic:"#c565ff",legendary:"#ffc84f"} as const)[loot.rarity]);
+  card.style.setProperty("--loot-rarity",BR_RARITIES[loot.rarity].color);
   const disposition=brPickupDisposition(player.inventory,player.ammo,loot);
   const action=disposition==="swap"?"SWAP HELD":"PICK UP";
   card.innerHTML=`<span class="br-loot-art">${artId?brItemIconSvg(artId):""}</span><div><small>${rarity} · ${action}</small><strong>${escapeHtml(brLootName(loot))}</strong><p>${escapeHtml(brLootDescription(loot))}</p></div><kbd>E</kbd>`;
@@ -825,7 +829,7 @@ function renderBrLootCard(loot:BrLootState|null,player:BrPlayerState):void{
 let brInventoryPanelMarkup="";
 function renderBrInventoryPanel(player:BrPlayerState):void{
   const markup=player.inventory.map((item,index)=>{
-    const color=item?({common:"#b8c4dc",rare:"#54b8ff",epic:"#c565ff",legendary:"#ffc84f"} as const)[item.rarity]:"#56617f";
+    const color=item?BR_RARITIES[item.rarity].color:"#56617f";
     const ammo=item&&isBrWeapon(item.itemId)?item.itemId==="energy-saber"?"No ammo required":`${item.magazine} loaded · ${BR_WEAPONS[item.itemId].ammo?player.ammo[BR_WEAPONS[item.itemId].ammo!]:0} reserve`:item?`${item.count} carried`:"Available slot";
     return `<article class="br-inventory-panel-slot${index===player.selectedSlot?" selected":""}" style="--slot-color:${color}"><span>${item?brItemIconSvg(item.itemId):'<i aria-hidden="true">+</i>'}</span><div><small>SLOT ${index+1}${item?` · ${item.rarity.toUpperCase()}`:""}</small><strong>${item?escapeHtml(brItemName(item.itemId)):"EMPTY"}</strong><p>${ammo}</p></div><button type="button" data-slot="${index}" data-action="equip" ${item?"":"disabled"}>EQUIP</button><button type="button" data-slot="${index}" data-action="drop" ${item?"":"disabled"}>DROP</button></article>`;
   }).join("");
@@ -1050,8 +1054,9 @@ function closeShop(): void {
 
 function renderShop(): void {
   releaseShopPreviews();
-  const me = (currentFamily === "battle-royale" ? brRoom?.players : room?.players)?.find((player) => player.id === playerId);
-  const previewing = !me;
+  const member = (currentFamily === "battle-royale" ? brRoom?.players : room?.players)?.find((player) => player.id === playerId);
+  const me=member??getGuestProfile();
+  const previewing = !member;
   byId("shop-balance").textContent = String(me?.fallbucks ?? 0);
   shopNote.hidden = !previewing;
   const categories: { id: CosmeticCategory; label: string }[] = [
@@ -1226,10 +1231,10 @@ function renderInputUi(method: InputMethod): void {
     : method === "gamepad"
       ? [["LS", "Move"], ["RS", "Camera"], ["A", "Jump"], ["B", "Burst"], ["X", "Interact"], ["LT", "Grapple"], ["RT", "Fire"], ["RB", "Repair"], ["Y", "Cannon Weapon"], ["D↑", "Emote"]]
       : [["WASD", "Move"], ["MOUSE", "Camera"], ["SPACE", "Jump"], ["SHIFT", "Burst"], ["E", "Interact"], ["RMB", "Grapple"], ["LMB", "Fire"], ["R", "Repair"], ["Q", "Cannon Weapon"], ["V", "Emote"]];
-  const html = controls.map(([key, label]) => `<span><kbd>${key}</kbd>${label}</span>`).join("");
+  const html = controls.map(([key, label]) => `<span><kbd>${mouseButtonIcon(key)}</kbd>${label}</span>`).join("");
   controlHelp.innerHTML = html;
   pauseControls.innerHTML = html;
-  homeControls.innerHTML = controls.filter(([, label]) => ["Move", "Interact", "Grapple"].includes(label)).map(([key, label]) => `<span><kbd>${key}</kbd> ${label}</span>`).join("");
+  homeControls.innerHTML = controls.filter(([, label]) => ["Move", "Interact", "Grapple"].includes(label)).map(([key, label]) => `<span><kbd>${mouseButtonIcon(key)}</kbd> ${label}</span>`).join("");
   byId("weapon-key").textContent = inputLabel("switchWeapon", method);
   byId("leaderboard-key").textContent = method === "gamepad" ? "VIEW" : "TAB";
   byId("lobby-emote-hint").querySelector("kbd")!.textContent = inputLabel("emote", method);
@@ -1323,6 +1328,7 @@ function setGameMode(mode: GameMode): void {
 function showScreen(name: keyof typeof screens): void {
   const previousFamily=document.body.dataset.gameFamily;
   currentScreen = name;
+  connectionPill.hidden = name === "hud" || name === "brHud";
   if (name !== "hud" && name !== "brHud") {
     document.exitPointerLock?.();
     byId("br-scope-overlay").hidden = true;

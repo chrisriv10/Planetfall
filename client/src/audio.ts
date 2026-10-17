@@ -143,8 +143,16 @@ export class GameAudio {
   }
 
   brRemoteWeapon(weapon: string, source: AudioPosition, listener: AudioPosition, yaw: number): void {
+    if(weapon==="vortex-cannon"){this.spatialSample("plasma-explosion",source,listener,yaw,.13,180,.65);return;}
+    if(weapon==="comet-hand-cannon"){this.spatialSample("metal-impact",source,listener,yaw,.15,160,.68);return;}
+    if(weapon==="quasar-carbine"){this.spatialSample("laser-large",source,listener,yaw,.11,180,1.12);return;}
+    if(weapon==="prism-beam"){this.spatialSample("shield-hit",source,listener,yaw,.045,110,.82);return;}
     const sample = weapon === "plasma-launcher" ? "plasma-explosion" : weapon === "arc-blaster" ? "shield-hit" : weapon === "rail-laser" || weapon === "photon-shotgun" ? "laser-large" : "laser-small";
     this.spatialSample(sample, source, listener, yaw, .13, 180);
+  }
+  brCharge():void {this.tone(65,.7,"sine",.022,210);this.tone(130,.65,"triangle",.008,310);}
+  brScannerPulse(source:AudioPosition,listener:AudioPosition,yaw:number):void {
+    this.spatialSample("shield-hit",source,listener,yaw,.15,80,.72);
   }
   brRemoteFootstep(source: AudioPosition, listener: AudioPosition, yaw: number, sprinting = false): void {
     this.spatialSample(Math.random() > .5 ? "footstep-1" : "footstep-2", source, listener, yaw, sprinting ? .075 : .05, 32);
@@ -184,6 +192,11 @@ export class GameAudio {
     else if (weapon === "plasma-launcher") { this.playSample("plasma-explosion",.18,.82);this.tone(125,.22,"sine",.055,420);this.noise(.08,.035,520); }
     else if (weapon === "arc-blaster") { this.playSample("shield-hit",.15,1.18);this.tone(760,.08,"square",.028,280);setTimeout(()=>this.tone(1120,.055,"triangle",.018,650),28); }
     else if (weapon === "energy-saber") { this.noise(.09,.036,1300);this.tone(240,.16,"sawtooth",.035,480); }
+    else if(weapon==="helix-burst-rifle"){this.tone(540,.055,"triangle",.035,260);this.noise(.025,.017,1800);}
+    else if(weapon==="comet-hand-cannon"){this.playSample("metal-impact",.12,.68);this.tone(95,.16,"sine",.065,48);this.noise(.045,.035,680);}
+    else if(weapon==="quasar-carbine"){this.tone(920,.08,"sine",.035,1540);this.tone(320,.11,"triangle",.018,180);}
+    else if(weapon==="prism-beam"){this.tone(340,.13,"sine",.012,365);this.tone(680,.12,"triangle",.005,710);}
+    else if(weapon==="vortex-cannon"){this.tone(62,.35,"sine",.06,42);this.noise(.16,.025,280);this.tone(150,.24,"triangle",.024,80);}
   }
   hitConfirm(kind:"shield"|"hp"|"break"|"headshot"):void {
     const start=kind==="headshot"?980:kind==="break"?760:kind==="shield"?610:430;

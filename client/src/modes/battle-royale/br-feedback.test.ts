@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
+import {brWeaponRecoilImpulse} from "./br-feedback";
 import { BR_ASTRONAUT_FLOOR_OFFSET, brActionTimer, brAstronautFacingRotation, brAstronautRigHeight, brDamageBearing, brFireRequestDue, brLandingFeedback, brMovementFacingYaw, brPredictionCorrectionStrength, brPreservePendingJump, brRecoilAfter, brSmoothFacing, brStormReadout } from "./br-feedback";
 
 describe("BR presentation correctness",()=>{
+  it("refines ordinary weapon kick modestly without boosting special tiers",()=>{
+    expect(brWeaponRecoilImpulse("common")).toBe(1);
+    expect(brWeaponRecoilImpulse("legendary")).toBe(.92);
+    expect(brWeaponRecoilImpulse("rare",true)).toBeCloseTo(.65*.96);
+    for(const rarity of ["prototype","singularity"] as const)expect(brWeaponRecoilImpulse(rarity)).toBe(1);
+  });
   it("shows a drop phase instead of a misleading expired storm countdown aboard the ship",()=>{
     expect(brStormReadout("ship",{stage:"waiting",stageEndsAt:null},100)).toEqual({label:"DROP PHASE",time:"—"});
     expect(brStormReadout("countdown",{stage:"waiting",stageEndsAt:100},100)).toEqual({label:"PREPARING",time:"—"});

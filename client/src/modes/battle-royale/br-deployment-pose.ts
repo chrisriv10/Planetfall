@@ -7,14 +7,16 @@ export interface BrDeploymentPoseRig {
 }
 
 /** Call after locomotion posing/lean, before vehicle overrides. The canonical
- * astronaut faces +Z locally (the BR rig has yaw PI), so positive local pitch
- * leans the head toward travel. No position, yaw, or simulation state changes. */
+ * astronaut faces +Z locally, but the BR rig uses XYZ Euler order and yaw PI.
+ * Negative X pitch therefore leans its head toward parent -Z (travel), rather
+ * than backward. The caller must skip competing locomotion lean during chute.
+ * No position, yaw, or simulation state changes. */
 export function applyBrDeploymentPose(visual: BrDeploymentPoseRig, deployment: string, now: number, dt: number): void {
   const gliding = deployment === "chute";
   visual.wings.visible = gliding;
   if (!gliding) { visual.wings.rotation.set(0, 0, 0); visual.wings.scale.set(1, 1, 1); return; }
   const blend = 1 - Math.exp(-9 * Math.max(0, dt));
-  visual.rig.rotation.x += (.38 - visual.rig.rotation.x) * blend;
+  visual.rig.rotation.x += (-.65 - visual.rig.rotation.x) * blend;
   const flutter = Math.sin(now * .0025) * .025;
   for (let i = 0; i < 4; i++) {
     const limb = visual.limbs[i];

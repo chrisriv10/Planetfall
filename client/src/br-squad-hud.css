@@ -1,0 +1,40 @@
+.br-hud .br-team-hud {
+  top: 22px;
+  left: 18px;
+  width: 270px;
+  display: grid;
+  gap: 7px;
+  pointer-events: none;
+  max-height: calc(100dvh - 240px);
+  overflow: hidden;
+}
+.br-hud .br-team-hud[hidden] { display: none; }
+/* Reserve the full bottom band for ammo/heat, independent of the art gutter.
+   Long heat labels can use two lines without running beyond the slot edge. */
+.br-hud .br-slot small {
+  left: 5px;
+  right: 5px;
+  bottom: 5px;
+  font-size: 11px;
+  line-height: 11px;
+  max-height: 22px;
+  white-space: normal;
+  text-align: right;
+  overflow-wrap: normal;
+  text-overflow: clip;
+}
+.br-hud .br-teammate { padding: 10px 12px; gap: 5px 8px; font-size: 12px; }
+.br-hud .br-teammate > b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.br-hud .br-teammate > span { font-size: 10px; }
+.br-hud .br-teammate > label { font-size: 10px; grid-template-columns: 42px 1fr; }
+.br-hud .br-teammate > label em { height: 8px; }
+@media (max-width: 760px) {
+  .br-hud .br-slot small { left: 3px; right: 3px; bottom: 3px; font-size: 9px; line-height: 10px; max-height: 20px; }
+  .br-hud .br-team-hud { top: 112px; left: 10px; width: min(230px, calc(100vw - 20px)); gap: 4px; max-height: calc(100dvh - 340px); }
+  .br-hud .br-teammate { padding: 6px 8px; gap: 3px 6px; }
+  .br-hud .br-teammate > b { font-size: 12px; }
+}
+@media (max-height: 500px) {
+  .br-hud .br-team-hud { top: 52px; width: 210px; max-height: calc(100dvh - 170px); }
+  .br-hud .br-teammate { padding: 5px 7px; gap: 2px 5px; }
+}

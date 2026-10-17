@@ -1,13 +1,12 @@
 import * as THREE from "three";
 import type { BrRarity } from "@planetfall/shared";
+import { BR_RARITIES } from "@planetfall/shared";
 import type { GraphicsQuality } from "../../settings";
 
 /** Item surfaces retain their authored palette; these colors belong to the field only. */
-export const BR_LOOT_RARITY_COLORS: Readonly<Record<BrRarity, number>> = Object.freeze({
-  common: 0xb8c4dc, rare: 0x54b8ff, epic: 0xc565ff, legendary: 0xffc84f,
-});
+export const BR_LOOT_RARITY_COLORS = Object.freeze(Object.fromEntries(Object.entries(BR_RARITIES).map(([rarity,profile])=>[rarity,profile.hex]))) as Readonly<Record<BrRarity,number>>;
 export const BR_LOOT_FLOAT = Object.freeze({ lift: .42, amplitude: .1, speed: .002 });
-const BEAM_HEIGHT: Record<BrRarity, number> = { common: 1.05, rare: 1.4, epic: 1.7, legendary: 2 };
+const BEAM_HEIGHT: Record<BrRarity, number> = { common: 1.05, uncommon:1.2, rare: 1.4, epic: 1.7, legendary: 2, prototype:1.85, singularity:2 };
 type FieldMesh = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
 type FieldMaterials = { ring: THREE.MeshBasicMaterial; aura: THREE.MeshBasicMaterial; beam: THREE.MeshBasicMaterial };
 
@@ -98,7 +97,7 @@ export class BrLootRarityVisual extends THREE.Group {
   }
 }
 
-/** Per-game resource owner: exactly three geometries and twelve materials,
+/** Per-game resource owner: exactly three geometries and twenty-one materials,
  * independent of loot count. No textures, lights, timers, or per-frame allocation.
  * Keep alive across match reset; release each visual before generic scene cleanup.
  */
@@ -113,8 +112,8 @@ export class BrLootRarityResources {
       const base = { color: BR_LOOT_RARITY_COLORS[rarity], transparent: true, depthWrite: false,
         depthTest: true, toneMapped: false, side: THREE.DoubleSide };
       this.materials.set(rarity, {
-        ring: new THREE.MeshBasicMaterial({ ...base, opacity: .76 }),
-        aura: new THREE.MeshBasicMaterial({ ...base, opacity: .1, blending: THREE.AdditiveBlending }),
+        ring: new THREE.MeshBasicMaterial({ ...base, opacity: .76, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 }),
+        aura: new THREE.MeshBasicMaterial({ ...base, opacity: .1, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 }),
         beam: new THREE.MeshBasicMaterial({ ...base, opacity: .13, vertexColors: true, blending: THREE.AdditiveBlending }),
       });
     }

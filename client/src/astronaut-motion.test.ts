@@ -8,6 +8,19 @@ import {buildBrWeaponModel} from "./modes/battle-royale/br-weapons";
 function setup(){const rig=createAstronautVisual({identityColor:'#70f5ff',suitAccent:'#ffd84d',isBot:false});return {rig,motion:createAstronautMotion(rig)};}
 function advance(m:ReturnType<typeof createAstronautMotion>,seconds:number,rate=60){for(let i=0;i<seconds*rate;i++){m.input.dt=1/rate;m.input.timeSeconds+=1/rate;m.update();}}
 describe('coordinated astronaut presentation',()=>{
+ it('carries a pistol on one arm, steadies ADS and lowers it for sprint without a rifle support pose',()=>{
+  const {rig,motion}=setup();motion.input.item='one-hand';advance(motion,1);
+  expect(rig.rightArm.rotation.x).toBeCloseTo(-1.02,3);
+  expect(rig.leftArm.rotation.x).toBeCloseTo(-.18,3);
+  motion.input.aiming=true;advance(motion,1);
+  expect(rig.rightArm.rotation.x).toBeCloseTo(-1.29,3);
+  expect(rig.leftArm.rotation.x).toBeGreaterThan(-.45);
+  expect(rig.leftArm.rotation.z).toBeLessThan(.3);
+  motion.input.aiming=false;motion.input.forwardSpeed=7;advance(motion,1);
+  expect(rig.rightArm.rotation.x).toBeGreaterThan(-.85);
+  motion.input.special=true;rig.rightArm.rotation.x=-2;advance(motion,.1);
+  expect(rig.rightArm.rotation.x).toBe(-2);
+ });
  it('keeps the bind geometry, materials, mesh transforms and dimensions through the identity hierarchy',()=>{
   const {rig}=setup();rig.group.updateMatrixWorld(true);
   const meshes:THREE.Mesh[]=[];rig.group.traverse(o=>{if(o instanceof THREE.Mesh)meshes.push(o);});

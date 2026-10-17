@@ -4,13 +4,25 @@ import {BR_LOOT_SOCKETS,BR_MAP_BLOCKS,type ClientToServerEvents,type ServerToCli
 import {BrPhysicsWorld} from "./br-physics.js";
 import {BattleRoyaleRoom} from "./br-room.js";
 import {generateBrLoot} from "./br-loot-generation.js";
-import {placeBrLoot} from "./br-loot-placement.js";
+import {placeBrLoot,placeBrDroppedLoot} from "./br-loot-placement.js";
 
 const physics=new BrPhysicsWorld();
 const ray=(origin:Vec3,direction:Vec3,maximum:number)=>physics.rayDistance(origin,direction,maximum);
 afterAll(()=>physics.dispose());
 
 describe("authoritative loot support",()=>{
+ it("separates repeated drops without changing support or crossing walls",()=>{
+  const occupied:Vec3[]=[];
+  const origin={x:0,y:.615,z:-80};
+  for(let index=0;index<5;index++){
+   const drop=placeBrDroppedLoot(origin,0,ray,occupied);
+   expect(drop.position.y).toBeCloseTo(drop.surfaceY+.58,4);
+   for(const previous of occupied)expect(Math.hypot(previous.x-drop.position.x,previous.z-drop.position.z)).toBeGreaterThanOrEqual(1.099);
+   expect(Math.hypot(drop.position.x-origin.x,drop.position.z-origin.z)).toBeLessThanOrEqual(1.201);
+   expect(ray(origin,{x:(drop.position.x-origin.x)/1.2,y:0,z:(drop.position.z-origin.z)/1.2},1.6)).toBeGreaterThanOrEqual(1.599);
+   occupied.push(drop.position);
+  }
+ });
  it("uses the actual roof slab top instead of the authored roof centre",()=>{
   const socket=BR_LOOT_SOCKETS.find(s=>s.kind==="roof")!;
   const roof=BR_MAP_BLOCKS.find(b=>b.id===`${socket.structureId}-roof`)!;

@@ -4,6 +4,38 @@ import { BrShotEffects } from "./br-shot-effects";
 
 describe("BR shot presentation pool",()=>{
   const origin={x:3,y:2,z:1};
+  it("moves only the flash to the visual muzzle while retaining authoritative tracer endpoints",()=>{
+    const effects=new BrShotEffects(1);
+    const children=[...effects.root.children];
+    const geometries=children.map(child=>(child as THREE.Mesh).geometry);
+    const materials=children.map(child=>(child as THREE.Mesh).material);
+    const [flash,tracer]=children as [THREE.Mesh,THREE.Line];
+    for(let i=0;i<100;i++){
+      effects.fire("rail-laser",origin,{x:4,y:0,z:0},12,i,{x:-5,y:8,z:9});
+      expect(flash.position.toArray()).toEqual([-5+1.65*.35,8,9]);
+      expect([...tracer.geometry.getAttribute("position").array]).toEqual([3,2,1,15,2,1]);
+    }
+    expect(effects.root.children).toEqual(children);
+    expect(children.map(child=>(child as THREE.Mesh).geometry)).toEqual(geometries);
+    expect(children.map(child=>(child as THREE.Mesh).material)).toEqual(materials);
+    effects.dispose();
+  });
+  it("rejects invalid optional muzzle positions without consuming or corrupting a slot",()=>{
+    const effects=new BrShotEffects(2);
+    effects.fire("rail-laser",origin,{x:1,y:0,z:0},12,0);
+    const first=effects.root.children[0] as THREE.Mesh;
+    const position=first.position.clone();
+    for(const value of [NaN,Infinity,-Infinity])for(const axis of ["x","y","z"] as const){
+      const muzzle={x:1,y:2,z:3};muzzle[axis]=value;
+      effects.fire("pulse-rifle",origin,{x:0,y:1,z:0},20,1,muzzle);
+    }
+    expect(first.position).toEqual(position);
+    expect(effects.root.children[2].visible).toBe(false);
+    effects.fire("pulse-rifle",origin,{x:0,y:1,z:0},20,2);
+    expect(effects.root.children[2].visible).toBe(true);
+    expect(first.position).toEqual(position);
+    effects.dispose();
+  });
   it("aligns the rail flash and tracer with the shot instead of world-up",()=>{
     const effects=new BrShotEffects(1);
     effects.fire("rail-laser",origin,{x:4,y:0,z:0},12,10);

@@ -1,4 +1,4 @@
-import type { BrDeploymentState, BrPhase, BrRoomView } from "@planetfall/shared";
+import {BR_RARITIES,type BrRarity,type BrDeploymentState,type BrPhase,type BrRoomView} from "@planetfall/shared";
 
 /** Do not present an expired storm countdown while pilots are still dropping. */
 export function brStormReadout(phase:BrPhase,storm:Pick<BrRoomView["storm"],"stage"|"stageEndsAt">,now:number) {
@@ -27,6 +27,12 @@ export function brActionTimer(deadline:number, serverTime:number, now:number, st
 }
 
 export function brRecoilAfter(recoil:number,dt:number):number { return recoil*Math.exp(-18*Math.max(0,dt)); }
+
+/** Visual kick uses the same canonical rarity refinement as weapon stats.
+ * This does not move aim, muzzle direction, hit volumes or the camera. */
+export function brWeaponRecoilImpulse(rarity:BrRarity,anticipated=false):number {
+  return (anticipated ? .65 : 1)*BR_RARITIES[rarity].recoil;
+}
 
 /** Client anticipation may be later than authority, but must never schedule a
  * request earlier than the authoritative weapon interval. Advancing the local

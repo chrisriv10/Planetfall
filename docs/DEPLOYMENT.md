@@ -24,6 +24,11 @@ Render supplies `PORT`. The server binds to `0.0.0.0` and serves HTTP health che
 
 The build explicitly includes dev dependencies because TypeScript is needed to compile the workspaces even with `NODE_ENV=production`.
 
+For saved Fallbucks, configure server-only `DATABASE_URL` with a durable
+PostgreSQL database before hosted playtesting. The Free service's local files
+are ephemeral; its file fallback cannot preserve wallets across sleep/restarts.
+See [saved player profiles](PLAYER_PROFILES.md) for setup and acceptance checks.
+
 Deploy and copy the public HTTPS service URL. Opening its `/health` path should return JSON with `ok: true`.
 
 ## 2. Cloudflare Pages client

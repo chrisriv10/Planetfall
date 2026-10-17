@@ -41,6 +41,7 @@ export function brLookAngles(yaw:number,pitch:number,lookX:number,lookY:number,s
 export function brAimProfile(weaponId:BrWeaponId|null,aiming:boolean):BrAimProfile {
   if(!aiming)return {fov:70,sensitivity:1,scope:null};
   if(weaponId==="rail-laser")return {fov:36,sensitivity:.42,scope:"rail"};
+  if(weaponId==="quasar-carbine")return {fov:44,sensitivity:.55,scope:"pulse"};
   if(weaponId==="pulse-rifle")return {fov:52,sensitivity:.68,scope:"pulse"};
   return {fov:62,sensitivity:.82,scope:null};
 }

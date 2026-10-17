@@ -91,6 +91,64 @@ export function buildBrWeaponModel(group: THREE.Group, id: BrWeaponId, rarityAcc
     cylinder(.2, .7, [0, .02, -1.13], body, 12);
     cylinder(.17, .14, [0, .02, -1.52], energy, 12);
     group.userData.muzzle.set(0, .02, -1.65);
+  } else if (id === "helix-burst-rifle") {
+    box([.25,.24,.8],[0,0,-.38]);
+    box([.23,.2,.42],[0,.02,.2],frame);
+    named("helix-grip",box([.14,.38,.2],[0,-.26,-.28]));
+    for (const x of [-.12,.12]) {
+      named("helix-split-rail",box([.07,.09,.95],[x,.03,-1.08],frame));
+      for (let i=0;i<3;i++) { const channel=box([.08,.045,.22],[x,.11,-.76-i*.26],energy); channel.rotation.z=x>0?.45:-.45; named("helix-channel",channel); }
+    }
+    named("helix-reflex-left",box([.025,.12,.07],[-.07,.22,-.4],frame));
+    named("helix-reflex-right",box([.025,.12,.07],[.07,.22,-.4],frame));
+    box([.165,.025,.07],[0,.29,-.4],frame);
+    group.userData.muzzle.set(0,.03,-1.62);
+  } else if (id === "comet-hand-cannon") {
+    named("comet-slide",box([.32,.28,.67],[0,.04,-.34],frame));
+    named("comet-grip",box([.21,.43,.24],[0,-.29,-.12]));
+    named("comet-cylinder",cylinder(.17,.3,[0,-.02,-.32],body,8));
+    cylinder(.105,.25,[0,.05,-.78],body,8);
+    named("comet-muzzle",cylinder(.078,.035,[0,.05,-.925],energy,8));
+    box([.055,.07,.07],[0,.215,-.58],body);
+    for (const x of [-.166,.166])box([.025,.045,.27],[x,.07,-.35],energy);
+    group.userData.muzzle.set(0,.05,-.95);
+  } else if (id === "quasar-carbine") {
+    box([.24,.24,.9],[0,0,-.45]);
+    named("quasar-skeleton-stock",box([.055,.08,.52],[.09,.02,.27],frame));
+    box([.24,.23,.08],[0,.02,.57],frame);
+    named("quasar-grip",box([.15,.38,.2],[0,-.26,-.25]));
+    box([.19,.27,.22],[0,-.22,-.6],frame);
+    named("quasar-handguard",box([.24,.16,.55],[0,.01,-1.08],frame));
+    cylinder(.055,.42,[0,.03,-1.53]);
+    box([.12,.12,.2],[0,.18,-.4]);
+    named("quasar-optic",cylinder(.1,.34,[0,.3,-.43],frame));
+    named("quasar-lens",cylinder(.077,.012,[0,.3,-.607],energy));
+    for(const x of [-.125,.125])box([.018,.035,.42],[x,.04,-1.08],energy);
+    group.userData.muzzle.set(0,.03,-1.77);
+  } else if (id === "prism-beam") {
+    named("prism-receiver",box([.35,.3,.65],[0,0,-.3],frame));
+    named("prism-grip",box([.17,.4,.2],[0,-.27,-.15]));
+    box([.28,.16,.3],[0,.01,.18]);
+    named("prism-crystal",cylinder(.15,.45,[0,.03,-.9],energy,3));
+    for(let i=0;i<3;i++){
+      const a=i*Math.PI*2/3;
+      named("prism-emitter-prong",box([.085,.085,.65],[Math.cos(a)*.24,.03+Math.sin(a)*.24,-1.02],body));
+      named("prism-focus-tip",box([.09,.09,.045],[Math.cos(a)*.24,.03+Math.sin(a)*.24,-1.365],energy));
+    }
+    for(const x of [-.18,.18])box([.045,.22,.36],[x,0,-.3],body);
+    group.userData.muzzle.set(0,.03,-1.4);
+  } else if (id === "vortex-cannon") {
+    named("vortex-receiver",box([.42,.32,.68],[0,0,-.28],frame));
+    named("vortex-grip",box([.18,.4,.22],[0,-.28,-.1]));
+    box([.3,.22,.36],[0,.02,.22],body);
+    named("vortex-core",cylinder(.18,.34,[0,.02,-.74],body,8));
+    for(let i=0;i<4;i++){
+      const a=i*Math.PI/2;
+      named("vortex-containment-vane",box([.12,.12,.82],[Math.cos(a)*.28,.02+Math.sin(a)*.28,-.97],frame));
+      named("vortex-field-inset",box([.075,.075,.38],[Math.cos(a)*.285,.02+Math.sin(a)*.285,-1.05],energy));
+    }
+    named("vortex-aperture",cylinder(.16,.045,[0,.02,-1.42],energy,8));
+    group.userData.muzzle.set(0,.02,-1.46);
   } else {
     box([.3, .29, .82], [0, 0, -.45]);
     box([.24, .18, .38], [0, .03, .16], frame);
@@ -105,6 +163,11 @@ export function buildBrWeaponModel(group: THREE.Group, id: BrWeaponId, rarityAcc
 export function brWeaponAccent(id: BrWeaponId): number { return weaponAccent(id); }
 
 function weaponAccent(id: BrWeaponId): number {
+  if (id === "helix-burst-rifle") return 0x8be7c4;
+  if (id === "comet-hand-cannon") return 0xffab73;
+  if (id === "quasar-carbine") return 0x9dbaff;
+  if (id === "prism-beam") return 0x72fff0;
+  if (id === "vortex-cannon") return 0xd4b3ff;
   if (id === "nova-smg") return 0xff6fbd;
   if (id === "photon-shotgun") return 0xffbd58;
   if (id === "rail-laser") return 0x78baff;

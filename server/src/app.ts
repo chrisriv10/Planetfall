@@ -3,6 +3,10 @@ import cors from "cors";
 import express from "express";
 import { Server } from "socket.io";
 import RAPIER from "@dimforge/rapier3d-compat";
+import {resolve} from "node:path";
+import {fileURLToPath} from "node:url";
+import {PlayerProfiles} from "./player-profiles.js";
+import {ProfileDatabase} from "./profile-database.js";
 import type { ClientToServerEvents, ServerToClientEvents } from "@planetfall/shared";
 import { RoomManager } from "./room-manager.js";
 
@@ -11,6 +15,9 @@ export interface ServerOptions {
   host?: string;
   nodeEnv?: string;
   clientOrigins?: string[];
+  /** Tests may use an isolated file; undefined test servers stay in memory. */
+  profileFile?: string;
+  profileDatabaseUrl?:string;
 }
 
 export async function createPlanetfallServer(options: ServerOptions = {}) {
@@ -33,7 +40,12 @@ export async function createPlanetfallServer(options: ServerOptions = {}) {
     allowRequest: (request, callback) => callback(null, originAllowed(request.headers.origin)),
     transports: ["websocket", "polling"], pingInterval: 10000, pingTimeout: 20000, maxHttpBufferSize: 32_000
   });
-  const manager = new RoomManager(io);
+  const testEnvironment=(options.nodeEnv??process.env.NODE_ENV)==="test";
+  const profileFile=options.profileFile??(testEnvironment?undefined:process.env.PLANETFALL_DATA_DIR?resolve(process.env.PLANETFALL_DATA_DIR,"player-profiles.json"):fileURLToPath(new URL("../data/player-profiles.json",import.meta.url)));
+  const databaseUrl=options.profileDatabaseUrl??(!testEnvironment?process.env.DATABASE_URL:undefined);
+  const persisted=databaseUrl?await ProfileDatabase.connect(databaseUrl):undefined;
+  const profiles=new PlayerProfiles(persisted?undefined:profileFile,persisted?.document,persisted?.database);
+  const manager = new RoomManager(io,profiles);
   app.get("/health", (_request, response) => response.json({ ok: true, rooms: manager.rooms.size, uptime: process.uptime() }));
   app.use((error: unknown, _request: express.Request, response: express.Response, next: express.NextFunction) => {
     if (error instanceof Error && error.message === "Origin not allowed") return response.status(403).json({ error: "Origin not allowed" });
@@ -55,7 +67,11 @@ export async function createPlanetfallServer(options: ServerOptions = {}) {
     },
     async close(): Promise<void> {
       manager.stop();
-      await new Promise<void>((resolve) => io.close(() => resolve()));
+      try {
+        await profiles.close();
+      } finally {
+        await new Promise<void>((resolve) => io.close(() => resolve()));
+      }
     }
   };
 }

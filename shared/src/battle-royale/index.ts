@@ -1,5 +1,8 @@
 export * from "./types.js";
 export * from "./balance.js";
+export * from "./rarity.js";
+export * from "./loot-tables.js";
+export * from "./utilities.js";
 export * from "./map.js";
 export * from "./entrance-headers.js";
 export * from "./roof-massing.js";
@@ -11,5 +14,7 @@ export * from "./inventory.js";
 export * from "./movement.js";
 export * from "./spectator.js";
 export * from "./vehicles.js";
+export * from "./vehicle-hulls.js";
+export * from "./vehicle-flight.js";
 export * from "./bot-distribution.js";
 export {brControllerGrounded} from "./character-contact.js";

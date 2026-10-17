@@ -5,10 +5,27 @@ import { BrLootLod } from "./br-loot-lod";
 import { brLootModelSupportLift } from "./br-item-presentation";
 
 describe("BR loot rarity presentation", () => {
-  it("uses four readable field colors without recoloring or rescaling item models", () => {
+  it("biases only floor fields above road finish while retaining depth occlusion", () => {
     const pool = new BrLootRarityResources();
-    expect(new Set(Object.values(BR_LOOT_RARITY_COLORS)).size).toBe(4);
-    for (const rarity of ["common", "rare", "epic", "legendary"] as const) {
+    for (const rarity of ["common", "uncommon", "rare", "epic", "legendary", "prototype", "singularity"] as const) {
+      const visual = pool.create(new THREE.Group(), rarity, "road-field", -.58);
+      for (const mesh of [visual.ring, visual.aura]) {
+        expect(mesh.material.polygonOffset).toBe(true);
+        expect(mesh.material.polygonOffsetFactor).toBe(-6);
+        expect(mesh.material.polygonOffsetUnits).toBe(-6);
+        expect(mesh.material.depthTest).toBe(true);
+        expect(mesh.material.depthWrite).toBe(false);
+      }
+      expect(visual.beam.material.polygonOffset).toBe(false);
+      expect(visual.beam.material.depthTest).toBe(true);
+      expect(visual.beam.material.depthWrite).toBe(false);
+    }
+    pool.dispose();
+  });
+  it("uses seven readable field colors without recoloring or rescaling item models", () => {
+    const pool = new BrLootRarityResources();
+    expect(new Set(Object.values(BR_LOOT_RARITY_COLORS)).size).toBe(7);
+    for (const rarity of ["common", "uncommon", "rare", "epic", "legendary", "prototype", "singularity"] as const) {
       const material = new THREE.MeshStandardMaterial({ color: 0x19263b });
       const model = new THREE.Mesh(new THREE.BoxGeometry(), material);
       model.position.set(.1, .2, -.4); model.rotation.z = .3; model.scale.setScalar(.92);

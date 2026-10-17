@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { BR_HEALS, BR_WEAPONS } from "@planetfall/shared";
+import { BR_HEALS, BR_WEAPONS, BR_UTILITIES } from "@planetfall/shared";
 import { brItemArtLabel, brItemIconSvg, type BrItemArtId } from "./br-item-art";
 
-const ids = [...Object.keys(BR_WEAPONS), ...Object.keys(BR_HEALS), "ammo-light", "ammo-heavy", "ammo-plasma"] as BrItemArtId[];
+const ids = [...Object.keys(BR_WEAPONS), ...Object.keys(BR_HEALS), ...Object.keys(BR_UTILITIES), "ammo-light", "ammo-heavy", "ammo-plasma"] as BrItemArtId[];
 describe("canonical BR item art", () => {
-  it("covers all seven weapons, four heals and three ammo silhouettes with one fixed canvas", () => {
-    expect(ids).toHaveLength(14);
+  it("covers twelve weapons, four heals, four utilities and three ammo silhouettes with one fixed canvas", () => {
+    expect(ids).toHaveLength(23);
     const icons = ids.map(id => brItemIconSvg(id));
-    expect(new Set(icons).size).toBe(14);
+    expect(new Set(icons).size).toBe(23);
     for (const [index, icon] of icons.entries()) {
       expect(icon).toContain('viewBox="0 0 96 56"');
       expect(icon).toContain('preserveAspectRatio="xMidYMid meet"');

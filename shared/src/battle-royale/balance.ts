@@ -1,4 +1,5 @@
 import type { BotDifficulty } from "../index.js";
+import { BR_RARITIES } from "./rarity.js";
 import type { BrAmmoType, BrHealId, BrRarity, BrWeaponId } from "./types.js";
 
 export const BR_BALANCE = {
@@ -66,12 +67,7 @@ export const BR_BALANCE = {
   vehicle:{maxSpeed:25,reverseSpeed:8,acceleration:20,braking:28,turnRate:1.85,enterRange:3.2,collisionRadius:2.45,hoverHeight:.44}
 } as const;
 
-export const BR_RARITY_MULTIPLIER: Record<BrRarity, number> = {
-  common: 1,
-  rare: 1.06,
-  epic: 1.12,
-  legendary: 1.18
-};
+export const BR_RARITY_MULTIPLIER = Object.fromEntries(Object.entries(BR_RARITIES).map(([rarity,profile])=>[rarity,profile.damage])) as Record<BrRarity,number>;
 
 export interface BrWeaponDefinition {
   id: BrWeaponId;
@@ -89,17 +85,32 @@ export interface BrWeaponDefinition {
   projectileSpeed?: number;
   splashRadius?: number;
   headshotMultiplier: number;
+  fireMode?: "automatic" | "semi" | "burst" | "beam" | "charge";
+  burstCount?: number;
+  burstIntervalMs?: number;
+  chargeMs?: number;
+  heatCapacity?: number;
+  heatPerSecond?: number;
+  cooldownRate?: number;
+  fixedRarity?: BrRarity;
 }
 
-export const BR_WEAPONS: Record<BrWeaponId, BrWeaponDefinition> = {
+export const BR_WEAPONS = {
   "pulse-rifle": { id: "pulse-rifle", name: "PULSE RIFLE", role: "Balanced automatic", model: "hitscan", ammo: "light", damage: 22, fireIntervalMs: 155, magazine: 30, reloadMs: 1900, range: 170, spread: .012, pellets: 1, headshotMultiplier: 1.5 },
   "nova-smg": { id: "nova-smg", name: "NOVA SMG", role: "Close-range spray", model: "hitscan", ammo: "light", damage: 14, fireIntervalMs: 82, magazine: 32, reloadMs: 1650, range: 75, spread: .035, pellets: 1, headshotMultiplier: 1.5 },
   "photon-shotgun": { id: "photon-shotgun", name: "PHOTON SHOTGUN", role: "Close burst", model: "hitscan", ammo: "heavy", damage: 10, fireIntervalMs: 900, magazine: 5, reloadMs: 2400, range: 42, spread: .085, pellets: 8, headshotMultiplier: 1.25 },
   "rail-laser": { id: "rail-laser", name: "RAIL LASER", role: "Long-range precision", model: "hitscan", ammo: "heavy", damage: 72, fireIntervalMs: 1300, magazine: 3, reloadMs: 2800, range: 360, spread: .0015, pellets: 1, headshotMultiplier: 1.5 },
   "plasma-launcher": { id: "plasma-launcher", name: "PLASMA LAUNCHER", role: "Explosive pressure", model: "projectile", ammo: "plasma", damage: 40, fireIntervalMs: 950, magazine: 4, reloadMs: 2600, range: 180, spread: .008, pellets: 1, projectileSpeed: 32, splashRadius: 6, headshotMultiplier: 1 },
   "arc-blaster": { id: "arc-blaster", name: "ARC BLASTER", role: "Chaining disruption", model: "projectile", ammo: "plasma", damage: 24, fireIntervalMs: 360, magazine: 18, reloadMs: 2200, range: 100, spread: .018, pellets: 1, projectileSpeed: 54, splashRadius: 2.2, headshotMultiplier: 1 },
-  "energy-saber": { id: "energy-saber", name: "ENERGY SABER", role: "Close melee", model: "melee", ammo: null, damage: 30, fireIntervalMs: 520, magazine: 0, reloadMs: 0, range: 2.6, spread: 0, pellets: 1, headshotMultiplier: 1 }
-};
+  "energy-saber": { id: "energy-saber", name: "ENERGY SABER", role: "Close melee", model: "melee", ammo: null, damage: 30, fireIntervalMs: 520, magazine: 0, reloadMs: 0, range: 2.6, spread: 0, pellets: 1, headshotMultiplier: 1 },
+  "helix-burst-rifle": {id:"helix-burst-rifle",name:"HELIX BURST RIFLE",role:"3-round precision burst",model:"hitscan",ammo:"light",damage:23,fireIntervalMs:620,magazine:27,reloadMs:2100,range:210,spread:.006,pellets:1,headshotMultiplier:1.5,fireMode:"burst",burstCount:3,burstIntervalMs:90},
+  "comet-hand-cannon": {id:"comet-hand-cannon",name:"COMET HAND CANNON",role:"Heavy precision sidearm",model:"hitscan",ammo:"heavy",damage:48,fireIntervalMs:620,magazine:6,reloadMs:2300,range:125,spread:.0035,pellets:1,headshotMultiplier:1.65,fireMode:"semi"},
+  "quasar-carbine": {id:"quasar-carbine",name:"QUASAR CARBINE",role:"Semi-auto marksman",model:"hitscan",ammo:"heavy",damage:34,fireIntervalMs:380,magazine:12,reloadMs:2150,range:240,spread:.0025,pellets:1,headshotMultiplier:1.5,fireMode:"semi"},
+  "prism-beam": {id:"prism-beam",name:"PRISM BEAM",role:"Sustained tracking beam",model:"hitscan",ammo:"plasma",damage:5,fireIntervalMs:100,magazine:24,reloadMs:2400,range:120,spread:0,pellets:1,headshotMultiplier:1,fireMode:"beam",heatCapacity:100,heatPerSecond:50,cooldownRate:28,fixedRarity:"prototype"},
+  "vortex-cannon": {id:"vortex-cannon",name:"VORTEX CANNON",role:"Charged gravity projectile",model:"projectile",ammo:"plasma",damage:42,fireIntervalMs:1800,magazine:2,reloadMs:3100,range:145,spread:0,pellets:1,projectileSpeed:25,splashRadius:5,headshotMultiplier:1,fireMode:"charge",chargeMs:800,fixedRarity:"singularity"}
+} satisfies Record<BrWeaponId, BrWeaponDefinition>;
+
+export type BrProjectileWeaponId = { [K in keyof typeof BR_WEAPONS]: typeof BR_WEAPONS[K]["model"] extends "projectile" ? K : never }[keyof typeof BR_WEAPONS];
 
 export const BR_HEALS: Record<BrHealId, { name: string; durationMs: number; hp: number; shield: number; maxStack: number }> = {
   "med-patch": { name: "MED PATCH", durationMs: 2000, hp: 25, shield: 0, maxStack: 4 },

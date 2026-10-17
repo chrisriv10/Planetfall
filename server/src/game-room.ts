@@ -1529,7 +1529,8 @@ export class GameRoom {
     this.io.to(this.code).emit("match:stat", { ...this.stat(playerId) });
   }
 
-  private emitRoom(): void { this.io.to(this.code).emit("room:state", this.view()); }
+  onProgress?: (players:Iterable<import("./player-profiles.js").PlayerProgress>)=>void;
+  private emitRoom(): void { this.onProgress?.(this.players.values());this.io.to(this.code).emit("room:state", this.view()); }
   private error(playerId: string, message: string): void {
     const socketId = this.players.get(playerId)?.socketId;
     if (socketId) this.io.to(socketId).emit("server:error", { message });

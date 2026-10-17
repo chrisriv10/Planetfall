@@ -13,3 +13,5 @@ services:
         value: production
       - key: CLIENT_ORIGIN
         sync: false
+      # Saved wallets require server-only DATABASE_URL pointing at durable
+      # PostgreSQL. Configure it in the dashboard; Free local files are ephemeral.

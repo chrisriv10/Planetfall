@@ -49,3 +49,13 @@ Kenney's support page also states that game assets on the asset pages are public
 | `client/public/audio/br/br-footstep-2.ogg` | `04-footstep.ogg` | Alternating astronaut footstep |
 
 No attribution is required by CC0, but the sources are recorded here for provenance and future replacement review.
+
+October 14 loot expansion: Helix uses a short original triangle/noise report;
+Comet combines original low sine/noise with the existing cleared metal impact;
+Quasar uses original paired sine/triangle pulses; Prism uses quiet original
+overlapping tones; Vortex uses original low sine/triangle/noise layers. Scanner
+pulses reuse the existing cleared shield-hit sample with distance attenuation.
+No third-party files were added for these sounds.
+Vortex charging uses an original quiet rising sine/triangle pair. Remote Comet,
+Quasar, Prism and Vortex reports reuse the cleared metal-impact, laser-large,
+shield-hit and plasma-explosion samples respectively, with bounded spatial voices.

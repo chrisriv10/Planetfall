@@ -8,6 +8,7 @@ import type { BrDeploymentState, BrShipState } from "./types.js";
 import type { Vec3 } from "../index.js";
 
 export interface BrMotionState {
+  gravCoilEndsAt?:number;
   position: Vec3;
   velocity: Vec3;
   yaw: number;
@@ -263,7 +264,7 @@ export function stepBrMovement(current: BrMotionState, input: BrMotionInput, raw
       const desiredPlanar=Math.hypot(desiredX,desiredZ);
       const dot=state.velocity.x*desiredX+state.velocity.z*desiredZ;
       const groundAcceleration=desiredPlanar<.01&&currentPlanar>.01?BR_BALANCE.braking:dot<-.01?BR_BALANCE.reversalAcceleration:BR_BALANCE.acceleration;
-      const acceleration=state.grounded?groundAcceleration:BR_BALANCE.acceleration*BR_BALANCE.airControl;
+      const acceleration=state.grounded?groundAcceleration:BR_BALANCE.acceleration*(state.gravCoilEndsAt&&state.gravCoilEndsAt>now?.65:BR_BALANCE.airControl);
       const approached=brApproachPlanarVelocity(state.velocity,{x:desiredX,y:state.velocity.y,z:desiredZ},acceleration*dt);
       state.velocity.x=approached.x;state.velocity.z=approached.z;
     }
@@ -273,7 +274,7 @@ export function stepBrMovement(current: BrMotionState, input: BrMotionInput, raw
     const canJump = !state.downed && state.jumpBufferedUntil >= now && (state.grounded || now - state.lastGroundedAt <= BR_BALANCE.coyoteMs);
     if (canJump) { state.velocity.y = BR_BALANCE.jumpSpeed; state.grounded = false; state.jumpBufferedUntil = 0; state.lastGroundedAt = Number.NEGATIVE_INFINITY; }
     state.lastJumpSignal = jumpSignal;
-    if (!state.grounded) state.velocity.y -= BR_BALANCE.gravity * dt; else state.velocity.y = Math.min(0, state.velocity.y);
+    if (!state.grounded) state.velocity.y -= BR_BALANCE.gravity * (state.gravCoilEndsAt&&state.gravCoilEndsAt>now&&state.velocity.y<0?.65:1) * dt; else state.velocity.y = Math.min(0, state.velocity.y);
   }
   const desiredMovement = { x: state.velocity.x * dt, y: state.velocity.y * dt, z: state.velocity.z * dt };
   const next = { x: state.position.x + desiredMovement.x, y: state.position.y + desiredMovement.y, z: state.position.z + desiredMovement.z };

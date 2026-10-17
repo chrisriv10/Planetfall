@@ -8,6 +8,14 @@ export interface BrDamageNumberEntry { targetId:string; kind:BrDamageNumberKind;
 export const BR_DAMAGE_NUMBER_LIFETIME_MS=920;
 export const BR_DAMAGE_NUMBER_AGGREGATE_MS=180;
 
+/** Minimum 26px numeric glyph height (roughly half the canvas height).
+ * Clamp view depth to the longest weapon range, avoiding unbounded billboards. */
+export function brDamageNumberScreenScale(depth:number,fovDegrees:number,viewportHeight:number):number{
+  if(!Number.isFinite(depth)||depth<=0||!Number.isFinite(fovDegrees)||fovDegrees<=0||fovDegrees>=179||!Number.isFinite(viewportHeight)||viewportHeight<=0)return 1;
+  const worldHeight=52*2*Math.min(depth,360)*Math.tan(fovDegrees*Math.PI/360)/viewportHeight;
+  return Math.max(1,Math.min(96,worldHeight/.78));
+}
+
 /** Sprite.center is in billboard space, so the two channels stay separated from
  * every camera angle. World-X jitter collapses when viewed along the X axis.
  * Opposite anchors also leave the center reticle/target face unobscured. */
@@ -49,9 +57,10 @@ type Slot={sprite:THREE.Sprite;canvas:HTMLCanvasElement;context:CanvasRenderingC
 export class BrDamageNumbers extends THREE.Group{
   private entries:BrDamageNumberEntry[]=[];
   private readonly slots:Slot[]=[];
+  private readonly viewPosition=new THREE.Vector3();
   constructor(private readonly max=20){super();this.name="br-damage-numbers";for(let i=0;i<max;i++)this.slots.push(this.createSlot());}
   hit(input:BrDamageNumberInput,now:number):void{this.entries=addBrDamageNumber(this.entries,input,now,this.max);}
-  update(now:number):void{
+  update(now:number,camera?:THREE.PerspectiveCamera,viewportHeight?:number):void{
     this.entries=this.entries.filter(entry=>now-entry.updatedAt<BR_DAMAGE_NUMBER_LIFETIME_MS);
     for(let i=0;i<this.slots.length;i++){
       const slot=this.slots[i],entry=this.entries[i];slot.sprite.visible=Boolean(entry);if(!entry)continue;
@@ -62,7 +71,12 @@ export class BrDamageNumbers extends THREE.Group{
       slot.sprite.center.set(layout.centerX,.5);
       slot.sprite.position.set(entry.position.x,entry.position.y+layout.rise+newer*.68,entry.position.z);
       slot.sprite.material.opacity=layout.opacity;
-      slot.sprite.scale.set(1.68*layout.scale,.78*layout.scale,1);
+      let screenScale=1;
+      if(camera&&viewportHeight){
+        this.viewPosition.copy(slot.sprite.position).applyMatrix4(camera.matrixWorldInverse);
+        screenScale=brDamageNumberScreenScale(-this.viewPosition.z,camera.getEffectiveFOV(),viewportHeight);
+      }
+      slot.sprite.scale.set(1.68*layout.scale*screenScale,.78*layout.scale*screenScale,1);
       const key=`${Math.round(entry.amount)}:${entry.kind}:${entry.shieldBroken}:${entry.headshot}`;if(slot.key!==key){slot.key=key;this.paint(slot,entry);}
     }
   }

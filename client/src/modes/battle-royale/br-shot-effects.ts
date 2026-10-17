@@ -3,6 +3,12 @@ import type { BrWeaponId, Vec3 } from "@planetfall/shared";
 import { brWeaponAccent } from "./br-weapons";
 
 const SHOT_STYLE: Record<Exclude<BrWeaponId,"energy-saber">,{width:number;length:number;life:number;trace:number}> = {
+  "helix-burst-rifle":{width:.07,length:.42,life:65,trace:55},
+  "comet-hand-cannon":{width:.2,length:.45,life:110,trace:65},
+  "quasar-carbine":{width:.08,length:.75,life:95,trace:85},
+  // Initial emitter spark only; continuous beam presentation is state-driven.
+  "prism-beam":{width:.045,length:.12,life:45,trace:0},
+  "vortex-cannon":{width:.22,length:.35,life:140,trace:0},
   "pulse-rifle":{width:.1,length:.46,life:85,trace:55},
   "nova-smg":{width:.075,length:.3,life:65,trace:45},
   "photon-shotgun":{width:.3,length:.55,life:105,trace:65},
@@ -39,9 +45,10 @@ export class BrShotEffects {
     }
   }
 
-  fire(id:BrWeaponId,origin:Vec3,direction:Vec3,traceLength:number|null,now:number):void {
+  fire(id:BrWeaponId,origin:Vec3,direction:Vec3,traceLength:number|null,now:number,flashOrigin:Vec3=origin):void {
     if(this.disposed||id==="energy-saber"||this.slots.length===0)return;
     if(![origin.x,origin.y,origin.z,direction.x,direction.y,direction.z,now].every(Number.isFinite))return;
+    if(!Number.isFinite(flashOrigin.x)||!Number.isFinite(flashOrigin.y)||!Number.isFinite(flashOrigin.z))return;
     this.direction.set(direction.x,direction.y,direction.z);
     if(this.direction.lengthSq()<1e-10)return;
     this.direction.normalize();
@@ -50,7 +57,7 @@ export class BrShotEffects {
     slot.started=now;slot.life=style.life;slot.trace=style.trace;slot.width=style.width;slot.length=style.length;
     const color=brWeaponAccent(id);
     slot.flash.material.color.setHex(color);slot.flash.material.opacity=.9;
-    slot.flash.position.set(origin.x,origin.y,origin.z).addScaledVector(this.direction,style.length*.35);
+    slot.flash.position.set(flashOrigin.x,flashOrigin.y,flashOrigin.z).addScaledVector(this.direction,style.length*.35);
     slot.flash.quaternion.setFromUnitVectors(this.forward,this.direction);
     slot.flash.scale.set(style.width,style.width,style.length*.5);slot.flash.visible=true;
     slot.tracer.visible=traceLength!==null&&Number.isFinite(traceLength)&&traceLength>0&&style.trace>0;

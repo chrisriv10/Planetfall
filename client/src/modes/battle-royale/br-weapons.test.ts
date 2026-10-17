@@ -14,6 +14,7 @@ function release(group: THREE.Group) {
 describe("BR weapon presentation models", () => {
   it("retains every authoritative-facing muzzle and a bounded finite model/material budget", () => {
     const muzzle: Record<BrWeaponId, number[]> = {
+      "helix-burst-rifle":[0,.03,-1.62],"comet-hand-cannon":[0,.05,-.95],"quasar-carbine":[0,.03,-1.77],"prism-beam":[0,.03,-1.4],"vortex-cannon":[0,.02,-1.46],
       "pulse-rifle": [0,.02,-1.9], "nova-smg": [0,.03,-1.2], "photon-shotgun": [0,.03,-1.6],
       "rail-laser": [0,.08,-2.08], "plasma-launcher": [0,.02,-1.65], "arc-blaster": [0,.04,-1.56], "energy-saber": [0,0,-1.7],
     };
@@ -44,6 +45,11 @@ describe("BR weapon presentation models", () => {
 
   it("gives each firearm a distinct sight/handling silhouette, with an open Pulse sight",()=>{
     const required:Partial<Record<BrWeaponId,string[]>>={
+      "helix-burst-rifle":["helix-split-rail","helix-channel","helix-reflex-left"],
+      "comet-hand-cannon":["comet-slide","comet-cylinder","comet-muzzle"],
+      "quasar-carbine":["quasar-skeleton-stock","quasar-optic","quasar-lens"],
+      "prism-beam":["prism-crystal","prism-emitter-prong","prism-focus-tip"],
+      "vortex-cannon":["vortex-containment-vane","vortex-field-inset","vortex-aperture"],
       "pulse-rifle":["pulse-optic-left","pulse-optic-right","pulse-optic-bridge","pulse-optic-emitter","pulse-handguard-seam"],
       "nova-smg":["smg-stock-strut","smg-stock-pad","smg-front-sight","smg-rear-sight"],
       "photon-shotgun":["shotgun-pump","shotgun-pump-rib","shotgun-front-bead"],

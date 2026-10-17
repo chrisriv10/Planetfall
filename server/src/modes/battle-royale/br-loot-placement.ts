@@ -3,6 +3,21 @@ import type { Vec3 } from "@planetfall/shared";
 type RayDistance = (origin: Vec3, direction: Vec3, maximum: number) => number;
 export type BrLootPlacement = { position: Vec3; surfaceY: number };
 
+/** Try a bounded fan around the player, resolving every candidate against the
+ * same collision/support rules. Tight rooms retain the safest available spot. */
+export function placeBrDroppedLoot(origin:Vec3,yaw:number,rayDistance:RayDistance,occupied:readonly Vec3[]):BrLootPlacement {
+  let best:BrLootPlacement|undefined,bestClearance=-1;
+  for(const angle of [0,Math.PI/3,-Math.PI/3,2*Math.PI/3,-2*Math.PI/3,Math.PI]){
+    const heading=yaw+angle;
+    const candidate=placeBrLoot(origin,{x:origin.x+Math.sin(heading)*1.2,y:origin.y,z:origin.z-Math.cos(heading)*1.2},rayDistance);
+    let clearance=Number.POSITIVE_INFINITY;
+    for(const point of occupied)if(Math.abs(point.y-candidate.position.y)<1)clearance=Math.min(clearance,Math.hypot(point.x-candidate.position.x,point.z-candidate.position.z));
+    if(clearance>=1.1)return candidate;
+    if(clearance>bestClearance){best=candidate;bestClearance=clearance;}
+  }
+  return best!;
+}
+
 /** Resolve static loot against the authoritative collision world. Origins are
  * pickup-height points, not slab centres or the player's old floor height. */
 export function placeBrLoot(origin: Vec3, requested: Vec3, rayDistance: RayDistance): BrLootPlacement {

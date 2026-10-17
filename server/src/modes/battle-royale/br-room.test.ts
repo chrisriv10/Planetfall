@@ -33,6 +33,197 @@ function waitForRoom(socket: TestSocket, predicate: (room: BrRoomView) => boolea
 }
 
 describe("Battle Royale room", () => {
+  it("flies a shared shuttle from pilot input and keeps the passenger authoritative",async()=>{
+    const {server,url}=await setup(),host=await client(url),joined=await createRoom(host,"Shared flight");if(!joined.ok)throw new Error(joined.error);
+    const room=server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom;room.configure(joined.playerId,{targetPlayers:10,fillBots:true});room.setReady(joined.playerId,true);
+    const now=Date.now();room.start(joined.playerId,now);room.phase="combat";room.vehicles.clear();
+    const vehicle={id:"test-aircraft",spawnId:"test",kind:"ion-shuttle" as const,position:{x:0,y:.8,z:-80},velocity:{x:0,y:0,z:0},yaw:0,driverId:null as string|null,passengerIds:[null] as Array<string|null>};room.vehicles.set(vehicle.id,vehicle);
+    const pilot=room.players.get(joined.playerId)!,passenger=[...room.players.values()].find(p=>p.id!==pilot.id)!;
+    for(const p of [pilot,passenger]){p.position={x:3.7,y:.035,z:-80};p.deployment="grounded";p.grounded=true;p.nextBotDecisionAt=Infinity;expect(room.toggleVehicle(p.id)).toBe(true);}
+    room.setInput(pilot.id,{sequence:1,dt:.033,moveX:0,moveY:0,yaw:0,pitch:0,jump:true,sprint:false,crouch:false,fire:false,aim:false,reload:false});
+    const update=(room as unknown as {updateVehicles(dt:number,now:number):void}).updateVehicles.bind(room);
+    for(let tick=1;tick<=30;tick++){pilot.lastInputAt=now+tick*33;update(.033,now+tick*33);}
+    expect(vehicle.position.y).toBeGreaterThan(4);expect(passenger.position.y).toBeCloseTo(vehicle.position.y+1);expect(passenger.vehicleId).toBe(vehicle.id);
+    expect(room.toggleVehicle(passenger.id)).toBe(false);
+    pilot.input!.jump=false;pilot.input!.crouch=true;
+    for(let tick=1;tick<=70;tick++){pilot.lastInputAt=now+1000+tick*33;update(.033,now+1000+tick*33);}
+    expect(vehicle.position.y).toBeCloseTo(.8,1);expect(room.toggleVehicle(passenger.id)).toBe(true);
+  });
+  it("boards distinct rover passengers and keeps their authoritative seat positions together",async()=>{
+    const {server,url}=await setup(),host=await client(url),joined=await createRoom(host,"Team seats");if(!joined.ok)throw new Error(joined.error);
+    const room=server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom;room.configure(joined.playerId,{targetPlayers:10,fillBots:true});room.setReady(joined.playerId,true);
+    const now=Date.now();room.start(joined.playerId,now);room.phase="combat";
+    room.vehicles.clear();const vehicle={id:"team-rover",spawnId:"test",kind:"relay-rover" as const,position:{x:0,y:.38,z:-80},velocity:{x:0,y:0,z:0},yaw:0,driverId:null as string|null,passengerIds:[null,null,null] as Array<string|null>};room.vehicles.set(vehicle.id,vehicle);
+    const occupants=[...room.players.values()].slice(0,5);
+    for(const pilot of occupants){pilot.deployment="grounded";pilot.grounded=true;pilot.position={x:2.8,y:.035,z:-80};pilot.nextBotDecisionAt=Infinity;}
+    for(const pilot of occupants.slice(0,4))expect(room.toggleVehicle(pilot.id)).toBe(true);
+    expect(room.toggleVehicle(occupants[4].id)).toBe(false);
+    expect(new Set([vehicle.driverId,...vehicle.passengerIds]).size).toBe(4);
+    const driver=occupants[0];room.setInput(driver.id,{sequence:1,dt:.033,moveX:0,moveY:1,yaw:0,pitch:0,jump:false,sprint:false,crouch:false,fire:false,aim:false,reload:false});
+    room.update(.1,now+100);
+    expect(vehicle.position.z).toBeLessThan(-80);
+    expect(new Set(occupants.slice(0,4).map(p=>`${p.position.x}:${p.position.z}`)).size).toBe(4);
+    expect(room.toggleVehicle(occupants[1].id)).toBe(true);expect(occupants[1].vehicleId).toBeNull();expect(vehicle.driverId).toBe(driver.id);
+    expect(room.toggleVehicle(driver.id)).toBe(true);expect(vehicle.driverId).toBeNull();expect(occupants[2].vehicleId).toBe(vehicle.id);
+  });
+  it("preserves beam overheat through dropping and re-picking the same equipment",async()=>{
+    const {server,url}=await setup(),host=await client(url),joined=await createRoom(host,"Heat transfer");if(!joined.ok)throw new Error(joined.error);
+    const room=server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom;room.configure(joined.playerId,{targetPlayers:10,fillBots:true});room.setReady(joined.playerId,true);
+    const now=Date.now();room.start(joined.playerId,now);room.phase="combat";
+    const player=room.players.get(joined.playerId)!;player.position={x:0,y:.035,z:-80};player.deployment="grounded";player.grounded=true;player.yaw=0;player.pitch=0;
+    player.inventory[0]={instanceId:"hot-beam",itemId:"prism-beam",rarity:"prototype",count:1,magazine:24,heat:100,overheated:true};player.selectedSlot=0;
+    room.drop(player.id,0);const loot=[...room.loot.values()].find(entry=>entry.itemId==="prism-beam"&&entry.heat===100)!;
+    expect(loot).toBeDefined();expect(loot.overheated).toBe(true);expect(room.pickup(player.id,loot.id)).toBe(true);
+    player.input={sequence:1,dt:.033,moveX:0,moveY:0,yaw:0,pitch:0,jump:false,sprint:false,crouch:false,fire:true,aim:false,reload:false};
+    expect(room.fire(player.id,player.position,{x:0,y:0,z:-1},now,now)).toBe(false);expect(player.inventory[0]!.magazine).toBe(24);
+    player.input.fire=false;const internal=room as unknown as {updateWeaponCycles(dt:number,now:number):void};
+    for(let tick=1;tick<=25;tick++)internal.updateWeaponCycles(.1,now+tick*100);
+    expect(player.inventory[0]!.heat).toBeLessThanOrEqual(35);expect(player.inventory[0]!.overheated).toBe(false);
+    player.input.fire=true;expect(room.fire(player.id,player.position,{x:0,y:0,z:-1},now+2600,now+2600)).toBe(true);
+  });
+  it("clips authoritative beam damage and presentation at the same obstruction",async()=>{
+    const {server,url}=await setup(),host=await client(url),joined=await createRoom(host,"Beam wall");if(!joined.ok)throw new Error(joined.error);
+    const room=server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom;room.configure(joined.playerId,{targetPlayers:10,fillBots:true});room.setReady(joined.playerId,true);
+    const now=Date.now();room.start(joined.playerId,now);room.phase="combat";
+    const player=room.players.get(joined.playerId)!,enemy=[...room.players.values()].find(target=>target.teamId!==player.teamId)!;
+    player.position={x:0,y:.035,z:-80};player.deployment="grounded";player.grounded=true;player.yaw=0;player.pitch=0;
+    enemy.position={x:0,y:.035,z:-90};enemy.history=[];enemy.hp=100;enemy.shield=100;
+    player.inventory[0]={instanceId:"beam-wall",itemId:"prism-beam",rarity:"prototype",count:1,magazine:24};player.selectedSlot=0;
+    player.input={sequence:1,dt:.033,moveX:0,moveY:0,yaw:0,pitch:0,jump:false,sprint:false,crouch:false,fire:true,aim:false,reload:false};
+    const internal=room as unknown as {mapRayDistance(origin:unknown,direction:unknown,max:number):number;beams:Map<string,{origin:{x:number;y:number;z:number};end:{x:number;y:number;z:number}}>} ;
+    internal.mapRayDistance=()=>5;
+    expect(room.fire(player.id,player.position,{x:0,y:0,z:-1},now,now)).toBe(true);
+    expect(enemy.hp).toBe(100);expect(enemy.shield).toBe(100);expect(player.inventory[0]!.magazine).toBe(23);
+    const beam=internal.beams.get(player.id)!;expect(Math.hypot(beam.end.x-beam.origin.x,beam.end.y-beam.origin.y,beam.end.z-beam.origin.z)).toBeCloseTo(5);
+    internal.mapRayDistance=(_origin,_direction,max)=>max;
+    expect(room.fire(player.id,player.position,{x:0,y:0,z:-1},now+100,now+100)).toBe(true);expect(enemy.shield).toBe(95);
+  });
+  it("requires Vortex charge and bounds its short collision-resolved gravity field",async()=>{
+    const {server,url}=await setup(),host=await client(url),joined=await createRoom(host,"Vortex bounds");if(!joined.ok)throw new Error(joined.error);
+    const room=server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom;room.configure(joined.playerId,{targetPlayers:10,fillBots:true});room.setReady(joined.playerId,true);
+    const now=Date.now();room.start(joined.playerId,now);room.phase="combat";
+    const player=room.players.get(joined.playerId)!,enemy=[...room.players.values()].find(target=>target.teamId!==player.teamId)!;
+    player.position={x:0,y:.035,z:-80};player.deployment="grounded";player.grounded=true;player.yaw=0;player.pitch=0;
+    enemy.position={x:3,y:.035,z:-80};enemy.deployment="grounded";enemy.grounded=true;
+    player.inventory[0]={instanceId:"vortex-test",itemId:"vortex-cannon",rarity:"singularity",count:1,magazine:2};player.selectedSlot=0;
+    player.input={sequence:1,dt:.033,moveX:0,moveY:0,yaw:0,pitch:0,jump:false,sprint:false,crouch:false,fire:true,aim:false,reload:false};
+    expect(room.fire(player.id,player.position,{x:0,y:0,z:-1},now,now)).toBe(false);
+    (room as unknown as {updateWeaponCycles(dt:number,now:number):void}).updateWeaponCycles(.033,now+400);
+    expect(player.weaponStatus?.chargeProgress).toBeCloseTo(.5);
+    expect(room.fire(player.id,player.position,{x:0,y:0,z:-1},now+799,now+799)).toBe(false);expect(room.projectiles.size).toBe(0);
+    expect(room.fire(player.id,player.position,{x:0,y:0,z:-1},now+800,now+800)).toBe(true);expect(player.inventory[0]!.magazine).toBe(1);
+    const internal=room as unknown as {explodeProjectile(projectile:unknown,point:typeof player.position,now:number):void;updateWorldEffects(dt:number,now:number):void;worldEffects:Map<string,unknown>};
+    internal.explodeProjectile([...room.projectiles.values()][0],player.position,now+1000);expect(internal.worldEffects.size).toBe(1);
+    const before={...enemy.position};internal.updateWorldEffects(.033,now+1200);expect(enemy.position).toEqual(before);
+    internal.updateWorldEffects(.033,now+1400);expect(Math.hypot(enemy.position.x-before.x,enemy.position.z-before.z)).toBeLessThanOrEqual(.12);
+    internal.updateWorldEffects(.033,now+2501);expect(internal.worldEffects.size).toBe(0);
+  });
+  it("uses input ownership for semi-auto even when fire events arrive before the trigger packet",async()=>{
+    const {server,url}=await setup(),host=await client(url),joined=await createRoom(host,"Semi ordering");
+    if(!joined.ok)throw new Error(joined.error);
+    const room=server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom;
+    room.configure(joined.playerId,{targetPlayers:10,fillBots:true});room.setReady(joined.playerId,true);
+    const now=Date.now();room.start(joined.playerId,now);room.phase="combat";
+    const player=room.players.get(joined.playerId)!;
+    player.position={x:0,y:.035,z:-80};player.deployment="grounded";player.grounded=true;player.yaw=0;player.pitch=0;
+    player.inventory[0]={instanceId:"semi-order",itemId:"comet-hand-cannon",rarity:"common",count:1,magazine:6};player.selectedSlot=0;
+    const input={sequence:1,dt:.033,moveX:0,moveY:0,yaw:0,pitch:0,jump:false,sprint:false,crouch:false,fire:false,aim:false,reload:false};
+    const tick=(at:number)=>(room as unknown as {updateWeaponCycles(dt:number,now:number):void}).updateWeaponCycles(1/30,at);
+    room.setInput(player.id,input);
+    expect(room.fire(player.id,player.position,{x:0,y:0,z:-1},now,now)).toBe(false);
+    room.setInput(player.id,{...input,sequence:2,fire:true});tick(now+34);
+    expect(player.inventory[0]!.magazine).toBe(5);
+    expect(room.fire(player.id,player.position,{x:0,y:0,z:-1},now+800,now+800)).toBe(false);
+    tick(now+900);expect(player.inventory[0]!.magazine).toBe(5);
+    room.setInput(player.id,{...input,sequence:3,fire:false});tick(now+950);
+    room.setInput(player.id,{...input,sequence:4,fire:true});tick(now+1000);
+    expect(player.inventory[0]!.magazine).toBe(4);
+  });
+  it("preserves bounded crosshair convergence in input-driven semi-auto shots",async()=>{
+    const {server,url}=await setup(),host=await client(url),joined=await createRoom(host,"Crosshair convergence");
+    if(!joined.ok)throw new Error(joined.error);
+    const room=server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom;
+    room.configure(joined.playerId,{targetPlayers:10,fillBots:true});room.setReady(joined.playerId,true);
+    const now=Date.now();room.start(joined.playerId,now);room.phase="combat";
+    const player=room.players.get(joined.playerId)!,target=[...room.players.values()].find(p=>p.isBot)!;
+    for(const other of room.players.values())if(other!==player&&other!==target)other.alive=false;
+    Object.assign(player,{position:{x:0,y:.035,z:-80},deployment:"grounded",grounded:true,yaw:0,pitch:0,selectedSlot:0});
+    Object.assign(target,{position:{x:3,y:.035,z:-100},deployment:"grounded",grounded:true,shield:0,hp:100});
+    player.inventory[0]={instanceId:"crosshair-semi",itemId:"quasar-carbine",rarity:"common",count:1,magazine:12};
+    const internal=room as unknown as {mapRayDistance(origin:unknown,direction:unknown,max:number):number;updateWeaponCycles(dt:number,now:number):void};
+    internal.mapRayDistance=(_origin,_direction,max)=>max;
+    const length=Math.hypot(3,-.55,-20),shotDirection={x:3/length,y:-.55/length,z:-20/length};
+    const input={sequence:1,dt:.033,moveX:0,moveY:0,yaw:0,pitch:0,jump:false,sprint:false,crouch:false,fire:true,aim:true,reload:false,shotDirection};
+    room.setInput(player.id,input);internal.updateWeaponCycles(1/30,now+34);
+    expect(target.hp).toBeLessThan(100);expect(player.inventory[0]!.magazine).toBe(11);
+    room.setInput(player.id,{...input,sequence:2,shotDirection:{x:0,y:0,z:1}});
+    expect(player.input?.shotDirection).toBeUndefined();
+    room.setInput(player.id,{...input,sequence:3,shotDirection:{x:NaN,y:0,z:-1}});
+    expect(player.input?.shotDirection).toBeUndefined();
+  });
+  it("consumes utilities on authority, bounds healing and snapshots approximate scan positions",async()=>{
+    const {server,url}=await setup(),host=await client(url),joined=await createRoom(host,"Utility authority");
+    if(!joined.ok)throw new Error(joined.error);
+    const room=server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom;
+    room.configure(joined.playerId,{targetPlayers:10,fillBots:true});room.setReady(joined.playerId,true);
+    const now=Date.now();room.start(joined.playerId,now);room.phase="combat";
+    const player=room.players.get(joined.playerId)!;
+    player.position={x:0,y:.035,z:-80};player.deployment="grounded";player.grounded=true;player.hp=50;player.selectedSlot=0;
+    player.inventory[0]={instanceId:"mist",itemId:"nano-mist",rarity:"rare",count:2,magazine:0};
+    expect(room.useItem(player.id,now)).toBe(true);expect(player.inventory[0]?.count).toBe(1);
+    expect(room.useItem(player.id,now+1)).toBe(false);
+    const internal=room as unknown as {updateWorldEffects(dt:number,now:number):void;worldEffects:Map<string,unknown>;scanMarkers:Map<string,Array<{position:{x:number;z:number};expiresAt:number}>>;damage(target:typeof player,amount:number,attacker:undefined,weapon:undefined,now:number,storm:boolean):void};
+    internal.updateWorldEffects(.1,now+100);expect(player.hp).toBeCloseTo(50.8);
+    internal.updateWorldEffects(.1,now+6001);expect(player.hp).toBeCloseTo(50.8);expect(internal.worldEffects.size).toBe(0);
+    player.inventory[0]={instanceId:"filter",itemId:"void-filter",rarity:"epic",count:1,magazine:0};
+    expect(room.useItem(player.id,now)).toBe(true);expect(player.inventory[0]).toBeNull();
+    internal.damage(player,10,undefined,undefined,now+100,true);expect(player.hp).toBeCloseTo(44.8);
+    internal.damage(player,10,undefined,undefined,now+18001,true);expect(player.hp).toBeCloseTo(34.8);
+    player.inventory[0]={instanceId:"coil",itemId:"grav-coil",rarity:"rare",count:2,magazine:0};
+    expect(room.useItem(player.id,now)).toBe(true);expect(player.velocity.y).toBe(14);expect(player.grounded).toBe(false);
+    expect(room.useItem(player.id,now+1)).toBe(false);expect(player.inventory[0]?.count).toBe(1);
+    player.grounded=true;player.inventory[0]={instanceId:"scanner",itemId:"pulse-scanner",rarity:"epic",count:1,magazine:0};
+    const enemy=[...room.players.values()].find(target=>target.teamId!==player.teamId)!;enemy.position={x:13.1,y:.035,z:-80};enemy.downed=false;
+    expect(room.useItem(player.id,now)).toBe(true);
+    const marker=internal.scanMarkers.get(player.id)![0];expect(marker.position.x%6).toBe(0);expect(marker.position.x).not.toBe(enemy.position.x);
+    enemy.position.x=30;expect(marker.position.x).not.toBe(enemy.position.x);
+    internal.updateWorldEffects(.1,now+4001);expect(internal.scanMarkers.has(player.id)).toBe(false);
+  });
+  it("owns Helix burst ammo and cancels pending shots on an inventory swap",async()=>{
+    const {server,url}=await setup(),host=await client(url),joined=await createRoom(host,"Burst authority");
+    if(!joined.ok)throw new Error(joined.error);
+    const room=server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom;
+    room.configure(joined.playerId,{targetPlayers:10,fillBots:true});room.setReady(joined.playerId,true);
+    const now=Date.now();room.start(joined.playerId,now);room.phase="combat";
+    const player=room.players.get(joined.playerId)!;
+    player.position={x:0,y:.035,z:-80};player.deployment="grounded";player.grounded=true;player.yaw=0;player.pitch=0;
+    player.inventory[0]={instanceId:"helix-test",itemId:"helix-burst-rifle",rarity:"rare",count:1,magazine:27};player.selectedSlot=0;
+    player.input={sequence:1,dt:.033,moveX:0,moveY:0,yaw:0,pitch:0,jump:false,sprint:false,crouch:false,fire:true,aim:false,reload:false};
+    const tick=(at:number)=>(room as unknown as {updateWeaponCycles(dt:number,now:number):void}).updateWeaponCycles(1/30,at);
+    expect(room.fire(player.id,player.position,{x:0,y:0,z:-1},now,now)).toBe(true);
+    expect(player.inventory[0]!.magazine).toBe(26);
+    player.input.fire=false;
+    tick(now+89);expect(player.inventory[0]!.magazine).toBe(26);
+    tick(now+90);expect(player.inventory[0]!.magazine).toBe(25);
+    tick(now+180);expect(player.inventory[0]!.magazine).toBe(24);
+    tick(now+800);expect(player.inventory[0]!.magazine).toBe(24);
+    player.input.fire=true;expect(room.fire(player.id,player.position,{x:0,y:0,z:-1},now+900,now+900)).toBe(true);
+    player.selectedSlot=1;tick(now+990);
+    expect(player.inventory[0]!.magazine).toBe(23);
+  });
+  it("simulates a short jump before acknowledging its packet and preserves it across a newer release", async () => {
+    const {server,url}=await setup();const host=await client(url);const joined=await createRoom(host,"Jump edge");if(!joined.ok)throw new Error(joined.error);
+    const room=server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom;
+    room.configure(joined.playerId,{targetPlayers:10,fillBots:true});room.setReady(joined.playerId,true);
+    const now=Date.now();room.start(joined.playerId,now);room.phase="combat";
+    const player=room.players.get(joined.playerId)!;player.deployment="grounded";player.grounded=true;player.position={x:0,y:.035,z:-80};player.velocity={x:0,y:0,z:0};
+    const input={sequence:1,dt:.05,moveX:0,moveY:0,yaw:0,pitch:0,jump:true,sprint:false,crouch:false,fire:false,aim:false,reload:false};
+    room.setInput(player.id,input);room.setInput(player.id,{...input,sequence:2,jump:false});
+    expect(player.lastInputSequence).toBe(0);expect(player.input?.jump).toBe(true);
+    room.update(1/30,now+34);
+    expect(player.lastInputSequence).toBe(2);expect(player.velocity.y).toBeGreaterThan(7);expect(player.position.y).toBeGreaterThan(.2);
+    room.setInput(player.id,{...input,sequence:1,jump:true});expect(player.input?.sequence).toBe(2);
+  });
   it("defaults full Battle Royale rooms to the advertised 40 participants",async()=>{
     const {url}=await setup();const host=await client(url);const joined=await createRoom(host,"Full default");
     if(!joined.ok)throw new Error(joined.error);
@@ -130,7 +321,10 @@ describe("Battle Royale room", () => {
       vehicle.yaw=1.249+(descending?Math.PI:0);vehicle.velocity={x:0,y:0,z:0};vehicle.driverId=player.id;
       player.vehicleId=vehicle.id;player.alive=true;player.downed=false;player.deployment="grounded";
       for(let tick=0;tick<115;tick++){
-        room.setInput(player.id,{sequence:tick+1,dt:1/30,moveX:0,moveY:1,yaw:vehicle.yaw,pitch:0,jump:false,sprint:false,crouch:false,fire:false,aim:false,reload:false});
+        room.setInput(player.id,{sequence:(descending?115:0)+tick+1,dt:1/30,moveX:0,moveY:1,yaw:vehicle.yaw,pitch:0,jump:false,sprint:false,crouch:false,fire:false,aim:false,reload:false});
+        // This fixture advances simulation time faster than wall time; stamp
+        // each newly delivered packet with its simulated receipt time.
+        player.lastInputAt=now+tick*1000/30;
         room.update(1/30,now+tick*1000/30);
       }
       expect(descending?vehicle.position.x<-249:vehicle.position.x>-190,JSON.stringify(vehicle.position)).toBe(true);
@@ -475,7 +669,7 @@ describe("Battle Royale room", () => {
     target.deployment = "grounded"; target.position = { x: 100, y: 0, z: 8 }; target.nextBotDecisionAt = Number.MAX_SAFE_INTEGER;
     room.setInput(shooter.id, { sequence: 2, dt: .05, moveX: 0, moveY: 0, yaw: 0, pitch: 0, jump: false, sprint: false, crouch: false, fire: false, aim: false, reload: false });
     room.setInput(shooter.id, { sequence: 1, dt: .05, moveX: 1, moveY: 1, yaw: 2, pitch: 0, jump: true, sprint: true, crouch: false, fire: true, aim: false, reload: false });
-    expect(shooter.lastInputSequence).toBe(2); expect(shooter.input?.moveX).toBe(0);
+    expect(shooter.lastInputSequence).toBe(0); expect(shooter.input?.sequence).toBe(2); expect(shooter.input?.moveX).toBe(0);
     room.update(.001, start + 10); expect(room.fire(shooter.id, { x: 100, y: .7, z: 12 }, { x: 0, y: 0, z: -1 }, start, start + 20)).toBe(true);
     const durabilityBefore = target.hp + target.shield;
     room.update(.1, start + 120); expect(target.hp + target.shield).toBeLessThan(durabilityBefore); expect(room.projectiles.size).toBe(0);

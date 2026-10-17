@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { BR_SKIMMER_HULL_OUTLINE, BR_SKIMMER_UNDERBODY_OUTLINE } from "@planetfall/shared";
 import { batchBrSkimmerStaticParts } from "./br-skimmer-static-batching";
 
 export interface BrHoverSkimmerOptions {
@@ -73,13 +74,9 @@ export function createBrHoverSkimmer(options: Readonly<BrHoverSkimmerOptions> = 
   const tail = ownMaterial(new THREE.MeshBasicMaterial({ color: 0xff705d, toneMapped: false }));
   const hoverGlow = ownMaterial(new THREE.MeshBasicMaterial({ color: 0x63efff, transparent: true, opacity: .68, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
 
-  const hullGeometry = ownGeometry(polygonPrism([
-    [-.7, -2.2], [.7, -2.2], [1.03, -1.55], [1.1, .85], [.62, 2.2], [-.62, 2.2], [-1.1, .85], [-1.03, -1.55]
-  ], .48));
+  const hullGeometry = ownGeometry(polygonPrism(BR_SKIMMER_HULL_OUTLINE, .48));
   const hull = mesh(hullGeometry, body, "skimmer-tapered-hull"); hull.position.y = .83; model.add(hull);
-  const underbody = mesh(ownGeometry(polygonPrism([
-    [-.7, -1.72], [.7, -1.72], [.88, -.9], [.76, 1.48], [-.76, 1.48], [-.88, -.9]
-  ], .22)), dark, "skimmer-underbody"); underbody.position.y = .61; model.add(underbody);
+  const underbody = mesh(ownGeometry(polygonPrism(BR_SKIMMER_UNDERBODY_OUTLINE, .22)), dark, "skimmer-underbody"); underbody.position.y = .61; model.add(underbody);
 
   const deck = mesh(ownGeometry(polygonPrism([
     [-.72, -.92], [.72, -.92], [.8, .62], [.45, 1.45], [-.45, 1.45], [-.8, .62]

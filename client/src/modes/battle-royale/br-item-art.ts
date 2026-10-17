@@ -1,4 +1,4 @@
-import { BR_HEALS, BR_WEAPONS, type BrAmmoType, type BrItemId } from "@planetfall/shared";
+import { BR_HEALS, BR_WEAPONS, BR_UTILITIES, type BrAmmoType, type BrItemId } from "@planetfall/shared";
 
 export type BrItemArtId = BrItemId | `ammo-${BrAmmoType}`;
 
@@ -6,6 +6,15 @@ export type BrItemArtId = BrItemId | `ammo-${BrAmmoType}`;
 // Neutral armor identifies the item; small accent insets identify its technology.
 // Rarity belongs to the surrounding slot/card, never a recolored weapon blob.
 const ART: Record<BrItemArtId, readonly [accent: string, shapes: string]> = {
+  "helix-burst-rifle": ["#8be7c4", '<path d="M9 23h21v-5h28v5h27v5H58v6h27v5H48l-9-5-5 13h-9l3-14H9z"/><path fill="var(--art-accent)" d="m57 23 8 16h4l-8-16zm12 0 8 16h4l-8-16z"/>'],
+  "comet-hand-cannon": ["#ffab73", '<path d="M24 17h46v7h10v12H48l-3 15H29l4-20h-9z"/><path fill="var(--art-dark)" d="M28 21h38v9H28z"/><circle fill="var(--art-accent)" cx="47" cy="26" r="6"/><path d="M65 17v-5h5v5"/>'],
+  "quasar-carbine": ["#9dbaff", '<path d="M7 24h23l5-5h25v5h28v7H55l-7 7h-9l-5 11h-8l3-17H7z"/><path d="M35 18v-5h-3V8h23v5h-8v5"/><path fill="var(--art-dark)" d="M10 27h17v3H10z"/><path fill="var(--art-accent)" d="M58 25h24v3H58z"/>'],
+  "prism-beam": ["#72fff0", '<path d="M13 21h39l8 7h23v6H54l-12 4-4 11H27l4-15H13z"/><path d="M53 16h31v5H58M53 39h31v5H53"/><path fill="var(--art-accent)" d="m56 25 22 6-22 6z"/>'],
+  "vortex-cannon": ["#d4b3ff", '<path d="M9 22h39v-8h36v7H56v19h28v7H48V35H35l-4 14H21l4-16H9z"/><ellipse fill="var(--art-dark)" cx="67" cy="31" rx="13" ry="9"/><ellipse fill="var(--art-accent)" cx="72" cy="31" rx="5" ry="7"/>'],
+  "grav-coil": ["#78e6ff", '<path d="M29 12h38v7H29zm0 27h38v7H29zM33 19h6v20h-6m24-20h6v20h-6"/><path fill="var(--art-accent)" d="M39 22h18v4H39zm0 9h18v4H39z"/>'],
+  "void-filter": ["#b39aff", '<path d="M24 19h48v24H24zM34 10h28v9H34z"/><circle fill="var(--art-dark)" cx="36" cy="31" r="8"/><circle fill="var(--art-dark)" cx="60" cy="31" r="8"/><path fill="var(--art-accent)" d="M43 23h10v15H43z"/>'],
+  "pulse-scanner": ["#ffbf72", '<path d="M26 15h44v32H26zM61 15V7h4v8"/><path fill="var(--art-dark)" d="M31 20h34v21H31z"/><path fill="none" stroke="var(--art-accent)" d="M36 36a12 12 0 0 1 24 0M42 36a6 6 0 0 1 12 0"/><circle fill="var(--art-accent)" cx="48" cy="36" r="2"/>'],
+  "nano-mist": ["#82e6ae", '<path d="M35 15h26v29H35zM40 8h16v7M28 44h40v5H28z"/><path fill="var(--art-dark)" d="M40 20h16v18H40z"/><path fill="var(--art-accent)" d="M45 23h6v4h4v5h-4v4h-6v-4h-4v-5h4z"/><path d="M35 19h-7v8M61 19h7v8"/>'],
   "pulse-rifle": ["#7cecff", '<path d="M10 23h13l7-5h28v5h24v9H54l-6 5H36l-4 11h-9l4-16H10z"/><path d="M35 18v-7h14v7M60 23v9M68 23v9"/><path fill="var(--art-dark)" d="M34 23h20v8H34z"/><path fill="var(--art-accent)" d="M61 26h17v3H61z"/>'],
   "nova-smg": ["#ff6fbd", '<path d="M18 19h40l8 7h12v8H48l-4 13H32l2-13H18z"/><path d="M31 19v-7h13v7M18 22H9v8h9"/><path fill="var(--art-dark)" d="M24 23h26v7H24z"/><path fill="var(--art-accent)" d="M57 26h17v3H57zM57 31h17v3H57z"/>'],
   "photon-shotgun": ["#ffbd58", '<path d="M9 24h19l6-6h28v3h22v15H51l-7 4h-9l-3 8h-9l3-14H9z"/><path fill="var(--art-dark)" d="M54 24h30v3H54zM54 31h30v3H54zM42 25h7v12h-7z"/><path fill="var(--art-accent)" d="M33 20h17v3H33z"/><path d="M33 18v-5h5v5"/>'],
@@ -24,6 +33,7 @@ const ART: Record<BrItemArtId, readonly [accent: string, shapes: string]> = {
 
 export function brItemArtLabel(id: BrItemArtId): string {
   if (id.startsWith("ammo-")) return `${id.slice(5).toUpperCase()} CELLS`;
+  if (id in BR_UTILITIES) return BR_UTILITIES[id as keyof typeof BR_UTILITIES].name;
   return id in BR_WEAPONS ? BR_WEAPONS[id as keyof typeof BR_WEAPONS].name : BR_HEALS[id as keyof typeof BR_HEALS].name;
 }
 

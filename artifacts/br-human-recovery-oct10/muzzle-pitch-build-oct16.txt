@@ -1,0 +1,40 @@
+
+> planetfall@0.1.0 build
+> npm run build -w @planetfall/shared && npm run build -w @planetfall/server && npm run build -w @planetfall/client
+
+
+> @planetfall/shared@0.1.0 build
+> tsc -p tsconfig.json
+
+
+> @planetfall/server@0.1.0 build
+> tsc -p tsconfig.json
+
+
+> @planetfall/client@0.1.0 build
+> tsc -p tsconfig.json --noEmit && vite build --configLoader native
+
+vite v8.2.2 building client environment for production...
+transforming...
+✓ 227 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                   22.01 kB │ gzip:     5.22 kB
+dist/assets/index-CBnJiWOA.css                    69.48 kB │ gzip:    15.95 kB
+dist/assets/br-world-DqfpD-ex.js                   0.07 kB │ gzip:     0.08 kB
+dist/assets/br-feedback-zrEB9eBZ.js                1.58 kB │ gzip:     0.83 kB │ map:     8.80 kB
+dist/assets/cosmetic-flight-trail-7sg5kqOx.js     15.12 kB │ gzip:     5.79 kB │ map:    50.70 kB
+dist/assets/game-CtFB95ev.js                     101.09 kB │ gzip:    29.18 kB │ map:   296.38 kB
+dist/assets/index-aVDE9vWO.js                    113.64 kB │ gzip:    37.58 kB │ map:   387.46 kB
+dist/assets/br-game-CSlXRzm-.js                  161.32 kB │ gzip:    50.41 kB │ map:   528.09 kB
+dist/assets/br-world-BDk2RgEB.js                 240.38 kB │ gzip:    70.96 kB │ map:   897.47 kB
+dist/assets/preload-helper-C7q3HsxG.js           361.96 kB │ gzip:    89.84 kB │ map:   971.64 kB
+dist/assets/three.core-Dn3d15if.js               391.44 kB │ gzip:   107.23 kB │ map: 2,466.81 kB
+dist/assets/reconciliation-Bnb5gMy_.js         2,857.55 kB │ gzip: 1,096.08 kB │ map: 3,039.98 kB
+
+✓ built in 762ms
+[plugin builtin:vite-reporter]
+(!) Some chunks are larger than 1600 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.

@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { brNextWaypoint } from "./map.js";
+import { brNextWaypoint,BR_STRUCTURES,brRoadIntersectsFootprint } from "./map.js";
 
 describe("road-relative waypoint progress",()=>{
+  it("enters a reachable street before routing around Zero Gallery's north wall",()=>{
+    const start={x:-39.726,y:.035,z:45.31},target={x:-61,y:.035,z:-20};
+    const next=brNextWaypoint(start,target),gallery=BR_STRUCTURES.find(s=>s.id==="zero-gallery")!;
+    expect(next.z).toBeGreaterThan(start.z);
+    expect(brRoadIntersectsFootprint({id:"approach",from:start,to:next,width:.9,color:"#fff"},gallery.position,gallery.size,.15)).toBe(false);
+  });
   const target={x:-61.2927,y:.035,z:34.9233};
   it("does not reverse onto Nova's parallel street while replanning its northeast bend",()=>{
     for(const fraction of [.05,.2,.4,.55,.7,.9]){

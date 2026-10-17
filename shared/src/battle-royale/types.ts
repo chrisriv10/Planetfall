@@ -1,18 +1,23 @@
 import type { BotDifficulty, EmoteType, EquippedCosmetics, Quat, Vec3 } from "../index.js";
+import type { BrProjectileWeaponId } from "./balance.js";
 
 export type GameFamily = "planetfall" | "battle-royale";
 export type BrTeamMode = "solo" | "duo" | "squad";
 export type BrPhase = "lobby" | "countdown" | "ship" | "combat" | "results";
 export type BrDeploymentState = "attached" | "freefall" | "chute" | "grounded" | "downed" | "eliminated";
-export type BrRarity = "common" | "rare" | "epic" | "legendary";
+export type { BrRarity } from "./rarity.js";
+import type { BrRarity } from "./rarity.js";
 export type BrAmmoType = "light" | "heavy" | "plasma";
-export type BrWeaponId = "pulse-rifle" | "nova-smg" | "photon-shotgun" | "rail-laser" | "plasma-launcher" | "arc-blaster" | "energy-saber";
+export type BrWeaponId = "pulse-rifle" | "nova-smg" | "photon-shotgun" | "rail-laser" | "plasma-launcher" | "arc-blaster" | "energy-saber" | "helix-burst-rifle" | "comet-hand-cannon" | "quasar-carbine" | "prism-beam" | "vortex-cannon";
 export type BrHealId = "med-patch" | "med-kit" | "shield-cell" | "shield-battery";
-export type BrItemId = BrWeaponId | BrHealId;
+export type BrUtilityId = "grav-coil" | "void-filter" | "pulse-scanner" | "nano-mist";
+export type BrItemId = BrWeaponId | BrHealId | BrUtilityId;
 export type BrPingType = "location" | "enemy" | "item" | "move";
-export type BrVehicleKind = "hover-skimmer";
+export type BrVehicleKind = "hover-skimmer"|"relay-rover"|"ion-shuttle";
 
 export interface BrInventoryItem {
+  heat?:number;
+  overheated?:boolean;
   instanceId: string;
   itemId: BrItemId;
   rarity: BrRarity;
@@ -23,6 +28,9 @@ export interface BrInventoryItem {
 export interface BrAmmoState { light: number; heavy: number; plasma: number; }
 
 export interface BrPlayerState {
+  weaponStatus?:{instanceId:string;heat:number;overheated:boolean;chargeStartedAt:number|null;chargeProgress?:number};
+  gravCoilEndsAt?:number;
+  voidFilterEndsAt?:number;
   id: string;
   name: string;
   isBot: boolean;
@@ -99,6 +107,7 @@ export interface BrPlayerSnapshotState {
 }
 
 export interface BrVehicleState {
+  passengerIds?:Array<string|null>;
   id:string;
   spawnId:string;
   kind:BrVehicleKind;
@@ -109,6 +118,8 @@ export interface BrVehicleState {
 }
 
 export interface BrLootState {
+  heat?:number;
+  overheated?:boolean;
   id: string;
   itemId?: BrItemId;
   ammoType?: BrAmmoType;
@@ -125,7 +136,7 @@ export interface BrCrateState { id: string; position: Vec3; opened: boolean; }
 export interface BrProjectileState {
   id: string;
   ownerId: string;
-  weaponId: "plasma-launcher" | "arc-blaster";
+  weaponId: BrProjectileWeaponId;
   rarity: BrRarity;
   position: Vec3;
   velocity: Vec3;
@@ -196,6 +207,8 @@ export interface BrRoomView {
 }
 
 export interface BrInput {
+  /** Crosshair-to-muzzle aim correction; authority validates against yaw/pitch. */
+  shotDirection?: Vec3;
   sequence: number;
   dt: number;
   moveX: number;
@@ -210,7 +223,21 @@ export interface BrInput {
   reload: boolean;
 }
 
+export interface BrWorldEffect {
+  id:string;
+  kind:"nano-mist"|"pulse-scanner"|"vortex";
+  ownerId:string;
+  teamId:string;
+  position:Vec3;
+  radius:number;
+  createdAt:number;
+  expiresAt:number;
+}
+export interface BrScanMarker {position:Vec3;expiresAt:number;}
 export interface BrSnapshot {
+  beams?:Array<{id:string;origin:Vec3;end:Vec3;expiresAt:number}>;
+  effects?:BrWorldEffect[];
+  scanMarkers?:BrScanMarker[];
   serverTime: number;
   phase: BrPhase;
   localPlayer: BrPlayerState;

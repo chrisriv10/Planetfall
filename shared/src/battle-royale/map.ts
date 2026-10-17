@@ -945,7 +945,19 @@ const roadNavNodes=BR_ROADS.map(road=>{
 
 /** Returns a road-network waypoint, keeping simple bots out of dense building footprints. */
 export function brNextWaypoint(start:Vec3,target:Vec3):Vec3 {
-  const closest=(point:Vec3)=>BR_NAV_NODES.reduce((best,node)=>Math.hypot(node.position.x-point.x,node.position.z-point.z)<Math.hypot(best.position.x-point.x,best.position.z-point.z)?node:best,BR_NAV_NODES[0]);
+  const closest=(point:Vec3,clearApproach=false):BrNavNode=>{
+    let nearest:BrNavNode|undefined,bestDistance=Infinity;
+    for(const node of BR_NAV_NODES){
+      const distance=Math.hypot(node.position.x-point.x,node.position.z-point.z);
+      if(distance>=bestDistance)continue;
+      if(clearApproach){
+        const approach={id:"nav-entry",from:point,to:node.position,width:.9,color:"#ffffff"};
+        if(BR_STRUCTURES.some(s=>s.position.y+s.size.y>point.y+.5&&s.position.y<point.y+2&&brRoadIntersectsFootprint(approach,s.position,s.size,.15)))continue;
+      }
+      nearest=node;bestDistance=distance;
+    }
+    return nearest??closest(point);
+  };
   // Nearest-node Voronoi cells can belong to another nearby street. Replanning
   // midway through Nova's bend then selected its parallel arterial and sent
   // the pilot back to the junction. On pavement, choose only nodes on the road
@@ -960,8 +972,11 @@ export function brNextWaypoint(start:Vec3,target:Vec3):Vec3 {
     const sameCenterline=Math.abs(distance-bestRoadDistance)<=1e-6&&road.width>(currentRoad?.road.width??0);
     if((nearer||sameCenterline)&&distance<=road.width/2+.5&&Math.abs(start.y-floor)<1.5&&segment.nodes.length){currentRoad=segment;bestRoadDistance=distance;}
   }
-  const source=currentRoad?currentRoad.nodes.reduce((best,node)=>Math.hypot(node.position.x-start.x,node.position.z-start.z)<Math.hypot(best.position.x-start.x,best.position.z-start.z)?node:best):closest(start),destination=closest(target);
+  const source=currentRoad?currentRoad.nodes.reduce((best,node)=>Math.hypot(node.position.x-start.x,node.position.z-start.z)<Math.hypot(best.position.x-start.x,best.position.z-start.z)?node:best):closest(start,true),destination=closest(target);
   const sourceDistance=Math.hypot(source.position.x-start.x,source.position.z-start.z);
+  // Off-road pilots must first reach a clear road entry. Skipping this step
+  // sent the Zero Gallery north-side approach straight through its solid wall.
+  if(!currentRoad&&sourceDistance>1.25)return {...source.position};
   if(source.id===destination.id)return target;
   const queue=[source.id],previous=new Map<string,string|null>([[source.id,null]]);
   while(queue.length){const current=queue.shift()!;if(current===destination.id)break;const node=navNodesById.get(current)!;for(const neighbor of node.neighbors)if(!previous.has(neighbor)){previous.set(neighbor,current);queue.push(neighbor);}}

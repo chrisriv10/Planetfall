@@ -10,7 +10,7 @@ Planetfall is a browser-based 3D space party game with two distinct ways to play
 
 **Planetfall** supports 2–6 pilots on destructible tiny planets with Scrap, cannons, raids, grapples, repairs, Classic, and Chaos rounds.
 
-**Battle Royale** supports private Solo, Duo, and Squad rooms with bot fill for 10, 20, or 40 participants. Drop from the Starliner onto Orbital Isle, loot seven weapons, survive the Void, revive crewmates, and become the last crew standing.
+**Battle Royale** supports private Solo, Duo, and Squad rooms with bot fill for 10, 20, or 40 participants. Drop from the Starliner onto Orbital Isle, loot weapons and utilities, survive the Void, revive crewmates, and become the last crew standing.
 
 ## Run it
 
@@ -25,7 +25,7 @@ The development server prints the client address when it starts.
 
 Choose **Play Solo** for a match with three bots, or **Create Room** and share the room code. In multiplayer, everyone selects **Ready** before the host starts.
 
-Hosts can choose **Classic** or **Chaos**, set bot difficulty, and add bots. The orbital ready room is the hub for Ready, Shop, Planet Pass, and Settings. Matches award session XP, Crowns, and Fallbucks that last through rematches while the room stays open. Fallbucks buy session-only cosmetics and never affect gameplay.
+Hosts can choose **Classic** or **Chaos**, set bot difficulty, and add bots. The orbital ready room is the hub for Ready, Shop, Planet Pass, and Settings. Matches award XP, Crowns, and Fallbucks. The same browser's guest profile preserves progress and purchased cosmetics across rooms and refreshes when the server has durable storage configured. Fallbucks buy cosmetics and never affect gameplay. See [saved profiles and hosting requirements](docs/PLAYER_PROFILES.md).
 
 Select **Battle Royale** on the home screen to create a BR room or start a Solo match with bots. BR hosts choose team size, participant target, bot fill, and difficulty.
 
@@ -61,6 +61,7 @@ Vite, TypeScript, Three.js, Rapier, Socket.IO, Express, and an in-memory authori
 2. Create a Cloudflare Pages project from this repository. Use the repository root, build command `npm ci && npm run build -w @planetfall/shared && npm run build -w @planetfall/client`, and output `client/dist`.
 3. Set Pages' `VITE_SERVER_URL` to the Render URL before building and deploying.
 4. Set Render's `CLIENT_ORIGIN` to the resulting Pages origin and redeploy the server.
+5. Configure a durable PostgreSQL `DATABASE_URL` on the server to preserve player progress across hosted restarts. The Free Render service's local filesystem is ephemeral.
 
 See [deployment settings and hosted checks](docs/DEPLOYMENT.md) for the exact values and release checklist. A live demo link can be added here after those checks pass.
 
