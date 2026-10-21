@@ -44,6 +44,7 @@ describe("BR presentation correctness",()=>{
     expect(brMovementFacingYaw(1.2,{x:0,z:-4},false,false,.5)).toBeCloseTo(0);
     expect(brMovementFacingYaw(1.2,{x:-4,z:0},false,false,.5)).toBeCloseTo(-Math.PI/2);
     expect(brMovementFacingYaw(1.2,{x:-4,z:0},true,false,.5)).toBe(1.2);
+    expect(brMovementFacingYaw(1.2,{x:-4,z:0},false,true,.5)).toBe(1.2);
     expect(brMovementFacingYaw(1.2,{x:0,z:0},false,false,.5)).toBe(.5);
   });
   it("protects an unacknowledged predicted jump without hiding later corrections",()=>{

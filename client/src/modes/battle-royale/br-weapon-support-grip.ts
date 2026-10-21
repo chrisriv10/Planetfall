@@ -77,7 +77,7 @@ export function addBrWeaponSupportGrip(
  * .28m farther forward and .08m lower than the original grip-only prototype.
  * No authoritative aim, muzzle or projectile state is written. */
 export function anchorBrSupportedWeapon(weapon: THREE.Object3D, id: BrSupportWeaponId, rightWrist: THREE.Vector3, pitch=0): void {
-  if(!Number.isFinite(pitch)||pitch<-.5||pitch>.8)return;
+  if(!Number.isFinite(pitch)||pitch< -1.15||pitch>.8)return;
   const p = CONTRACT[id];
   weapon.rotation.set(pitch, Math.PI, 0);
   weapon.scale.setScalar(p.scale);
@@ -96,11 +96,13 @@ export function createBrSupportedWeaponEntry(model:THREE.Group,id:BrSupportWeapo
   const stocks=prototype.retractedParts.map(part=>({part,position:part.position.clone(),scale:part.scale.clone(),depth:(part as THREE.Mesh<THREE.BoxGeometry>).geometry.parameters.depth*part.scale.z}));
   const pieces=prototype.addedParts.map(part=>({part,scale:part.scale.clone()}));
   const old=brHeldWeaponTransform(id),p=CONTRACT[id];
-  const inverse=new THREE.Quaternion(),start=new THREE.Vector3(),error=new THREE.Vector3(.05,old.position[1]+p.y*p.scale,old.position[2]-p.z*p.scale);
-  let restored=false;
+  const inverse=new THREE.Quaternion(),start=new THREE.Vector3(),error=new THREE.Vector3(old.position[0],old.position[1]+p.y*p.scale,old.position[2]-p.z*p.scale);
+  let restored=false,previousWeight=0;
   return {
     update(wrapper:THREE.Object3D,rightWrist:THREE.Vector3,weight:number,pitch=0){
-      if(restored||!Number.isFinite(weight)||!Number.isFinite(pitch)||pitch<-.5||pitch>.8)return false;
+      if(restored||!Number.isFinite(weight)||weight<previousWeight||weight>1||!Number.isFinite(pitch)||pitch< -1.15||pitch>.8)return false;
+      if(!Number.isFinite(rightWrist.x)||!Number.isFinite(rightWrist.y)||!Number.isFinite(rightWrist.z))return false;
+      previousWeight=weight;
       const phase=THREE.MathUtils.clamp(weight/.25,0,1),t=phase*phase*(3-2*phase);
       const deploy=THREE.MathUtils.clamp((weight-.25)/.25,0,1),d=deploy*deploy*(3-2*deploy);
       anchorBrSupportedWeapon(wrapper,id,rightWrist,pitch*t);

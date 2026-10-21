@@ -52,8 +52,11 @@ import { createBrNameplatePlacement } from "./br-nameplate-placement";
 import { createAstronautMotion, anchorAstronautHeldItem } from "../../astronaut-motion";
 import { createBrSkimmerDistanceLod } from "./br-skimmer-distance-lod";
 import { useFarBrVehicle } from "./br-vehicle-lod";
+import {createBrHeldPresentation,type BrHeldPresentationFrame} from "./br-held-presentation";
+import {createBrHeldAimFrame,brHeldAimFacing} from "./br-held-aim-frame";
+import {isBrSupportWeaponId} from "./br-held-weapon-support";
 
-type PlayerVisual = { motion: ReturnType<typeof createAstronautMotion>; upperBody: THREE.Group; motionYaw: number | null; motionX: number; motionY: number; motionZ: number; nameplatePlacement: ReturnType<typeof createBrNameplatePlacement>; flightTrail:THREE.Line; flightTrailPoints:THREE.Vector3[]; trailSampleAt:number; group: THREE.Group; rig: THREE.Group; target: THREE.Vector3; label: THREE.Sprite; shadow:THREE.Mesh; body: THREE.Mesh; helmet: THREE.Group; cameraHelmetBounds: THREE.Box3; backpack: THREE.Group; suitMaterial: THREE.MeshStandardMaterial; lodDetails: THREE.Object3D[]; limbs: THREE.Group[]; wings: THREE.Group; weapon: THREE.Group; weaponId: BrWeaponId | null; actionDevice:THREE.Group; actionHealId:BrHealId|BrUtilityId|null; actionHealModel:THREE.Group|null; state: BrPlayerSnapshotState; relevant: boolean; emote: EmoteType | null; emoteEndsAt: number; damageFeedback:BrDamageFeedback; damageRipple:THREE.Mesh<THREE.SphereGeometry,THREE.MeshBasicMaterial> };
+type PlayerVisual = { supported:ReturnType<typeof createBrHeldPresentation>|null; supportedModel:THREE.Group|null; heldAimFrame:ReturnType<typeof createBrHeldAimFrame>; heldFrame:BrHeldPresentationFrame; lastShotAt:number; motion: ReturnType<typeof createAstronautMotion>; upperBody: THREE.Group; motionYaw: number | null; motionX: number; motionY: number; motionZ: number; nameplatePlacement: ReturnType<typeof createBrNameplatePlacement>; flightTrail:THREE.Line; flightTrailPoints:THREE.Vector3[]; trailSampleAt:number; group: THREE.Group; rig: THREE.Group; target: THREE.Vector3; label: THREE.Sprite; shadow:THREE.Mesh; body: THREE.Mesh; helmet: THREE.Group; cameraHelmetBounds: THREE.Box3; backpack: THREE.Group; suitMaterial: THREE.MeshStandardMaterial; lodDetails: THREE.Object3D[]; limbs: THREE.Group[]; wings: THREE.Group; weapon: THREE.Group; weaponId: BrWeaponId | null; actionDevice:THREE.Group; actionHealId:BrHealId|BrUtilityId|null; actionHealModel:THREE.Group|null; state: BrPlayerSnapshotState; relevant: boolean; emote: EmoteType | null; emoteEndsAt: number; damageFeedback:BrDamageFeedback; damageRipple:THREE.Mesh<THREE.SphereGeometry,THREE.MeshBasicMaterial> };
 type LootVisual = { group: BrLootLod; state: BrLootState };
 type CrateVisual = { group: THREE.Group; state: BrCrateState; baseY: number };
 type ProjectileVisual = { mesh: THREE.Mesh; target: THREE.Vector3; state: BrProjectileState; trail: THREE.Line; points: THREE.Vector3[] };
@@ -104,6 +107,8 @@ export class BattleRoyaleGame {
   onInventory?: () => void;
   onMenuNavigate?: (action: "up" | "down" | "left" | "right" | "confirm" | "back") => void;
 
+  private readonly heldResources={box:new THREE.BoxGeometry(1,1,1),cylinder:new THREE.CylinderGeometry(1,1,1,8),material:new THREE.MeshStandardMaterial({color:0x202747,roughness:.72})};
+  private readonly heldDirection=new THREE.Vector3();
   private room: BrRoomView | null = null;
   private localId = "";
   private localState: BrPlayerState | null = null;
@@ -144,6 +149,7 @@ export class BattleRoyaleGame {
   private emoteIndex = -1;
   private lastFireRequestAt = 0;
   private lastAnticipatedFireAt = 0;
+  private firingPoseHeld = false;
   private aiming = false;
   private vehicleInput={moveX:0,moveY:0};
   private predictedMotion: BrMotionState | null = null;
@@ -281,25 +287,26 @@ export class BattleRoyaleGame {
   deactivate(): void {
     // An inactive mode must not release the other mode's shared renderer or cursor.
     if (!this.active) return;
-    this.neon?.dispose(); this.active = false; this.audio.stopBrLoops();this.renderer.setAnimationLoop(null); this.scanStates=[];this.scanMarkers.clear();this.beamStates=[];this.beamEffects.clear();this.utilityEffects.clear();this.utilityFields=[];this.shotEffects.clear();this.clearTransients();this.clearPoiTitle(); this.uiCaptured = false; this.mapVisible = false; this.review?.dispose();this.review=null;document.body.classList.remove("br-in-void");document.getElementById("br-crosshair")?.classList.remove("hit","shield-break","blocked","aiming");document.getElementById("br-damage-direction")?.classList.remove("visible");const scope=document.getElementById("br-scope-overlay");if(scope)scope.hidden=true; document.exitPointerLock?.(); }
+    for(const visual of this.players.values())this.clearHeldSupport(visual);
+    this.neon?.dispose(); this.active = false; this.firingPoseHeld=false; this.audio.stopBrLoops();this.renderer.setAnimationLoop(null); this.scanStates=[];this.scanMarkers.clear();this.beamStates=[];this.beamEffects.clear();this.utilityEffects.clear();this.utilityFields=[];this.shotEffects.clear();this.clearTransients();this.clearPoiTitle(); this.uiCaptured = false; this.mapVisible = false; this.review?.dispose();this.review=null;document.body.classList.remove("br-in-void");document.getElementById("br-crosshair")?.classList.remove("hit","shield-break","blocked","aiming");document.getElementById("br-damage-direction")?.classList.remove("visible");const scope=document.getElementById("br-scope-overlay");if(scope)scope.hidden=true; document.exitPointerLock?.(); }
   reset(): void {
     this.lastShadowDrawAt=Number.NEGATIVE_INFINITY;
     this.lastLobbyPresentationAt=Number.NEGATIVE_INFINITY;
     this.cameraVehicleId=null;
     this.room = null; this.localId = ""; this.aiming = false;
     this.scanStates=[];this.scanMarkers.clear();this.beamStates=[];this.beamEffects.clear();this.utilityEffects.clear();this.utilityFields=[];this.shotEffects.clear();this.clearTransients();
-    for (const visual of this.players.values()) { this.scene.remove(visual.group,visual.flightTrail); this.disposeObject(visual.group); this.disposeObject(visual.flightTrail); }
+    for (const visual of this.players.values()) { this.clearHeldSupport(visual); this.scene.remove(visual.group,visual.flightTrail); this.disposeObject(visual.group); this.disposeObject(visual.flightTrail); }
     for (const visual of this.loot.values()) this.releaseLootVisual(visual);
     for (const visual of this.crates.values()) { this.scene.remove(visual.group); this.disposeObject(visual.group); }
     for (const visual of this.projectiles.values()) { this.scene.remove(visual.mesh, visual.trail); this.disposeObject(visual.mesh); this.disposeObject(visual.trail); }
     for(const entry of this.vehicles.values()){entry.lod.dispose();disposeBrHoverSkimmer(entry.visual);}
     for (const ping of this.pings) { this.scene.remove(ping.group); this.disposeObject(ping.group); }
     this.players.clear(); this.loot.clear(); this.crates.clear(); this.projectiles.clear();this.vehicles.clear(); this.pings = []; this.localState = null; this.predictedMotion = null; this.spectatorTargetId = null; this.pendingSelectedSlot=null;this.pendingSpectatorTarget=null;this.cameraInitialized=false;this.shipLookInitialized=false;this.cameraBoom=6.15;this.localRigCameraVisible=true;this.serverClockOffsetMs=0;this.dropPredictionStartedAt=0;this.jumpPredictionStartedAt=0;this.jumpInputSequence=0;this.shipJumpRequestCount=0;this.jumpInputLatch.reset();
-    this.reloadEndsAt = 0; this.useEndsAt = 0; this.activeReviveTargetId=null;this.confirmedReviveTargetId=null;this.reviveConfirmedDuringHold=false;this.lastReviveRequestAt=0;this.reviveStartedAt=0;this.lastFireRequestAt = 0;this.lastAnticipatedFireAt=0;
+    this.reloadEndsAt = 0; this.useEndsAt = 0; this.activeReviveTargetId=null;this.confirmedReviveTargetId=null;this.reviveConfirmedDuringHold=false;this.lastReviveRequestAt=0;this.reviveStartedAt=0;this.lastFireRequestAt = 0;this.lastAnticipatedFireAt=0;this.firingPoseHeld=false;
     this.reloadConfirmed = false; this.useConfirmed = false; this.hitMarkerFeedback.clear();this.damageNumbers.clearNumbers();this.damageIndicatorUntil=0;this.lastLandingFeedbackAt=Number.NEGATIVE_INFINITY;document.getElementById("br-damage-direction")?.classList.remove("visible");
     this.physics.reset(); this.reconciliationTracker.reset(); this.visitedPois.clear(); this.currentPoiId = "";this.clearPoiTitle(); document.body.classList.remove("br-in-void");
   }
-  dispose(): void { if (this.disposed) return; this.deactivate(); this.reset(); this.scanMarkers.dispose();this.weaponModels.dispose();this.utilityModels.dispose();this.beamEffects.dispose();this.utilityEffects.dispose();this.shotEffects.dispose();this.lootRarity.dispose();this.healModels.dispose();this.damageNumbers.dispose(); this.canvas.removeEventListener("click",this.handleCanvasClick); removeEventListener("resize",this.handleResize); this.unsubscribeInputMethod(); this.scene.remove(this.island,this.stormWall,this.backdrop,this.starliner,this.sun,this.sunTarget,this.farPlayerBodies,this.farPlayerHelmets,this.damageNumbers); this.world.dispose(); this.disposeObject(this.stormWall); this.disposeObject(this.backdrop); this.disposeObject(this.starliner); for(const geometry of this.crateSharedGeometries)geometry.dispose();for(const material of this.crateSharedMaterials)material.dispose();this.farPlayerBodyGeometry.dispose();this.farPlayerHelmetGeometry.dispose();this.farPlayerBodyMaterial.dispose();this.farPlayerHelmetMaterial.dispose();this.physics.dispose(); this.disposed=true; }
+  dispose(): void { if (this.disposed) return; this.deactivate(); this.reset(); this.scanMarkers.dispose();this.weaponModels.dispose();this.utilityModels.dispose();this.beamEffects.dispose();this.utilityEffects.dispose();this.shotEffects.dispose();this.lootRarity.dispose();this.healModels.dispose();this.damageNumbers.dispose(); this.heldResources.box.dispose();this.heldResources.cylinder.dispose();this.heldResources.material.dispose(); this.canvas.removeEventListener("click",this.handleCanvasClick); removeEventListener("resize",this.handleResize); this.unsubscribeInputMethod(); this.scene.remove(this.island,this.stormWall,this.backdrop,this.starliner,this.sun,this.sunTarget,this.farPlayerBodies,this.farPlayerHelmets,this.damageNumbers); this.world.dispose(); this.disposeObject(this.stormWall); this.disposeObject(this.backdrop); this.disposeObject(this.starliner); for(const geometry of this.crateSharedGeometries)geometry.dispose();for(const material of this.crateSharedMaterials)material.dispose();this.farPlayerBodyGeometry.dispose();this.farPlayerHelmetGeometry.dispose();this.farPlayerBodyMaterial.dispose();this.farPlayerHelmetMaterial.dispose();this.physics.dispose(); this.disposed=true; }
   /** Compatibility aliases retained while callers migrate to the explicit lifecycle. */
   start(room: BrRoomView, localId: string): void { this.activate(room,localId); }
   stop(): void { this.deactivate(); }
@@ -317,6 +324,7 @@ export class BattleRoyaleGame {
     this.uiCaptured = captured;
     if (captured) {
       this.aiming = false;
+      this.firingPoseHeld = false;
       const scope = document.getElementById("br-scope-overlay"); if (scope) scope.hidden = true;
       document.exitPointerLock?.();
     }
@@ -476,7 +484,7 @@ export class BattleRoyaleGame {
   }
 
   weaponFired(payload: { playerId: string; weaponId: BrWeaponId; origin: Vec3; direction: Vec3; projectile?: BrProjectileState }): void {
-    const shooter=this.players.get(payload.playerId);if(shooter){const item=payload.playerId===this.localId?this.localState?.inventory[this.localState.selectedSlot]:shooter.state.heldItem;shooter.weapon.userData.recoil=brWeaponRecoilImpulse(item?.itemId===payload.weaponId?item.rarity:"common");shooter.body.rotation.x=-.08;}
+    const shooter=this.players.get(payload.playerId);if(shooter){shooter.lastShotAt=performance.now();const item=payload.playerId===this.localId?this.localState?.inventory[this.localState.selectedSlot]:shooter.state.heldItem;shooter.weapon.userData.recoil=brWeaponRecoilImpulse(item?.itemId===payload.weaponId?item.rarity:"common");shooter.body.rotation.x=-.08;}
     const locallyAnticipated=payload.playerId===this.localId&&performance.now()-this.lastAnticipatedFireAt<=180;
     if (payload.playerId === this.localId && !locallyAnticipated) {
       this.audio.brWeapon(payload.weaponId);
@@ -566,6 +574,7 @@ export class BattleRoyaleGame {
   }
 
   private processInput(frame: InputFrame, dt: number, now: number): void {
+    this.firingPoseHeld = false;
     const local = this.localState; if (!local) return;
     this.vehicleInput.moveX=local.vehicleId?frame.moveX:0;this.vehicleInput.moveY=local.vehicleId?frame.moveY:0;
     if (this.uiCaptured) {
@@ -654,10 +663,11 @@ export class BattleRoyaleGame {
     if(reticle){const weapon=selectedItem&&isBrWeapon(selectedItem.itemId)?BR_WEAPONS[selectedItem.itemId]:null;const speed=Math.hypot(local.velocity.x,local.velocity.z);const spread=weapon?weapon.spread*150+(weapon.pellets>1?5:0):3;const gap=THREE.MathUtils.clamp(4+spread+speed*.28+(this.aiming?-2:0),3,18);reticle.style.setProperty("--reticle-gap",`${gap}px`);reticle.dataset.weapon=weapon?.id??"none";reticle.classList.toggle("aiming",this.aiming);reticle.classList.toggle("blocked",Boolean(this.reloadEndsAt>now||this.useEndsAt>now||this.activeReviveTargetId||this.confirmedReviveTargetId||shot?.blocked));}
     if (frame.fire.held && shot && !shot.blocked && !this.activeReviveTargetId && !this.confirmedReviveTargetId && selectedItem && isBrWeapon(selectedItem.itemId) && this.reloadEndsAt <= now && this.useEndsAt <= now) {
       const weapon = brWeaponStats(selectedItem.itemId,selectedItem.rarity); const interval = weapon.fireIntervalMs;
+      this.firingPoseHeld = !weapon.ammo || selectedItem.magazine > 0;
       if ((weapon.fireMode!=="semi"||frame.fire.pressed) && (!weapon.ammo || selectedItem.magazine > 0) && brFireRequestDue(now,this.lastFireRequestAt,interval)) {
         this.lastFireRequestAt=now;
         if(!weapon.fireMode)this.lastAnticipatedFireAt=now;
-        const shooter=this.players.get(this.localId);if(shooter)shooter.weapon.userData.recoil=brWeaponRecoilImpulse(selectedItem.rarity,true);
+        const shooter=this.players.get(this.localId);if(shooter){shooter.lastShotAt=now;shooter.weapon.userData.recoil=brWeaponRecoilImpulse(selectedItem.rarity,true);}
         if(!weapon.fireMode)this.audio.brWeapon(selectedItem.itemId);
         // Presentation is immediate; the server remains authoritative for
         // ammo, obstruction, hit registration, damage and projectile spawn.
@@ -739,6 +749,7 @@ export class BattleRoyaleGame {
   private updatePlayers(dt: number, now: number): void {
     let farPlayerCount=0;
     for (const visual of this.players.values()) {
+      visual.supported?.beforeMotion();
       const vehicleEntry=visual.state.vehicleId?this.vehicles.get(visual.state.vehicleId):undefined;
       const localMotion=visual.state.id===this.localId&&!vehicleEntry?this.predictedMotion:null;
       visual.group.visible=visual.state.alive&&visual.relevant&&(localMotion?.deployment??visual.state.deployment)!=="attached"&&this.room?.phase!=="lobby"&&this.room?.phase!=="countdown";
@@ -749,7 +760,10 @@ export class BattleRoyaleGame {
       else if(localMotion)visual.group.position.copy(displayTarget);else visual.group.position.lerp(displayTarget,Math.min(1,dt*10));
       const cameraYaw=localMotion?this.yaw:visual.state.yaw;
       const velocity=localMotion?.velocity??visual.state.velocity;
-      const gameplayYaw=brMovementFacingYaw(cameraYaw,velocity,localMotion?this.aiming:Boolean(visual.state.aiming),localMotion?now-this.lastAnticipatedFireAt<240:false,-visual.group.rotation.y);
+      // Confirmed shots also face aim for remote pilots and new firing modes;
+      // legacy flash anticipation is a separate deduplication clock.
+      const firingPose=now-visual.lastShotAt<240||(visual.state.id===this.localId&&this.firingPoseHeld);
+      const gameplayYaw=brMovementFacingYaw(cameraYaw,velocity,localMotion?this.aiming:Boolean(visual.state.aiming),firingPose,-visual.group.rotation.y);
       visual.group.rotation.y=vehicleEntry?brAstronautFacingRotation(vehicleEntry.renderYaw):brSmoothFacing(visual.group.rotation.y,brAstronautFacingRotation(gameplayYaw),dt);
       const deployment=localMotion?.deployment??visual.state.deployment;
       const downed=localMotion?.downed??visual.state.downed;
@@ -1079,7 +1093,7 @@ export class BattleRoyaleGame {
     const damageRipple=new THREE.Mesh(new THREE.SphereGeometry(.82,14,10),new THREE.MeshBasicMaterial({color:0x65eaff,transparent:true,opacity:0,wireframe:true,depthWrite:false,blending:THREE.AdditiveBlending}));
     damageRipple.position.y=.82;damageRipple.visible=false;group.add(damageRipple);
     const flightTrail=createCosmeticFlightTrail(cosmeticColor(state.equippedCosmetics.trail,"#70f5ff"),state.equippedCosmetics.trail); flightTrail.visible=false;
-    return { motion:createAstronautMotion(astronaut), upperBody:astronaut.upperBody, motionYaw:null, motionX:state.position.x, motionY:state.position.y, motionZ:state.position.z, nameplatePlacement, flightTrail, flightTrailPoints:[], trailSampleAt:0, group, rig, target: vec(state.position), label, shadow, body, helmet: astronaut.helmet, cameraHelmetBounds, backpack: astronaut.backpack, suitMaterial: astronaut.suitMaterial, lodDetails: astronaut.lodDetails, limbs, wings, weapon, weaponId:null, actionDevice, actionHealId:null, actionHealModel:null, state, relevant: true, emote: null, emoteEndsAt: 0, damageFeedback:new BrDamageFeedback(), damageRipple };
+    return { supported:null,supportedModel:null,heldAimFrame:createBrHeldAimFrame(),heldFrame:{dt:0,pitch:0,yaw:0,recoil:0,reloadProgress:null}, lastShotAt:-Infinity, motion:createAstronautMotion(astronaut), upperBody:astronaut.upperBody, motionYaw:null, motionX:state.position.x, motionY:state.position.y, motionZ:state.position.z, nameplatePlacement, flightTrail, flightTrailPoints:[], trailSampleAt:0, group, rig, target: vec(state.position), label, shadow, body, helmet: astronaut.helmet, cameraHelmetBounds, backpack: astronaut.backpack, suitMaterial: astronaut.suitMaterial, lodDetails: astronaut.lodDetails, limbs, wings, weapon, weaponId:null, actionDevice, actionHealId:null, actionHealModel:null, state, relevant: true, emote: null, emoteEndsAt: 0, damageFeedback:new BrDamageFeedback(), damageRipple };
   }
 
   private updateDamageFeedback(visual:PlayerVisual,now:number):void {
@@ -1300,12 +1314,52 @@ export class BattleRoyaleGame {
     return best > .995 ? .58 : best > .982 ? .8 : 1;
   }
 
+  private clearHeldSupport(visual:PlayerVisual):void {
+    visual.supported?.dispose();visual.supported=null;visual.supportedModel=null;
+  }
+
+  private anchorSupportedWeapon(visual:PlayerVisual,now:number,dt:number):boolean {
+    const id=visual.weaponId;
+    if(!id||!isBrSupportWeaponId(id)||!visual.group.visible||!visual.rig.visible)return false;
+    const model=visual.weapon.children.find(child=>child.userData.borrowedWeaponResources) as THREE.Group|undefined;
+    if(!model)return false;
+    if(visual.supportedModel!==model){
+      this.clearHeldSupport(visual);
+      visual.supported=createBrHeldPresentation({leftArm:visual.limbs[0],rightArm:visual.limbs[1],group:visual.rig,upperBody:visual.upperBody},model,id,this.heldResources);
+      visual.supportedModel=model;
+    }
+    const local=visual.state.id===this.localId;
+    const aimed=(local?this.aiming||this.firingPoseHeld:Boolean(visual.state.aiming))||now-visual.lastShotAt<240;
+    if(aimed){
+      const shot=local&&this.localState?this.shotSolution(this.localState):null;
+      if(shot)this.heldDirection.set(shot.direction.x,shot.direction.y,shot.direction.z);
+      else{const yaw=local?this.yaw:visual.state.yaw,pitch=local?this.pitch:visual.state.pitch;this.heldDirection.set(Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),-Math.cos(yaw)*Math.cos(pitch));}
+      visual.group.rotation.set(0,brAstronautFacingRotation(brHeldAimFacing(this.heldDirection,-visual.group.rotation.y)),0);
+    }else this.heldDirection.set(-Math.sin(visual.group.rotation.y),0,-Math.cos(visual.group.rotation.y));
+    // Body follows the real shot; torso inclination takes any angle outside the
+    // arms' comfortable range. Authority and camera direction are unchanged.
+    visual.rig.rotation.set(0,Math.PI,0);visual.rig.updateWorldMatrix(true,false);
+    const resolved=visual.heldAimFrame.resolve(this.heldDirection,visual.rig.matrixWorld);
+    if(!resolved){visual.weapon.userData.supportedPoseValid=false;return true;}
+    const aim=visual.heldAimFrame.state;
+    visual.upperBody.rotation.set(aim.torsoPitch,0,0);visual.upperBody.position.set(0,aim.torsoY,aim.torsoZ);
+    visual.body.rotation.x=0;
+    const frame=visual.heldFrame;frame.dt=dt;frame.pitch=aim.pitch;frame.yaw=aim.yaw;
+    const recoil=THREE.MathUtils.clamp(Number(visual.weapon.userData.recoil??0),0,1);
+    frame.recoil=recoil;
+    frame.reloadProgress=local&&this.reloadEndsAt>now?THREE.MathUtils.clamp((now-this.reloadStartedAt)/Math.max(1,this.reloadEndsAt-this.reloadStartedAt),0,1):null;
+    visual.weapon.userData.supportedPoseValid=visual.supported!.update(visual.weapon,frame);
+    visual.weapon.userData.recoil=brRecoilAfter(recoil,dt);
+    return true;
+  }
+
   private updateHeldWeapon(visual: PlayerVisual, dt: number): void {
-    const item = visual.state.heldItem;
-    visual.weapon.visible = Boolean(item && isBrWeapon(item.itemId) && !visual.state.vehicleId && !visual.state.downed && visual.state.deployment === "grounded");
-    if (!visual.weapon.visible) return;
+    const item = visual.state.id===this.localId?this.localState?.inventory[this.localState.selectedSlot]:visual.state.heldItem;
+    visual.weapon.visible = Boolean(item && isBrWeapon(item.itemId) && !visual.state.vehicleId && !visual.state.downed && visual.state.deployment === "grounded" && !visual.emote);
+    // Emotes holster the item; hidden actors/model swaps are safe teardown boundaries.
+    if (!visual.weapon.visible || !visual.group.visible || !visual.rig.visible) {this.clearHeldSupport(visual);if(!visual.weapon.visible)return;}
     if (!item || !isBrWeapon(item.itemId)) { visual.weaponId=null; return; }
-    if(visual.weaponId!==item.itemId||visual.weapon.userData.rarity!==item.rarity){for(const child of [...visual.weapon.children]){visual.weapon.remove(child);this.disposeObject(child);}this.buildWeaponModel(visual.weapon,item.itemId,rarityColor[item.rarity]??0xffffff);visual.weaponId=item.itemId;visual.weapon.userData.rarity=item.rarity;}
+    if(visual.weaponId!==item.itemId||visual.weapon.userData.rarity!==item.rarity){this.clearHeldSupport(visual);for(const child of [...visual.weapon.children]){visual.weapon.remove(child);this.disposeObject(child);}this.buildWeaponModel(visual.weapon,item.itemId,rarityColor[item.rarity]??0xffffff);visual.weaponId=item.itemId;visual.weapon.userData.rarity=item.rarity;}
     // Motion owns the carry pose. Final glove anchoring runs after reload/heal
     // have finished posing the arms, so actions cannot detach the item.
 
@@ -1338,6 +1392,7 @@ export class BattleRoyaleGame {
   private anchorHeldPresentation(visual:PlayerVisual,now:number,dt:number):void {
     if(!visual.rig.visible||!visual.group.visible)return;
     if(visual.weapon.visible&&visual.weaponId){
+      if(this.anchorSupportedWeapon(visual,now,dt))return;
       const recoil=Number(visual.weapon.userData.recoil??0);
       anchorAstronautHeldItem(visual.weapon,visual.limbs[1],brHeldWeaponTransform(visual.weaponId),recoil);
       const motion=visual.motion.state;

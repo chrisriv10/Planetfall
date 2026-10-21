@@ -1,0 +1,88 @@
+{
+  "scope": "Actual strafe and mouse fire with controlled spawn/loadout. Checks camera-facing body pose for new firing modes.",
+  "samples": [
+    {
+      "label": "equip",
+      "weapon": "helix-burst-rifle",
+      "visible": true,
+      "supported": true,
+      "valid": true,
+      "skins": 2,
+      "downed": false,
+      "deployment": "grounded",
+      "vehicle": null
+    },
+    {
+      "label": "up",
+      "yaw": 1.0636110196153101,
+      "pitch": 1.15,
+      "valid": true,
+      "weight": 1,
+      "aimed": true,
+      "error": 0.000015856238657213033,
+      "grounded": true
+    },
+    {
+      "label": "turn-up",
+      "yaw": 4.49121101961531,
+      "pitch": 1.15,
+      "valid": true,
+      "weight": 1,
+      "aimed": true,
+      "error": 0.0015634913730577852,
+      "grounded": true
+    },
+    {
+      "label": "down",
+      "yaw": 4.49121101961531,
+      "pitch": -0.75,
+      "valid": true,
+      "weight": 1,
+      "aimed": true,
+      "error": 0.0012667508142975052,
+      "grounded": true
+    },
+    {
+      "label": "reverse",
+      "yaw": 0.7028110196153099,
+      "pitch": -0.75,
+      "valid": true,
+      "weight": 1,
+      "aimed": true,
+      "error": 0.006860682630584255,
+      "grounded": true
+    },
+    {
+      "label": "neutral",
+      "yaw": 0.7028110196153099,
+      "pitch": 0.8736000000000002,
+      "valid": true,
+      "weight": 1,
+      "aimed": true,
+      "error": 0.000021214818213405704,
+      "grounded": true
+    },
+    {
+      "label": "jump",
+      "yaw": 0.7028110196153099,
+      "pitch": 0.8736000000000002,
+      "valid": true,
+      "weight": 1,
+      "aimed": true,
+      "error": 0.0003742356854981173,
+      "grounded": false
+    },
+    {
+      "label": "landed",
+      "weapon": "helix-burst-rifle",
+      "visible": true,
+      "supported": true,
+      "valid": true,
+      "skins": 2,
+      "downed": false,
+      "deployment": "grounded",
+      "vehicle": null
+    }
+  ],
+  "errors": []
+}

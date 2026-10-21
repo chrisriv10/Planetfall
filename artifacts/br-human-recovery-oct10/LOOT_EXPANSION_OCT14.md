@@ -352,3 +352,172 @@ or deployment. Hosted wallet storage is still unverified and has not been config
 - Fresh frozen-source full suite: 1,286 tests across 247 files PASS, 258.81 seconds (muzzle-full-test-v2-oct16.txt). Typecheck/build with pitched prototype also pass (muzzle-pitch-typecheck/build-oct16.txt).
 - Astra added coordinated pitch only to UNIMPORTED articulation/support helpers and a new focused actual-geometry pitch test. 27 angles from -.5 to +.8, four settled poses, four weapons. Sixteen focused prototype tests passed; settled weapon vertices and triangle edges clear body volumes. This is not runtime pose acceptance.
 - Separate scratch transition audit found rear-handle/chest overlap at initial weight (idle/up ~59.9mm, level idle ~56.5mm). It intentionally retained the failure. Production still uses the existing weapon attachment. Next work measures safe receiver/stock/handle handoff intervals rather than enabling a clipping transition.
+
+### October17 — continued after pushed checkpoint76796b0
+
+- Preserved the clean tracked checkpoint and all untracked evidence. No further commit/push/deployment requested during this continuation.
+- Added safe `/health.profileStorage` backend identification (postgresql/file/memory), with no paths, URLs or profile data. Local server reports file; this is not proof of hosted durable storage. Seven focused profile-health/lifecycle/PostgreSQL tests pass (profile-health-oct17.txt).
+- Fixed a mixed-file firing-pose clock bug: all confirmed shots (including remote pilots/new firing modes) now refresh per-player lastShotAt; valid local firing requests also refresh it. Legacy flash anticipation/deduplication clock remains separate. No authoritative aim, network or movement change.
+- Native D-strafe + mouse fire confirms Helix/Quasar/Prism turn from1.569rad travel-facing to .180/.212/.212rad toward camera yaw0 within200ms; confirmed shot events observed, zero browser errors. Evidence firing-pose-native-oct17.json/screenshots. Focused feedback/shot/convergence tests and typecheck pass.
+- Unimported entry helper now rejects reverse weight and invalid wrists. New transformed-geometry entry tests require penetration to decrease monotonically from measured existing baseline, zero by weight .25 onward, grip error converging to zero and exact final hand contacts. Existing geometry assertions retained. 23 focused prototype tests pass.
+- Forty native sampled entry frames (four weapons × five weights × front/side) pass without browser errors; Quasar0/.25/1 front and final posed silhouette reviewed. arm-entry-native-oct17.json. These are diagnostic sampled frames, not production integration or natural gameplay acceptance.
+- Remaining integration issue: local pitch range and residual upper-body yaw from roll/twist must be handled coherently. Scratch extended local pitch through-1.15 passes, but turning sprint needs about -1.181 local pitch and.364residualyaw. Current fixed shoulders only prove about±.05yaw. Do not clamp away the aim error or enable the prototype as if this were solved. Isolated presentation investigation continues.
+- Continuation validation: full suite PASS1,292tests/249files,292.59s (continued-full-test-oct17.txt), fresh typecheck passes. E2E rerun underway against unchanged production source.
+- Read-only scratch alternative for unresolved residual yaw: shoulder X moves from±.52 to±.43 while Z moves.24→.34 over |yaw|0→.4, retaining .305m bones and coordinated forward wrist midpoint. This restores measured reach and pad/torso intersection at extremes instead of floating the pad atZ.39. Four sampled actual distal-arm/weapon vertex+edge tests pass across5yaw×5pitch×4states (arm-yaw-inward-oct17* under.local-runtime). Pad contact audit shows both pads retain actual torso-intersecting vertices/edges atyaw±.4. This is not silhouette acceptance, does not prove arbitrary body-facing lag/action transitions, and remains scratch-only. No production/helper promotion.
+- Fresh typecheck passes (continued-typecheck-oct17.txt). Full suite remains1,292/249PASS; E2E raid round and Chaos modifier pass in the new rerun, final visual-budget/solo checks pending at this note.
+- No post-checkpoint commit/push/deployment. Normal dev server restarted on5173/3000 and local health reports profileStorage:file. Temporary13001/13002/15174 capture servers stopped after reviewed native evidence.
+- E2E rerun COMPLETE:14/14PASS,6.0minutes (continued-e2e-oct17.txt). No assertions,timeouts or budgets weakened.
+
+### October17 continued — native yaw and remote firing verification
+
+- Preserved dirty tree and checkpoint76796b0; no new commit/push/deployment.
+- Native static scratch yaw capture:48frames (fourweapons×threepitches×twoyaws×front/side), no browser errors. arm-yaw-native-review-oct17.json. Parent reviewedHelixup+.4front/side,Vortexdown-.4front. Astra reviewedadditionalQuasarlevel-.4side,Prismlevel+.4side. Overallidentities/jointattachmentreadclearly;uppermuzzlecroppedinupview,sleevepinchandpadhelmetseamneedcorrection. Notproductionintegration.
+- New whole-shoulder audit found up to30.5mm pad/helmet penetration missed by distal-only checks. Scratch pad lowering.05m clears actual helmet vertices+edges over9yaws×5pitches×4states while maintaining torso/proximal sleeve contact; nativecomparison and sleeve correction pending. No actual helper promotion.
+- Two independent browser clients, actual strafe/mousefire: Helix andPrism confirmations update observer lastShotAt and camera-facing pose (remote-fire-pose-v2-oct17.json). No browsererrors. Firstattempt retained:fixed200msfromrequest measuredremote bodyyaw.4137rad against.4limit;v2 waits foractualremote shotreceipt then180msposeobservation, sameassertions. No runtime thresholds/timeoutschanged.
+- Added UNINTEGRATED Sol-owned local-aim conversion helper `br-held-aim.ts`: transforms an existing world shot direction through inverse animated upper-body matrix, including rotation/nonuniform squash; rejects invalid/singular/overflow inputs and never clamps unsupported local angles. Parent and direction remain immutable; cached scratch objects avoid per-resolve allocation. Three root-cause tests plus15existingcamera tests pass; fresh typecheck passes (held-aim-camera-oct17.txt,held-aim-typecheck-oct17.txt). Not yet imported by gameplay because presentation pose still lacks full acceptance.
+- Scratch sleeve candidate subdivides original triangles at elbow support planes,98→238triangles/sleeve, unchanged2bones/resources; corrected finite neutral proof measures1.07288e-8m maximumsurface distance. Original proof serializedNaN asnull and was rejected;degenerate triangles skipped and finitevalidationrequired in correctedproof. Scratch only.
+- Forty-eight new fullframed native scratch captures pass/noerrors (arm-yaw-sleeve-native-review-oct17.json). ParentreviewQuasarlevel-.4side stillshowsangularforearmbulge;subdivisionnotacceptedasanadequatevisualfix. Helixupwholemuzzleframingnowavailable. Furtherisolatedsleevecomparisonpending;noactualyaw/sleevepromotion.
+
+### October18 continuation
+
+- Confirmed execution on DESKTOP-JL99F36; preserved current dirty tree at76796b0 and all untracked source/evidence. No commit/push/deployment.
+- October17 held-aim full run did not have a completion result; retained as incomplete. Fresh October18 full suite PASS:1,295tests/250files,296.61s (held-aim-full-test-oct18.txt). Latest completed E2E remains14/14PASS from continued-e2e-oct17.txt; gameplay imports unchanged since that run.
+- Isolated scratch sleeve investigation found triangle folding under the original two-bone blend. A midpoint blend bone preserves finite neutral surface within1.07e-8m and removes measured opposed/collapsed faces in12extreme samples. It remains scratch-only; unchanged denser clearance tests exposed an upper-sleeve/chest patch previously missed by coarse vertex sampling.
+- Separate pole-lift candidate keeps shoulders, wrists and .305m segment lengths unchanged and improves native Quasar side elbow contour. Matched diagnostic capture (arm-yaw-elbow-lift-native-oct18-*.png/json) reviewed by parent. Four vertex-based state checks pass, but stronger full-triangle clipping still fails atyaw-.4/pitch+.45. Do not promote based on the vertex checks or screenshot alone. Assertions unchanged; quantify/fix true intersecting patch first.
+- Midpoint bone's matched native Quasar elbow is visibly less pointed. Stronger clipping confirms the remaining patch is real chest-module penetration (centroid4.89mm inside), not permitted shoulder attachment. Higher/forward elbow-pole variants remain rejected. A measured shoulder-path correction is being investigated separately; no source promotion or assertion changes.
+- Measured shoulder-path candidate fixes the earlier chest patch while maintaining reach and pad contact, but full-triangle testing then exposes a level-yaw baseline upper-sleeve/torso intersection at down pitch. Candidate remains rejected; original proximal cutoff and zero-penetration assertions unchanged. One forward-baseline correction is being tested separately, not promoted.
+- Fresh build passes (held-aim-build-oct18.txt). Normal dev server health reports file storage. No staged changes, commit, push or deployment.
+- Ran full-triangle scratch entry recovery (arm-margin-entry-oct18.txt):1passed/3failed. Idle/ADS/crouch upward Prism atpitch-1.2,weight.075 increases penetration .0532073→.0584784m; sprint passes. Diagnostic witness: rear telescoping BoxGeometry position(0,.01,.1476),triangle9 into chestmodule(0,.82,.43). Unchanged monotonic/zero-clearance assertions deliberately fail. Logs arm-margin-entry-diagnostic-oct18.txt retained. Static candidate still not promoted; stock/receiver/angle sequencing is next root-cause work. No new game source edits in this validation step.
+
+### October18 held-fire input ownership
+
+- Reproduced Helix body-facing oscillation during actual 1.5s held LMB plus strafe (firing-hold-native-before-oct18). Recent-shot timer expires between bursts.
+- Local eligible held-fire now owns camera-facing pose; confirmed shot timestamp remains the remote/release fallback. Clears before input early returns, on UI capture, deactivation and reset. Authority, weapon cadence and ammo unchanged.
+- Identical native after check passed 72 settled samples (max yaw error about .04rad), real confirmed shots, no browser errors. Separate lifecycle check passed release back to travel facing at1.55rad, held-state clearing and pointer-lock release during UI capture.
+- Typecheck/build and18 focused tests pass. Fresh E2E in progress. No commit/push/deployment.
+
+- Fresh E2E after held-fire correction PASS14/14,6.1min (firing-hold-e2e-oct18.txt). Added3 permanent public-event regression cases for burst/beam/charge local/remote facing timestamps and independent flash deduplication; all pass, fresh typecheck passes.
+- Scratch entry now passes corrected full arm+weapon triangle recovery across4states plus reset/disposal/finite guards. Initial sleeve-baseline omission was an audit defect; corrected test includes original CapsuleGeometry and identical proximal cutoff. Passing candidate sequences stock retraction before rotation and uses .06m temporary reach fading to unchanged final pose. Native transition review pending; no source promotion or dynamic acceptance.
+
+October18 native follow-up: sustained strafe/held LMB passes Helix, Prism and
+Vortex, including charge wind-up (9/13/1 confirmed shots during sampled holds;
+no browser errors). Evidence firing-modes-hold-native-oct18.json. Native scratch
+Prism entry24frames passes sleeve uniqueness and exact hidden-unequip restoration;
+parent reviewed .25 side and .1 front samples. Settled moving aim/locomotion
+sweeps pass in scratch, but recoil/actions and abrupt unsupported local aim
+remain unaccepted. The articulation is still not imported by gameplay.
+
+October 18 latest validation: full suite passed 1,298 tests / 251 files in
+322.01 seconds (`firing-pose-full-test-oct18.txt`). E2E remains 14/14 passed
+after the held-fire correction; build and typecheck pass. No commit/push/deploy.
+Scratch moving aim, aim-changing entry and coordinated 20mm recoil pulses pass
+within the bounded domain. Near-vertical expansion remains rejected: Quasar
+optic/helmet, Helix endpoint/helmet and alternate sleeve/body witnesses exist.
+Reload at arbitrary aimed orientation can exceed left-arm reach; deliberate
+receiver lowering plus asymmetric hand path is still under investigation.
+The new articulation remains outside gameplay.
+
+Additional diagnostic status: the two live-transform facing probes are invalid
+because quaternion restoration can choose an equivalent Euler decomposition
+that contaminates subsequent component-only edits. Retained as failed probes.
+The pure-matrix probe performs no live transform writes: planar body alignment
+reduces local yaw to approximately zero, but sampled pitch[-1.23,.99] still
+exceeds the bounded helper. This is mathematical diagnostic evidence, not native
+acceptance of a visible body-following transition. No production pose integration.
+
+Development log recovery: an encoding failure during append truncated the log.
+Recovered HEAD text plus 13 exact session append blocks and the two original
+prose corrections; backup retained under ignored .local-runtime. Subsequent
+writes explicitly use UTF-8. Gameplay source and raw evidence were unaffected.
+
+### Further isolated pose gates
+
+- Settled modest-domain grid passes fourstates/fourweapons/5yaws at pitch[-1.25,1.05]. Fixed entry initially finds .134mm sprint sleeve overlap atweight.9; original failed evidence retained. A separate temporary <=10mm forward correction only above pitch.85, zero at both endpoints, passes four entry states. Moving entry/recoil are being rerun against the exact corrected adapter.
+- Reload service correction makes the target reachable but Quasar sleeve triangles192/212 enter torso about2.15mm; pole-lift variant worsens it and is rejected. Production articulation remains unimported.
+
+Latest native modest-domain check: 96 captures (Prism/Quasar, pitch-1.25/+1.05,
+yaw +/-.4, six entry weights, front/side) completed without browser errors.
+One visible sleeve per arm and exact hidden-unequip restoration asserted for
+every sample. Parent reviewed Quasar-up final side and Prism-down final front.
+`arm-modest-entry-native-oct18.json` retains the report. Scratch only: body
+following, visible action/reload/LOD transitions and full vertical convergence
+remain unaccepted. No new commit, push or deployment.
+
+October19 continuation: execution verified on DESKTOP-JL99F36, local dirty
+work preserved. Two independent clients pass sustained Helix fire/strafe
+observer check:72 settled samples, maximum facing error .04012rad, no browser
+errors (`remote-held-pose-before-oct18.json`). Despite the filename, this was a
+read-only regression check and passed: authority already includes held fire in
+the remote aiming hint. No new networking change is needed. Reload remains
+isolated scratch work; no commit/push/deploy.
+
+October19 moving preview: scratch-only live adapter performs reset before
+locomotion, true-shot planar body following, torso stabilization, inverse-parent
+local aim and supported entry. Actual mouse turning/strafe/heldfire produced
+140 frames, all in-domain;134 settled samples match visible barrel direction
+to shot direction within4.02e-16. No browser errors. Evidence
+`supported-moving-preview-oct19.json` and screenshot. This omits recoil/actions
+and unrestricted convergence, and does not establish gameplay acceptance.
+Production source is unchanged by this preview.
+
+Scratch torso/arm split preview passed166 real-input frames,158settled visible
+barrel direction checks (max3.73e-16 error). Rawpitch[-1.23,.93] is shared between
+torso[-.13,.03] and arms[-1.1,.9], preserving true shot direction. Extra front/side
+views were corrected to follow character yaw; first world-fixed front labels
+were invalid as front appearance evidence. Parent reviewed corrected up-front
+and down-side; camera pitch labels do not assert actual close-range shot pitch.
+Full-body clearance, full vertical convergence, actions/recoil and lifecycle
+remain pending. This is an isolated browser adapter, not production changes.
+
+October19 reload validation: direct installed Vitest invocation passes the saved
+centered-service contract4/4 in30.70s (`reload-centered-contract-parent-oct19.txt`).
+The earlier npx attempt stalled before test startup and was interrupted; it is
+not counted. Native sampled reload72frames across4weapons/9progress/front-side
+passes zero errors, sleeve uniqueness and exact hidden teardown; reviewed Quasar
+service-front/Vortex brace-fold-side. Actual R-key reload while strafing in an
+isolated adapter passes194frames,127reloadframes, no errors, restored exact
+barrel/shot alignment (`supported-live-reload-oct19.json`). This uses the older
+bounded reload arm adapter and is NOT integrated with modest-domain torso/recoil
+or unrestricted action/LOD lifecycle. Those combined gates still remain.
+Visuals agent reached usage limit; new presentation implementation is unavailable
+for now, while saved candidate validation was completed by Sol. No production
+promotion, commit, push or deployment.
+
+Moving-aim reload regression: actualR while strafing, mouse turns during reload,
+then settles before completion. Cached-start adapter fails at progress.9942
+with barrel/shot direction error.18887 (`moving-aim-reload-before-oct19.json`).
+Current-aim/current-wrist each-frame combined adapter passes the SAME check at
+progress.9944 with error.000598 (`moving-aim-reload-after-oct19.json`). The
+assertion remains.05; no test weakening. This is scratch browser integration,
+not yet gameplay source. New combined helper production preparation is delegated
+to visuals after its remaining focused gates.
+
+### October 20 integrated supported-pose checkpoint
+
+Production now imports the supported arms/weapon/reload controller for Helix,
+Quasar, Prism and Vortex. True shot direction is preserved through planar body
+facing and a belt-pivot torso split. Current-aim reload return, coordinated recoil,
+optimistic slot swaps and hidden-state disposal are integrated. Earlier scratch
+failures remain recorded; see docs/BR_SUPPORTED_POSE_OCT20.md for exact scope.
+
+Fresh typecheck/build pass, full suite 1,314/257 passes (317.19s), E2E14/14 passes
+(5.9min), and three post-readability E2E checks pass (54.9s). No thresholds,
+assertions, timeouts or performance budgets were weakened. Source native checks
+cover four weapons, actual firing/reload/aim, lifecycle and repeated remote LOD.
+
+Twenty-four matched six-scene client samples complete around16.7ms median.
+Fresh supported-crowd samples retain16.7ms medians; High/Medium have33.4ms p95,
+Low/Auto16.8ms. Settled High all-player update p95 is1.1ms. This is RTX3060
+validation, not physical weak-hardware certification or proof of every tail cause.
+
+Fresh normal native round passes natural loot, skimmer boarding/four drive legs,
+nine outgoing damage events, results/home exit, zero rooms, released pointer lock,
+zero page errors and zero untrusted input. Independent natural Helix pickup and
+exit pass; that simpler route did not board its selected vehicle. Initial naive
+wall-directed loot route failed and remains evidence, not gameplay acceptance.
+
+Pass text now describes browser-profile persistence, captions are larger/brighter,
+and desktop Helix name fits three lines. Desktop/390px Pass bounds/cursor checks
+pass. The live public client has profile handshake, but hosted health omits the
+new storage-mode field; database backend/restart durability are not established.
+No hosting configuration change or deployment was performed.

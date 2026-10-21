@@ -1,0 +1,621 @@
+{
+  "scope": "Two independent browser profiles, actual mouse-fired remote confirmation and strafe; controlled spawn/loadout.",
+  "samples": [
+    {
+      "itemId": "helix-burst-rifle",
+      "before": {
+        "bodyYaw": 1.564376841230907,
+        "aimYaw": 0,
+        "lastShotAt": null,
+        "now": 12302.600000023842,
+        "shots": 0
+      },
+      "during": {
+        "bodyYaw": 0,
+        "aimYaw": 0,
+        "lastShotAt": 13875.600000023842,
+        "now": 13893.100000023842,
+        "shots": 9
+      },
+      "frames": [
+        {
+          "elapsed": 33.700000047683716,
+          "bodyYaw": 1.5661996298768488,
+          "aimYaw": 0,
+          "lastShotAt": null
+        },
+        {
+          "elapsed": 63.5,
+          "bodyYaw": 1.5675015514524726,
+          "aimYaw": 0,
+          "lastShotAt": 12365.700000047684
+        },
+        {
+          "elapsed": 80.80000007152557,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12365.700000047684
+        },
+        {
+          "elapsed": 96.20000004768372,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12365.700000047684
+        },
+        {
+          "elapsed": 112.20000004768372,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12365.700000047684
+        },
+        {
+          "elapsed": 136,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12365.700000047684
+        },
+        {
+          "elapsed": 144.40000009536743,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12365.700000047684
+        },
+        {
+          "elapsed": 161.60000002384186,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12365.700000047684
+        },
+        {
+          "elapsed": 180.20000004768372,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12480.700000047684
+        },
+        {
+          "elapsed": 195.70000004768372,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12480.700000047684
+        },
+        {
+          "elapsed": 216.30000007152557,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12480.700000047684
+        },
+        {
+          "elapsed": 229,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12480.700000047684
+        },
+        {
+          "elapsed": 240.70000004768372,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12480.700000047684
+        },
+        {
+          "elapsed": 257,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12480.700000047684
+        },
+        {
+          "elapsed": 275.2000000476837,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12578.399999976158
+        },
+        {
+          "elapsed": 291.90000009536743,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12578.399999976158
+        },
+        {
+          "elapsed": 313.10000002384186,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12578.399999976158
+        },
+        {
+          "elapsed": 330.3000000715256,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12578.399999976158
+        },
+        {
+          "elapsed": 348.5,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12578.399999976158
+        },
+        {
+          "elapsed": 362,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12578.399999976158
+        },
+        {
+          "elapsed": 376.90000009536743,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12578.399999976158
+        },
+        {
+          "elapsed": 393.10000002384186,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12578.399999976158
+        },
+        {
+          "elapsed": 405.90000009536743,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12578.399999976158
+        },
+        {
+          "elapsed": 424.3000000715256,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12578.399999976158
+        },
+        {
+          "elapsed": 448,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12578.399999976158
+        },
+        {
+          "elapsed": 474,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12578.399999976158
+        },
+        {
+          "elapsed": 487,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12578.399999976158
+        },
+        {
+          "elapsed": 497.10000002384186,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12578.399999976158
+        },
+        {
+          "elapsed": 523.2000000476837,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12578.399999976158
+        },
+        {
+          "elapsed": 528.3000000715256,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12578.399999976158
+        },
+        {
+          "elapsed": 544.7000000476837,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12578.399999976158
+        },
+        {
+          "elapsed": 561.2000000476837,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12578.399999976158
+        },
+        {
+          "elapsed": 577,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12578.399999976158
+        },
+        {
+          "elapsed": 592.8000000715256,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12578.399999976158
+        },
+        {
+          "elapsed": 608.8000000715256,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12578.399999976158
+        },
+        {
+          "elapsed": 626.6000000238419,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12578.399999976158
+        },
+        {
+          "elapsed": 642.4000000953674,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12578.399999976158
+        },
+        {
+          "elapsed": 658.6000000238419,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12578.399999976158
+        },
+        {
+          "elapsed": 683.1000000238419,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12987.399999976158
+        },
+        {
+          "elapsed": 702.1000000238419,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12987.399999976158
+        },
+        {
+          "elapsed": 704.4000000953674,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12987.399999976158
+        },
+        {
+          "elapsed": 722.6000000238419,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12987.399999976158
+        },
+        {
+          "elapsed": 736.8000000715256,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12987.399999976158
+        },
+        {
+          "elapsed": 759.5,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12987.399999976158
+        },
+        {
+          "elapsed": 779.4000000953674,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 12987.399999976158
+        },
+        {
+          "elapsed": 798.1000000238419,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13085.600000023842
+        },
+        {
+          "elapsed": 800.3000000715256,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13085.600000023842
+        },
+        {
+          "elapsed": 817.2000000476837,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13085.600000023842
+        },
+        {
+          "elapsed": 835.9000000953674,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13085.600000023842
+        },
+        {
+          "elapsed": 854.5,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13085.600000023842
+        },
+        {
+          "elapsed": 869,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13085.600000023842
+        },
+        {
+          "elapsed": 883.4000000953674,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13085.600000023842
+        },
+        {
+          "elapsed": 912,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13196.899999976158
+        },
+        {
+          "elapsed": 929.1000000238419,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13196.899999976158
+        },
+        {
+          "elapsed": 947.5,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13196.899999976158
+        },
+        {
+          "elapsed": 961.7000000476837,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13196.899999976158
+        },
+        {
+          "elapsed": 985.5,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13196.899999976158
+        },
+        {
+          "elapsed": 1003.5,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13196.899999976158
+        },
+        {
+          "elapsed": 1008.5,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13196.899999976158
+        },
+        {
+          "elapsed": 1025,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13196.899999976158
+        },
+        {
+          "elapsed": 1049.7000000476837,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13196.899999976158
+        },
+        {
+          "elapsed": 1082.7000000476837,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13196.899999976158
+        },
+        {
+          "elapsed": 1088.1000000238419,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13196.899999976158
+        },
+        {
+          "elapsed": 1105.2000000476837,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13196.899999976158
+        },
+        {
+          "elapsed": 1122,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13196.899999976158
+        },
+        {
+          "elapsed": 1136.5,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13196.899999976158
+        },
+        {
+          "elapsed": 1152.4000000953674,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13196.899999976158
+        },
+        {
+          "elapsed": 1173.2000000476837,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13196.899999976158
+        },
+        {
+          "elapsed": 1190.3000000715256,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13196.899999976158
+        },
+        {
+          "elapsed": 1211.4000000953674,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13196.899999976158
+        },
+        {
+          "elapsed": 1225.9000000953674,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13196.899999976158
+        },
+        {
+          "elapsed": 1245.7000000476837,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13196.899999976158
+        },
+        {
+          "elapsed": 1249.1000000238419,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13196.899999976158
+        },
+        {
+          "elapsed": 1270.8000000715256,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13196.899999976158
+        },
+        {
+          "elapsed": 1286.1000000238419,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13196.899999976158
+        },
+        {
+          "elapsed": 1296.7000000476837,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13196.899999976158
+        },
+        {
+          "elapsed": 1312.6000000238419,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13196.899999976158
+        },
+        {
+          "elapsed": 1329.9000000953674,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13196.899999976158
+        },
+        {
+          "elapsed": 1344.3000000715256,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13638
+        },
+        {
+          "elapsed": 1370.9000000953674,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13638
+        },
+        {
+          "elapsed": 1376.5,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13638
+        },
+        {
+          "elapsed": 1392.5,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13638
+        },
+        {
+          "elapsed": 1408.8000000715256,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13638
+        },
+        {
+          "elapsed": 1426.2000000476837,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13638
+        },
+        {
+          "elapsed": 1442.8000000715256,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13638
+        },
+        {
+          "elapsed": 1465.3000000715256,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13769.800000071526
+        },
+        {
+          "elapsed": 1472,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13769.800000071526
+        },
+        {
+          "elapsed": 1488.2000000476837,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13769.800000071526
+        },
+        {
+          "elapsed": 1504.5,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13769.800000071526
+        },
+        {
+          "elapsed": 1520.8000000715256,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13769.800000071526
+        },
+        {
+          "elapsed": 1540.4000000953674,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13769.800000071526
+        },
+        {
+          "elapsed": 1553.1000000238419,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13769.800000071526
+        },
+        {
+          "elapsed": 1568.3000000715256,
+          "bodyYaw": 0,
+          "aimYaw": 0,
+          "lastShotAt": 13769.800000071526
+        }
+      ]
+    },
+    {
+      "label": "near",
+      "rig": true,
+      "supported": true,
+      "valid": true,
+      "skins": 2,
+      "distance": 11.952707197457176
+    },
+    {
+      "label": "far",
+      "rig": false,
+      "supported": false,
+      "skins": 0,
+      "distance": 74.0122479893231
+    },
+    {
+      "label": "near-return",
+      "rig": true,
+      "supported": true,
+      "valid": true,
+      "skins": 2,
+      "distance": 40.80934595957974
+    },
+    {
+      "label": "far-repeat",
+      "rig": false,
+      "supported": false,
+      "skins": 0,
+      "distance": 64.0255730840998
+    },
+    {
+      "label": "near-repeat",
+      "rig": true,
+      "supported": true,
+      "valid": true,
+      "skins": 2,
+      "distance": 35.287665175343655
+    }
+  ],
+  "errors": []
+}

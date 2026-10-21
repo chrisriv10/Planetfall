@@ -1,0 +1,11 @@
+{
+  "checkedAt": "2026-10-21T00:20:18.918732+00:00",
+  "scope": "Read-only public repository metadata, deployed client bundle and server /health. No room, account, database, hosting configuration, restart or deployment changes.",
+  "site": "https://planetfall.pages.dev",
+  "asset": "/assets/index-rKo6cyz2.js",
+  "server": "https://planetfall-server.onrender.com",
+  "clientProfileTokenHandshakePresent": true,
+  "healthOk": true,
+  "healthReportsProfileStorage": false,
+  "conclusion": "Backend and restart durability cannot be inferred from a missing field. Local profile persistence validation does not establish hosted durability."
+}

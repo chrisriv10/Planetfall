@@ -46,7 +46,10 @@ export async function createPlanetfallServer(options: ServerOptions = {}) {
   const persisted=databaseUrl?await ProfileDatabase.connect(databaseUrl):undefined;
   const profiles=new PlayerProfiles(persisted?undefined:profileFile,persisted?.document,persisted?.database);
   const manager = new RoomManager(io,profiles);
-  app.get("/health", (_request, response) => response.json({ ok: true, rooms: manager.rooms.size, uptime: process.uptime() }));
+  // Storage mode is safe to expose for release checks; never expose paths,
+  // connection strings, profile tokens or balances through health responses.
+  const profileStorage=persisted?"postgresql":profileFile?"file":"memory";
+  app.get("/health", (_request, response) => response.json({ ok: true, rooms: manager.rooms.size, uptime: process.uptime(), profileStorage }));
   app.use((error: unknown, _request: express.Request, response: express.Response, next: express.NextFunction) => {
     if (error instanceof Error && error.message === "Origin not allowed") return response.status(403).json({ error: "Origin not allowed" });
     next(error);

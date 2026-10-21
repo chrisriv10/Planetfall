@@ -1,0 +1,26 @@
+{
+  "scope": "Current production pose, actual reload/RMB input with controlled authoritative loadout and diagnostic camera-only front/side framing. Not natural-match acceptance.",
+  "samples": [
+    {
+      "id": "helix-burst-rifle",
+      "valid": true,
+      "progress": 0.4784761904761901
+    },
+    {
+      "id": "quasar-carbine",
+      "valid": true,
+      "progress": 0.4817674418604648
+    },
+    {
+      "id": "prism-beam",
+      "valid": true,
+      "progress": 0.5324166666666663
+    },
+    {
+      "id": "vortex-cannon",
+      "valid": true,
+      "progress": 0.4710645161136504
+    }
+  ],
+  "errors": []
+}

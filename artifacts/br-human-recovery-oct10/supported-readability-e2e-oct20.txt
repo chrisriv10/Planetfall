@@ -1,0 +1,31 @@
+
+> planetfall@0.1.0 test:e2e
+> playwright test --grep settings persist|home menu previews|Solo requires
+
+[WebServer] (node:38976) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:50384) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:28264) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 3 tests using 1 worker
+
+(node:40336) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 1 e2e\multiplayer.spec.ts:181:1 › settings persist across reloads (6.9s)
+  ok 2 e2e\multiplayer.spec.ts:205:1 › the home menu previews the Fallbucks shop (10.0s)
+BR Solo timing: home loaded 470ms
+BR Solo timing: quick-start sent 6724ms
+BR Solo timing: HUD visible 7231ms
+BR Solo timing: HUD checks complete 7303ms
+BR Solo timing: map visible 7334ms
+BR Solo timing: viewport 1280x720 set 13968ms
+BR Solo timing: viewport 1280x720 layout read 16882ms
+BR Solo timing: viewport 1920x720 set 20046ms
+BR Solo timing: viewport 1920x720 layout read 23421ms
+BR Solo timing: viewport 1440x900 set 26582ms
+BR Solo timing: viewport 1440x900 layout read 27746ms
+  ok 3 e2e\multiplayer.spec.ts:348:1 › Battle Royale Solo requires confirmation and respects quick-play settings (28.1s)
+
+  3 passed (54.9s)

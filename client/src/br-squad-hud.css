@@ -9,6 +9,16 @@
   overflow: hidden;
 }
 .br-hud .br-team-hud[hidden] { display: none; }
+/* Three name lines fit above the independent two-line ammo/heat band.
+   Keep the established slot width so the surrounding HUD does not move. */
+@media (min-width: 761px) {
+  .br-hud .br-slot b {
+    margin-top: 0;
+    -webkit-line-clamp: 3;
+    line-height: 12px;
+    max-height: 36px;
+  }
+}
 /* Reserve the full bottom band for ammo/heat, independent of the art gutter.
    Long heat labels can use two lines without running beyond the slot edge. */
 .br-hud .br-slot small {

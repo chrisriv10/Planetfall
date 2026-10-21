@@ -1,0 +1,496 @@
+{
+  "scope": "Fresh normal ten-player server match after navigation, distance-detail and actual-touchdown momentum integration. Actual native browser input; control endpoint GET only, no fixture mutation. Scripted targeting is not human combat-balance acceptance.",
+  "events": [
+    {
+      "label": "lobby",
+      "phase": "lobby",
+      "position": {
+        "x": 0,
+        "y": 190,
+        "z": 0
+      },
+      "inventory": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "vehicleId": null
+    },
+    {
+      "label": "shop-trails",
+      "phase": "lobby",
+      "position": {
+        "x": 0,
+        "y": 190,
+        "z": 0
+      },
+      "inventory": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "vehicleId": null
+    },
+    {
+      "label": "planet-pass",
+      "phase": "lobby",
+      "position": {
+        "x": 0,
+        "y": 190,
+        "z": 0
+      },
+      "inventory": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "vehicleId": null
+    },
+    {
+      "label": "settings-high",
+      "phase": "lobby",
+      "position": {
+        "x": 0,
+        "y": 190,
+        "z": 0
+      },
+      "inventory": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "vehicleId": null
+    },
+    {
+      "label": "ship",
+      "phase": "ship",
+      "position": {
+        "x": -540.9508976781148,
+        "y": 195,
+        "z": 309.994434670241
+      },
+      "inventory": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "vehicleId": null
+    },
+    {
+      "label": "early-wings",
+      "phase": "ship",
+      "position": {
+        "x": 29.955707923535417,
+        "y": 193.72489600000003,
+        "z": 72.01860971783671
+      },
+      "inventory": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "vehicleId": null
+    },
+    {
+      "label": "landed",
+      "phase": "combat",
+      "position": {
+        "x": -145.25498231626412,
+        "y": 32.24497585576583,
+        "z": -180.0245742456031
+      },
+      "inventory": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "vehicleId": null
+    },
+    {
+      "label": "loot",
+      "phase": "combat",
+      "position": {
+        "x": -142.07739252717175,
+        "y": 5.395,
+        "z": -178.2529457100751
+      },
+      "inventory": [
+        {
+          "instanceId": "item-68a1b705",
+          "itemId": "pulse-rifle",
+          "rarity": "rare",
+          "count": 1,
+          "magazine": 30
+        },
+        {
+          "instanceId": "item-eb882124",
+          "itemId": "photon-shotgun",
+          "rarity": "common",
+          "count": 1,
+          "magazine": 5
+        },
+        null,
+        null,
+        null
+      ],
+      "vehicleId": null
+    },
+    {
+      "label": "vehicle-enter",
+      "phase": "combat",
+      "position": {
+        "x": -110.37,
+        "y": 6.26,
+        "z": -180.55
+      },
+      "inventory": [
+        {
+          "instanceId": "item-68a1b705",
+          "itemId": "pulse-rifle",
+          "rarity": "rare",
+          "count": 1,
+          "magazine": 30
+        },
+        {
+          "instanceId": "item-eb882124",
+          "itemId": "photon-shotgun",
+          "rarity": "common",
+          "count": 1,
+          "magazine": 5
+        },
+        null,
+        null,
+        null
+      ],
+      "vehicleId": "skimmer-nova-relay-rover"
+    },
+    {
+      "label": "route--111--214",
+      "phase": "combat",
+      "position": {
+        "x": -111.18759432495455,
+        "y": 6.26,
+        "z": -215.1282825827451
+      },
+      "inventory": [
+        {
+          "instanceId": "item-68a1b705",
+          "itemId": "pulse-rifle",
+          "rarity": "rare",
+          "count": 1,
+          "magazine": 30
+        },
+        {
+          "instanceId": "item-eb882124",
+          "itemId": "photon-shotgun",
+          "rarity": "common",
+          "count": 1,
+          "magazine": 5
+        },
+        null,
+        null,
+        null
+      ],
+      "vehicleId": "skimmer-nova-relay-rover"
+    },
+    {
+      "label": "route--65--214",
+      "phase": "combat",
+      "position": {
+        "x": -64.07634742151055,
+        "y": 1.26,
+        "z": -214.59380329402745
+      },
+      "inventory": [
+        {
+          "instanceId": "item-68a1b705",
+          "itemId": "pulse-rifle",
+          "rarity": "rare",
+          "count": 1,
+          "magazine": 30
+        },
+        {
+          "instanceId": "item-eb882124",
+          "itemId": "photon-shotgun",
+          "rarity": "common",
+          "count": 1,
+          "magazine": 5
+        },
+        null,
+        null,
+        null
+      ],
+      "vehicleId": "skimmer-nova-relay-rover"
+    },
+    {
+      "label": "route--65--175",
+      "phase": "combat",
+      "position": {
+        "x": -65.15880517174385,
+        "y": 1.26,
+        "z": -174.04647504187545
+      },
+      "inventory": [
+        {
+          "instanceId": "item-68a1b705",
+          "itemId": "pulse-rifle",
+          "rarity": "rare",
+          "count": 1,
+          "magazine": 30
+        },
+        {
+          "instanceId": "item-eb882124",
+          "itemId": "photon-shotgun",
+          "rarity": "common",
+          "count": 1,
+          "magazine": 5
+        },
+        null,
+        null,
+        null
+      ],
+      "vehicleId": "skimmer-nova-relay-rover"
+    },
+    {
+      "label": "route-0--80",
+      "phase": "combat",
+      "position": {
+        "x": -0.09242819651074663,
+        "y": 1.26,
+        "z": -80.11416141829108
+      },
+      "inventory": [
+        {
+          "instanceId": "item-68a1b705",
+          "itemId": "pulse-rifle",
+          "rarity": "rare",
+          "count": 1,
+          "magazine": 30
+        },
+        {
+          "instanceId": "item-eb882124",
+          "itemId": "photon-shotgun",
+          "rarity": "common",
+          "count": 1,
+          "magazine": 5
+        },
+        null,
+        null,
+        null
+      ],
+      "vehicleId": "skimmer-nova-relay-rover"
+    },
+    {
+      "label": "nearest-bot-drive",
+      "phase": "combat",
+      "position": {
+        "x": 47.61666347452678,
+        "y": 1.26,
+        "z": -95.58839050084474
+      },
+      "inventory": [
+        {
+          "instanceId": "item-68a1b705",
+          "itemId": "pulse-rifle",
+          "rarity": "rare",
+          "count": 1,
+          "magazine": 30
+        },
+        {
+          "instanceId": "item-eb882124",
+          "itemId": "photon-shotgun",
+          "rarity": "common",
+          "count": 1,
+          "magazine": 5
+        },
+        null,
+        null,
+        null
+      ],
+      "vehicleId": "skimmer-nova-relay-rover"
+    },
+    {
+      "label": "combat-approach",
+      "phase": "combat",
+      "position": {
+        "x": 47.92604868989109,
+        "y": 0.035,
+        "z": -93.0768808376115
+      },
+      "inventory": [
+        {
+          "instanceId": "item-68a1b705",
+          "itemId": "pulse-rifle",
+          "rarity": "rare",
+          "count": 1,
+          "magazine": 30
+        },
+        {
+          "instanceId": "item-eb882124",
+          "itemId": "photon-shotgun",
+          "rarity": "common",
+          "count": 1,
+          "magazine": 5
+        },
+        null,
+        null,
+        null
+      ],
+      "vehicleId": null
+    },
+    {
+      "label": "combat-end",
+      "phase": "combat",
+      "position": {
+        "x": -56.41523185338827,
+        "y": 0.035,
+        "z": -178.44138707642597
+      },
+      "inventory": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "vehicleId": null
+    },
+    {
+      "label": "round-wait-0",
+      "phase": "combat",
+      "position": {
+        "x": -56.41523185338827,
+        "y": 0.035,
+        "z": -178.44138707642597
+      },
+      "inventory": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "vehicleId": null
+    },
+    {
+      "label": "round-wait-10",
+      "phase": "combat",
+      "position": {
+        "x": -56.41523185338827,
+        "y": 0.035,
+        "z": -178.44138707642597
+      },
+      "inventory": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "vehicleId": null
+    },
+    {
+      "label": "round-wait-20",
+      "phase": "combat",
+      "position": {
+        "x": -56.41523185338827,
+        "y": 0.035,
+        "z": -178.44138707642597
+      },
+      "inventory": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "vehicleId": null
+    },
+    {
+      "label": "round-wait-30",
+      "phase": "combat",
+      "position": {
+        "x": -56.41523185338827,
+        "y": 0.035,
+        "z": -178.44138707642597
+      },
+      "inventory": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "vehicleId": null
+    },
+    {
+      "label": "round-wait-40",
+      "phase": "combat",
+      "position": {
+        "x": -56.41523185338827,
+        "y": 0.035,
+        "z": -178.44138707642597
+      },
+      "inventory": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "vehicleId": null
+    },
+    {
+      "label": "round-end",
+      "phase": "results",
+      "position": {
+        "x": -56.41523185338827,
+        "y": 0.035,
+        "z": -178.44138707642597
+      },
+      "inventory": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "vehicleId": null
+    }
+  ],
+  "outgoingDamageEvents": 9,
+  "gameplayAcceptance": {
+    "looted": true,
+    "enteredVehicle": true,
+    "actualCombat": true
+  },
+  "finalPhase": "results",
+  "exit": {
+    "locked": false,
+    "server": {
+      "rooms": 0
+    }
+  },
+  "nativeEvents": {
+    "keys": 1196,
+    "mouse": 773,
+    "untrusted": 0
+  },
+  "errors": [],
+  "passed": true,
+  "rawEvidence": "natural-supported-round-oct20-live.json and video/screenshots retained locally"
+}

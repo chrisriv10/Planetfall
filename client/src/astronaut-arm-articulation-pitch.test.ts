@@ -28,8 +28,8 @@ it.each(["idle","ads","sprint","crouch"] as const)("keeps pitched arms and all f
   const weapons=ids.map(id=>{const group=new THREE.Group();buildBrWeaponModel(group,id,0xffffff);const handle=addBrWeaponSupportGrip(group,id,box,material);rig.upperBody.add(group);return{id,group,handle};});
   const world=new THREE.Vector3(),local=new THREE.Vector3(),right=new THREE.Vector3(),left=new THREE.Vector3();
   const edgeA=new THREE.Vector3(),edgeB=new THREE.Vector3(),a=new THREE.Vector3(),b=new THREE.Vector3();
-  for(let n=0;n<=26;n++){
-    const pitch=-.5+n*.05;
+  for(let n=0;n<=39;n++){
+    const pitch=Number((-1.15+n*.05).toFixed(2));
     controller.reset();
     expect(controller.apply(true,pitch)).toBe(true);
     controller.wrist("right",right);controller.wrist("left",left);

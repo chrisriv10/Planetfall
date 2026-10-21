@@ -1,0 +1,42 @@
+{
+  "scope": "Current Shop/Pass lobby UI, desktop/narrow layout and actual cursor ownership checks.",
+  "samples": [
+    {
+      "width": 1440,
+      "height": 900,
+      "card": {
+        "left": 260,
+        "right": 1180,
+        "top": 232.90625,
+        "bottom": 743.078125
+      },
+      "close": {
+        "top": 662.078125,
+        "bottom": 711.078125
+      },
+      "font": 12,
+      "scrollWidth": 1107,
+      "clientWidth": 841,
+      "locked": false
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "card": {
+        "left": 20,
+        "right": 376,
+        "top": 168.90625,
+        "bottom": 736.078125
+      },
+      "close": {
+        "top": 655.078125,
+        "bottom": 704.078125
+      },
+      "font": 12,
+      "scrollWidth": 1107,
+      "clientWidth": 277,
+      "locked": false
+    }
+  ],
+  "errors": []
+}

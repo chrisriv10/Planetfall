@@ -1,0 +1,99 @@
+{
+  "scope": "Actual R/slot/V/E input with controlled authoritative spawn, downing, deployment and vehicle fixtures. Verifies current production supported-arm cleanup/recreation, not natural-match acceptance.",
+  "samples": [
+    {
+      "label": "equip",
+      "weapon": "helix-burst-rifle",
+      "visible": true,
+      "supported": true,
+      "valid": true,
+      "skins": 2,
+      "downed": false,
+      "deployment": "grounded",
+      "vehicle": null
+    },
+    {
+      "label": "swap during reload",
+      "weapon": "comet-hand-cannon",
+      "visible": true,
+      "supported": false,
+      "skins": 0,
+      "downed": false,
+      "deployment": "grounded",
+      "vehicle": null
+    },
+    {
+      "label": "swap back",
+      "weapon": "helix-burst-rifle",
+      "visible": true,
+      "supported": true,
+      "valid": true,
+      "skins": 2,
+      "downed": false,
+      "deployment": "grounded",
+      "vehicle": null
+    },
+    {
+      "label": "emote holster",
+      "weapon": "helix-burst-rifle",
+      "visible": false,
+      "supported": false,
+      "skins": 0,
+      "downed": false,
+      "deployment": "grounded",
+      "vehicle": null
+    },
+    {
+      "label": "downed",
+      "weapon": "helix-burst-rifle",
+      "visible": false,
+      "supported": false,
+      "skins": 0,
+      "downed": true,
+      "deployment": "grounded",
+      "vehicle": null
+    },
+    {
+      "label": "freefall",
+      "weapon": "helix-burst-rifle",
+      "visible": false,
+      "supported": false,
+      "skins": 0,
+      "downed": false,
+      "deployment": "chute",
+      "vehicle": null
+    },
+    {
+      "label": "board rover",
+      "weapon": "helix-burst-rifle",
+      "visible": false,
+      "supported": false,
+      "skins": 0,
+      "downed": false,
+      "deployment": "grounded",
+      "vehicle": "skimmer-nova-transit"
+    },
+    {
+      "label": "exit rover",
+      "weapon": "helix-burst-rifle",
+      "visible": true,
+      "supported": true,
+      "valid": true,
+      "skins": 2,
+      "downed": false,
+      "deployment": "grounded",
+      "vehicle": null
+    },
+    {
+      "label": "deactivate",
+      "weapon": "helix-burst-rifle",
+      "visible": true,
+      "supported": false,
+      "skins": 0,
+      "downed": false,
+      "deployment": "grounded",
+      "vehicle": null
+    }
+  ],
+  "errors": []
+}

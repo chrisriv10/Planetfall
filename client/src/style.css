@@ -217,19 +217,20 @@ body[data-game-mode="chaos"] .mode-option.selected { color: #ff8aad; border-colo
 .pass-xp { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:13px; margin:3px 0 18px; }
 .pass-xp > div { position:relative; height:30px; overflow:hidden; border:1px solid rgba(112,245,255,.2); border-radius:7px 13px 7px 13px; background:rgba(3,7,29,.62); }
 .pass-xp i { position:absolute; inset:0 auto 0 0; width:0; background:linear-gradient(90deg,rgba(112,245,255,.34),rgba(157,123,255,.5)); box-shadow:0 0 22px rgba(112,245,255,.2); transition:width .45s ease; }
-.pass-xp span { position:relative; z-index:1; display:grid; place-items:center; height:100%; color:#e9f5ff; font-size:.66rem; font-weight:900; letter-spacing:.08em; }
-.pass-xp small,.pass-note { color:#7e8db5; font-size:.59rem; font-weight:900; letter-spacing:.07em; }
-.pass-track { display:grid; grid-template-columns:repeat(10,minmax(68px,1fr)); gap:7px; overflow-x:auto; padding:4px 2px 12px; }
+.pass-xp span { position:relative; z-index:1; display:grid; place-items:center; height:100%; color:#e9f5ff; font-size:.8rem; font-weight:900; letter-spacing:.04em; }
+.pass-xp small,.pass-note { color:#c3cfea; font-size:.75rem; line-height:1.5; font-weight:700; letter-spacing:.02em; }
+.pass-track { display:grid; grid-template-columns:repeat(10,minmax(104px,1fr)); gap:7px; overflow-x:auto; padding:4px 2px 12px; }
 .pass-tier { position:relative; display:grid; grid-template-rows:auto 1fr auto; gap:7px; min-height:132px; padding:11px 8px; border:1px solid rgba(255,255,255,.1); border-radius:9px 16px 9px 16px; color:#8796bc; background:linear-gradient(155deg,rgba(22,28,72,.74),rgba(6,9,32,.72)); text-align:center; }
-.pass-tier strong { color:#aebbe0; font:900 .7rem "Arial Black"; }
+.pass-tier strong { color:#d7e2ff; font:900 .85rem "Arial Black"; }
 .pass-tier i { align-self:center; width:30px; height:30px; margin:auto; border-radius:50%; background:#374063; box-shadow:inset 0 0 0 5px rgba(0,0,0,.2); }
-.pass-tier span { font-size:.54rem; font-weight:900; line-height:1.25; }
+.pass-tier span { color:#c3cfea; font-size:.75rem; font-weight:900; line-height:1.35; }
 .pass-tier.unlocked { border-color:rgba(112,245,255,.32); color:#d9f7ff; }
 .pass-tier.unlocked i { background:var(--cyan); box-shadow:0 0 18px rgba(112,245,255,.46),inset 0 0 0 5px rgba(255,255,255,.18); }
 .pass-tier.current { transform:translateY(-4px); border-color:rgba(255,220,79,.64); box-shadow:0 9px 24px rgba(255,220,79,.1); }
 .pass-tier.current strong { color:var(--yellow); }
 .pass-tier.current::after { content:"YOU"; position:absolute; left:50%; top:-9px; transform:translateX(-50%); padding:2px 6px; border-radius:4px; color:#161235; background:var(--yellow); font-size:.43rem; font-weight:1000; }
 .pass-note { margin:0 0 14px; text-align:center; }
+@media (max-width:540px) { .pass-xp { grid-template-columns:minmax(0,1fr); gap:5px; } }
 .pass-card > .button { width:100%; }
 @media (max-width:720px) { .shop-grid { grid-template-columns:repeat(2,minmax(120px,1fr)); } .lobby-options { flex-wrap:wrap; } }
 .control-help { position: absolute; right: 22px; bottom: 22px; display: flex; gap: 13px; color: #8290b9; font-size: .69rem; opacity: 0; transform: translateY(8px); transition: opacity .25s,transform .25s; }
@@ -337,7 +338,7 @@ body[data-input="gamepad"] kbd { color: #171137; border: 2px solid #fff; border-
   .lobby-card { width:min(680px,96vw); max-height:calc(100vh - 28px); }
   .lobby-hub-nav { grid-template-columns:1fr; }
   .lobby-emote-hint { display:none; }
-  .pass-track { grid-template-columns:repeat(10,82px); }
+  .pass-track { grid-template-columns:repeat(10,104px); }
   .result-actions { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .event-feed { left: 10px; top: 92px; width: 55vw; }
   .results-standings { grid-template-columns: 1fr; }

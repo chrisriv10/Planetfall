@@ -1,0 +1,869 @@
+{
+  "scope": "Matched view protocol on RTX3060 1440x900 DPR1; combat varies with live bots and effects. Oct16 before vs Oct20 integrated source. Vsync limits median inference. These 24 samples completed before the separate supported crowd fixture failed; they do not validate supported crowd performance.",
+  "samples": [
+    {
+      "scene": "starliner",
+      "quality": "high",
+      "before": {
+        "medianMs": 16.69999999999891,
+        "p95Ms": 16.799999999999272
+      },
+      "after": {
+        "medianMs": 16.69999999999891,
+        "p95Ms": 16.799999999999272
+      },
+      "beforeRenderer": {
+        "calls": 534,
+        "triangles": 217343
+      },
+      "afterRenderer": {
+        "calls": 529,
+        "triangles": 219509
+      },
+      "afterWorld": {
+        "islandObjects": 395,
+        "shipVisible": true,
+        "objects": 2165,
+        "meshes": 1830,
+        "instances": 64397,
+        "visibleInstances": 14434,
+        "materials": 299,
+        "visibleDistricts": 0,
+        "visibleSecondaryLabels": 0
+      },
+      "canvas": [
+        1440,
+        900
+      ],
+      "supported": 0
+    },
+    {
+      "scene": "starliner",
+      "quality": "medium",
+      "before": {
+        "medianMs": 16.700000000000728,
+        "p95Ms": 16.799999999999272
+      },
+      "after": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.799999999999272
+      },
+      "beforeRenderer": {
+        "calls": 520,
+        "triangles": 217329
+      },
+      "afterRenderer": {
+        "calls": 518,
+        "triangles": 220191
+      },
+      "afterWorld": {
+        "islandObjects": 395,
+        "shipVisible": true,
+        "objects": 2165,
+        "meshes": 1830,
+        "instances": 64397,
+        "visibleInstances": 14434,
+        "materials": 299,
+        "visibleDistricts": 0,
+        "visibleSecondaryLabels": 0
+      },
+      "canvas": [
+        1296,
+        810
+      ],
+      "supported": 0
+    },
+    {
+      "scene": "starliner",
+      "quality": "low",
+      "before": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.799999999999272
+      },
+      "after": {
+        "medianMs": 16.700000000000728,
+        "p95Ms": 16.799999999999272
+      },
+      "beforeRenderer": {
+        "calls": 477,
+        "triangles": 185365
+      },
+      "afterRenderer": {
+        "calls": 474,
+        "triangles": 188143
+      },
+      "afterWorld": {
+        "islandObjects": 395,
+        "shipVisible": true,
+        "objects": 2165,
+        "meshes": 1830,
+        "instances": 64397,
+        "visibleInstances": 12850,
+        "materials": 299,
+        "visibleDistricts": 0,
+        "visibleSecondaryLabels": 0
+      },
+      "canvas": [
+        1036,
+        648
+      ],
+      "supported": 0
+    },
+    {
+      "scene": "starliner",
+      "quality": "auto",
+      "before": {
+        "medianMs": 16.700000000000728,
+        "p95Ms": 16.80000000000291
+      },
+      "after": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.799999999999272
+      },
+      "beforeRenderer": {
+        "calls": 520,
+        "triangles": 217329
+      },
+      "afterRenderer": {
+        "calls": 521,
+        "triangles": 220269
+      },
+      "afterWorld": {
+        "islandObjects": 395,
+        "shipVisible": true,
+        "objects": 2165,
+        "meshes": 1830,
+        "instances": 64397,
+        "visibleInstances": 14434,
+        "materials": 299,
+        "visibleDistricts": 0,
+        "visibleSecondaryLabels": 0
+      },
+      "canvas": [
+        1296,
+        810
+      ],
+      "supported": 0
+    },
+    {
+      "scene": "nova-street",
+      "quality": "high",
+      "before": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.80000000000291
+      },
+      "after": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.80000000000291
+      },
+      "beforeRenderer": {
+        "calls": 416,
+        "triangles": 371093
+      },
+      "afterRenderer": {
+        "calls": 368,
+        "triangles": 354801
+      },
+      "afterWorld": {
+        "islandObjects": 395,
+        "shipVisible": true,
+        "objects": 2165,
+        "meshes": 1830,
+        "instances": 64397,
+        "visibleInstances": 32531,
+        "materials": 299,
+        "visibleDistricts": 30,
+        "visibleSecondaryLabels": 5
+      },
+      "canvas": [
+        1440,
+        900
+      ],
+      "supported": 0
+    },
+    {
+      "scene": "nova-street",
+      "quality": "medium",
+      "before": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.80000000000291
+      },
+      "after": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.80000000000291
+      },
+      "beforeRenderer": {
+        "calls": 303,
+        "triangles": 308467
+      },
+      "afterRenderer": {
+        "calls": 303,
+        "triangles": 308467
+      },
+      "afterWorld": {
+        "islandObjects": 395,
+        "shipVisible": true,
+        "objects": 2165,
+        "meshes": 1830,
+        "instances": 64397,
+        "visibleInstances": 23112,
+        "materials": 299,
+        "visibleDistricts": 16,
+        "visibleSecondaryLabels": 5
+      },
+      "canvas": [
+        1296,
+        810
+      ],
+      "supported": 0
+    },
+    {
+      "scene": "nova-street",
+      "quality": "low",
+      "before": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.80000000000291
+      },
+      "after": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.80000000000291
+      },
+      "beforeRenderer": {
+        "calls": 218,
+        "triangles": 254015
+      },
+      "afterRenderer": {
+        "calls": 285,
+        "triangles": 257057
+      },
+      "afterWorld": {
+        "islandObjects": 395,
+        "shipVisible": true,
+        "objects": 2165,
+        "meshes": 1830,
+        "instances": 64397,
+        "visibleInstances": 19365,
+        "materials": 299,
+        "visibleDistricts": 9,
+        "visibleSecondaryLabels": 5
+      },
+      "canvas": [
+        1036,
+        648
+      ],
+      "supported": 0
+    },
+    {
+      "scene": "nova-street",
+      "quality": "auto",
+      "before": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.80000000000291
+      },
+      "after": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.80000000000291
+      },
+      "beforeRenderer": {
+        "calls": 296,
+        "triangles": 308371
+      },
+      "afterRenderer": {
+        "calls": 363,
+        "triangles": 311413
+      },
+      "afterWorld": {
+        "islandObjects": 395,
+        "shipVisible": true,
+        "objects": 2165,
+        "meshes": 1830,
+        "instances": 64397,
+        "visibleInstances": 22597,
+        "materials": 299,
+        "visibleDistricts": 13,
+        "visibleSecondaryLabels": 5
+      },
+      "canvas": [
+        1296,
+        810
+      ],
+      "supported": 0
+    },
+    {
+      "scene": "mall-interior",
+      "quality": "high",
+      "before": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.80000000000291
+      },
+      "after": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.80000000000291
+      },
+      "beforeRenderer": {
+        "calls": 337,
+        "triangles": 326653
+      },
+      "afterRenderer": {
+        "calls": 385,
+        "triangles": 342945
+      },
+      "afterWorld": {
+        "islandObjects": 395,
+        "shipVisible": true,
+        "objects": 2165,
+        "meshes": 1830,
+        "instances": 64397,
+        "visibleInstances": 23554,
+        "materials": 299,
+        "visibleDistricts": 20,
+        "visibleSecondaryLabels": 5
+      },
+      "canvas": [
+        1440,
+        900
+      ],
+      "supported": 0
+    },
+    {
+      "scene": "mall-interior",
+      "quality": "medium",
+      "before": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.80000000000291
+      },
+      "after": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.80000000000291
+      },
+      "beforeRenderer": {
+        "calls": 292,
+        "triangles": 285745
+      },
+      "afterRenderer": {
+        "calls": 292,
+        "triangles": 285745
+      },
+      "afterWorld": {
+        "islandObjects": 395,
+        "shipVisible": true,
+        "objects": 2165,
+        "meshes": 1830,
+        "instances": 64397,
+        "visibleInstances": 21603,
+        "materials": 299,
+        "visibleDistricts": 18,
+        "visibleSecondaryLabels": 5
+      },
+      "canvas": [
+        1296,
+        810
+      ],
+      "supported": 0
+    },
+    {
+      "scene": "mall-interior",
+      "quality": "low",
+      "before": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.80000000000291
+      },
+      "after": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.89999999999418
+      },
+      "beforeRenderer": {
+        "calls": 231,
+        "triangles": 240455
+      },
+      "afterRenderer": {
+        "calls": 231,
+        "triangles": 240455
+      },
+      "afterWorld": {
+        "islandObjects": 395,
+        "shipVisible": true,
+        "objects": 2165,
+        "meshes": 1830,
+        "instances": 64397,
+        "visibleInstances": 16539,
+        "materials": 299,
+        "visibleDistricts": 2,
+        "visibleSecondaryLabels": 5
+      },
+      "canvas": [
+        1036,
+        648
+      ],
+      "supported": 0
+    },
+    {
+      "scene": "mall-interior",
+      "quality": "auto",
+      "before": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.80000000000291
+      },
+      "after": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.80000000000291
+      },
+      "beforeRenderer": {
+        "calls": 275,
+        "triangles": 279217
+      },
+      "afterRenderer": {
+        "calls": 275,
+        "triangles": 279217
+      },
+      "afterWorld": {
+        "islandObjects": 395,
+        "shipVisible": true,
+        "objects": 2165,
+        "meshes": 1830,
+        "instances": 64397,
+        "visibleInstances": 19944,
+        "materials": 299,
+        "visibleDistricts": 10,
+        "visibleSecondaryLabels": 5
+      },
+      "canvas": [
+        1296,
+        810
+      ],
+      "supported": 0
+    },
+    {
+      "scene": "south-transfer-approach",
+      "quality": "high",
+      "before": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.80000000000291
+      },
+      "after": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.80000000000291
+      },
+      "beforeRenderer": {
+        "calls": 204,
+        "triangles": 221663
+      },
+      "afterRenderer": {
+        "calls": 210,
+        "triangles": 221797
+      },
+      "afterWorld": {
+        "islandObjects": 395,
+        "shipVisible": true,
+        "objects": 2165,
+        "meshes": 1830,
+        "instances": 64397,
+        "visibleInstances": 21488,
+        "materials": 299,
+        "visibleDistricts": 20,
+        "visibleSecondaryLabels": 1
+      },
+      "canvas": [
+        1440,
+        900
+      ],
+      "supported": 0
+    },
+    {
+      "scene": "south-transfer-approach",
+      "quality": "medium",
+      "before": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.80000000000291
+      },
+      "after": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.80000000000291
+      },
+      "beforeRenderer": {
+        "calls": 130,
+        "triangles": 200845
+      },
+      "afterRenderer": {
+        "calls": 136,
+        "triangles": 200979
+      },
+      "afterWorld": {
+        "islandObjects": 395,
+        "shipVisible": true,
+        "objects": 2165,
+        "meshes": 1830,
+        "instances": 64397,
+        "visibleInstances": 17536,
+        "materials": 299,
+        "visibleDistricts": 14,
+        "visibleSecondaryLabels": 1
+      },
+      "canvas": [
+        1296,
+        810
+      ],
+      "supported": 0
+    },
+    {
+      "scene": "south-transfer-approach",
+      "quality": "low",
+      "before": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.80000000000291
+      },
+      "after": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.80000000000291
+      },
+      "beforeRenderer": {
+        "calls": 102,
+        "triangles": 171261
+      },
+      "afterRenderer": {
+        "calls": 108,
+        "triangles": 171395
+      },
+      "afterWorld": {
+        "islandObjects": 395,
+        "shipVisible": true,
+        "objects": 2165,
+        "meshes": 1830,
+        "instances": 64397,
+        "visibleInstances": 14637,
+        "materials": 299,
+        "visibleDistricts": 10,
+        "visibleSecondaryLabels": 1
+      },
+      "canvas": [
+        1036,
+        648
+      ],
+      "supported": 0
+    },
+    {
+      "scene": "south-transfer-approach",
+      "quality": "auto",
+      "before": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.80000000000291
+      },
+      "after": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.80000000000291
+      },
+      "beforeRenderer": {
+        "calls": 130,
+        "triangles": 200845
+      },
+      "afterRenderer": {
+        "calls": 136,
+        "triangles": 200979
+      },
+      "afterWorld": {
+        "islandObjects": 395,
+        "shipVisible": true,
+        "objects": 2165,
+        "meshes": 1830,
+        "instances": 64397,
+        "visibleInstances": 16236,
+        "materials": 299,
+        "visibleDistricts": 10,
+        "visibleSecondaryLabels": 1
+      },
+      "canvas": [
+        1296,
+        810
+      ],
+      "supported": 0
+    },
+    {
+      "scene": "storm-boundary",
+      "quality": "high",
+      "before": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.80000000000291
+      },
+      "after": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.80000000000291
+      },
+      "beforeRenderer": {
+        "calls": 443,
+        "triangles": 479801
+      },
+      "afterRenderer": {
+        "calls": 443,
+        "triangles": 479801
+      },
+      "afterWorld": {
+        "islandObjects": 395,
+        "shipVisible": true,
+        "objects": 2165,
+        "meshes": 1830,
+        "instances": 64397,
+        "visibleInstances": 30521,
+        "materials": 299,
+        "visibleDistricts": 25,
+        "visibleSecondaryLabels": 4
+      },
+      "canvas": [
+        1440,
+        900
+      ],
+      "supported": 0
+    },
+    {
+      "scene": "storm-boundary",
+      "quality": "medium",
+      "before": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.80000000000291
+      },
+      "after": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.80000000000291
+      },
+      "beforeRenderer": {
+        "calls": 378,
+        "triangles": 460423
+      },
+      "afterRenderer": {
+        "calls": 378,
+        "triangles": 460423
+      },
+      "afterWorld": {
+        "islandObjects": 395,
+        "shipVisible": true,
+        "objects": 2165,
+        "meshes": 1830,
+        "instances": 64397,
+        "visibleInstances": 28543,
+        "materials": 299,
+        "visibleDistricts": 19,
+        "visibleSecondaryLabels": 4
+      },
+      "canvas": [
+        1296,
+        810
+      ],
+      "supported": 0
+    },
+    {
+      "scene": "storm-boundary",
+      "quality": "low",
+      "before": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.80000000000291
+      },
+      "after": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.80000000000291
+      },
+      "beforeRenderer": {
+        "calls": 290,
+        "triangles": 293169
+      },
+      "afterRenderer": {
+        "calls": 290,
+        "triangles": 293169
+      },
+      "afterWorld": {
+        "islandObjects": 395,
+        "shipVisible": true,
+        "objects": 2165,
+        "meshes": 1830,
+        "instances": 64397,
+        "visibleInstances": 19872,
+        "materials": 299,
+        "visibleDistricts": 11,
+        "visibleSecondaryLabels": 4
+      },
+      "canvas": [
+        1036,
+        648
+      ],
+      "supported": 0
+    },
+    {
+      "scene": "storm-boundary",
+      "quality": "auto",
+      "before": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.80000000000291
+      },
+      "after": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.80000000000291
+      },
+      "beforeRenderer": {
+        "calls": 367,
+        "triangles": 390271
+      },
+      "afterRenderer": {
+        "calls": 367,
+        "triangles": 390271
+      },
+      "afterWorld": {
+        "islandObjects": 395,
+        "shipVisible": true,
+        "objects": 2165,
+        "meshes": 1830,
+        "instances": 64397,
+        "visibleInstances": 24564,
+        "materials": 299,
+        "visibleDistricts": 15,
+        "visibleSecondaryLabels": 4
+      },
+      "canvas": [
+        1296,
+        810
+      ],
+      "supported": 0
+    },
+    {
+      "scene": "active-combat-nine-bots",
+      "quality": "high",
+      "before": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 33.30000000000291
+      },
+      "after": {
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.89999999999418
+      },
+      "beforeRenderer": {
+        "calls": 842,
+        "triangles": 459615
+      },
+      "afterRenderer": {
+        "calls": 797,
+        "triangles": 377669
+      },
+      "afterWorld": {
+        "islandObjects": 395,
+        "shipVisible": true,
+        "objects": 2165,
+        "meshes": 1830,
+        "instances": 64397,
+        "visibleInstances": 32531,
+        "materials": 299,
+        "visibleDistricts": 30,
+        "visibleSecondaryLabels": 5
+      },
+      "canvas": [
+        1440,
+        900
+      ],
+      "supported": 0
+    },
+    {
+      "scene": "active-combat-nine-bots",
+      "quality": "medium",
+      "before": {
+        "medianMs": 16.699999999982538,
+        "p95Ms": 16.80000000000291
+      },
+      "after": {
+        "medianMs": 16.699999999982538,
+        "p95Ms": 16.800000000017462
+      },
+      "beforeRenderer": {
+        "calls": 732,
+        "triangles": 357713
+      },
+      "afterRenderer": {
+        "calls": 812,
+        "triangles": 336629
+      },
+      "afterWorld": {
+        "islandObjects": 395,
+        "shipVisible": true,
+        "objects": 2165,
+        "meshes": 1830,
+        "instances": 64397,
+        "visibleInstances": 23112,
+        "materials": 299,
+        "visibleDistricts": 16,
+        "visibleSecondaryLabels": 5
+      },
+      "canvas": [
+        1296,
+        810
+      ],
+      "supported": 0
+    },
+    {
+      "scene": "active-combat-nine-bots",
+      "quality": "low",
+      "before": {
+        "medianMs": 16.699999999982538,
+        "p95Ms": 16.800000000017462
+      },
+      "after": {
+        "medianMs": 16.699999999982538,
+        "p95Ms": 16.800000000017462
+      },
+      "beforeRenderer": {
+        "calls": 630,
+        "triangles": 301639
+      },
+      "afterRenderer": {
+        "calls": 574,
+        "triangles": 271827
+      },
+      "afterWorld": {
+        "islandObjects": 395,
+        "shipVisible": true,
+        "objects": 2165,
+        "meshes": 1830,
+        "instances": 64397,
+        "visibleInstances": 19365,
+        "materials": 299,
+        "visibleDistricts": 9,
+        "visibleSecondaryLabels": 5
+      },
+      "canvas": [
+        1036,
+        648
+      ],
+      "supported": 0
+    },
+    {
+      "scene": "active-combat-nine-bots",
+      "quality": "auto",
+      "before": {
+        "medianMs": 16.699999999982538,
+        "p95Ms": 16.79999999998836
+      },
+      "after": {
+        "medianMs": 16.699999999982538,
+        "p95Ms": 17.300000000017462
+      },
+      "beforeRenderer": {
+        "calls": 704,
+        "triangles": 356809
+      },
+      "afterRenderer": {
+        "calls": 834,
+        "triangles": 336813
+      },
+      "afterWorld": {
+        "islandObjects": 395,
+        "shipVisible": true,
+        "objects": 2165,
+        "meshes": 1830,
+        "instances": 64397,
+        "visibleInstances": 22597,
+        "materials": 299,
+        "visibleDistricts": 13,
+        "visibleSecondaryLabels": 5
+      },
+      "canvas": [
+        1296,
+        810
+      ],
+      "supported": 0
+    }
+  ]
+}

@@ -66,3 +66,10 @@ or a naturally completed match. Evidence:
 Hosted acceptance must complete a match, note the balance, leave/rejoin, refresh,
 then restart the service and recheck from the same browser. Previously discarded
 room wallets cannot be reconstructed from a database that never contained them.
+
+The server's `/health` response reports `profileStorage` as `postgresql`, `file`
+or `memory`, without publishing connection strings, local paths or profile data.
+Use this to verify the deployed storage mode before testing hosted rewards.
+`file` only identifies the backend; it does not guarantee the host keeps that
+filesystem across restarts. `postgresql` confirms successful database startup,
+not the database provider's retention policy or every future write.

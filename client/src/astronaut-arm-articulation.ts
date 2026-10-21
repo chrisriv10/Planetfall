@@ -38,7 +38,7 @@ export function createAstronautArmArticulation(rig:Pick<AstronautVisual,"leftArm
   const pose=(enabled:boolean,weight:number,pitch=0)=>{
     if(disposed)return false;
     if(!enabled){reset();return false;}
-    if(!Number.isFinite(pitch)||pitch<-.5||pitch>.8){reset();return false;}
+    if(!Number.isFinite(pitch)||pitch< -1.15||pitch>.8){reset();return false;}
     // Pitch around a wrist-level horizontal hinge, with a small forward reach
     // on upward aim so the unchanged gloves stay ahead of the helmet facets.
     const aimY=1.155+.025*Math.cos(pitch);
