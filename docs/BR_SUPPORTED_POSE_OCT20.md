@@ -98,10 +98,41 @@ route. Camera and player remain on the same correct side of the partition;
 the player was looking toward that nearby wall. This is not demonstrated
 camera penetration, and no collision geometry was removed to clear the view.
 
-Hosted Fallbucks durability remains unverified. Read-only inspection found
-`https://planetfall.pages.dev` and `https://planetfall-server.onrender.com`.
-The live client contains the profile-token handshake and health returns OK,
-but that deployed endpoint omits `profileStorage`. A missing field does not
-identify the backend. Hosting configuration and restart behavior were not
-changed or certified.
-See [PLAYER_PROFILES.md](PLAYER_PROFILES.md). No deployment is authorized.
+### Initial hosted storage diagnosis
+
+Initial read-only checks found the deployed profile-token handshake but health
+reported file storage. After sign-in, the dashboard confirmed Free/Oregon,
+checkpoint `259dc61`, no DATABASE_URL, no linked environment groups and no
+database in the project. Render Free local files are ephemeral. A paid Render
+Postgres proposal was prepared but never submitted; the user requested a free
+alternative. See [PLAYER_PROFILES.md](PLAYER_PROFILES.md).
+
+### Subsequent authorized free hosting setup
+
+The user declined paid storage and explicitly authorized Neon Free setup.
+Created Planetfall / production / planetfall_profiles in Oregon on Neon Free;
+connected the pooled TLS DATABASE_URL to the existing Free Render server.
+The successful environment deploy `dep-dbc1123ncjis73fvd6r0` reports PostgreSQL
+storage through public health. No paid database was created. This supersedes
+the unsubmitted paid proposal and earlier no-deployment authorization above
+only for this database setup and its required restart acceptance. The normal
+private hosted match and durability results follow.
+
+### Hosted durability acceptance completed
+
+Normal private hosted BR match awarded **10 Fallbucks / 60 XP** from zero.
+Both values survived BR leave, Classic room creation and a fresh Socket.IO
+client handshake using the same guest identity. With no rooms active, restarted
+the Render service and verified uptime reset from over 500 seconds to 25.9
+seconds. A new handshake against that restarted PostgreSQL-backed process
+restored the same 10 Fallbucks / 60 XP. All checks passed without injected
+wallet values, forced results, fixture endpoints or modified match clocks.
+
+Evidence: `artifacts/br-human-recovery-oct10/hosted-neon-earned-oct20.json` and
+`hosted-neon-profile-oct20.json`; Free plan proof `neon-free-project-oct20.png`;
+masked environment proof `render-neon-connected-oct20.png`. The reconnect check
+validates server durability, not a fresh visual browser-refresh playtest. The
+guest token remains in an ignored local diagnostic file, never in this evidence.
+No source changes were necessary for this hosting correction. Existing full
+suite/build/E2E results belong to checkpoint 259dc61; they were not rerun for
+these documentation-only changes. Previously lost wallets remain unrecoverable.

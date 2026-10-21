@@ -1,0 +1,67 @@
+{
+  "scope": "Single private hosted room; ordinary public Socket.IO protocol, normal bots/match/rewards. No server fixture, wallet injection, clock changes, or debug endpoints. Reconnect stands for a fresh client handshake, not browser visual acceptance.",
+  "mode": "earn",
+  "events": [],
+  "errors": [],
+  "health": {
+    "ok": true,
+    "rooms": 0,
+    "uptime": 102.014056366,
+    "profileStorage": "postgresql"
+  },
+  "before": {
+    "fallbucks": 0,
+    "crowns": 0,
+    "sessionTotalXp": 0,
+    "sessionLevel": 1,
+    "sessionXp": 0,
+    "ownedCosmetics": [],
+    "equippedCosmetics": {
+      "suit": "default",
+      "trail": "default",
+      "victory": "default",
+      "planet": "default"
+    },
+    "unlockedPassRewards": [
+      "default"
+    ]
+  },
+  "profile": {
+    "fallbucks": 10,
+    "crowns": 0,
+    "sessionTotalXp": 60,
+    "sessionLevel": 1,
+    "sessionXp": 60,
+    "ownedCosmetics": [],
+    "equippedCosmetics": {
+      "suit": "default",
+      "trail": "default",
+      "victory": "default",
+      "planet": "default"
+    },
+    "unlockedPassRewards": [
+      "default"
+    ]
+  },
+  "earned": 10,
+  "after": {
+    "fallbucks": 10,
+    "crowns": 0,
+    "sessionTotalXp": 60,
+    "sessionLevel": 1,
+    "sessionXp": 60,
+    "ownedCosmetics": [],
+    "equippedCosmetics": {
+      "suit": "default",
+      "trail": "default",
+      "victory": "default",
+      "planet": "default"
+    },
+    "unlockedPassRewards": [
+      "default"
+    ]
+  },
+  "roomChange": true,
+  "freshClient": true,
+  "passed": true
+}

@@ -1,0 +1,31 @@
+{
+  "scope": "Single private hosted room; ordinary public Socket.IO protocol, normal bots/match/rewards. No server fixture, wallet injection, clock changes, or debug endpoints. Reconnect stands for a fresh client handshake, not browser visual acceptance.",
+  "mode": "check",
+  "events": [],
+  "errors": [],
+  "health": {
+    "ok": true,
+    "rooms": 0,
+    "uptime": 25.903302223,
+    "profileStorage": "postgresql"
+  },
+  "afterRestart": {
+    "crowns": 0,
+    "fallbucks": 10,
+    "sessionXp": 60,
+    "sessionLevel": 1,
+    "ownedCosmetics": [],
+    "sessionTotalXp": 60,
+    "equippedCosmetics": {
+      "suit": "default",
+      "trail": "default",
+      "planet": "default",
+      "victory": "default"
+    },
+    "unlockedPassRewards": [
+      "default"
+    ]
+  },
+  "restartRestored": true,
+  "passed": true
+}

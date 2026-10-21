@@ -73,3 +73,57 @@ Use this to verify the deployed storage mode before testing hosted rewards.
 `file` only identifies the backend; it does not guarantee the host keeps that
 filesystem across restarts. `postgresql` confirms successful database startup,
 not the database provider's retention policy or every future write.
+
+## Initial hosted observation — October 20
+
+Initial read-only checks of `https://planetfall-server.onrender.com/health` reported
+`profileStorage: "file"`. At that point the live service was not using the PostgreSQL backend.
+This does not prove whether a database exists in the hosting account or identify
+the live plan/mounted disk. The committed Render blueprint specifies Free;
+[Render documents](https://render.com/docs/free#local-files-lost-on-redeploy)
+that Free filesystem changes are lost on restart, redeploy and spin-down.
+
+At that initial inspection, the dashboard required user sign-in and no hosting
+configuration had changed. The subsequent authorized setup is recorded below.
+
+## Authorized Neon Free setup — October 20
+
+After the user requested a free alternative and authorized setup, created the
+Planetfall project on Neon **Free**, AWS US West 2 (Oregon), PostgreSQL 18,
+production branch, database `planetfall_profiles`. No paid Render database or
+paid Neon upgrade was created. The paid Render proposal was canceled.
+
+Connected the pooled TLS URL through the existing Render service's DATABASE_URL
+secret, preserving CLIENT_ORIGIN, NODE_ENV and NODE_VERSION. No database
+credentials were written to repository files. The successful environment deploy
+was `dep-dbc1123ncjis73fvd6r0`, running source checkpoint `259dc61`. Its public
+health response reports `profileStorage: "postgresql"`, confirming actual hosted
+PostgreSQL initialization. An earlier empty-value deploy was canceled before
+the corrected configuration was applied.
+
+A normal private hosted BR match was then used for reward/reconnect/restart
+acceptance, recorded below. Startup success alone was not counted as acceptance.
+
+Neon Free has usage limits; it is not an unlimited service. See
+[Neon pricing](https://neon.com/pricing). Guest identity still depends on retaining
+the browser's profile token; this change does not add account login or recover
+wallets discarded before durable storage existed.
+
+### Hosted durability acceptance completed
+
+Normal private hosted BR match awarded **10 Fallbucks / 60 XP** from zero.
+Both values survived BR leave, Classic room creation and a fresh Socket.IO
+client handshake using the same guest identity. With no rooms active, restarted
+the Render service and verified uptime reset from over 500 seconds to 25.9
+seconds. A new handshake against that restarted PostgreSQL-backed process
+restored the same 10 Fallbucks / 60 XP. All checks passed without injected
+wallet values, forced results, fixture endpoints or modified match clocks.
+
+Evidence: `artifacts/br-human-recovery-oct10/hosted-neon-earned-oct20.json` and
+`hosted-neon-profile-oct20.json`; Free plan proof `neon-free-project-oct20.png`;
+masked environment proof `render-neon-connected-oct20.png`. The reconnect check
+validates server durability, not a fresh visual browser-refresh playtest. The
+guest token remains in an ignored local diagnostic file, never in this evidence.
+No source changes were necessary for this hosting correction. Existing full
+suite/build/E2E results belong to checkpoint 259dc61; they were not rerun for
+these documentation-only changes. Previously lost wallets remain unrecoverable.
