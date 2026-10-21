@@ -1,4 +1,7 @@
 import type { BrClientToServerEvents, BrServerToClientEvents } from "./battle-royale/types.js";
+import type { PrClientToServerEvents, PrServerToClientEvents } from "./planet-run/types.js";
+export * from "./game-family.js";
+export * from "./planet-run/index.js";
 export * from "./battle-royale/index.js";
 
 export type Vec3 = { x: number; y: number; z: number };
@@ -385,7 +388,7 @@ export interface ServerSnapshot {
 
 export type LeaveRoomResult = { ok: true } | { ok: false; error: string };
 
-export interface ClientToServerEvents extends BrClientToServerEvents {
+export interface ClientToServerEvents extends BrClientToServerEvents, PrClientToServerEvents {
   "room:leave": (payload: { code: string }, ack: (result: LeaveRoomResult) => void) => void;
   "room:create": (payload: { name: string; sessionToken?: string }, ack: (result: JoinResult) => void) => void;
   "room:solo": (payload: { name: string }, ack: (result: JoinResult) => void) => void;
@@ -406,7 +409,7 @@ export interface ClientToServerEvents extends BrClientToServerEvents {
   "match:rematch": () => void;
 }
 
-export interface ServerToClientEvents extends BrServerToClientEvents {
+export interface ServerToClientEvents extends BrServerToClientEvents, PrServerToClientEvents {
   "profile:ready": (payload: { token: string; profile:GuestProfile }) => void;
   "profile:state": (profile:GuestProfile) => void;
   "room:state": (room: RoomView) => void;

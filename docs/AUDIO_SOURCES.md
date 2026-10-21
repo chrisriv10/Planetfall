@@ -59,3 +59,13 @@ No third-party files were added for these sounds.
 Vortex charging uses an original quiet rising sine/triangle pair. Remote Comet,
 Quasar, Prism and Vortex reports reuse the cleared metal-impact, laser-large,
 shield-hit and plasma-explosion samples respectively, with bounded spatial voices.
+
+## PlanetRun — Orbital Sprint
+
+- File: client/public/audio/pr/orbital-sprint.ogg
+- Author/source: original Planetfall project synthesis, tools/compose-pr-music.py
+- Date: 2026-10-20; project-authored under repository terms
+- No third-party samples, recordings or melodies. Stereo 64-second race loop.
+- Dedicated planet-run scene; procedural countdown, go, qualify, elimination,
+  checkpoint, result, jump/dive, impact, nearby machinery and tile warning/break
+  cues reuse the bounded project Web Audio system.

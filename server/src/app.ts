@@ -45,7 +45,7 @@ export async function createPlanetfallServer(options: ServerOptions = {}) {
   const databaseUrl=options.profileDatabaseUrl??(!testEnvironment?process.env.DATABASE_URL:undefined);
   const persisted=databaseUrl?await ProfileDatabase.connect(databaseUrl):undefined;
   const profiles=new PlayerProfiles(persisted?undefined:profileFile,persisted?.document,persisted?.database);
-  const manager = new RoomManager(io,profiles);
+  const manager = new RoomManager(io,profiles,!isProduction&&process.env.PLANETFALL_PR_REVIEW==="1");
   // Storage mode is safe to expose for release checks; never expose paths,
   // connection strings, profile tokens or balances through health responses.
   const profileStorage=persisted?"postgresql":profileFile?"file":"memory";

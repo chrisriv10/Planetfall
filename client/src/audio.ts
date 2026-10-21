@@ -1,6 +1,7 @@
 import { brSpatialMix, type AudioPosition } from "./br-spatial-audio";
-export type MusicScene = "menu" | "game" | "battle-royale";
+export type MusicScene = "menu" | "game" | "battle-royale" | "planet-run";
 export function musicSceneForScreen(screen: string): MusicScene {
+  if(screen==="prLobby"||screen==="prHud"||screen==="prResults")return "planet-run";
   return screen === "brLobby" || screen === "brHud" || screen === "brResults"
     ? "battle-royale" : screen === "hud" ? "game" : "menu";
 }
@@ -30,7 +31,8 @@ export class GameAudio {
     this.music = {
       menu: this.makeMusic("/audio/low-battery.ogg"),
       game: this.makeMusic("/audio/bot-city.ogg"),
-      "battle-royale": this.makeMusic("/audio/br/orbital-drift.ogg")
+      "battle-royale": this.makeMusic("/audio/br/orbital-drift.ogg"),
+      "planet-run":this.makeMusic("/audio/pr/orbital-sprint.ogg")
     };
     this.registerSample("laser-small", "/audio/br/br-laser-small.ogg");
     this.registerSample("laser-large", "/audio/br/br-laser-large.ogg");
@@ -161,6 +163,10 @@ export class GameAudio {
   brFlyby(source: AudioPosition, listener: AudioPosition, yaw: number): void { this.spatialSample("laser-small", source, listener, yaw, .065, 24, .65); }
   brLoot(crate = false): void { this.playSample("metal-impact", crate ? .065 : .04, crate ? .72 : 1.25); this.tone(crate ? 390 : 720, .12, "sine", .018, crate ? 760 : 1100); }
 
+  prCue(kind:"countdown"|"go"|"qualify"|"eliminate"|"checkpoint"|"dive"|"tile"|"impact"|"tile-break"|"machinery"):void {
+    const tones={countdown:[440,.08],go:[880,.18],qualify:[1046,.22],eliminate:[160,.25],checkpoint:[740,.1],dive:[290,.12],tile:[540,.06],impact:[95,.12],"tile-break":[210,.09],machinery:[82,.14]} as const;
+    const [frequency,duration]=tones[kind];this.tone(frequency,duration,"triangle",kind==="machinery"?.008:.028,kind==="eliminate"?90:frequency*1.3);
+  }
   click(): void { this.tone(360, 0.04, "square", 0.025, 520); }
   pickup(): void { this.tone(720, 0.1, "sine", 0.05, 1180); }
   stolen(): void { this.tone(610, 0.08, "square", 0.045, 980); setTimeout(() => this.tone(880, 0.12, "triangle", 0.04, 1320), 65); }

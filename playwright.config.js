@@ -13,7 +13,7 @@ export default defineConfig({
       // traversal, shove, sabotage and cannon play. Give the test match enough
       // lifecycle time to exercise those actions on software-rendered CI; the
       // individual interaction/assertion deadlines remain unchanged.
-      env: { PORT: "13000", NODE_ENV: "test", CLIENT_ORIGIN: "http://127.0.0.1:15173", PLANETFALL_TEST_MATCH_MS: "165000" },
+      env: { PORT: "13000", NODE_ENV: "test", CLIENT_ORIGIN: "http://127.0.0.1:15173", PLANETFALL_TEST_MATCH_MS: "165000", PLANETFALL_PR_REVIEW: "1" },
       reuseExistingServer: false,
       timeout: 60_000
     },

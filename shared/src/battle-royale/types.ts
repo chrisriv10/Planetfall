@@ -1,7 +1,7 @@
 import type { BotDifficulty, EmoteType, EquippedCosmetics, Quat, Vec3 } from "../index.js";
 import type { BrProjectileWeaponId } from "./balance.js";
 
-export type GameFamily = "planetfall" | "battle-royale";
+export type { GameFamily } from "../game-family.js";
 export type BrTeamMode = "solo" | "duo" | "squad";
 export type BrPhase = "lobby" | "countdown" | "ship" | "combat" | "results";
 export type BrDeploymentState = "attached" | "freefall" | "chute" | "grounded" | "downed" | "eliminated";

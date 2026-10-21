@@ -1,3 +1,5 @@
+import { createPrUi } from "./modes/planet-run/pr-ui";
+import type { PrRoomView, PrSnapshot } from "@planetfall/shared";
 import "./style.css";
 import "./br-squad-hud.css";
 import { brItemName, brItemDescription, BR_RARITIES } from "@planetfall/shared";
@@ -18,7 +20,9 @@ import { brContextPromptFor } from "./modes/battle-royale/br-interaction-present
 
 const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const canvas = byId<HTMLCanvasElement>("game-canvas");
+const prUi = createPrUi();
 const screens = {
+  prLobby:prUi.lobby, prHud:prUi.hud, prResults:prUi.results,
   home: byId("home-screen"), lobby: byId("lobby-screen"), hud: byId("hud"), results: byId("results-screen"),
   brLobby: byId("br-lobby-screen"), brHud: byId("br-hud"), brResults: byId("br-results-screen")
 };
@@ -116,6 +120,11 @@ const runtimeSettings = () => ({ ...settings, graphicsQuality: autoQuality.quali
 game.setSettings(runtimeSettings());
 
 type BrGame = import("./modes/battle-royale/br-game").BattleRoyaleGame;
+let prGame: import("./modes/planet-run/pr-game").PlanetRunGame|null=null;
+let prRoom:PrRoomView|null=null;
+let pendingPrSnapshot:PrSnapshot|null=null;
+let prAudioState={phase:"",countdown:0,status:"",checkpoint:0};
+let prGameLoading:Promise<void>|null=null;
 let brGame: BrGame | null = null;
 let brGamePromise: Promise<BrGame> | null = null;
 let brRoom: BrRoomView | null = null;
@@ -336,6 +345,7 @@ renderInputUi(game.getInputMethod());
 
 familyPlanetfallButton.addEventListener("click", () => selectFamily("planetfall"));
 familyBrButton.addEventListener("click", () => selectFamily("battle-royale"));
+byId("family-pr").addEventListener("click",()=>selectFamily("planet-run"));
 
 createButton.addEventListener("click", () => joinOrCreate("create"));
 soloButton.addEventListener("click", () => selectedFamily === "battle-royale" ? openBrQuickPlay() : joinOrCreate("solo"));
@@ -380,6 +390,9 @@ byId("pass-results").addEventListener("click", openPass);
 byId("pass-close").addEventListener("click", closePass);
 byId("settings-lobby").addEventListener("click", () => openSettings("screen"));
 addEventListener("keydown", (event) => {
+  if(event.key==="Escape"&&currentFamily==="planet-run"&&currentScreen==="prHud"){
+    event.preventDefault();togglePause();return;
+  }
   if (event.key === "Escape" && !brQuickPlay.hidden) { event.preventDefault(); closeBrQuickPlay(); return; }
   if(event.key!=="Tab")return;
   const overlay=activeOverlay();
@@ -436,17 +449,22 @@ byId("br-return-lobby").addEventListener("click", () => socket.emit("br:match:re
 byId("br-shop-results").addEventListener("click", openShop);
 byId("br-leave").addEventListener("click", () => void leaveRoom());
 byId("br-elimination-quit").addEventListener("click", () => void leaveRoom());
-familyPlanetfallButton.disabled = false; familyBrButton.disabled = false;
+familyPlanetfallButton.disabled = false; familyBrButton.disabled = false; byId<HTMLButtonElement>("family-pr").disabled=false;
 createButton.disabled = false; soloButton.disabled = false; joinButton.disabled = false; settingsOpenButton.disabled = false; shopHomeButton.disabled = false;
 
 function selectFamily(family: GameFamily): void {
   selectedFamily = family;
-  if(currentScreen==="home"&&!room&&!brRoom)currentFamily=family;
+  if(currentScreen==="home"&&!room&&!brRoom&&!prRoom)currentFamily=family;
   game.setHomeFamily(family);
   familyPlanetfallButton.classList.toggle("selected", family === "planetfall"); familyBrButton.classList.toggle("selected", family === "battle-royale");
   byId("home-intro").textContent = family === "planetfall" ? "Last planet standing wins." : "Drop onto Orbital Isle. Loot up. Be the last crew standing.";
   soloButton.innerHTML = family === "planetfall" ? '<span class="button-icon">▶</span> Play Solo' : '<span class="button-icon">▼</span> BR Solo + Bots';
   createButton.textContent = family === "planetfall" ? "Create Room" : "Create BR Room";
+  byId("family-pr").classList.toggle("selected",family==="planet-run");
+  if(family==="planet-run"){
+    byId("home-intro").textContent="Race. Survive. Qualify. One pilot takes the crown.";
+    soloButton.textContent="PLANETRUN SOLO + BOTS";createButton.textContent="CREATE PLANETRUN ROOM";
+  }
   renderInputUi(game.getInputMethod());
 }
 
@@ -479,8 +497,9 @@ async function leaveRoom(): Promise<void> {
   try {
     const result = await socket.timeout(5000).emitWithAck("room:leave", { code });
     if (!result.ok) throw new Error(result.error);
-    sessionStorage.removeItem(family === "battle-royale" ? `planetfall:br:${code}` : `planetfall:${code}`);
-    currentCode = ""; playerId = ""; room = null; brRoom = null;
+    sessionStorage.removeItem(family === "planet-run" ? `planetfall:pr:${code}` : family === "battle-royale" ? `planetfall:br:${code}` : `planetfall:${code}`);
+    currentCode = ""; playerId = ""; room = null; brRoom = null; prRoom=null;pendingPrSnapshot=null;
+    prGame?.deactivate();prGame?.reset();
     pendingBrLoot = []; pendingBrCrates = [];
     brGame?.deactivate(); brGame?.reset(); game.clearRoom();
     for (const overlay of [brQuickPlay, brInventoryOverlay, brMapOverlay, shopOverlay, passOverlay, settingsOverlay, pauseOverlay, emoteWheel]) overlay.hidden = true;
@@ -521,6 +540,18 @@ function joinOrCreate(kind: "create" | "join" | "solo", family = selectedFamily)
   currentName = name;
   joining = true;
   createButton.disabled = true; soloButton.disabled = true; joinButton.disabled = true;
+  if(family==="planet-run"){
+    const done=(result:import("@planetfall/shared").PrJoinResult)=>{
+      joining=false;createButton.disabled=false;soloButton.disabled=false;joinButton.disabled=false;
+      if(!result.ok)return toast(result.error);
+      currentFamily="planet-run";playerId=result.playerId;currentCode=result.room.code;
+      sessionStorage.setItem(`planetfall:pr:${currentCode}`,result.sessionToken);applyPrRoom(result.room);
+      if(kind==="solo")socket.emit("pr:match:quick-start");
+    };
+    if(kind==="join")socket.emit("pr:room:join",{code,name,sessionToken:sessionStorage.getItem(`planetfall:pr:${code}`)??undefined},done);
+    else socket.emit("pr:room:create",{name},done);
+    return;
+  }
   if (family === "battle-royale") {
     const doneBr = (result: BrJoinResult) => {
       joining = false; createButton.disabled = false; soloButton.disabled = false; joinButton.disabled = false;
@@ -550,6 +581,13 @@ function joinOrCreate(kind: "create" | "join" | "solo", family = selectedFamily)
 function resumeRoom(): void {
   if (leaving) return;
   const generation = membershipGeneration;
+  if(currentFamily==="planet-run"){
+    socket.emit("pr:room:join",{code:currentCode,name:currentName,sessionToken:sessionStorage.getItem(`planetfall:pr:${currentCode}`)??undefined},result=>{
+      if(generation!==membershipGeneration||leaving)return;
+      if(!result.ok){toast(result.error);currentCode="";playerId="";prRoom=null;prGame?.deactivate();prGame?.reset();game.setActive(true);game.setMode("home");showScreen("home");return;}
+      playerId=result.playerId;applyPrRoom(result.room);
+    });return;
+  }
   if (currentFamily === "battle-royale") {
     const sessionToken = sessionStorage.getItem(`planetfall:br:${currentCode}`) ?? undefined;
     socket.emit("br:room:join", { code: currentCode, name: currentName, sessionToken }, (result) => {
@@ -1035,8 +1073,8 @@ function showResults(winnerId: string | null, result: MatchResult | null = room?
 }
 
 function openShop(): void {
-  const previewing = currentScreen === "home" && !room && !brRoom;
-  const available = currentFamily === "battle-royale" ? brRoom && (brRoom.phase === "lobby" || brRoom.phase === "results") : room && (room.phase === "lobby" || room.phase === "results");
+  const previewing = currentScreen === "home" && !room && !brRoom && !prRoom;
+  const available = currentFamily === "planet-run" ? prRoom&&(prRoom.phase==="lobby"||prRoom.phase==="results") : currentFamily === "battle-royale" ? brRoom && (brRoom.phase === "lobby" || brRoom.phase === "results") : room && (room.phase === "lobby" || room.phase === "results");
   if (!previewing && !available) return;
   game.audio.unlock(); game.audio.click();
   shopOverlay.hidden = false;
@@ -1054,7 +1092,7 @@ function closeShop(): void {
 
 function renderShop(): void {
   releaseShopPreviews();
-  const member = (currentFamily === "battle-royale" ? brRoom?.players : room?.players)?.find((player) => player.id === playerId);
+  const member = (currentFamily === "planet-run" ? prRoom?.players : currentFamily === "battle-royale" ? brRoom?.players : room?.players)?.find((player) => player.id === playerId);
   const me=member??getGuestProfile();
   const previewing = !member;
   byId("shop-balance").textContent = String(me?.fallbucks ?? 0);
@@ -1083,7 +1121,8 @@ function renderShop(): void {
         if (!result.ok) toast(result.error ?? "Shop request failed.");
         else { game.audio.click(); toast(owned ? `${item.name} equipped` : `${item.name} unlocked`); }
       };
-      if (currentFamily === "battle-royale") socket.emit(owned ? "br:shop:equip" : "br:shop:buy", { itemId: item.id }, done);
+      if(currentFamily==="planet-run") socket.emit(owned?"pr:shop:equip":"pr:shop:buy",{itemId:item.id},done);
+      else if (currentFamily === "battle-royale") socket.emit(owned ? "br:shop:equip" : "br:shop:buy", { itemId: item.id }, done);
       else socket.emit(owned ? "shop:equip" : "shop:buy", { itemId: item.id }, done);
     });
     return card;
@@ -1092,7 +1131,7 @@ function renderShop(): void {
 }
 
 function openPass(): void {
-  const available = currentFamily === "battle-royale" ? brRoom && (brRoom.phase === "lobby" || brRoom.phase === "results") : room && (room.phase === "lobby" || room.phase === "results");
+  const available = currentFamily === "planet-run" ? prRoom&&(prRoom.phase==="lobby"||prRoom.phase==="results") : currentFamily === "battle-royale" ? brRoom && (brRoom.phase === "lobby" || brRoom.phase === "results") : room && (room.phase === "lobby" || room.phase === "results");
   if (!available) return;
   game.audio.unlock(); game.audio.click();
   passOverlay.hidden = false;
@@ -1110,7 +1149,7 @@ function closePass(): void {
 
 function renderPass(): void {
   releasePassPreviews();
-  const me = (currentFamily === "battle-royale" ? brRoom?.players : room?.players)?.find((player) => player.id === playerId);
+  const me = (currentFamily === "planet-run" ? prRoom?.players : currentFamily === "battle-royale" ? brRoom?.players : room?.players)?.find((player) => player.id === playerId);
   const level = me?.sessionLevel ?? 1;
   const xp = me?.sessionXp ?? 0;
   byId("pass-level").textContent = `LEVEL ${level}`;
@@ -1153,11 +1192,12 @@ function updateSettingsFromUi(): void {
   localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
   autoQuality.setSelection(settings.graphicsQuality);
   game.setSettings(runtimeSettings());
-  brGame?.setSettings(runtimeSettings());
+  brGame?.setSettings(runtimeSettings());prGame?.setSettings(runtimeSettings());
   updateSettingOutputs();
 }
 
 let qualitySampleAt = performance.now();
+let prDiagnosticAt=0;
 document.addEventListener("visibilitychange", () => {
   // RAF can stop completely in a background tab. Reset continuity at the
   // transition itself, including when returning before another hidden RAF.
@@ -1165,12 +1205,15 @@ document.addEventListener("visibilitychange", () => {
   autoQuality.sample(0, false);
 });
 function sampleAutoQuality(now: number): void {
+  if(import.meta.env.DEV&&prGame&&now-prDiagnosticAt>=500){
+    prDiagnosticAt=now;let output=document.getElementById("pr-dev-state");if(!output){output=document.createElement("output");output.id="pr-dev-state";output.hidden=true;document.body.append(output);}output.textContent=JSON.stringify(prGame.debugState());
+  }
   const elapsed = now - qualitySampleAt; qualitySampleAt = now;
   const gameplay = !document.hidden && !activeOverlay() && !joining && !leaving &&
     (currentScreen === "hud" && (room?.phase === "playing" || room?.phase === "overtime") ||
-     currentScreen === "brHud" && (brRoom?.phase === "ship" || brRoom?.phase === "combat"));
+     currentScreen === "brHud" && (brRoom?.phase === "ship" || brRoom?.phase === "combat") || currentScreen==="prHud"&&prRoom?.phase==="running");
   if (autoQuality.sample(elapsed, gameplay)) {
-    game.setSettings(runtimeSettings()); brGame?.setSettings(runtimeSettings());
+    game.setSettings(runtimeSettings()); brGame?.setSettings(runtimeSettings());prGame?.setSettings(runtimeSettings());
   }
   requestAnimationFrame(sampleAutoQuality);
 }
@@ -1206,7 +1249,7 @@ function closeSettings(): void {
 function togglePause(forceOpen = false): void {
   const classicActive = room && ["countdown", "playing", "overtime"].includes(room.phase);
   const brActive = brRoom && ["countdown", "ship", "combat"].includes(brRoom.phase);
-  if (!classicActive && !brActive) return;
+  if (!classicActive && !brActive && !(prRoom&&prRoom.phase!=="lobby"&&prRoom.phase!=="results")) return;
   if (!settingsOverlay.hidden) return closeSettings();
   if (!pauseOverlay.hidden && !forceOpen) return closePause();
   pauseOverlay.hidden = false;
@@ -1224,7 +1267,8 @@ function closePause(): void {
 function renderInputUi(method: InputMethod): void {
   document.body.dataset.input = method;
   const battleRoyale = currentScreen === "home" ? selectedFamily === "battle-royale" : currentFamily === "battle-royale";
-  const controls = battleRoyale
+  const planetRun=currentScreen==="home"?selectedFamily==="planet-run":currentFamily==="planet-run";
+  const controls = planetRun ? method==="gamepad"?[["LS","Move"],["RS","Camera"],["A","Jump"],["X","Dive"]]:[["WASD","Move"],["MOUSE","Camera"],["SPACE","Jump"],["SHIFT","Dive"],["Q / E","Spectate"]] : battleRoyale
     ? method === "gamepad"
       ? [["LS", "Move"], ["RS", "Aim"], ["A", "Jump"], ["B", "Sprint"], ["R3", "Slide"], ["X", "Interact"], ["RT", "Fire"], ["RB", "Reload"], ["Y", "Next Slot"], ["D↓", "Map"]]
       : [["WASD", "Move"], ["MOUSE", "Aim"], ["SPACE", "Jump"], ["SHIFT", "Sprint"], ["CTRL", "Slide"], ["E", "Interact"], ["LMB", "Fire"], ["R", "Reload"], ["1–5", "Slots"], ["M", "Map"]]
@@ -1234,7 +1278,7 @@ function renderInputUi(method: InputMethod): void {
   const html = controls.map(([key, label]) => `<span><kbd>${mouseButtonIcon(key)}</kbd>${label}</span>`).join("");
   controlHelp.innerHTML = html;
   pauseControls.innerHTML = html;
-  homeControls.innerHTML = controls.filter(([, label]) => ["Move", "Interact", "Grapple"].includes(label)).map(([key, label]) => `<span><kbd>${mouseButtonIcon(key)}</kbd> ${label}</span>`).join("");
+  homeControls.innerHTML = controls.filter(([, label]) => (planetRun?["Move","Jump","Dive"]:["Move", "Interact", "Grapple"]).includes(label)).map(([key, label]) => `<span><kbd>${mouseButtonIcon(key)}</kbd> ${label}</span>`).join("");
   byId("weapon-key").textContent = inputLabel("switchWeapon", method);
   byId("leaderboard-key").textContent = method === "gamepad" ? "VIEW" : "TAB";
   byId("lobby-emote-hint").querySelector("kbd")!.textContent = inputLabel("emote", method);
@@ -1261,6 +1305,7 @@ function showLobbyEmote(sourceId: string, emote: EmoteType, family: GameFamily):
 function captureUi(captured: boolean): void {
   game.setUiCaptured(captured);
   brGame?.setUiCaptured(captured);
+  prGame?.setUiCaptured(captured);
 }
 
 function showFirstMatchControls(): void {
@@ -1328,15 +1373,15 @@ function setGameMode(mode: GameMode): void {
 function showScreen(name: keyof typeof screens): void {
   const previousFamily=document.body.dataset.gameFamily;
   currentScreen = name;
-  connectionPill.hidden = name === "hud" || name === "brHud";
-  if (name !== "hud" && name !== "brHud") {
+  connectionPill.hidden = name === "hud" || name === "brHud" || name==="prHud";
+  if (name !== "hud" && name !== "brHud" && name!=="prHud") {
     document.exitPointerLock?.();
     byId("br-scope-overlay").hidden = true;
   }
   game.audio.setMusicScene(musicSceneForScreen(name));
   for (const [key, screen] of Object.entries(screens)) screen.classList.toggle("active", key === name);
   const brScreen = name === "brLobby" || name === "brHud" || name === "brResults";
-  document.body.dataset.gameFamily = brScreen ? "battle-royale" : "planetfall";
+  document.body.dataset.gameFamily = name.startsWith("pr") ? "planet-run" : brScreen ? "battle-royale" : "planetfall";
   if(previousFamily&&previousFamily!==document.body.dataset.gameFamily)byId("toast-region").replaceChildren();
   if(name!=="hud"){
     contextPrompt.hidden=true;matchHint.classList.remove("visible");majorCallout.classList.remove("visible");modifierReveal.classList.remove("visible");
@@ -1418,3 +1463,46 @@ function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 setInterval(() => { if (room && (room.phase === "playing" || room.phase === "overtime")) updateHud(); }, 250);
+
+// PlanetRun has a separate room, renderer owner and protocol; the existing
+// generic leave path remains the sole membership exit for every family.
+function applyPrRoom(next:PrRoomView):void {
+  if(currentFamily!=="planet-run"||next.code!==currentCode)return;
+  prRoom=next;prUi.render(next,playerId);
+  if(next.phase==="lobby"){
+    prGame?.deactivate();game.setActive(true);game.setMode("home");game.setHomeFamily("planet-run");showScreen("prLobby");
+  }else {
+    game.setActive(false);brGame?.deactivate();
+    if(!prGame&&!prGameLoading)prGameLoading=import("./modes/planet-run/pr-game").then(({PlanetRunGame})=>{
+      prGame=new PlanetRunGame(game.renderer,canvas,socket,s=>prUi.renderSnapshot(s,playerId),kind=>kind==="jump"?game.audio.jump():game.audio.prCue(kind));prGame.setSettings(runtimeSettings());
+      if(import.meta.env.DEV)Object.defineProperty(window,"__PLANETFALL_PR_DEBUG__",{value:()=>prGame?.debugState(),configurable:true});
+      if(currentFamily==="planet-run"&&prRoom?.phase!=="lobby"){prGame.activate(playerId);if(pendingPrSnapshot)prGame.applySnapshot(pendingPrSnapshot);}
+    }).finally(()=>{prGameLoading=null;});
+    else prGame?.activate(playerId);
+    showScreen(next.phase==="results"?"prResults":"prHud");
+  }
+}
+socket.on("pr:room:state",applyPrRoom);
+socket.on("pr:match:snapshot",s=>{if(currentFamily!=="planet-run")return;const me=s.players.find(p=>p.id===playerId),countdown=Math.ceil((s.phaseEndsAt-s.serverTime)/1000);
+  if(s.phase==="countdown"&&(prAudioState.phase!==s.phase||prAudioState.countdown!==countdown))game.audio.prCue("countdown");
+  if(s.phase==="running"&&prAudioState.phase!=="running")game.audio.prCue("go");
+  if(me?.status!==prAudioState.status&&me?.status!=="active")game.audio.prCue(me?.status==="qualified"?"qualify":"eliminate");
+  if(me&&me.checkpoint>prAudioState.checkpoint)game.audio.prCue("checkpoint");
+  if(s.phase==="results"&&prAudioState.phase!=="results")game.audio.result(s.winnerId===playerId);
+  prAudioState={phase:s.phase,countdown,status:me?.status??"",checkpoint:me?.checkpoint??0};
+  pendingPrSnapshot=s;prGame?.applySnapshot(s);});
+socket.on("pr:tiles:delta",d=>{if(currentFamily==="planet-run")prGame?.applyTiles(d);});
+socket.on("pr:error",p=>toast(p.message));
+byId("pr-ready").addEventListener("click",()=>socket.emit("pr:room:ready",{ready:!prRoom?.players.find(p=>p.id===playerId)?.ready}));
+byId("pr-start").addEventListener("click",()=>socket.emit("pr:match:start"));
+for(const id of ["pr-leave-lobby","pr-leave-game","pr-leave-results"])byId(id).addEventListener("click",()=>void leaveRoom());
+byId("pr-return").addEventListener("click",()=>socket.emit("pr:match:return"));
+byId("pr-shop").addEventListener("click",openShop);byId("pr-pass").addEventListener("click",openPass);byId("pr-settings").addEventListener("click",()=>openSettings("screen"));
+for(const id of ["pr-target","pr-difficulty","pr-fill"])byId(id).addEventListener("change",()=>socket.emit("pr:room:configure",{targetPlayers:Number(byId<HTMLSelectElement>("pr-target").value) as 10|20|30,botDifficulty:byId<HTMLSelectElement>("pr-difficulty").value as BotDifficulty,fillBots:byId<HTMLInputElement>("pr-fill").checked}));
+
+if(import.meta.env.DEV){
+  const review=document.createElement("details");review.id="pr-dev-review";const summary=document.createElement("summary");summary.textContent="DEV · ROUND REVIEW (server opt-in required)";review.append(summary);
+  const seedField=document.createElement("input");seedField.type="number";seedField.value="42";seedField.setAttribute("aria-label","Review seed");review.append(seedField);
+  for(const id of ["cargo-cyclone","solar-sweep","meteor-garden","flux-gardens","capacitor-causeway","shatterdeck"] as const){const b=document.createElement("button");b.textContent=id;b.dataset.round=id;b.addEventListener("click",()=>socket.emit("pr:dev:start",{roundId:id,seed:Number(seedField.value),players:Number(byId<HTMLSelectElement>("pr-target").value) as 10|20|30}));review.append(b);}
+  prUi.lobby.querySelector(".pr-lobby-card")?.append(review);
+}

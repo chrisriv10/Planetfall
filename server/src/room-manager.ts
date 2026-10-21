@@ -3,6 +3,7 @@ import type { Server, Socket } from "socket.io";
 import { BALANCE, type BrJoinResult, type ClientToServerEvents, type JoinResult, type ServerToClientEvents } from "@planetfall/shared";
 import { GameRoom } from "./game-room.js";
 import { BattleRoyaleRoom } from "./modes/battle-royale/br-room.js";
+import {PlanetRunRoom} from "./modes/planet-run/pr-room.js";
 import {PlayerProfiles} from "./player-profiles.js";
 
 type GameSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
@@ -10,11 +11,11 @@ type GameServer = Server<ClientToServerEvents, ServerToClientEvents>;
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 export class RoomManager {
-  rooms = new Map<string, GameRoom | BattleRoyaleRoom>();
+  rooms = new Map<string, GameRoom | BattleRoyaleRoom | PlanetRunRoom>();
   private timer: NodeJS.Timeout | null = null;
   private lastTick = Date.now();
 
-  constructor(private io: GameServer,private profiles=new PlayerProfiles()) {
+  constructor(private io: GameServer,private profiles=new PlayerProfiles(),private readonly allowPrReview=process.env.NODE_ENV!=="production"&&process.env.PLANETFALL_PR_REVIEW==="1") {
     this.profiles.onChange=(key,profile)=>{for(const socket of this.io.sockets.sockets.values())if(socket.data.profileKey===key)socket.emit("profile:state",profile);};
   }
 
@@ -99,6 +100,7 @@ export class RoomManager {
       const code = String(payload?.code ?? "").trim().toUpperCase();
       const room = this.rooms.get(code);
       if (!room) return this.reply(ack, { ok: false, error: "Room not found. It may have expired." });
+      if (room instanceof PlanetRunRoom) return this.reply(ack, { ok: false, error: "That code belongs to a PlanetRun room." });
       if (room instanceof BattleRoyaleRoom) return this.reply(ack, { ok: false, error: "That code belongs to a Battle Royale room." });
       this.reply(ack, this.attachProfile(socket,room,room.join(socket, payload?.name, payload?.sessionToken)));
     });
@@ -134,6 +136,7 @@ export class RoomManager {
       if (this.current(socket)) return this.replyBr(ack, { ok: false, error: "Already in a room." });
       const code = String(payload?.code ?? "").trim().toUpperCase(); const room = this.rooms.get(code);
       if (!room) return this.replyBr(ack, { ok: false, error: "Room not found. It may have expired." });
+      if (room instanceof PlanetRunRoom) return this.replyBr(ack, { ok: false, error: "That code belongs to a PlanetRun room." });
       if (!(room instanceof BattleRoyaleRoom)) return this.replyBr(ack, { ok: false, error: "That code belongs to Planetfall Classic." });
       this.replyBr(ack, this.attachProfile(socket,room,room.join(socket, payload?.name, payload?.sessionToken)));
     });
@@ -174,11 +177,41 @@ export class RoomManager {
     socket.on("br:match:return", () => { const c = this.currentBr(socket); if (c) c.room.returnToLobby(c.playerId); });
     socket.on("br:shop:buy", (payload, ack) => { const c = this.currentBr(socket); if (typeof ack === "function") ack(c ? c.room.buyShopItem(c.playerId, String(payload?.itemId ?? "")) : { ok: false, error: "Not in a Battle Royale room." }); });
     socket.on("br:shop:equip", (payload, ack) => { const c = this.currentBr(socket); if (typeof ack === "function") ack(c ? c.room.equipShopItem(c.playerId, String(payload?.itemId ?? "")) : { ok: false, error: "Not in a Battle Royale room." }); });
+    socket.on("pr:room:create", (payload,ack) => {
+      if(typeof ack!=="function")return;
+      if(this.current(socket))return ack({ok:false,error:"Already in a room."});
+      const code=this.makeCode(),room=this.trackRoom(new PlanetRunRoom(code,this.io));this.rooms.set(code,room);
+      const result=room.join(socket,payload?.name,payload?.sessionToken);
+      if(!result.ok){room.dispose();this.rooms.delete(code);}
+      if(typeof ack==="function")ack(this.attachProfile(socket,room,result));
+    });
+    socket.on("pr:room:join",(payload,ack)=>{
+      if(typeof ack!=="function")return;
+      if(this.current(socket))return ack({ok:false,error:"Already in a room."});
+      const room=this.rooms.get(String(payload?.code??"").trim().toUpperCase());
+      if(!room)return ack({ok:false,error:"Room not found. It may have expired."});
+      if(!(room instanceof PlanetRunRoom))return ack({ok:false,error:room instanceof BattleRoyaleRoom?"That code belongs to Battle Royale.":"That code belongs to Planetfall Classic."});
+      ack(this.attachProfile(socket,room,room.join(socket,payload?.name,payload?.sessionToken)));
+    });
+    socket.on("pr:room:ready",p=>{const c=this.currentPr(socket);c?.room.setReady(c.playerId,p?.ready);});
+    socket.on("pr:room:configure",p=>{const c=this.currentPr(socket);c?.room.configure(c.playerId,p??{});});
+    socket.on("pr:match:start",()=>{const c=this.currentPr(socket);c?.room.start(c.playerId);});
+    socket.on("pr:match:quick-start",()=>{const c=this.currentPr(socket);if(c&&c.room.hostId===c.playerId){c.room.configure(c.playerId,{fillBots:true});c.room.setReady(c.playerId,true);c.room.start(c.playerId);}});
+    socket.on("pr:match:return",()=>{const c=this.currentPr(socket);c?.room.returnToLobby(c.playerId);});
+    socket.on("pr:player:input",p=>{const c=this.currentPr(socket);c?.room.setInput(c.playerId,p);});
+    socket.on("pr:dev:start",p=>{
+      if(!this.allowPrReview)return;
+      const c=this.currentPr(socket);if(c)c.room.startReview(c.playerId,p?.roundId,p?.seed,p?.players);
+    });
+    socket.on("pr:emote",p=>{const c=this.currentPr(socket);if(c)c.room.playEmote(c.playerId,p?.emote);});
+    socket.on("pr:tiles:sync",()=>{const c=this.currentPr(socket);c?.room.syncTiles(c.playerId);});
+    socket.on("pr:shop:buy",(p,ack)=>{const c=this.currentPr(socket);if(typeof ack==="function")ack(c?c.room.buyShopItem(c.playerId,String(p?.itemId??"")):{ok:false,error:"Not in PlanetRun."});});
+    socket.on("pr:shop:equip",(p,ack)=>{const c=this.currentPr(socket);if(typeof ack==="function")ack(c?c.room.equipShopItem(c.playerId,String(p?.itemId??"")):{ok:false,error:"Not in PlanetRun."});});
     socket.on("disconnect", () => { const c = this.current(socket); if (c) c.room.disconnect(c.playerId); });
   }
 
-  private trackRoom<T extends GameRoom|BattleRoyaleRoom>(room:T):T {room.onProgress=players=>this.profiles.capture(players);return room;}
-  private attachProfile<T extends import("@planetfall/shared").JoinResult|BrJoinResult>(socket:GameSocket,room:GameRoom|BattleRoyaleRoom,result:T):T {
+  private trackRoom<T extends GameRoom|BattleRoyaleRoom|PlanetRunRoom>(room:T):T {room.onProgress=players=>this.profiles.capture(players);return room;}
+  private attachProfile<T extends import("@planetfall/shared").JoinResult|BrJoinResult|import("@planetfall/shared").PrJoinResult>(socket:GameSocket,room:GameRoom|BattleRoyaleRoom|PlanetRunRoom,result:T):T {
     if(result.ok&&typeof socket.data.profileKey==="string"){
       const player=room.players.get(result.playerId);if(player)this.profiles.bind(player,socket.data.profileKey);
       return {...result,room:room.view()} as T;
@@ -186,7 +219,7 @@ export class RoomManager {
     return result;
   }
 
-  private current(socket: GameSocket): { room: GameRoom | BattleRoyaleRoom; playerId: string } | null {
+  private current(socket: GameSocket): { room: GameRoom | BattleRoyaleRoom | PlanetRunRoom; playerId: string } | null {
     const code = socket.data.roomCode as string | undefined;
     const playerId = socket.data.playerId as string | undefined;
     const room = code ? this.rooms.get(code) : undefined;
@@ -199,6 +232,10 @@ export class RoomManager {
 
   private currentBr(socket: GameSocket): { room: BattleRoyaleRoom; playerId: string } | null {
     const current = this.current(socket); return current?.room instanceof BattleRoyaleRoom ? { room: current.room, playerId: current.playerId } : null;
+  }
+
+  private currentPr(socket:GameSocket):{room:PlanetRunRoom;playerId:string}|null {
+    const c=this.current(socket);return c?.room instanceof PlanetRunRoom?{room:c.room,playerId:c.playerId}:null;
   }
 
   private makeCode(): string {

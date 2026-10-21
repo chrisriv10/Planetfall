@@ -307,6 +307,8 @@ export class PlanetfallGame {
   private lastFrame = performance.now();
   private demo = new THREE.Group();
   private homeFamily: GameFamily = "planetfall";
+  private prHomePreview:import("./modes/planet-run/pr-home-preview").PrHomePreview|null=null;
+  private prHomeLoading=false;
   private brHomeWorld: import("./modes/battle-royale/br-world").BrWorldRenderer | null = null;
   private brHomeWorldPromise: Promise<void> | null = null;
   private readonly brHomeCamera = new THREE.PerspectiveCamera();
@@ -416,6 +418,7 @@ export class PlanetfallGame {
   setMode(mode: "home" | "lobby" | "match" | "results"): void {
     this.mode = mode;
     this.demo.visible = mode === "home" && this.homeFamily === "planetfall";
+    if(this.prHomePreview)this.prHomePreview.root.visible=mode==="home"&&this.homeFamily==="planet-run";
     if (this.brHomeWorld) this.brHomeWorld.root.visible = mode === "home" && this.homeFamily === "battle-royale";
     this.lobbyStage.visible = mode === "lobby";
     for (const planet of this.planets.values()) planet.group.visible = mode === "match" || mode === "results";
@@ -440,6 +443,8 @@ export class PlanetfallGame {
 
   setHomeFamily(family: GameFamily): void {
     this.homeFamily = family;
+    if(this.prHomePreview)this.prHomePreview.root.visible=this.mode==="home"&&family==="planet-run";
+    if(family==="planet-run"&&!this.prHomePreview&&!this.prHomeLoading){this.prHomeLoading=true;void import("./modes/planet-run/pr-home-preview").then(({PrHomePreview})=>{this.prHomePreview=new PrHomePreview();this.scene.add(this.prHomePreview.root);this.prHomePreview.root.visible=this.mode==="home"&&this.homeFamily==="planet-run";}).finally(()=>{this.prHomeLoading=false;});}
     this.demo.visible = this.mode === "home" && family === "planetfall";
     if (this.brHomeWorld) this.brHomeWorld.root.visible = this.mode === "home" && family === "battle-royale";
     if (family !== "battle-royale" || this.brHomeWorld || this.brHomeWorldPromise) return;
@@ -520,7 +525,7 @@ export class PlanetfallGame {
     trajectoryMarkerVisible: boolean;
     lobbyAvatarCount: number;
     homeFamily: GameFamily;
-    homePreview: "planetfall" | "battle-royale" | "loading";
+    homePreview: "planetfall" | "battle-royale" | "planet-run" | "loading";
     performance: { fps: number; drawCalls: number; triangles: number; particles: number; projectiles: number };
     mechanics: { speed: number; grounded: boolean; gravityPlanetId: string | null; altitude: number | null; correction: number; grappleTension: number; launchAssist: boolean; reconciliation: ReconciliationMetrics };
   } {
@@ -542,7 +547,7 @@ export class PlanetfallGame {
       trajectoryMarkerVisible: this.trajectoryMarker.visible,
       lobbyAvatarCount: this.lobbyPlayers.size,
       homeFamily: this.homeFamily,
-      homePreview: this.homeFamily === "planetfall" ? "planetfall" : this.brHomeWorld?.root.visible ? "battle-royale" : "loading",
+      homePreview: this.homeFamily === "planetfall" ? "planetfall" : this.homeFamily==="planet-run"&&this.prHomePreview ? "planet-run" : this.brHomeWorld?.root.visible ? "battle-royale" : "loading",
       performance: {
         fps: this.measuredFps, drawCalls: this.renderer.info.render.calls, triangles: this.renderer.info.render.triangles,
         particles: this.particles.length, projectiles: this.projectiles.size
@@ -1808,6 +1813,16 @@ export class PlanetfallGame {
     const cameraPosition = compact ? new THREE.Vector3(0, 8, 36) : new THREE.Vector3(20, 10, 32);
     this.camera.position.lerp(cameraPosition, 0.025);
     this.camera.lookAt(target);
+    if(this.prHomePreview&&this.mode==="home"&&this.homeFamily==="planet-run"){
+      this.prHomePreview.update(this.demoTime);this.camera.updateMatrixWorld();
+      const card=document.querySelector<HTMLElement>("#home-screen .home-card")?.getBoundingClientRect();
+      const layout=homeIslandLayout(innerWidth,innerHeight,card?.right??innerWidth*.46);
+      const distance=38,height=2*distance*Math.tan(THREE.MathUtils.degToRad(this.camera.fov/2)),width=height*this.camera.aspect;
+      const forward=new THREE.Vector3(),right=new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld,0),up=new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld,1);this.camera.getWorldDirection(forward);
+      this.prHomePreview.root.position.copy(this.camera.position).addScaledVector(forward,distance).addScaledVector(right,layout.centerX*width/2).addScaledVector(up,layout.centerY*height/2);
+      this.prHomePreview.root.scale.setScalar(width*layout.radiusFraction/6);
+      this.prHomePreview.root.visible=innerWidth>=760||this.mode!=="home";
+    }
     if (this.brHomeWorld?.root.visible) {
       this.camera.updateMatrixWorld();
       const card=document.querySelector<HTMLElement>("#home-screen .home-card")?.getBoundingClientRect();
