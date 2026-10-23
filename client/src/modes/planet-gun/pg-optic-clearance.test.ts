@@ -1,15 +1,15 @@
 import {describe,it,expect} from "vitest";
 import * as THREE from "three";
 import {PG_MAP,type PgWeaponId} from "@planetfall/shared";
-import {createPgViewmodel} from "./pg-viewmodel";
+import {createPgViewmodel,PG_VIEWMODEL_LAYER} from "./pg-viewmodel";
 import {PgWorldRenderer} from "./pg-world";
 import {BrWeaponModelLibrary} from "../battle-royale/br-weapon-model-library";
 
 describe("PlanetGun local optic clearance",()=>{
   for(const weapon of["pulse","nova","photon","quasar","rail","comet"]as PgWeaponId[])it(`${weapon} leaves the settled ADS center ray clear`,()=>{
     const vm=createPgViewmodel();for(let i=0;i<180;i++)vm.update({weapon,ads:1,recoil:0,reload:0,speed:0,mode:"ground",time:i*1000/60});
-    vm.root.updateMatrixWorld(true);const meshes:THREE.Object3D[]=[];vm.root.traverseVisible(o=>{if(o instanceof THREE.Mesh)meshes.push(o);});
-    const ray=new THREE.Raycaster(new THREE.Vector3(),new THREE.Vector3(0,0,-1),.01,4);
+    vm.root.updateMatrixWorld(true);const meshes:THREE.Object3D[]=[];vm.root.traverseVisible(o=>{if(o instanceof THREE.Mesh&&!o.userData.pgOpticGlass)meshes.push(o);});
+    const ray=new THREE.Raycaster(new THREE.Vector3(),new THREE.Vector3(0,0,-1),.01,4);ray.layers.set(PG_VIEWMODEL_LAYER);
     expect(ray.intersectObjects(meshes,false).map(h=>h.object.name)).toEqual([]);
     if(weapon==="rail"||weapon==="quasar")for(const [x,y]of[[.025,0],[-.025,0],[0,.025],[0,-.025],[.018,.018],[-.018,-.018]]){
       ray.ray.direction.set(x,y,-1).normalize();expect(ray.intersectObjects(meshes,false).map(h=>h.object.name)).toEqual([]);

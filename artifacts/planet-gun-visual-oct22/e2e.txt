@@ -1,0 +1,66 @@
+
+> planetfall@0.1.0 test:e2e
+> playwright test --workers=1
+
+[WebServer] (node:56172) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:60728) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:63484) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 34 tests using 1 worker
+
+(node:50656) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  1 e2e\lobby-lifecycle.spec.ts:5:3 › Classic lobby leave transfers authority and restores home without reloading (8.1s)
+  ok  2 e2e\lobby-lifecycle.spec.ts:5:3 › BR lobby leave transfers authority and restores home without reloading (15.5s)
+  ok  3 e2e\lobby-lifecycle.spec.ts:55:1 › leaving a BR lobby during module loading cannot reactivate it over home (7.7s)
+  ok  4 e2e\mode-warning.spec.ts:2:1 › experimental family warnings preserve selection, trap focus and do not reappear on return (13.6s)
+  ok  5 e2e\multiplayer.spec.ts:182:1 › settings persist across reloads (3.6s)
+  ok  6 e2e\multiplayer.spec.ts:206:1 › the home menu previews the Fallbucks shop (6.8s)
+  ok  7 e2e\multiplayer.spec.ts:227:1 › Battle Royale lobby stays usable while its renderer module loads (5.2s)
+  ok  8 e2e\multiplayer.spec.ts:257:1 › Battle Royale creates an isolated room and enters the Starliner drop (47.2s)
+BR Solo timing: home loaded 566ms
+BR Solo timing: quick-start sent 5480ms
+BR Solo timing: HUD visible 5557ms
+BR Solo timing: HUD checks complete 10054ms
+BR Solo timing: map visible 13814ms
+BR Solo timing: viewport 1280x720 set 16358ms
+BR Solo timing: viewport 1280x720 layout read 19458ms
+BR Solo timing: viewport 1920x720 set 22305ms
+BR Solo timing: viewport 1920x720 layout read 25365ms
+BR Solo timing: viewport 1440x900 set 28046ms
+BR Solo timing: viewport 1440x900 layout read 29003ms
+  ok  9 e2e\multiplayer.spec.ts:349:1 › Battle Royale Solo requires confirmation and respects quick-play settings (29.3s)
+  ok 10 e2e\multiplayer.spec.ts:430:1 › the cannon guide marks its predicted planet impact (6.2s)
+  ok 11 e2e\multiplayer.spec.ts:446:1 › two players can create, join, ready, and start (8.4s)
+  ok 12 e2e\multiplayer.spec.ts:490:1 › a human can raid, steal, shove, sabotage, and resume cannon play (3.0m)
+  ok 13 e2e\multiplayer.spec.ts:779:1 › the host can start one clearly revealed Chaos modifier (7.3s)
+  ok 14 e2e\multiplayer.spec.ts:813:1 › six participants remain readable and within the visual budget (7.7s)
+  ok 15 e2e\multiplayer.spec.ts:837:1 › solo quick play starts with three clearly marked bots (2.5s)
+  ok 16 e2e\planet-gun-presentation.spec.ts:5:2 › PlanetGun pulse held hip, ADS, recoil, reload and sprint presentation (57.3s)
+  ok 17 e2e\planet-gun-presentation.spec.ts:5:2 › PlanetGun nova held hip, ADS, recoil, reload and sprint presentation (44.8s)
+  ok 18 e2e\planet-gun-presentation.spec.ts:5:2 › PlanetGun photon held hip, ADS, recoil, reload and sprint presentation (43.4s)
+  ok 19 e2e\planet-gun-presentation.spec.ts:5:2 › PlanetGun quasar held hip, ADS, recoil, reload and sprint presentation (43.2s)
+  ok 20 e2e\planet-gun-presentation.spec.ts:5:2 › PlanetGun rail held hip, ADS, recoil, reload and sprint presentation (46.0s)
+  ok 21 e2e\planet-gun.spec.ts:8:1 › PlanetGun warning, lobby, FPS movement, combat controls and clean exit (28.1s)
+  ok 22 e2e\planet-gun.spec.ts:31:53 › PlanetGun actual arena review and rendering samples at low (48.9s)
+  ok 23 e2e\planet-gun.spec.ts:31:53 › PlanetGun actual arena review and rendering samples at medium (1.0m)
+  ok 24 e2e\planet-gun.spec.ts:31:53 › PlanetGun actual arena review and rendering samples at high (1.3m)
+  ok 25 e2e\planet-gun.spec.ts:31:53 › PlanetGun actual arena review and rendering samples at auto (51.2s)
+  ok 26 e2e\planet-gun.spec.ts:46:1 › two opposing FPS clients traverse Nova Block, register a scoped hit and respawn (1.0m)
+  ok 27 e2e\planet-run.spec.ts:7:1 › PlanetRun lifecycle, input, UI capture and cross-family renderer ownership (22.8s)
+  ok 28 e2e\planet-run.spec.ts:26:1 › PlanetRun quick solo fills bots and advances an ordinary tournament (29.8s)
+  ok 29 e2e\planet-run.spec.ts:32:1 › Shatterdeck contact breaks cells and falls to a lower deck (19.3s)
+  ok 30 e2e\planet-run.spec.ts:43:1 › PlanetRun six-round rendering samples at low (59.4s)
+  ok 31 e2e\planet-run.spec.ts:43:1 › PlanetRun six-round rendering samples at medium (1.1m)
+  ok 32 e2e\planet-run.spec.ts:43:1 › PlanetRun six-round rendering samples at high (1.1m)
+  ok 33 e2e\planet-run.spec.ts:43:1 › PlanetRun six-round rendering samples at auto (1.1m)
+  ok 34 e2e\planet-run.spec.ts:58:1 › Meteor Garden renders telegraphed fields without opaque hazard boxes (13.9s)
+
+  Slow test file: e2e\planet-run.spec.ts (5.6m)
+  Slow test file: e2e\planet-gun.spec.ts (5.4m)
+  Slow test file: e2e\multiplayer.spec.ts (5.0m)
+  Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+  34 passed (20.9m)

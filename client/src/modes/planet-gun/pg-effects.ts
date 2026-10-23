@@ -22,7 +22,7 @@ export class PgEffects {
       this.sparks.set(weapon,new THREE.MeshBasicMaterial({color:COLORS[weapon],transparent:true,opacity:.8,depthWrite:false,blending:THREE.AdditiveBlending}));
     }
     this.muzzleRoot.name="planet-gun-local-muzzle";this.localFlash=new THREE.Mesh(this.impactGeometry,this.sparks.get("pulse"));
-    this.localFlash.position.set(.2,-.14,-.85);this.localFlash.scale.set(.035,.035,.09);this.localFlash.visible=false;this.localFlash.userData.cameraCollision=false;this.muzzleRoot.add(this.localFlash);
+    this.localFlash.position.set(0,0,0);this.localFlash.scale.set(.035,.035,.09);this.localFlash.visible=false;this.localFlash.userData.cameraCollision=false;this.muzzleRoot.add(this.localFlash);
     for(let i=0;i<CAPACITY;i++){
       const positions=new THREE.BufferAttribute(new Float32Array(6),3);positions.setUsage(THREE.DynamicDrawUsage);
       const geometry=new THREE.BufferGeometry();geometry.setAttribute("position",positions);

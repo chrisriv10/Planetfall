@@ -1,0 +1,18 @@
+
+> planetfall@0.1.0 test:e2e
+> playwright test --config playwright.production.config.js --workers=1
+
+[WebServer] (node:30520) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:62300) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:3648) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:14880) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 1 e2e\planet-gun-production.spec.ts:5:1 › production PlanetGun omits review UI and diagnostic outputs while gameplay remains usable (36.0s)
+
+  1 passed (41.7s)

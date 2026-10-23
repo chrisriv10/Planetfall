@@ -20,14 +20,16 @@ export class PgWorldRenderer {
     this.root.add(this.detail, this.skyline, this.hologram);
     this.resources.add(this.geometry);
     const material = (color: number, emissive = 0) => {
-      const m = new THREE.MeshStandardMaterial({ color, roughness: .65, metalness: .22, emissive: color, emissiveIntensity: emissive });
+      const m = new THREE.MeshStandardMaterial({ color, roughness: .68, metalness: .24, emissive: color, emissiveIntensity: emissive });
       this.resources.add(m); return m;
     };
-    const deck = material(0x243549), west = material(0xc66a47), east = material(0x6276ba);
-    const ivory = material(0xd1e1da), trim = material(0x182538), garden = material(0x206b61), maintenance=material(0x796b46);
-    const solarPaving=material(0x493b39),voidPaving=material(0x343f59),hydroPaving=material(0x234b49),servicePaving=material(0x444947),plazaPaving=material(0x3b4b5b);
+    const deck = material(0x243549), west = material(0x96a9b6), east = material(0x8b9eaf);
+    const ivory = material(0xd1e1da), trim = material(0x182538), garden = material(0x344f53), maintenance=material(0x7f8b91);
+    const solarPaving=material(0x35414b),voidPaving=material(0x35414b),hydroPaving=material(0x35464b),servicePaving=material(0x3b444b),plazaPaving=material(0x3b4b5b);
     const cyan = material(0x62ffdc, 1.15), amber = material(0xffcd76, 1), violet = material(0xc2a0ff, 1);
-    const glass = material(0x36778c, .22), runPanel=material(0x2e8b79,.08);
+    const glass = material(0x36778c, .16), runPanel=material(0x253c45,.025);
+    glass.roughness=.22;glass.metalness=.58;trim.roughness=.42;trim.metalness=.48;
+    deck.roughness=.93;deck.metalness=.08;ivory.roughness=.57;garden.roughness=.86;
     const add = (key: string, mat: THREE.Material, b: Box, parent = this.root) => {
       key = `${key}:${mat.uuid}`;
       let batch = this.batches.get(key);
@@ -44,36 +46,85 @@ export class PgWorldRenderer {
         // Insets sit on opaque collision-backed walls, never across an opening.
         for (const sign of [-1,1]) {
           const face = (along: number, y: number, width: number, height: number, m: THREE.Material, name: string, offset=.008) => {
+            // Service panels remain nearly flush against a smooth run face.
+            if(s.kind==="wall-run")offset=Math.min(offset*.62,.033);
             add(name, m, wide ? [c.x+along,y,c.z+sign*(h.z+offset),width,height,.012] : [c.x+sign*(h.x+offset),y,c.z+along,.012,height,width]);
           };
-          face(0,c.y+h.y-.16,length-.12,.065,s.kind === "wall-run" ? cyan : c.x < 0 ? amber : violet,"wall-light");
-          for (let along=-length/2+.8;along<length/2-.5;along+=1.7) {
-            const panelHeight=Math.min(1.8,h.y*1.2);
-            face(along,c.y,1.48,panelHeight,s.id.startsWith("maintenance-") ? trim : s.kind === "wall-run" ? runPanel : glass,"panel");
-            if (s.kind === "wall-run") {
-              face(along,1.15,1.2,.09,cyan,"run-guide");
-              face(along,3.8,.06,.7,ivory,"run-calibration");
-              face(along,c.y+.1,.8,.035,garden,"run-panel-seam",.024);
+          const service=s.kind === "wall-run";
+          const accent=service?cyan:c.x<0?amber:violet;
+          // Layered structural cassette: dark reveal behind glass/door, then
+          // a shallow frame. Smooth run faces project only centimetres.
+          face(0,c.y+h.y-.14,length,.28,trim,"roof-fascia",.018);
+          face(0,c.y+h.y-.06,length-.15,.055,ivory,"roof-coping",.042);
+          face(0,.14,length,.28,trim,"wall-plinth",.018);
+          face(0,c.y+h.y-.34,length-.3,.045,accent,"wall-light",.026);
+          for(let along=-length/2+.23;along<length/2;along+=3.4)
+            face(along,c.y,.18,h.y*2-.12,ivory,"structural-pilaster",.052);
+          const step=service?3.4:2.5;
+          for(let along=-length/2+step*.56;along<length/2-step*.32;along+=step){
+            const ph=service?2.65:Math.min(1.75,h.y*1.1),pw=service?2.75:2.05;
+            const py=service?2.55:c.y+.04;
+            face(along,py,pw+.16,ph+.18,trim,"bay-shadow",.010);
+            face(along,py,pw,ph,service?runPanel:glass,"panel",.023);
+            face(along,py-ph/2-.06,pw+.23,.1,ivory,"window-sill",.048);
+            face(along,py+ph/2+.06,pw+.23,.1,ivory,"bay-header",.048);
+            for(const side of[-1,1])face(along+side*(pw/2+.04),py,.07,ph,ivory,"bay-jamb",.048);
+            if(service){
+              face(along,1.05,pw*.8,.045,cyan,"run-guide",.041);
+              face(along,py,.028,ph,trim,"run-panel-seam",.045);
+              for(let v=0;v<4;v++)face(along,py+.65+v*.12,pw*.6,.035,trim,"service-vent",.041);
+              face(along+pw*.35,py-.4,.08,.22,amber,"bay-status",.043);
             }else{
-              // Graphic glazing subdivisions and sills communicate habitat scale
-              // without placing fake transparent openings in collision walls.
-              face(along,c.y-panelHeight/2-.055,1.53,.08,ivory,"window-sill");
-              face(along,c.y,.035,panelHeight,ivory,"window-mullion",.024);
-              face(along,c.y+panelHeight*.22,1.48,.028,ivory,"window-transom",.040);
+              face(along,py,.035,ph,ivory,"window-mullion",.048);
+              face(along,py+ph*.22,pw,.028,ivory,"window-transom",.065);
+              face(along-pw*.32,py+.15,.12,ph*.65,ivory,"glass-reflection",.034);
             }
           }
+          // Crown equipment stays within the existing solid silhouette, so it
+          // never masquerades as extra cover on a traversable roof.
+          if(service)for(let along=-length/2+2;along<length/2-1;along+=4.5){
+            face(along,4.55,1.5,.32,trim,"roof-service-recess",.027);
+            for(let q=0;q<5;q++)face(along-.5+q*.25,4.55,.1,.24,ivory,"roof-service-fin",.054);
+          }
+
         }
       }
       if (s.kind === "stair") add("tread",amber,[c.x,c.y+h.y+.008,c.z-h.z+.08,h.x*2-.16,.012,.08]);
       if (s.kind === "floor") {
         add("gallery-edge",cyan,[c.x,c.y+h.y+.008,c.z+h.z-.08,h.x*2,.012,.08]);
+        for(const side of[-1,1]){
+          add("gallery-fascia",ivory,[c.x,c.y,c.z+side*(h.z+.012),h.x*2,.32,.018]);
+          add("gallery-reveal",trim,[c.x,c.y-.12,c.z+side*(h.z+.023),h.x*2,.045,.012]);
+          for(let x=-h.x+.5;x<h.x-.4;x+=2)add("gallery-bolt",trim,[c.x+x,c.y+.04,c.z+side*(h.z+.024),.055,.055,.012],this.detail);
+        }
         add("gallery-under",ivory,[c.x,c.y-h.y-.008,c.z,h.x*1.7,.012,.13],this.detail);
       }
       if (s.kind === "utility" || s.kind === "transit") {
+        for(const sign of[-1,1]){
+          add("cover-base",trim,[c.x,c.y-h.y+.1,c.z+sign*(h.z+.012),h.x*2,.2,.018]);
+          add("cover-shoulder",ivory,[c.x,c.y+h.y-.13,c.z+sign*(h.z+.02),h.x*2,.16,.025]);
+          for(const side of[-1,1])add("cover-corner",trim,[c.x+side*(h.x-.13),c.y,c.z+sign*(h.z+.023),.18,h.y*2-.2,.03]);
+          add("cover-recess",trim,[c.x,c.y,c.z+sign*(h.z+.012),h.x*1.5,h.y*1.3,.016]);
+          add("cover-panel",deck,[c.x,c.y,c.z+sign*(h.z+.024),h.x*1.4,h.y*1.15,.012]);
+        }
+        // Equipment enclosures have authored end faces too: the ticket bank
+        // presents its long X-facing flank to the main plaza approach.
+        for(const sign of[-1,1]){
+          const x=c.x+sign*h.x;
+          add("cover-end-base",trim,[x+sign*.011,c.y-h.y+.09,c.z,.014,.16,h.z*2-.08]);
+          add("cover-end-frame",ivory,[x+sign*.012,c.y,c.z,.014,h.y*1.5,h.z*1.82]);
+          add("cover-end-panel",deck,[x+sign*.024,c.y,c.z,.010,h.y*1.3,h.z*1.68]);
+          const bays=Math.max(1,Math.floor(h.z*2/2));
+          for(let i=0;i<bays;i++){
+            const z=c.z+(i-(bays-1)/2)*(h.z*1.6/bays),width=h.z*1.2/bays;
+            for(let row=0;row<3;row++)add("cover-end-vent",trim,[x+sign*.033,c.y+(row-1)*h.y*.18,z,.008,.045,width],this.detail);
+            add("cover-end-status",amber,[x+sign*.033,c.y-h.y*.4,z,.008,.035,Math.min(.16,width)]);
+          }
+        }
         // Covers read as machinery/terminals, with vents and maintenance panels.
-        for (let x=-h.x+.3;x<h.x-.2;x+=.32) add("vents",trim,[c.x+x,c.y,c.z+h.z+.009,.12,h.y*1.35,.014],this.detail);
-        add("machine-screen",glass,[c.x,c.y+h.y*.25,c.z-h.z-.009,h.x*1.5,h.y*.75,.014]);
-        add("machine-status",cyan,[c.x,c.y+h.y*.4,c.z-h.z-.019,h.x*.9,.065,.014]);
+        for (let x=-h.x+.3;x<h.x-.2;x+=.32) add("vents",trim,[c.x+x,c.y,c.z+h.z+.041,.12,h.y*1.35,.014],this.detail);
+        add("machine-screen",glass,[c.x,c.y+h.y*.25,c.z-h.z-.041,h.x*1.5,h.y*.75,.014]);
+        add("machine-status",cyan,[c.x,c.y+h.y*.4,c.z-h.z-.057,h.x*.9,.065,.014]);
         add("machine-cap",ivory,[c.x,c.y+h.y+.006,c.z,h.x*2,.008,h.z*2]);
       }
       if (s.kind === "planter") {
@@ -97,6 +148,16 @@ export class PgWorldRenderer {
         }
       }
     }
+    // Existing door openings retain their entire clear width. These are
+    // threshold inlays and jamb strips on their adjacent solid faces.
+    for(const [x,z,width,axis]of [[-25,-1,4,"x"],[-35,-11,4,"z"],[19,15,8,"z"],[35,15,8,"z"],[-2,29,2,"x"]] as const){
+      const acrossX=axis==="x";
+      add("entrance-threshold",trim,[x,.011,z,acrossX?width:.45,.012,acrossX?.45:width]);
+      for(const side of[-1,1]){
+        add("entrance-jamb",ivory,[x+(acrossX?side*(width/2+.07):.42),1.22,z+(acrossX?.42:side*(width/2+.07)),acrossX?.12:.024,2.4,acrossX?.024:.12]);
+        add("entrance-status",cyan,[x+(acrossX?side*(width/2+.07):.44),1.38,z+(acrossX?.44:side*(width/2+.07)),acrossX?.04:.012,.62,acrossX?.012:.04]);
+      }
+    }
     // Embedded district paving: continuous authored routes connect the three
     // interior identities rather than isolated islands of decorative scatter.
     for(const [mat,x,z,sx,sz]of [[solarPaving,-25,-11,20,20],[voidPaving,27,17,16,20],[hydroPaving,-3,-26,34,7],[servicePaving,-2,25,10,8],[plazaPaving,0,0,24,18]]as const)
@@ -105,6 +166,12 @@ export class PgWorldRenderer {
       add("connector-paving",mat,[x,.002,z,sx,.003,sz]);
     for(const [x,z,sx,sz]of [[-24,3.6,20,.07],[24,-6.6,20,.07],[-3,-29.1,32,.07],[-2,17.1,18,.07]])
       add("route-inlay",ivory,[x,.009,z,sx,.008,sz]);
+    // Contact bands are thin opaque inlays at the base of actual solids, not
+    // transparent shadow planes spanning entrances or new walkable obstacles.
+    for(const s of PG_MAP.solids)if(s.kind!=="floor"&&s.kind!=="stair"&&s.center.y-s.half.y<.05){
+      const c=s.center,h=s.half;
+      add("contact-footprint",trim,[c.x,.006,c.z,h.x*2+.14,.008,h.z*2+.14]);
+    }
     this.buildHydroFoliage();
     // Flat paving bands, expansion joints and route identity; no extra collision.
     for(let x=-44;x<=44;x+=4) add("deck-joints",trim,[x,.006,0,.018,.01,74],this.detail);
@@ -112,7 +179,10 @@ export class PgWorldRenderer {
     for(const z of [-35,35])add("perimeter",amber,[0,.016,z,90,.018,.13]);
     for(const x of [-44,44])add("perimeter",amber,[x,.016,0,.13,.018,70]);
     for(const [x,z,sx,sz]of [[-40,0,2,56],[40,0,2,56],[0,-27,29,2],[0,17,22,2]])
-      add("wayfinding",garden,[x,.012,z,sx,.015,sz]);
+      {
+        const alongX=sx>sz;
+        for(const side of[-1,1])add("wayfinding-edge",ivory,[x+(alongX?0:side*sx*.5),.012,z+(alongX?side*sz*.5:0),alongX?sx:.045,.008,alongX?.045:sz]);
+      }
     // Underside structure and distant station are clearly beyond the playable deck.
     add("foundation",trim,[0,-2.7,0,88,4.4,72]);
     for(const x of [-34,0,34])add("foundation-lights",cyan,[x,-3.8,36.01,13,.12,.03]);
@@ -122,13 +192,14 @@ export class PgWorldRenderer {
       add("skyline-lights",violet,[x,height-9,z+6.01,8,.5,.03],this.skyline);
     }
     const planetGeometry=new THREE.SphereGeometry(82,32,18);
-    const planetMaterial=new THREE.MeshBasicMaterial({color:0x234775});
-    const planet=new THREE.Mesh(planetGeometry,planetMaterial);planet.position.set(65,-125,-190);planet.name="distant-planet";
+    const planetMaterial=new THREE.MeshBasicMaterial({color:0x345e86,fog:false});
+    const planet=new THREE.Mesh(planetGeometry,planetMaterial);planet.position.set(80,-40,-210);planet.name="distant-planet";
     this.resources.add(planetGeometry);this.resources.add(planetMaterial);this.root.add(planet);
     const atmosphereGeometry=new THREE.TorusGeometry(83,.9,5,80);
-    const atmosphereMaterial=new THREE.MeshBasicMaterial({color:0x6bafd5,transparent:true,opacity:.35,depthWrite:false,blending:THREE.AdditiveBlending});
+    const atmosphereMaterial=new THREE.MeshBasicMaterial({color:0x6bafd5,transparent:true,opacity:.5,fog:false,depthWrite:false,blending:THREE.AdditiveBlending});
     const atmosphere=new THREE.Mesh(atmosphereGeometry,atmosphereMaterial);atmosphere.position.copy(planet.position);atmosphere.lookAt(0,0,0);
-    this.resources.add(atmosphereGeometry);this.resources.add(atmosphereMaterial);this.skyline.add(atmosphere);
+    this.resources.add(atmosphereGeometry);this.resources.add(atmosphereMaterial);this.root.add(atmosphere);
+    this.buildOrbitalBackdrop();
     this.buildLabels();
     // A lightweight open hologram above the collision-backed transit console.
     const ringGeometry = new THREE.TorusGeometry(1.45,.018,4,48);
@@ -147,14 +218,32 @@ export class PgWorldRenderer {
     this.setQuality("medium");
   }
 
+  private buildOrbitalBackdrop():void {
+    // A single star draw plus two ring draws: visible from player height and
+    // retained on Low. No depth-tested scenery enters the gameplay arena.
+    const positions:number[]=[];
+    for(let i=0;i<170;i++){
+      const az=i*2.39996323,el=.08+(i%37)/37*1.2,r=260;
+      positions.push(Math.cos(az)*Math.cos(el)*r,Math.sin(el)*r,Math.sin(az)*Math.cos(el)*r);
+    }
+    const g=new THREE.BufferGeometry();g.setAttribute("position",new THREE.Float32BufferAttribute(positions,3));
+    const m=new THREE.PointsMaterial({color:0xa9c4df,size:.55,sizeAttenuation:true,fog:false});
+    const stars=new THREE.Points(g,m);stars.name="orbital-starfield";this.root.add(stars);this.resources.add(g);this.resources.add(m);
+    for(const [radius,color,tube]of [[115,0x45647d,1.2],[117,0x82c5db,.16]]){
+      const geometry=new THREE.TorusGeometry(radius,tube,4,96,Math.PI*1.3);
+      const material=new THREE.MeshBasicMaterial({color,fog:false});
+      const ring=new THREE.Mesh(geometry,material);ring.name="distant-station-arc";ring.position.set(-55,-42,170);ring.rotation.set(.25,.35,.15);
+      this.root.add(ring);this.resources.add(geometry);this.resources.add(material);
+    }
+  }
   private buildLabels():void {
     if(typeof document==="undefined")return;
-    for(const [text,x,y,z,color]of [["SOLAR / HABITAT 01",-25,2.35,-20.58,"#ffd5a1"],["VOID / OBSERVATORY",27,2.35,26.58,"#d9c5ff"],["HYDROPONICS  /  ION RUN",-6,4.45,-30.63,"#a1ffe2"],["NOVA BLOCK / TRANSIT",-2,1.6,-9.025,"#a1ffe2"],["MAINTENANCE / 03",-5,2.25,29.365,"#ffe3a3"]] as const){
+    for(const [text,x,y,z,color]of [["SOLAR / HABITAT 01",-25,2.35,-20.515,"#ffd5a1"],["VOID / OBSERVATORY",27,2.35,26.515,"#d9c5ff"],["HYDROPONICS  /  ION RUN",-6,4.45,-30.565,"#a1ffe2"],["NOVA BLOCK / TRANSIT",-2,1.6,-9.065,"#a1ffe2"],["ION SERVICE / 04",12.60,4.32,25,"#a1ffe2"],["MAINTENANCE / 03",-5,2.25,29.435,"#ffe3a3"]] as const){
       const canvas=document.createElement("canvas");canvas.width=1024;canvas.height=128;const ctx=canvas.getContext("2d");if(!ctx)continue;
       ctx.fillStyle="#10232d";ctx.fillRect(0,0,1024,128);ctx.fillStyle=color;ctx.font="600 54px sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(text,512,64);
       const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
       const mat=new THREE.MeshBasicMaterial({map:texture,side:THREE.DoubleSide});const width=text.startsWith("MAINTENANCE")?3.6:text.startsWith("NOVA")?5:9;const geometry=new THREE.PlaneGeometry(width,width/8);
-      const mesh=new THREE.Mesh(geometry,mat);mesh.position.set(x,y,z);if(text.startsWith("VOID")||text.startsWith("NOVA"))mesh.rotation.y=Math.PI;
+      const mesh=new THREE.Mesh(geometry,mat);mesh.name=`district-sign:${text}`;mesh.position.set(x,y,z);if(text.startsWith("ION"))mesh.rotation.y=-Math.PI/2;if(text.startsWith("VOID")||text.startsWith("NOVA"))mesh.rotation.y=Math.PI;
       this.resources.add(texture);this.resources.add(mat);this.resources.add(geometry);this.root.add(mesh);
     }
   }

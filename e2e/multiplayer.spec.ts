@@ -515,6 +515,7 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
   const hostPlanetId = hostPlayer.planetId;
   const guestPlanetId = guestPlayer.planetId;
   await moveTo(host, (state) => state.launchPads.find((pad) => pad.planetId === hostPlanetId)!.position, 1.5);
+  await aimAt(host, (state) => state.launchPads.find((pad) => pad.planetId === hostPlanetId)!.position, "player");
   await expect(host.locator("#context-prompt")).toContainText(/LAUNCH/i);
   await host.keyboard.press("e");
   await expect(host.locator("#context-prompt")).toContainText(/LAUNCH TO NOVA/i);
@@ -698,6 +699,9 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
   await expect.poll(async () => (await debugState(host)).matchStats.find((stats) => stats.playerId === hostPlayer.id)?.sabotagesCompleted).toBe(1);
 
   await moveTo(host, (state) => state.launchPads.find((pad) => pad.planetId === guestPlanetId)!.position, 1.5);
+  // Returning from combat must turn intent toward the pad, not leave a nearby
+  // defender selected for shove. Preserve the real launch prompt/range checks.
+  await aimAt(host, (state) => state.launchPads.find((pad) => pad.planetId === guestPlanetId)!.position, "player");
   await expect(host.locator("#context-prompt")).toContainText(/LAUNCH/i);
   await host.keyboard.press("e");
   await expect(host.locator("#context-prompt")).toContainText(/LAUNCH TO CHRIS/i);

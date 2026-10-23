@@ -1,0 +1,350 @@
+{
+  "shooter": {
+    "position": {
+      "x": -5.734166666666738,
+      "y": 0,
+      "z": 15.739166666666623
+    },
+    "velocity": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "yaw": -1.5707963267948966,
+    "pitch": 0,
+    "grounded": true,
+    "crouched": false,
+    "ion": 100,
+    "launchY": 0,
+    "jumpHeld": false,
+    "coyoteUntil": 1792786166600.1,
+    "jumpBufferUntil": 0,
+    "lastJumpAt": -1000,
+    "slideUntil": 0,
+    "slideReadyAt": 0,
+    "wallId": null,
+    "wallNormal": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "wallUntil": 0,
+    "wallReadyAt": 0,
+    "mantleFrom": null,
+    "mantleTo": null,
+    "mantleStart": 0,
+    "mantleUntil": 0,
+    "mode": "ground",
+    "id": "pg-ee3e71dd-50b",
+    "name": "Solar Test",
+    "color": "#ffba62",
+    "team": "solar",
+    "isBot": false,
+    "connected": true,
+    "ready": true,
+    "hp": 100,
+    "kills": 0,
+    "deaths": 0,
+    "lifeId": 1,
+    "deadAt": 0,
+    "respawnAt": 0,
+    "protectedUntil": 1792786130911,
+    "lastDamageAt": 1792786129911,
+    "lastAttacker": null,
+    "lastInputSequence": 804,
+    "loadout": {
+      "primary": "rail",
+      "secondary": "comet"
+    },
+    "slot": 0,
+    "guns": [
+      {
+        "id": "rail",
+        "magazine": 5,
+        "reserve": 25,
+        "reloadUntil": 0,
+        "nextFireAt": 0,
+        "shots": 0,
+        "recoil": 0
+      },
+      {
+        "id": "comet",
+        "magazine": 9,
+        "reserve": 54,
+        "reloadUntil": 0,
+        "nextFireAt": 0,
+        "shots": 0,
+        "recoil": 0
+      }
+    ],
+    "adsSince": 0,
+    "fireReadyAt": 1792786130061,
+    "equippedCosmetics": {
+      "suit": "default",
+      "trail": "default",
+      "victory": "default",
+      "planet": "default"
+    }
+  },
+  "target": {
+    "position": {
+      "x": 13.77,
+      "y": 0,
+      "z": 15.795833333333283
+    },
+    "velocity": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "yaw": 1.5707963267948966,
+    "pitch": 0,
+    "grounded": true,
+    "crouched": false,
+    "ion": 100,
+    "launchY": 0,
+    "jumpHeld": false,
+    "coyoteUntil": 1792786166759,
+    "jumpBufferUntil": 0,
+    "lastJumpAt": -1000,
+    "slideUntil": 0,
+    "slideReadyAt": 0,
+    "wallId": null,
+    "wallNormal": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "wallUntil": 0,
+    "wallReadyAt": 0,
+    "mantleFrom": null,
+    "mantleTo": null,
+    "mantleStart": 0,
+    "mantleUntil": 0,
+    "mode": "ground",
+    "id": "pg-6add71fd-86e",
+    "name": "Void Test",
+    "color": "#80dfff",
+    "team": "void",
+    "isBot": false,
+    "connected": true,
+    "ready": true,
+    "hp": 100,
+    "kills": 0,
+    "deaths": 0,
+    "lifeId": 1,
+    "deadAt": 0,
+    "respawnAt": 0,
+    "protectedUntil": 1792786130911,
+    "lastDamageAt": 1792786129911,
+    "lastAttacker": null,
+    "lastInputSequence": 810,
+    "loadout": {
+      "primary": "rail",
+      "secondary": "comet"
+    },
+    "slot": 0,
+    "guns": [
+      {
+        "id": "rail",
+        "magazine": 5,
+        "reserve": 25,
+        "reloadUntil": 0,
+        "nextFireAt": 0,
+        "shots": 0,
+        "recoil": 0
+      },
+      {
+        "id": "comet",
+        "magazine": 9,
+        "reserve": 54,
+        "reloadUntil": 0,
+        "nextFireAt": 0,
+        "shots": 0,
+        "recoil": 0
+      }
+    ],
+    "adsSince": 0,
+    "fireReadyAt": 1792786130061,
+    "equippedCosmetics": {
+      "suit": "default",
+      "trail": "default",
+      "victory": "default",
+      "planet": "default"
+    }
+  },
+  "afterShooter": {
+    "position": {
+      "x": -5.734166666666738,
+      "y": 0,
+      "z": 15.739166666666623
+    },
+    "velocity": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "yaw": -1.5729083267948964,
+    "pitch": 0.083944,
+    "grounded": true,
+    "crouched": false,
+    "ion": 100,
+    "launchY": 0,
+    "jumpHeld": false,
+    "coyoteUntil": 1792786172683.4,
+    "jumpBufferUntil": 0,
+    "lastJumpAt": -1000,
+    "slideUntil": 0,
+    "slideReadyAt": 0,
+    "wallId": null,
+    "wallNormal": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "wallUntil": 0,
+    "wallReadyAt": 0,
+    "mantleFrom": null,
+    "mantleTo": null,
+    "mantleStart": 0,
+    "mantleUntil": 0,
+    "mode": "ground",
+    "id": "pg-ee3e71dd-50b",
+    "name": "Solar Test",
+    "color": "#ffba62",
+    "team": "solar",
+    "isBot": false,
+    "connected": true,
+    "ready": true,
+    "hp": 100,
+    "kills": 1,
+    "deaths": 0,
+    "lifeId": 1,
+    "deadAt": 0,
+    "respawnAt": 0,
+    "protectedUntil": 0,
+    "lastDamageAt": 1792786129911,
+    "lastAttacker": null,
+    "lastInputSequence": 966,
+    "loadout": {
+      "primary": "rail",
+      "secondary": "comet"
+    },
+    "slot": 0,
+    "guns": [
+      {
+        "id": "rail",
+        "magazine": 4,
+        "reserve": 25,
+        "reloadUntil": 0,
+        "nextFireAt": 1792786171777,
+        "shots": 1,
+        "recoil": 0
+      },
+      {
+        "id": "comet",
+        "magazine": 9,
+        "reserve": 54,
+        "reloadUntil": 0,
+        "nextFireAt": 0,
+        "shots": 0,
+        "recoil": 0
+      }
+    ],
+    "adsSince": 0,
+    "fireReadyAt": 1792786130061,
+    "equippedCosmetics": {
+      "suit": "default",
+      "trail": "default",
+      "victory": "default",
+      "planet": "default"
+    }
+  },
+  "afterTarget": {
+    "position": {
+      "x": 13.77,
+      "y": 0,
+      "z": 15.795833333333283
+    },
+    "velocity": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "yaw": 1.5707963267948966,
+    "pitch": 0,
+    "grounded": true,
+    "crouched": false,
+    "ion": 100,
+    "launchY": 0,
+    "jumpHeld": false,
+    "coyoteUntil": 1792786170741.6667,
+    "jumpBufferUntil": 0,
+    "lastJumpAt": -1000,
+    "slideUntil": 0,
+    "slideReadyAt": 0,
+    "wallId": null,
+    "wallNormal": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "wallUntil": 0,
+    "wallReadyAt": 0,
+    "mantleFrom": null,
+    "mantleTo": null,
+    "mantleStart": 0,
+    "mantleUntil": 0,
+    "mode": "ground",
+    "id": "pg-6add71fd-86e",
+    "name": "Void Test",
+    "color": "#80dfff",
+    "team": "void",
+    "isBot": false,
+    "connected": true,
+    "ready": true,
+    "hp": 0,
+    "kills": 0,
+    "deaths": 1,
+    "lifeId": 1,
+    "deadAt": 1792786170677,
+    "respawnAt": 1792786173177,
+    "protectedUntil": 1792786130911,
+    "lastDamageAt": 1792786170677,
+    "lastAttacker": "pg-ee3e71dd-50b",
+    "lastInputSequence": 918,
+    "loadout": {
+      "primary": "rail",
+      "secondary": "comet"
+    },
+    "slot": 0,
+    "guns": [
+      {
+        "id": "rail",
+        "magazine": 5,
+        "reserve": 25,
+        "reloadUntil": 0,
+        "nextFireAt": 0,
+        "shots": 0,
+        "recoil": 0
+      },
+      {
+        "id": "comet",
+        "magazine": 9,
+        "reserve": 54,
+        "reloadUntil": 0,
+        "nextFireAt": 0,
+        "shots": 0,
+        "recoil": 0
+      }
+    ],
+    "adsSince": 0,
+    "fireReadyAt": 1792786130061,
+    "equippedCosmetics": {
+      "suit": "default",
+      "trail": "default",
+      "victory": "default",
+      "planet": "default"
+    }
+  }
+}

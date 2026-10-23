@@ -1,0 +1,242 @@
+[
+  {
+    "label": "manual-start",
+    "phase": "playing",
+    "position": {
+      "x": -40,
+      "y": 0,
+      "z": -27
+    },
+    "mode": "ground",
+    "hp": 100,
+    "ion": 100,
+    "review": null,
+    "blocked": false,
+    "yaw": -1.5707963267948966
+  },
+  {
+    "label": "west-habitat-entry",
+    "phase": "playing",
+    "position": {
+      "x": -33.42,
+      "y": 0,
+      "z": -11.106944444444387
+    },
+    "mode": "ground",
+    "hp": 100,
+    "ion": 100,
+    "review": null,
+    "blocked": false,
+    "yaw": -1.5707963267948966
+  },
+  {
+    "label": "west-stair-base",
+    "phase": "playing",
+    "position": {
+      "x": -33.2325,
+      "y": 0,
+      "z": -1.82
+    },
+    "mode": "ground",
+    "hp": 100,
+    "ion": 100,
+    "review": null,
+    "blocked": false,
+    "yaw": -1.5707963267948966
+  },
+  {
+    "label": "west-gallery-ascent",
+    "phase": "playing",
+    "position": {
+      "x": -30.929444444444457,
+      "y": 3.5,
+      "z": -13.691944444444411
+    },
+    "mode": "ground",
+    "hp": 100,
+    "ion": 100,
+    "review": null,
+    "blocked": false,
+    "yaw": -1.5707963267948966
+  },
+  {
+    "label": "plaza-live-ground",
+    "phase": "playing",
+    "position": {
+      "x": -10.42,
+      "y": 0,
+      "z": 4.273333333333338
+    },
+    "mode": "ground",
+    "hp": 100,
+    "ion": 100,
+    "review": null,
+    "blocked": false,
+    "yaw": -1.5707963267948966
+  },
+  {
+    "label": "plaza-around-equipment",
+    "phase": "playing",
+    "position": {
+      "x": -3.3775000000000075,
+      "y": 0,
+      "z": 9.193333333333337
+    },
+    "mode": "ground",
+    "hp": 100,
+    "ion": 100,
+    "review": null,
+    "blocked": false,
+    "yaw": -1.5707963267948966
+  },
+  {
+    "label": "jump-and-ion-thrust",
+    "phase": "playing",
+    "position": {
+      "x": -0.24083333333333903,
+      "y": 1.88611111111111,
+      "z": 9.193333333333337
+    },
+    "mode": "air",
+    "hp": 100,
+    "ion": 84.83333333333327,
+    "review": null,
+    "blocked": false,
+    "yaw": -1.5707963267948966
+  },
+  {
+    "label": "utility-top-contact",
+    "phase": "playing",
+    "position": {
+      "x": 4.63936864242436,
+      "y": 0.30829564152566186,
+      "z": 9.193333333333337
+    },
+    "mode": "mantle",
+    "hp": 100,
+    "ion": 100,
+    "review": null,
+    "blocked": false,
+    "yaw": -1.5707963267948966
+  },
+  {
+    "label": "mantle-supported",
+    "phase": "playing",
+    "position": {
+      "x": 5.47,
+      "y": 1.3,
+      "z": 9.193333333333337
+    },
+    "mode": "ground",
+    "hp": 100,
+    "ion": 100,
+    "review": null,
+    "blocked": false,
+    "yaw": -1.5707963267948966
+  },
+  {
+    "label": "east-observatory-entry",
+    "phase": "playing",
+    "position": {
+      "x": 12.23,
+      "y": 0,
+      "z": 17.33777777777774
+    },
+    "mode": "ground",
+    "hp": 100,
+    "ion": 100,
+    "review": null,
+    "blocked": false,
+    "yaw": -1.5707963267948966
+  },
+  {
+    "label": "service-wall-run",
+    "phase": "playing",
+    "position": {
+      "x": 12.23,
+      "y": 2.33111111111111,
+      "z": 18.89027777777774
+    },
+    "mode": "air",
+    "hp": 100,
+    "ion": 77.83333333333324,
+    "review": null,
+    "blocked": false,
+    "yaw": -1.5707963267948966
+  },
+  {
+    "label": "service-wall-run-settled",
+    "phase": "playing",
+    "position": {
+      "x": 12.23,
+      "y": 0,
+      "z": 31.17583333333339
+    },
+    "mode": "ground",
+    "hp": 100,
+    "ion": 100,
+    "review": null,
+    "blocked": false,
+    "yaw": -1.5707963267948966
+  },
+  {
+    "label": "observatory-approach",
+    "phase": "playing",
+    "position": {
+      "x": 12.23,
+      "y": 0,
+      "z": 17.375833333333283
+    },
+    "mode": "ground",
+    "hp": 100,
+    "ion": 100,
+    "review": null,
+    "blocked": false,
+    "yaw": -1.5707963267948966
+  },
+  {
+    "label": "east-interior-live",
+    "phase": "playing",
+    "position": {
+      "x": 25.51250000000006,
+      "y": 0,
+      "z": 15.09583333333328
+    },
+    "mode": "ground",
+    "hp": 100,
+    "ion": 100,
+    "review": null,
+    "blocked": false,
+    "yaw": -1.5707963267948966
+  },
+  {
+    "label": "east-stair-gallery",
+    "phase": "playing",
+    "position": {
+      "x": 32.62888888888899,
+      "y": 2.8000000000000003,
+      "z": 13.378333333333288
+    },
+    "mode": "ground",
+    "hp": 100,
+    "ion": 100,
+    "review": null,
+    "blocked": false,
+    "yaw": -1.5707963267948966
+  },
+  {
+    "label": "observatory-upper-lookback",
+    "phase": "playing",
+    "position": {
+      "x": 32.62888888888899,
+      "y": 3.5,
+      "z": 22.427499999999974
+    },
+    "mode": "ground",
+    "hp": 100,
+    "ion": 100,
+    "review": null,
+    "blocked": false,
+    "yaw": 0.0000036732051032772883
+  }
+]

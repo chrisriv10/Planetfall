@@ -2,7 +2,9 @@ import {PG_MAP,pgRayBox} from "@planetfall/shared";
 import {test,expect,type Page} from "@playwright/test";
 import {selectExperimentalFamily} from "./select-family";
 import {writeFile} from "node:fs/promises";
-const state=(page:Page)=>page.locator("#pg-dev-state").textContent().then(s=>s?JSON.parse(s):null);
+// Read live, read-only DEV diagnostics: the DOM output refreshes only every
+// 500ms, which can steer corrective key pulses from an obsolete position.
+const state=(page:Page)=>page.evaluate(()=>(window as unknown as {__PLANETFALL_PG_DEBUG__?:()=>any}).__PLANETFALL_PG_DEBUG__?.());
 test("PlanetGun warning, lobby, FPS movement, combat controls and clean exit",async({page},info)=>{
  const errors:string[]=[];page.on("pageerror",e=>errors.push(e.message));
  await page.goto("/");await page.getByLabel("Name",{exact:true}).fill("Nova Pilot");await selectExperimentalFamily(page,"planet-gun");
