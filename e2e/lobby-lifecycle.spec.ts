@@ -1,3 +1,4 @@
+import {selectExperimentalFamily} from "./select-family";
 import { expect, test } from "@playwright/test";
 
 for (const br of [false,true]) {
@@ -10,7 +11,7 @@ for (const br of [false,true]) {
       await Promise.all([host.goto("/"),guest.goto("/")]);
       await host.getByLabel("Name",{exact:true}).fill("Leaving Pilot");
       await guest.getByLabel("Name",{exact:true}).fill("Remaining Pilot");
-      if(br)for(const page of [host,guest])await page.locator("#family-br").click();
+      if(br)for(const page of [host,guest])await selectExperimentalFamily(page,"battle-royale");
       await host.locator("#create-room").click();
       const lobby=br?"#br-lobby-screen":"#lobby-screen",codeId=br?"#br-lobby-code":"#lobby-code";
       await expect(host.locator(lobby)).toBeVisible();
@@ -54,7 +55,7 @@ for (const br of [false,true]) {
 test("leaving a BR lobby during module loading cannot reactivate it over home",async({page})=>{
   let release!:()=>void;const gate=new Promise<void>(resolve=>{release=resolve;});
   await page.route("**/src/modes/battle-royale/br-game.ts*",async route=>{await gate;await route.continue();});
-  await page.goto("/");await page.getByLabel("Name",{exact:true}).fill("Quick Leaving Pilot");await page.locator("#family-br").click();await page.locator("#create-room").click();
+  await page.goto("/");await page.getByLabel("Name",{exact:true}).fill("Quick Leaving Pilot");await selectExperimentalFamily(page,"battle-royale");await page.locator("#create-room").click();
   await expect(page.locator("#br-lobby-screen")).toBeVisible();
   await page.locator("#br-leave-lobby").click();await expect(page.locator("#home-screen")).toBeVisible();
   release();

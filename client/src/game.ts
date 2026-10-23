@@ -306,6 +306,8 @@ export class PlanetfallGame {
   private lastLocalBurst = 0;
   private lastFrame = performance.now();
   private demo = new THREE.Group();
+  private pgHomePreview:import("./modes/planet-gun/pg-home-preview").PgHomePreview|null=null;
+  private pgHomeLoading=false;
   private homeFamily: GameFamily = "planetfall";
   private prHomePreview:import("./modes/planet-run/pr-home-preview").PrHomePreview|null=null;
   private prHomeLoading=false;
@@ -417,6 +419,7 @@ export class PlanetfallGame {
 
   setMode(mode: "home" | "lobby" | "match" | "results"): void {
     this.mode = mode;
+    if(this.pgHomePreview)this.pgHomePreview.root.visible=mode==="home"&&this.homeFamily==="planet-gun";
     this.demo.visible = mode === "home" && this.homeFamily === "planetfall";
     if(this.prHomePreview)this.prHomePreview.root.visible=mode==="home"&&this.homeFamily==="planet-run";
     if (this.brHomeWorld) this.brHomeWorld.root.visible = mode === "home" && this.homeFamily === "battle-royale";
@@ -443,6 +446,8 @@ export class PlanetfallGame {
 
   setHomeFamily(family: GameFamily): void {
     this.homeFamily = family;
+    if(this.pgHomePreview)this.pgHomePreview.root.visible=this.mode==="home"&&family==="planet-gun";
+    if(family==="planet-gun"&&!this.pgHomePreview&&!this.pgHomeLoading){this.pgHomeLoading=true;void import("./modes/planet-gun/pg-home-preview").then(({PgHomePreview})=>{this.pgHomePreview=new PgHomePreview();this.scene.add(this.pgHomePreview.root);this.pgHomePreview.root.visible=this.mode==="home"&&this.homeFamily==="planet-gun";}).finally(()=>this.pgHomeLoading=false);}
     if(this.prHomePreview)this.prHomePreview.root.visible=this.mode==="home"&&family==="planet-run";
     if(family==="planet-run"&&!this.prHomePreview&&!this.prHomeLoading){this.prHomeLoading=true;void import("./modes/planet-run/pr-home-preview").then(({PrHomePreview})=>{this.prHomePreview=new PrHomePreview();this.scene.add(this.prHomePreview.root);this.prHomePreview.root.visible=this.mode==="home"&&this.homeFamily==="planet-run";}).finally(()=>{this.prHomeLoading=false;});}
     this.demo.visible = this.mode === "home" && family === "planetfall";
@@ -525,7 +530,7 @@ export class PlanetfallGame {
     trajectoryMarkerVisible: boolean;
     lobbyAvatarCount: number;
     homeFamily: GameFamily;
-    homePreview: "planetfall" | "battle-royale" | "planet-run" | "loading";
+    homePreview: "planetfall" | "battle-royale" | "planet-run" | "planet-gun" | "loading";
     performance: { fps: number; drawCalls: number; triangles: number; particles: number; projectiles: number };
     mechanics: { speed: number; grounded: boolean; gravityPlanetId: string | null; altitude: number | null; correction: number; grappleTension: number; launchAssist: boolean; reconciliation: ReconciliationMetrics };
   } {
@@ -547,7 +552,7 @@ export class PlanetfallGame {
       trajectoryMarkerVisible: this.trajectoryMarker.visible,
       lobbyAvatarCount: this.lobbyPlayers.size,
       homeFamily: this.homeFamily,
-      homePreview: this.homeFamily === "planetfall" ? "planetfall" : this.homeFamily==="planet-run"&&this.prHomePreview ? "planet-run" : this.brHomeWorld?.root.visible ? "battle-royale" : "loading",
+      homePreview: this.homeFamily === "planetfall" ? "planetfall" : this.homeFamily==="planet-gun"&&this.pgHomePreview ? "planet-gun" : this.homeFamily==="planet-run"&&this.prHomePreview ? "planet-run" : this.brHomeWorld?.root.visible ? "battle-royale" : "loading",
       performance: {
         fps: this.measuredFps, drawCalls: this.renderer.info.render.calls, triangles: this.renderer.info.render.triangles,
         particles: this.particles.length, projectiles: this.projectiles.size
@@ -1685,7 +1690,7 @@ export class PlanetfallGame {
         const local = this.lobbyPlayers.get(this.localId)?.player;
         if (local) this.processEmoteSelection(frame, local.state);
       }
-      if (frame.cancel.pressed || frame.burst.pressed) this.onMenuNavigate?.("back");
+      if (frame.cancel.pressed || frame.method === "gamepad" && frame.burst.pressed) this.onMenuNavigate?.("back");
       return;
     }
     this.onLeaderboard?.(frame.leaderboard.held);
@@ -1694,7 +1699,7 @@ export class PlanetfallGame {
       return;
     }
     if (this.uiCaptured) {
-      if (frame.cancel.pressed || frame.burst.pressed) this.onMenuNavigate?.("back");
+      if (frame.cancel.pressed || frame.method === "gamepad" && frame.burst.pressed) this.onMenuNavigate?.("back");
       return;
     }
 
@@ -1797,6 +1802,7 @@ export class PlanetfallGame {
   }
 
   private updateDemo(dt: number): void {
+    if(this.pgHomePreview&&this.mode==="home"&&this.homeFamily==="planet-gun")this.pgHomePreview.update(this.demoTime,this.camera.aspect);
     if (this.homeFamily === "planetfall") {
       this.demo.rotation.y += dt * 0.055;
       for (const child of this.demo.children) child.rotation.y += dt * 0.08;

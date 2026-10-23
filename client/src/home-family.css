@@ -1,0 +1,56 @@
+/* Loaded after the base stylesheet to keep four families in a balanced grid. */
+#home-screen .home-card .family-selector { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.family-selector .family-card {
+  position: relative;
+  min-width: 0;
+  min-height: 70px;
+  align-content: center;
+  gap: 5px;
+  padding: 12px;
+  color: #bfcee9;
+  transition: border-color .15s ease, background-color .15s ease;
+}
+.family-selector .family-card b { font-size: .73rem; line-height: 1.3; }
+.family-selector .family-card small { font-size: .66rem; line-height: 1.35; }
+.family-selector .family-card[data-experimental]:not([data-experimental='false']) { padding-top: 26px; }
+.family-selector .family-card[data-experimental]:not([data-experimental='false'])::after {
+  content: 'WIP';
+  position: absolute;
+  top: 7px;
+  right: 9px;
+  padding: 2px 4px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  font-size: .48rem;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: .08em;
+  opacity: .8;
+}
+.family-selector .family-card.selected { color: #07132a; }
+.family-selector .family-card.br.selected { color: #fff; }
+.family-selector .family-card.pg.selected { color: #071d2b; border-color: #70f5ff; background: linear-gradient(120deg, #70f5ff, #65c6ef); box-shadow: 0 0 24px #70f5ff20; }
+.family-selector .family-card:enabled:hover { border-color: #b0ecff; }
+.family-selector .family-card:focus-visible { outline: 3px solid #ffdc4f; outline-offset: 3px; }
+@media (max-width: 760px) {
+  #home-screen .home-card .family-selector { grid-template-columns: minmax(0, 1fr); gap: 7px; }
+}
+@media (max-width: 440px) {
+  .family-selector .family-card { min-height: 58px; padding: 10px 12px; }
+  .family-selector .family-card[data-experimental]:not([data-experimental='false']) { padding-top: 10px; padding-right: 46px; }
+  .family-selector .family-card[data-experimental]:not([data-experimental='false'])::after { top: 12px; }
+}
+/* The page itself cannot scroll. Bound the ready card instead so a four-mode
+   selector never puts the logo above the viewport or the last actions below it. */
+@media (max-width: 760px), (max-height: 760px) {
+  #home-screen { align-items: flex-start; padding-top: 16px; padding-bottom: 16px; box-sizing: border-box; }
+  #home-screen .home-card {
+    box-sizing: border-box;
+    max-height: calc(100dvh - 32px);
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    pointer-events: auto;
+  }
+}

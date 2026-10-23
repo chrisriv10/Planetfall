@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PlanetfallGame } from "./game";
 import { BattleRoyaleGame } from "./modes/battle-royale/br-game";
+import {PlanetGunGame} from "./modes/planet-gun/pg-game";
+import {PlanetRunGame} from "./modes/planet-run/pr-game";
 import { defaultSettings, QUALITY_PRESETS } from "./settings";
 
 // Exercise the actual lifecycle methods without constructing a WebGL context,
@@ -79,5 +81,13 @@ describe("shared renderer mode ownership", () => {
     expect(renderer.setPixelRatio).toHaveBeenCalledExactlyOnceWith(QUALITY_PRESETS.low.pixelRatioCap * QUALITY_PRESETS.low.resolutionScale);
     br.activate(room, "pilot");
     expect(renderer.setSize).toHaveBeenCalledOnce();
+  });
+  it.each([PlanetGunGame,PlanetRunGame])("keeps inactive arena/race settings off the active renderer",Mode=>{
+    const {renderer}=fixture(true),world={setQuality:vi.fn()};
+    const mode=Object.assign(Object.create(Mode.prototype),{active:false,renderer,world,settings:defaultSettings()});
+    mode.setSettings({...defaultSettings(),graphicsQuality:"low"});
+    expect(renderer.setPixelRatio).not.toHaveBeenCalled();expect(renderer.shadowMap.enabled).toBe(true);
+    mode.activate("pilot");expect(renderer.setPixelRatio).toHaveBeenCalledExactlyOnceWith(.72);expect(renderer.shadowMap.enabled).toBe(false);
+    mode.activate("pilot");expect(renderer.setPixelRatio).toHaveBeenCalledOnce();
   });
 });

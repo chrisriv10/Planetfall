@@ -1,0 +1,59 @@
+> planetfall@0.1.0 test:e2e
+> playwright test --workers=1
+
+[WebServer] (node:32236) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:47264) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:44412) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 29 tests using 1 worker
+
+(node:55640) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  1 e2e\lobby-lifecycle.spec.ts:5:3 › Classic lobby leave transfers authority and restores home without reloading (12.8s)
+  ok  2 e2e\lobby-lifecycle.spec.ts:5:3 › BR lobby leave transfers authority and restores home without reloading (16.7s)
+  ok  3 e2e\lobby-lifecycle.spec.ts:55:1 › leaving a BR lobby during module loading cannot reactivate it over home (8.5s)
+  ok  4 e2e\mode-warning.spec.ts:2:1 › experimental family warnings preserve selection, trap focus and do not reappear on return (14.5s)
+  ok  5 e2e\multiplayer.spec.ts:182:1 › settings persist across reloads (5.1s)
+  ok  6 e2e\multiplayer.spec.ts:206:1 › the home menu previews the Fallbucks shop (8.3s)
+  ok  7 e2e\multiplayer.spec.ts:227:1 › Battle Royale lobby stays usable while its renderer module loads (6.3s)
+  ok  8 e2e\multiplayer.spec.ts:257:1 › Battle Royale creates an isolated room and enters the Starliner drop (49.1s)
+BR Solo timing: home loaded 619ms
+BR Solo timing: quick-start sent 7167ms
+BR Solo timing: HUD visible 7305ms
+BR Solo timing: HUD checks complete 16002ms
+BR Solo timing: map visible 19448ms
+BR Solo timing: viewport 1280x720 set 22403ms
+BR Solo timing: viewport 1280x720 layout read 25390ms
+BR Solo timing: viewport 1920x720 set 28246ms
+BR Solo timing: viewport 1920x720 layout read 31325ms
+BR Solo timing: viewport 1440x900 set 34412ms
+BR Solo timing: viewport 1440x900 layout read 35206ms
+  ok  9 e2e\multiplayer.spec.ts:349:1 › Battle Royale Solo requires confirmation and respects quick-play settings (35.4s)
+  ok 10 e2e\multiplayer.spec.ts:430:1 › the cannon guide marks its predicted planet impact (7.3s)
+  ok 11 e2e\multiplayer.spec.ts:446:1 › two players can create, join, ready, and start (9.9s)
+  ok 12 e2e\multiplayer.spec.ts:490:1 › a human can raid, steal, shove, sabotage, and resume cannon play (3.0m)
+  ok 13 e2e\multiplayer.spec.ts:775:1 › the host can start one clearly revealed Chaos modifier (8.3s)
+  ok 14 e2e\multiplayer.spec.ts:809:1 › six participants remain readable and within the visual budget (8.5s)
+  ok 15 e2e\multiplayer.spec.ts:833:1 › solo quick play starts with three clearly marked bots (2.5s)
+  ok 16 e2e\planet-gun.spec.ts:6:1 › PlanetGun warning, lobby, FPS movement, combat controls and clean exit (21.5s)
+  ok 17 e2e\planet-gun.spec.ts:29:53 › PlanetGun actual arena review and rendering samples at low (40.9s)
+  ok 18 e2e\planet-gun.spec.ts:29:53 › PlanetGun actual arena review and rendering samples at medium (47.6s)
+  ok 19 e2e\planet-gun.spec.ts:29:53 › PlanetGun actual arena review and rendering samples at high (50.5s)
+  ok 20 e2e\planet-gun.spec.ts:29:53 › PlanetGun actual arena review and rendering samples at auto (42.0s)
+  ok 21 e2e\planet-gun.spec.ts:44:1 › two opposing FPS clients traverse Nova Block, register a scoped hit and respawn (52.8s)
+  ok 22 e2e\planet-run.spec.ts:7:1 › PlanetRun lifecycle, input, UI capture and cross-family renderer ownership (24.3s)
+  ok 23 e2e\planet-run.spec.ts:26:1 › PlanetRun quick solo fills bots and advances an ordinary tournament (27.6s)
+  ok 24 e2e\planet-run.spec.ts:32:1 › Shatterdeck contact breaks cells and falls to a lower deck (22.7s)
+  ok 25 e2e\planet-run.spec.ts:43:1 › PlanetRun six-round rendering samples at low (1.0m)
+  ok 26 e2e\planet-run.spec.ts:43:1 › PlanetRun six-round rendering samples at medium (1.1m)
+  ok 27 e2e\planet-run.spec.ts:43:1 › PlanetRun six-round rendering samples at high (1.2m)
+  ok 28 e2e\planet-run.spec.ts:43:1 › PlanetRun six-round rendering samples at auto (1.1m)
+  ok 29 e2e\planet-run.spec.ts:58:1 › Meteor Garden renders telegraphed fields without opaque hazard boxes (14.9s)
+
+  Slow test file: e2e\planet-run.spec.ts (5.9m)
+  Slow test file: e2e\multiplayer.spec.ts (5.3m)
+  Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+  29 passed (16.6m)

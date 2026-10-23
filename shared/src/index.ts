@@ -1,3 +1,5 @@
+import type {PgClientToServerEvents,PgServerToClientEvents} from "./planet-gun/types.js";
+export * from "./planet-gun/index.js";
 import type { BrClientToServerEvents, BrServerToClientEvents } from "./battle-royale/types.js";
 import type { PrClientToServerEvents, PrServerToClientEvents } from "./planet-run/types.js";
 export * from "./game-family.js";
@@ -388,7 +390,7 @@ export interface ServerSnapshot {
 
 export type LeaveRoomResult = { ok: true } | { ok: false; error: string };
 
-export interface ClientToServerEvents extends BrClientToServerEvents, PrClientToServerEvents {
+export interface ClientToServerEvents extends BrClientToServerEvents, PrClientToServerEvents, PgClientToServerEvents {
   "room:leave": (payload: { code: string }, ack: (result: LeaveRoomResult) => void) => void;
   "room:create": (payload: { name: string; sessionToken?: string }, ack: (result: JoinResult) => void) => void;
   "room:solo": (payload: { name: string }, ack: (result: JoinResult) => void) => void;
@@ -409,7 +411,7 @@ export interface ClientToServerEvents extends BrClientToServerEvents, PrClientTo
   "match:rematch": () => void;
 }
 
-export interface ServerToClientEvents extends BrServerToClientEvents, PrServerToClientEvents {
+export interface ServerToClientEvents extends BrServerToClientEvents, PrServerToClientEvents, PgServerToClientEvents {
   "profile:ready": (payload: { token: string; profile:GuestProfile }) => void;
   "profile:state": (profile:GuestProfile) => void;
   "room:state": (room: RoomView) => void;

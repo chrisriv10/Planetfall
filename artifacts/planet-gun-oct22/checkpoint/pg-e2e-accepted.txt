@@ -1,0 +1,27 @@
+> planetfall@0.1.0 test:e2e
+> playwright test e2e/planet-gun.spec.ts --workers=1
+
+[WebServer] (node:25732) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:55120) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:20612) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 6 tests using 1 worker
+
+(node:44184) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 1 e2e\planet-gun.spec.ts:6:1 › PlanetGun warning, lobby, FPS movement, combat controls and clean exit (25.4s)
+  ok 2 e2e\planet-gun.spec.ts:29:53 › PlanetGun actual arena review and rendering samples at low (40.4s)
+  ok 3 e2e\planet-gun.spec.ts:29:53 › PlanetGun actual arena review and rendering samples at medium (45.7s)
+  ok 4 e2e\planet-gun.spec.ts:29:53 › PlanetGun actual arena review and rendering samples at high (48.9s)
+  ok 5 e2e\planet-gun.spec.ts:29:53 › PlanetGun actual arena review and rendering samples at auto (40.9s)
+  ok 6 e2e\planet-gun.spec.ts:44:1 › two opposing FPS clients traverse Nova Block, register a scoped hit and respawn (53.6s)
+
+  6 passed (4.5m)
+npm notice
+npm notice New major version of npm available! 10.9.9 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

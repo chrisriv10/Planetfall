@@ -1,0 +1,116 @@
+[
+  {
+    "event": "west stairs walked",
+    "position": {
+      "x": -31.57361111111113,
+      "y": 3.5,
+      "z": -15.355277777777738
+    },
+    "mode": "ground"
+  },
+  {
+    "event": "gallery terminal detour and Ion jump",
+    "position": {
+      "x": -11.71333333333326,
+      "y": 6.92222222222222,
+      "z": -15.58
+    },
+    "mode": "air",
+    "ion": 62.93333333333321
+  },
+  {
+    "event": "north wall run input",
+    "position": {
+      "x": -0.5908333333332617,
+      "y": 5.458777777777784,
+      "z": -30.23
+    },
+    "mode": "air",
+    "ion": 75.71666666666681,
+    "wall": null
+  },
+  {
+    "event": "corrected north wall run",
+    "position": {
+      "x": -6.797500000000066,
+      "y": 1.2416666666666654,
+      "z": -30.23
+    },
+    "mode": "wall-run",
+    "ion": 81.91666666666681,
+    "wall": "hydro-run-north"
+  },
+  {
+    "event": "wall jump away",
+    "position": {
+      "x": 10.388333333333268,
+      "y": 3.4056666666666637,
+      "z": -28.49055555555556
+    },
+    "velocity": {
+      "x": 6.13333333333333,
+      "y": 1.4333333333333327,
+      "z": 1.3666666666666627
+    },
+    "mode": "air",
+    "wall": null
+  },
+  {
+    "event": "east interior and stairs walked",
+    "position": {
+      "x": 31.55416666666673,
+      "y": 3.5,
+      "z": 16.50981658687656
+    },
+    "mode": "ground"
+  },
+  {
+    "event": "central mantle completed",
+    "position": {
+      "x": -8.32000000000007,
+      "y": 1.5,
+      "z": 2.8666666666666663
+    },
+    "mode": "ground"
+  },
+  {
+    "event": "sprint slide jump thrust",
+    "position": {
+      "x": 4.102833333333269,
+      "y": 2.5555555555555545,
+      "z": 11.026666666666655
+    },
+    "velocity": {
+      "x": 6.399999999999998,
+      "y": 2.7666666666666657,
+      "z": 0
+    },
+    "mode": "air",
+    "ion": 78.0999999999999
+  },
+  {
+    "event": "central crossover supported traversal",
+    "position": {
+      "x": 6.867777777777792,
+      "y": 4.25,
+      "z": 2.1058333333333725
+    },
+    "mode": "ground",
+    "ion": 100
+  },
+  {
+    "event": "east service wall run",
+    "position": {
+      "x": 12.229987217246242,
+      "y": 1.3661111111111093,
+      "z": 18.423611111155694
+    },
+    "mode": "wall-run",
+    "ion": 77.25000000000013,
+    "wall": "service-run-east"
+  },
+  {
+    "event": "native Tab scoreboard",
+    "observed": "ordinary scoreboard showed both connected players and Close button"
+  }
+]

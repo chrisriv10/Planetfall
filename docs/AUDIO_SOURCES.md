@@ -69,3 +69,16 @@ shield-hit and plasma-explosion samples respectively, with bounded spatial voice
 - Dedicated planet-run scene; procedural countdown, go, qualify, elimination,
   checkpoint, result, jump/dive, impact, nearby machinery and tile warning/break
   cues reuse the bounded project Web Audio system.
+
+
+## PlanetGun — Nova Afterlight
+
+- File: client/public/audio/pg/nova-afterlight.wav
+- Author/source: original Planetfall project synthesis, tools/compose-pg-music.py
+- Date: 2026-10-21; project-authored under repository terms.
+- Original 48-second mono ambient arena loop; no external samples or melodies.
+- Dedicated planet-gun music scene at 0.09 base gain, beneath combat effects.
+- Weapon reports, impacts and footsteps reuse the already documented project BR
+  sample library with existing bounded spatial voices. Reload, jump, landing,
+  slide, mantle, hit/headshot and match cues reuse project-authored synthesis.
+- No additional third-party assets or licensing obligations were introduced.

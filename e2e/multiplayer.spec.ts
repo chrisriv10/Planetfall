@@ -1,3 +1,4 @@
+import {selectExperimentalFamily} from "./select-family";
 import { expect, test, type Page } from "@playwright/test";
 import { BALANCE, isInsideBrIslandInterior } from "@planetfall/shared";
 
@@ -216,7 +217,7 @@ test("the home menu previews the Fallbucks shop", async ({ page }) => {
   await page.getByRole("button", { name: "Done" }).click();
   await expect(page.locator("#home-screen")).toBeVisible();
   expect((await debugState(page)).homePreview).toBe("planetfall");
-  await page.locator("#family-br").click();
+  await selectExperimentalFamily(page,"battle-royale");
   await expect.poll(async () => (await debugState(page)).homePreview, { timeout: 15_000 }).toBe("battle-royale");
   await page.locator("#family-planetfall").click();
   expect((await debugState(page)).homePreview).toBe("planetfall");
@@ -235,7 +236,7 @@ test("Battle Royale lobby stays usable while its renderer module loads", async (
   try {
     await page.goto("/");
     await page.getByLabel("Name").fill("Loading Pilot");
-    await page.locator("#family-br").click();
+    await selectExperimentalFamily(page,"battle-royale");
     await page.getByRole("button", { name: "Create BR Room" }).click();
     await expect(page.locator("#br-lobby-screen")).toBeVisible();
     await expect.poll(() => moduleRequested).toBe(true);
@@ -262,7 +263,7 @@ test("Battle Royale creates an isolated room and enters the Starliner drop", asy
   await page.evaluate(() => localStorage.setItem("planetfall:settings:v1", JSON.stringify({ mouseSensitivity: 1, controllerSensitivity: 1, invertY: false, musicVolume: 0, sfxVolume: 0, cameraShake: "off", graphicsQuality: "low" })));
   await page.reload();
   await page.getByLabel("Name").fill("Star Pilot");
-  await page.locator("#family-br").click();
+  await selectExperimentalFamily(page,"battle-royale");
   await page.getByRole("button", { name: "Create BR Room" }).click();
   await expect(page.locator("#br-lobby-screen")).toBeVisible();
   await expect(page.locator("#br-team-list")).toContainText("Star Pilot");
@@ -352,7 +353,7 @@ test("Battle Royale Solo requires confirmation and respects quick-play settings"
   await page.goto("/");
   checkpoint("home loaded");
   await page.getByLabel("Name").fill("Intentional Pilot");
-  await page.locator("#family-br").click();
+  await selectExperimentalFamily(page,"battle-royale");
   await page.locator("#play-solo").click();
   await expect(page.locator("#br-quick-play")).toBeVisible();
   await expect(page.locator("#br-hud")).toBeHidden();
@@ -468,7 +469,7 @@ test("two players can create, join, ready, and start", async ({ browser }) => {
   await guest.getByLabel("Name").fill("Orbit");
   await guest.getByLabel("Room code").fill(code);
   await guest.getByRole("button", { name: "Join Game" }).click();
-  await expect(guest.getByText("Nova")).toBeVisible();
+  await expect(guest.locator("#player-list").getByText("Nova",{exact:true})).toBeVisible();
   await expect(guest.locator("#bot-hard")).toBeDisabled();
 
   await guest.getByRole("button", { name: "Ready" }).click();

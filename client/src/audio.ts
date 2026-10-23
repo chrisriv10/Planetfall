@@ -1,6 +1,7 @@
 import { brSpatialMix, type AudioPosition } from "./br-spatial-audio";
-export type MusicScene = "menu" | "game" | "battle-royale" | "planet-run";
+export type MusicScene = "menu" | "game" | "battle-royale" | "planet-run" | "planet-gun";
 export function musicSceneForScreen(screen: string): MusicScene {
+  if(screen==="pgLobby"||screen==="pgHud"||screen==="pgResults")return "planet-gun";
   if(screen==="prLobby"||screen==="prHud"||screen==="prResults")return "planet-run";
   return screen === "brLobby" || screen === "brHud" || screen === "brResults"
     ? "battle-royale" : screen === "hud" ? "game" : "menu";
@@ -25,13 +26,14 @@ export class GameAudio {
   private readonly voices = new Set<SampleVoice>();
 
   private get activeMusic(): HTMLAudioElement { return this.music[this.musicScene]; }
-  private get musicTarget(): number { return (this.musicScene === "battle-royale" ? .085 : this.musicScene === "menu" ? .14 : .18) * this.musicVolume; }
+  private get musicTarget(): number { return (this.musicScene === "battle-royale" ? .085 : this.musicScene === "planet-gun" ? .09 : this.musicScene === "menu" ? .14 : .18) * this.musicVolume; }
 
   constructor() {
     this.music = {
       menu: this.makeMusic("/audio/low-battery.ogg"),
       game: this.makeMusic("/audio/bot-city.ogg"),
       "battle-royale": this.makeMusic("/audio/br/orbital-drift.ogg"),
+      "planet-gun":this.makeMusic("/audio/pg/nova-afterlight.wav"),
       "planet-run":this.makeMusic("/audio/pr/orbital-sprint.ogg")
     };
     this.registerSample("laser-small", "/audio/br/br-laser-small.ogg");

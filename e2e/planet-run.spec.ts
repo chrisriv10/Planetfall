@@ -1,7 +1,8 @@
+import {selectExperimentalFamily} from "./select-family";
 import {writeFile} from "node:fs/promises";
 import {expect,test,type Page} from "@playwright/test";
 const debug=(page:Page)=>page.evaluate(()=>(window as unknown as {__PLANETFALL_PR_DEBUG__?:()=>{phase:string;roundId:string;roundIndex:number;active:boolean;camera:{yaw:number;pitch:number};players:number;triggeredTiles:number;local:{position:{x:number;y:number;z:number};velocity:{y:number};grounded:boolean};calls:number;triangles:number;frameTimes:number[]}}).__PLANETFALL_PR_DEBUG__?.());
-async function home(page:Page){await page.goto("/");await page.getByLabel("Name",{exact:true}).fill("Course Pilot");await page.locator("#family-pr").click();}
+async function home(page:Page){await page.goto("/");await page.getByLabel("Name",{exact:true}).fill("Course Pilot");await selectExperimentalFamily(page,"planet-run");}
 async function review(page:Page,round:string){await home(page);await page.locator("#create-room").click();await expect(page.locator("#pr-lobby-screen")).toBeVisible();await page.locator("#pr-target").selectOption("10");if(!await page.locator(`[data-round='${round}']`).isVisible())await page.locator("#pr-dev-review summary").click();await page.locator(`[data-round='${round}']`).click();await expect.poll(async()=>(await debug(page))?.phase).toBe("running");}
 test("PlanetRun lifecycle, input, UI capture and cross-family renderer ownership",async({page},info)=>{
   const errors:string[]=[];page.on("pageerror",e=>errors.push(e.message));
@@ -20,7 +21,7 @@ test("PlanetRun lifecycle, input, UI capture and cross-family renderer ownership
   await page.screenshot({path:info.outputPath("planetrun-first-course.png")});
   await page.locator("#pr-leave-game").click();await expect(page.locator("#home-screen")).toBeVisible();expect((await debug(page))?.active).toBe(false);
   await page.locator("#family-planetfall").click();await page.locator("#create-room").click();await expect(page.locator("#lobby-screen")).toBeVisible();await expect(page.locator("#pr-hud")).not.toBeVisible();await page.locator("#leave-lobby").click();
-  await page.locator("#family-br").click();await page.locator("#create-room").click();await expect(page.locator("#br-lobby-screen")).toBeVisible();await expect(page.locator("#pr-hud")).not.toBeVisible();await page.locator("#br-leave-lobby").click();expect(errors).toEqual([]);
+  await selectExperimentalFamily(page,"battle-royale");await page.locator("#create-room").click();await expect(page.locator("#br-lobby-screen")).toBeVisible();await expect(page.locator("#pr-hud")).not.toBeVisible();await page.locator("#br-leave-lobby").click();expect(errors).toEqual([]);
 });
 test("PlanetRun quick solo fills bots and advances an ordinary tournament",async({page})=>{
   await home(page);await page.locator("#play-solo").click();await expect.poll(async()=>(await debug(page))?.phase).toBe("running");expect((await debug(page))!.players).toBe(20);
