@@ -1,0 +1,12 @@
+
+ RUN  v5.0.0 C:/Users/Chris/Desktop/planetfall
+
+
+ Test Files  17 passed (17)
+      Tests  58 passed (58)
+   Start at  15:13:43
+   Duration  10.02s (tests 48%, import 40%, transform 11%, worker 1%)
+
+     Import  90 modules were evaluated 528 times · 2.98s total, 40% of tracked time
+             ~2.47s faster with isolate: false — shared modules are evaluated once per worker instead of once per file
+             learn more: https://vitest.dev/guide/improving-performance#test-isolation

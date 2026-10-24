@@ -1,0 +1,19 @@
+
+> planetfall@0.1.0 test
+> npm run build -w @planetfall/shared && vitest run --configLoader native --no-file-parallelism
+
+
+> @planetfall/shared@0.1.0 build
+> tsc -p tsconfig.json
+
+
+ RUN  v5.0.0 C:/Users/Chris/Desktop/planetfall
+
+
+ Test Files  302 passed (302)
+      Tests  1517 passed (1517)
+   Start at  15:46:10
+   Duration  328.66s (tests 75%, import 22%, transform 2%, worker 1%)
+
+    Isolate  302 workers spawned · ~130ms startup each (spawn + environment, per file)
+             at least ~39.23s faster with isolate: false — reuses workers across files instead of one per file

@@ -1,0 +1,30 @@
+{
+  "before": {
+    "position": {
+      "x": -5.5,
+      "y": 0.6,
+      "z": 7
+    },
+    "grounded": true,
+    "velocity": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "supportId": "cargo-cyclone-deck-0"
+  },
+  "after": {
+    "position": {
+      "x": -5.5,
+      "y": 2.633333333333333,
+      "z": 7
+    },
+    "grounded": false,
+    "velocity": {
+      "x": 0,
+      "y": 0.49999999999999967,
+      "z": 0
+    },
+    "supportId": null
+  }
+}

@@ -1,0 +1,162 @@
+[
+  {
+    "frame": 0,
+    "phase": "running",
+    "triggered": 48,
+    "revision": 48,
+    "local": {
+      "position": {
+        "x": -9.353074360871938,
+        "y": 13,
+        "z": 0
+      },
+      "grounded": true,
+      "velocity": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "supportId": "tile:78"
+    }
+  },
+  {
+    "frame": 1,
+    "phase": "running",
+    "triggered": 48,
+    "revision": 48,
+    "local": {
+      "position": {
+        "x": -9.353074360871938,
+        "y": 13,
+        "z": 0
+      },
+      "grounded": true,
+      "velocity": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "supportId": "tile:78"
+    }
+  },
+  {
+    "frame": 2,
+    "phase": "running",
+    "triggered": 48,
+    "revision": 48,
+    "local": {
+      "position": {
+        "x": -9.353074360871938,
+        "y": 13,
+        "z": 0
+      },
+      "grounded": true,
+      "velocity": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "supportId": "tile:78"
+    }
+  },
+  {
+    "frame": 3,
+    "phase": "running",
+    "triggered": 65,
+    "revision": 65,
+    "local": {
+      "position": {
+        "x": -9.353074360871938,
+        "y": 13,
+        "z": 0
+      },
+      "grounded": true,
+      "velocity": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "supportId": "tile:78"
+    }
+  },
+  {
+    "frame": 4,
+    "phase": "running",
+    "triggered": 65,
+    "revision": 65,
+    "local": {
+      "position": {
+        "x": -9.353074360871938,
+        "y": 13,
+        "z": 0
+      },
+      "grounded": true,
+      "velocity": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "supportId": "tile:78"
+    }
+  },
+  {
+    "frame": 5,
+    "phase": "running",
+    "triggered": 84,
+    "revision": 84,
+    "local": {
+      "position": {
+        "x": -9.353074360871938,
+        "y": 9.666666666666666,
+        "z": 0
+      },
+      "grounded": false,
+      "velocity": {
+        "x": 0,
+        "y": -12.500000000000002,
+        "z": 0
+      },
+      "supportId": null
+    }
+  },
+  {
+    "frame": 6,
+    "phase": "running",
+    "triggered": 84,
+    "revision": 84,
+    "local": {
+      "position": {
+        "x": -9.353074360871938,
+        "y": 9.666666666666666,
+        "z": 0
+      },
+      "grounded": false,
+      "velocity": {
+        "x": 0,
+        "y": -12.500000000000002,
+        "z": 0
+      },
+      "supportId": null
+    }
+  },
+  {
+    "frame": 7,
+    "phase": "running",
+    "triggered": 84,
+    "revision": 84,
+    "local": {
+      "position": {
+        "x": -9.353074360871938,
+        "y": 9.666666666666666,
+        "z": 0
+      },
+      "grounded": false,
+      "velocity": {
+        "x": 0,
+        "y": -12.500000000000002,
+        "z": 0
+      },
+      "supportId": null
+    }
+  }
+]

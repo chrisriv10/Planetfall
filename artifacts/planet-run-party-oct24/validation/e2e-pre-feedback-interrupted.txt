@@ -1,0 +1,36 @@
+
+> planetfall@0.1.0 test:e2e
+> playwright test --workers=1 --output=artifacts/planet-run-party-oct24/e2e
+
+[WebServer] (node:5376) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:884) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:15056) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 39 tests using 1 worker
+
+(node:32156) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  1 e2e\lobby-lifecycle.spec.ts:5:3 › Classic lobby leave transfers authority and restores home without reloading (7.3s)
+  ok  2 e2e\lobby-lifecycle.spec.ts:5:3 › BR lobby leave transfers authority and restores home without reloading (12.9s)
+  ok  3 e2e\lobby-lifecycle.spec.ts:55:1 › leaving a BR lobby during module loading cannot reactivate it over home (7.2s)
+  ok  4 e2e\mode-warning.spec.ts:2:1 › experimental family warnings preserve selection, trap focus and do not reappear on return (14.2s)
+  ok  5 e2e\multiplayer.spec.ts:182:1 › settings persist across reloads (3.5s)
+  ok  6 e2e\multiplayer.spec.ts:206:1 › the home menu previews the Fallbucks shop (5.8s)
+  ok  7 e2e\multiplayer.spec.ts:227:1 › Battle Royale lobby stays usable while its renderer module loads (5.0s)
+  ok  8 e2e\multiplayer.spec.ts:257:1 › Battle Royale creates an isolated room and enters the Starliner drop (46.1s)
+BR Solo timing: home loaded 476ms
+BR Solo timing: quick-start sent 5282ms
+BR Solo timing: HUD visible 5382ms
+BR Solo timing: HUD checks complete 12130ms
+BR Solo timing: map visible 15141ms
+BR Solo timing: viewport 1280x720 set 17492ms
+BR Solo timing: viewport 1280x720 layout read 20455ms
+BR Solo timing: viewport 1920x720 set 23111ms
+BR Solo timing: viewport 1920x720 layout read 24110ms
+BR Solo timing: viewport 1440x900 set 24157ms
+BR Solo timing: viewport 1440x900 layout read 25047ms
+  ok  9 e2e\multiplayer.spec.ts:349:1 › Battle Royale Solo requires confirmation and respects quick-play settings (25.2s)
+  ok 10 e2e\multiplayer.spec.ts:430:1 › the cannon guide marks its predicted planet impact (6.6s)

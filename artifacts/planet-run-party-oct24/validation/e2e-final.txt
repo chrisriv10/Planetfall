@@ -1,0 +1,128 @@
+
+> planetfall@0.1.0 test:e2e
+> playwright test --workers=1 --output=artifacts/planet-run-party-oct24/e2e
+
+[WebServer] (node:16064) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:31248) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:26916) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 39 tests using 1 worker
+
+(node:26460) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  1 e2e\lobby-lifecycle.spec.ts:5:3 › Classic lobby leave transfers authority and restores home without reloading (7.0s)
+  ok  2 e2e\lobby-lifecycle.spec.ts:5:3 › BR lobby leave transfers authority and restores home without reloading (12.6s)
+  ok  3 e2e\lobby-lifecycle.spec.ts:55:1 › leaving a BR lobby during module loading cannot reactivate it over home (6.4s)
+  ok  4 e2e\mode-warning.spec.ts:2:1 › experimental family warnings preserve selection, trap focus and do not reappear on return (12.4s)
+  ok  5 e2e\multiplayer.spec.ts:182:1 › settings persist across reloads (3.1s)
+  ok  6 e2e\multiplayer.spec.ts:206:1 › the home menu previews the Fallbucks shop (6.1s)
+  ok  7 e2e\multiplayer.spec.ts:227:1 › Battle Royale lobby stays usable while its renderer module loads (4.9s)
+  ok  8 e2e\multiplayer.spec.ts:257:1 › Battle Royale creates an isolated room and enters the Starliner drop (48.5s)
+BR Solo timing: home loaded 400ms
+BR Solo timing: quick-start sent 4926ms
+BR Solo timing: HUD visible 5026ms
+BR Solo timing: HUD checks complete 11673ms
+BR Solo timing: map visible 14711ms
+BR Solo timing: viewport 1280x720 set 17111ms
+BR Solo timing: viewport 1280x720 layout read 19999ms
+BR Solo timing: viewport 1920x720 set 22682ms
+BR Solo timing: viewport 1920x720 layout read 25601ms
+BR Solo timing: viewport 1440x900 set 28219ms
+BR Solo timing: viewport 1440x900 layout read 28996ms
+  ok  9 e2e\multiplayer.spec.ts:349:1 › Battle Royale Solo requires confirmation and respects quick-play settings (29.1s)
+  ok 10 e2e\multiplayer.spec.ts:430:1 › the cannon guide marks its predicted planet impact (5.8s)
+  ok 11 e2e\multiplayer.spec.ts:446:1 › two players can create, join, ready, and start (8.4s)
+  ok 12 e2e\multiplayer.spec.ts:490:1 › a human can raid, steal, shove, sabotage, and resume cannon play (3.0m)
+  ok 13 e2e\multiplayer.spec.ts:779:1 › the host can start one clearly revealed Chaos modifier (6.2s)
+  ok 14 e2e\multiplayer.spec.ts:813:1 › six participants remain readable and within the visual budget (7.3s)
+  ok 15 e2e\multiplayer.spec.ts:837:1 › solo quick play starts with three clearly marked bots (2.2s)
+  ok 16 e2e\planet-gun-presentation.spec.ts:13:2 › PlanetGun pulse held hip, ADS, recoil, reload and sprint presentation (1.0m)
+  ok 17 e2e\planet-gun-presentation.spec.ts:13:2 › PlanetGun nova held hip, ADS, recoil, reload and sprint presentation (46.9s)
+  ok 18 e2e\planet-gun-presentation.spec.ts:13:2 › PlanetGun photon held hip, ADS, recoil, reload and sprint presentation (47.8s)
+  ok 19 e2e\planet-gun-presentation.spec.ts:13:2 › PlanetGun quasar held hip, ADS, recoil, reload and sprint presentation (48.4s)
+  ok 20 e2e\planet-gun-presentation.spec.ts:13:2 › PlanetGun rail held hip, ADS, recoil, reload and sprint presentation (48.0s)
+  ok 21 e2e\planet-gun.spec.ts:8:1 › PlanetGun warning, lobby, FPS movement, combat controls and clean exit (33.0s)
+  ok 22 e2e\planet-gun.spec.ts:31:53 › PlanetGun actual arena review and rendering samples at low (48.2s)
+  ok 23 e2e\planet-gun.spec.ts:31:53 › PlanetGun actual arena review and rendering samples at medium (1.0m)
+  ok 24 e2e\planet-gun.spec.ts:31:53 › PlanetGun actual arena review and rendering samples at high (1.3m)
+  ok 25 e2e\planet-gun.spec.ts:31:53 › PlanetGun actual arena review and rendering samples at auto (51.4s)
+  ok 26 e2e\planet-run-party.spec.ts:4:1 › PlanetRun themed thirty-pilot courses and responsive canonical winner stage (1.1m)
+  ok 27 e2e\planet-run.spec.ts:7:1 › PlanetRun lifecycle, input, UI capture and cross-family renderer ownership (23.5s)
+  ok 28 e2e\planet-run.spec.ts:26:1 › PlanetRun quick solo fills bots and advances an ordinary tournament (28.4s)
+  ok 29 e2e\planet-run.spec.ts:32:1 › Shatterdeck contact breaks cells and falls to a lower deck (20.2s)
+  ok 30 e2e\planet-run.spec.ts:43:1 › PlanetRun six-round rendering samples at low (1.0m)
+  ok 31 e2e\planet-run.spec.ts:43:1 › PlanetRun six-round rendering samples at medium (1.1m)
+  ok 32 e2e\planet-run.spec.ts:43:1 › PlanetRun six-round rendering samples at high (1.1m)
+  ok 33 e2e\planet-run.spec.ts:43:1 › PlanetRun six-round rendering samples at auto (1.1m)
+  ok 34 e2e\planet-run.spec.ts:58:1 › Meteor Garden renders telegraphed fields without opaque hazard boxes (14.7s)
+(node:11788) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 35 e2e\planet-gun-fire-hitch.spec.ts:7:1 › a single Photon trigger survives a stalled render frame without an extra shot (14.6s)
+  ok 36 e2e\planet-gun-fire-hitch.spec.ts:44:1 › Photon firing keeps a fresh server clock when gameplay snapshots are delayed (7.7s)
+  ok 37 e2e\planet-gun-neighborhood.spec.ts:8:1 › Nova neighborhood adds distinct occupied districts and layered orbital context (8.0s)
+Route initial frame times: [16.800000000000182,16.699999999999818,16.699999999999818,16.5,16.700000000000728,16.599999999999454,16.699999999999818,16.700000000000728,16.599999999999454,16.699999999999818,16.5,16.800000000000182,16.600000000000364,16.899999999999636,16.600000000000364,16.5,16.800000000000182,16.599999999999454,16.699999999999818,16.700000000000728]
+Route correction -40,-27 {"p":{"x":-40,"y":0,"z":-27},"v":{"x":0,"y":0,"z":0}}
+Route correction -40,2 {"p":{"x":-40,"y":0,"z":-27},"v":{"x":0,"y":0,"z":0}}
+Neighborhood route: solar approach
+Route correction -25,2 {"p":{"x":-40,"y":0,"z":1.898333333333359},"v":{"x":0,"y":0,"z":0}}
+Route correction -25,-10.5 {"p":{"x":-24.872500000000077,"y":0,"z":1.898333333333359},"v":{"x":0,"y":0,"z":0}}
+Neighborhood route: habitat lobby
+Route correction -26.5,-2.7 {"p":{"x":-24.872500000000077,"y":0,"z":-10.419166666666644},"v":{"x":0,"y":0,"z":0}}
+Route correction -31,-2.7 {"p":{"x":-26.53916666666677,"y":0,"z":-2.620833333333319},"v":{"x":0,"y":0,"z":0}}
+Route correction -31,-13.06 {"p":{"x":-30.778333333333475,"y":0.4,"z":-2.620833333333319},"v":{"x":0,"y":0,"z":0}}
+Neighborhood route: habitat stairs
+Route correction -26,-13.06 {"p":{"x":-30.778333333333475,"y":3.5,"z":-13.03},"v":{"x":0,"y":0,"z":0}}
+Route correction -26,-17.5 {"p":{"x":-25.91916666666677,"y":3.5,"z":-13.03},"v":{"x":0,"y":0,"z":0}}
+Neighborhood route: habitat observation suite
+Route correction -26,-11 {"p":{"x":-25.91916666666677,"y":3.5,"z":-17.26916666666668},"v":{"x":0,"y":0,"z":0}}
+Route correction -13,-11 {"p":{"x":-25.91916666666677,"y":3.5,"z":-10.990000000000025},"v":{"x":0,"y":0,"z":0}}
+Route correction -12,-19 {"p":{"x":-12.927222222222278,"y":0,"z":-10.990000000000025},"v":{"x":0,"y":0,"z":0}}
+Route correction -5.9,-19 {"p":{"x":-12.093888888888944,"y":0,"z":-18.92833333333335},"v":{"x":0,"y":0,"z":0}}
+Route correction -5.9,-29.6 {"p":{"x":-5.934722222222297,"y":0,"z":-18.92833333333335},"v":{"x":0,"y":0,"z":0}}
+Route correction -12,-29.6 {"p":{"x":-5.934722222222297,"y":0,"z":-29.60666666666676},"v":{"x":0,"y":0,"z":0}}
+Route correction -12,-24 {"p":{"x":-11.980555555555624,"y":0,"z":-29.60666666666676},"v":{"x":0,"y":0,"z":0}}
+Neighborhood route: raised garden terrace
+Route correction -12,-29.6 {"p":{"x":-11.980555555555624,"y":1.2,"z":-23.934166666666705},"v":{"x":0,"y":0,"z":0}}
+Route correction -20.13,-29.4 {"p":{"x":-11.980555555555624,"y":0,"z":-29.600555555555616},"v":{"x":0,"y":0,"z":0}}
+Route correction -20.13,-29.4 {"p":{"x":-20.23,"y":0,"z":-29.36722222222228},"v":{"x":0,"y":0,"z":0}}
+Route correction -18,-28 {"p":{"x":-20.083333333333336,"y":0.8533333333333329,"z":-27.724722222222272},"v":{"x":0,"y":4.9999999999999964,"z":7.2}}
+Route correction -10,-30.13 {"p":{"x":-17.964166666666664,"y":0,"z":-27.880000000000027},"v":{"x":0,"y":0,"z":0}}
+Route correction 16,-29 {"p":{"x":-6.062500000000006,"y":4.023444444444444,"z":-30.146666666666686},"v":{"x":6.53333333333334,"y":-0.4266666666666649,"z":0}}
+Route correction 16,-19 {"p":{"x":16.028055555555532,"y":0,"z":-28.91666666666666},"v":{"x":0,"y":0,"z":0}}
+Route correction 11.5,-19 {"p":{"x":16.028055555555532,"y":0,"z":-19.211666666666588},"v":{"x":0,"y":0,"z":0}}
+Route correction 11.5,15.6 {"p":{"x":11.548888888888879,"y":0,"z":-19.211666666666588},"v":{"x":0,"y":0,"z":0}}
+Neighborhood route: transit street and pier bypass
+Route correction 12.13,18 {"p":{"x":11.548888888888879,"y":0,"z":15.682500000000053},"v":{"x":0,"y":0,"z":0}}
+Route correction 11.5,15.6 {"p":{"x":12.155555555555546,"y":0.7699999999999997,"z":19.391666666666733},"v":{"x":0,"y":5.399999999999997,"z":6.75}}
+Route correction 15.6,15.6 {"p":{"x":11.435555555555545,"y":0,"z":15.593888888888923},"v":{"x":0,"y":0,"z":0}}
+Route correction 15.6,27 {"p":{"x":15.434722222222202,"y":0,"z":15.593888888888923},"v":{"x":0,"y":0,"z":0}}
+Neighborhood route: ion stairs and control room
+Route correction 15.6,15.6 {"p":{"x":15.434722222222202,"y":3.5,"z":26.992222222222342},"v":{"x":0,"y":0,"z":0}}
+Route correction -2,15.6 {"p":{"x":15.434722222222202,"y":0,"z":15.639166666666737},"v":{"x":0,"y":0,"z":0}}
+Route correction -2,25 {"p":{"x":-1.8686111111111015,"y":0,"z":15.639166666666737},"v":{"x":0,"y":0,"z":0}}
+Neighborhood route: maintenance interior
+Route correction -2,15.6 {"p":{"x":-1.8686111111111015,"y":0,"z":24.990833333333473},"v":{"x":0,"y":0,"z":0}}
+Route correction 29,15.6 {"p":{"x":-1.8686111111111015,"y":0,"z":15.765833333333402},"v":{"x":0,"y":0,"z":0}}
+Neighborhood route: observatory interior
+Route correction 29,4.2 {"p":{"x":28.965555555555596,"y":0,"z":15.765833333333402},"v":{"x":0,"y":0,"z":0}}
+Route correction 32,4.2 {"p":{"x":28.965555555555596,"y":0,"z":4.155000000000103},"v":{"x":0,"y":0,"z":0}}
+Route correction 32,17.7 {"p":{"x":31.91805555555561,"y":0,"z":4.155000000000103},"v":{"x":0,"y":0,"z":0}}
+Route correction 32,20 {"p":{"x":31.91805555555561,"y":3.5,"z":17.665833333333417},"v":{"x":0,"y":0,"z":0}}
+Route correction 28,20 {"p":{"x":31.91805555555561,"y":3.5,"z":19.771666666666757},"v":{"x":0,"y":0,"z":0}}
+Route correction 28,23 {"p":{"x":28.032222222222245,"y":3.5,"z":19.771666666666757},"v":{"x":0,"y":0,"z":0}}
+Neighborhood route: observatory upper gallery
+Route correction 38,23 {"p":{"x":28.032222222222245,"y":3.5,"z":23.064166666666782},"v":{"x":0,"y":0,"z":0}}
+Route correction 40,29 {"p":{"x":38.09694444444444,"y":0,"z":23.064166666666782},"v":{"x":0,"y":0,"z":0}}
+Neighborhood route: void spawn approach
+Route correction 40,-27 {"p":{"x":39.91749999999998,"y":0,"z":28.975833333333473},"v":{"x":0,"y":0,"z":0}}
+Route correction 40,-27 {"p":{"x":39.91749999999998,"y":0,"z":-20.642499999999913},"v":{"x":0,"y":0,"z":0}}
+Neighborhood route: void outer lane
+  ok 38 e2e\planet-gun-neighborhood.spec.ts:15:1 › real clients walk both districts, terrace, upper rooms and authored wall-run loops (2.6m)
+  ok 39 e2e\planet-gun-scoped.spec.ts:14:1 › two opposing FPS clients traverse Nova Block, register a scoped hit and respawn (32.5s)
+
+  Slow test file: e2e\planet-run.spec.ts (5.8m)
+  Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+  39 passed (25.1m)

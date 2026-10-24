@@ -1,0 +1,374 @@
+[
+  {
+    "round": "cargo-cyclone",
+    "before": {
+      "position": {
+        "x": -5.5,
+        "y": 0.6,
+        "z": 7
+      },
+      "grounded": true,
+      "velocity": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "supportId": "cargo-cyclone-deck-0"
+    },
+    "after": {
+      "position": {
+        "x": -5.5,
+        "y": 2.622222222222222,
+        "z": -0.21555555555555406
+      },
+      "grounded": false,
+      "velocity": {
+        "x": 0,
+        "y": -0.3333333333333337,
+        "z": -13
+      },
+      "supportId": null
+    }
+  },
+  {
+    "round": "solar-sweep",
+    "before": {
+      "position": {
+        "x": -10,
+        "y": 0.6,
+        "z": -10
+      },
+      "grounded": true,
+      "velocity": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "supportId": "solar-sweep--1--1"
+    },
+    "after": {
+      "position": {
+        "x": -5.473567416679228,
+        "y": 2.199999999999999,
+        "z": -16.691713327849456
+      },
+      "grounded": false,
+      "velocity": {
+        "x": 0,
+        "y": 0.6666666666666666,
+        "z": -13
+      },
+      "supportId": null
+    }
+  },
+  {
+    "round": "meteor-garden",
+    "before": {
+      "position": {
+        "x": -10,
+        "y": 0.6,
+        "z": -10
+      },
+      "grounded": true,
+      "velocity": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "supportId": "meteor-garden--1--1"
+    },
+    "after": {
+      "position": {
+        "x": -10,
+        "y": 2.4222222222222216,
+        "z": -18.4688888888889
+      },
+      "grounded": false,
+      "velocity": {
+        "x": 0,
+        "y": -2.833333333333334,
+        "z": -13
+      },
+      "supportId": null
+    }
+  },
+  {
+    "round": "flux-gardens",
+    "before": {
+      "position": {
+        "x": -5.5,
+        "y": 0.6,
+        "z": 7
+      },
+      "grounded": true,
+      "velocity": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "supportId": "flux-gardens-deck-0"
+    },
+    "after": {
+      "position": {
+        "x": -5.5,
+        "y": 2.2999999999999994,
+        "z": -1.9399999999999988
+      },
+      "grounded": false,
+      "velocity": {
+        "x": 0,
+        "y": -3.6666666666666674,
+        "z": -13
+      },
+      "supportId": null
+    }
+  },
+  {
+    "round": "capacitor-causeway",
+    "before": {
+      "position": {
+        "x": -5.5,
+        "y": 0.6,
+        "z": 7
+      },
+      "grounded": true,
+      "velocity": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "supportId": "capacitor-causeway-deck-0"
+    },
+    "after": {
+      "position": {
+        "x": -5.5,
+        "y": 2.583333333333333,
+        "z": -0.5666666666666655
+      },
+      "grounded": false,
+      "velocity": {
+        "x": 0,
+        "y": -1.166666666666667,
+        "z": -13
+      },
+      "supportId": null
+    }
+  },
+  {
+    "round": "shatterdeck",
+    "before": {
+      "position": {
+        "x": -9.353074360871938,
+        "y": 18,
+        "z": 0
+      },
+      "grounded": true,
+      "velocity": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "supportId": "tile:0"
+    },
+    "after": {
+      "position": {
+        "x": -9.353074360871938,
+        "y": 7.972222222222222,
+        "z": -9.646666666666667
+      },
+      "grounded": false,
+      "velocity": {
+        "x": 0,
+        "y": -0.8333333333333334,
+        "z": -13
+      },
+      "supportId": null
+    }
+  },
+  {
+    "round": "meteor-garden",
+    "before": {
+      "position": {
+        "x": -10,
+        "y": 0.6,
+        "z": -10
+      },
+      "grounded": true,
+      "velocity": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "supportId": "meteor-garden--1--1"
+    },
+    "after": {
+      "position": {
+        "x": -10,
+        "y": 2.4944444444444445,
+        "z": -18.38222222222223
+      },
+      "grounded": false,
+      "velocity": {
+        "x": 0,
+        "y": -1.8333333333333335,
+        "z": -13
+      },
+      "supportId": null
+    }
+  },
+  {
+    "round": "flux-gardens",
+    "before": {
+      "position": {
+        "x": -5.5,
+        "y": 0.6,
+        "z": 7
+      },
+      "grounded": true,
+      "velocity": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "supportId": "flux-gardens-deck-0"
+    },
+    "after": {
+      "position": {
+        "x": -5.5,
+        "y": 2.516666666666666,
+        "z": -0.9999999999999989
+      },
+      "grounded": false,
+      "velocity": {
+        "x": 0,
+        "y": -2.0000000000000004,
+        "z": -13
+      },
+      "supportId": null
+    }
+  },
+  {
+    "round": "cargo-cyclone",
+    "before": {
+      "position": {
+        "x": -5.5,
+        "y": 0.6,
+        "z": 7
+      },
+      "grounded": true,
+      "velocity": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "supportId": "cargo-cyclone-deck-0"
+    },
+    "after": {
+      "position": {
+        "x": -5.5,
+        "y": 2.4222222222222216,
+        "z": -1.9399999999999988
+      },
+      "grounded": false,
+      "velocity": {
+        "x": 0,
+        "y": -2.833333333333334,
+        "z": -13
+      },
+      "supportId": null
+    }
+  },
+  {
+    "round": "solar-sweep",
+    "before": {
+      "position": {
+        "x": -10,
+        "y": 0.6,
+        "z": -10
+      },
+      "grounded": true,
+      "velocity": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "supportId": "solar-sweep--1--1"
+    },
+    "after": {
+      "position": {
+        "x": -5.780660945199262,
+        "y": 1.9222222222222214,
+        "z": -18.290610687767458
+      },
+      "grounded": false,
+      "velocity": {
+        "x": 0,
+        "y": -2.666666666666667,
+        "z": -13
+      },
+      "supportId": null
+    }
+  },
+  {
+    "round": "capacitor-causeway",
+    "before": {
+      "position": {
+        "x": -5.5,
+        "y": 0.6,
+        "z": 7
+      },
+      "grounded": true,
+      "velocity": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "supportId": "capacitor-causeway-deck-0"
+    },
+    "after": {
+      "position": {
+        "x": -5.5,
+        "y": 2.4222222222222216,
+        "z": -2.239999999999999
+      },
+      "grounded": false,
+      "velocity": {
+        "x": 0,
+        "y": -2.833333333333334,
+        "z": -13
+      },
+      "supportId": null
+    }
+  },
+  {
+    "round": "shatterdeck",
+    "before": {
+      "position": {
+        "x": -9.353074360871938,
+        "y": 18,
+        "z": 0
+      },
+      "grounded": true,
+      "velocity": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "supportId": "tile:0"
+    },
+    "after": {
+      "position": {
+        "x": -9.353074360871938,
+        "y": 7.972222222222222,
+        "z": -9.540000000000001
+      },
+      "grounded": false,
+      "velocity": {
+        "x": 0,
+        "y": -0.8333333333333334,
+        "z": -13
+      },
+      "supportId": null
+    }
+  }
+]

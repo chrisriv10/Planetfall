@@ -1,0 +1,30 @@
+{
+  "approach": {
+    "position": {
+      "x": -5.5,
+      "y": 0.6,
+      "z": -5.519999999999998
+    },
+    "grounded": true,
+    "velocity": {
+      "x": 0,
+      "y": 0,
+      "z": -9
+    },
+    "supportId": "flux-gardens-deck-0"
+  },
+  "landed": {
+    "position": {
+      "x": -5.5,
+      "y": 1.9722222222222217,
+      "z": -9.717777777777773
+    },
+    "grounded": false,
+    "velocity": {
+      "x": 0,
+      "y": -5.333333333333334,
+      "z": -6.933333333333333
+    },
+    "supportId": null
+  }
+}

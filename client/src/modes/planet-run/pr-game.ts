@@ -1,12 +1,17 @@
 import {prControllerCamera} from "./pr-camera-input";
 import {createPrPilotPresentation} from "./pr-pilot-presentation";
 import * as THREE from "three";
-import {PR_BALANCE as B,PrTileState,prRound,prSpawn,prStepMotion,type PrInput,type PrMotion,type PrSnapshot,type PrTileDelta} from "@planetfall/shared";
+import {PR_BALANCE as B,PrTileState,prRound,prStepMotion,prPlatformCenter,prMeteorTimeline,SHOP_CATALOG,type PrInput,type PrMotion,type PrSnapshot,type PrTileDelta} from "@planetfall/shared";
 import type {GameSocket} from "../../network";
 import {createAstronautVisual,type AstronautVisual} from "../../astronaut";
 import {createAstronautMotion} from "../../astronaut-motion";
 import {QUALITY_PRESETS,type UserSettings} from "../../settings";
 import {PrWorldRenderer} from "./pr-world";
+import {prReviewCamera,prIntroCamera,type PrReviewName} from "./pr-review";
+import {createPrEventArt} from "./art/pr-event-art";
+import {createPrWinnerStage} from "./art/pr-winner-stage";
+import {PR_ART_PALETTES} from "./art/pr-art-shared";
+import {prIsBoosting} from "./pr-feedback-state";
 
 /** Owns PlanetRun only. Reuses the application's renderer while Classic is paused. */
 export class PlanetRunGame {
@@ -20,11 +25,19 @@ export class PlanetRunGame {
   private readonly rendererName:string;
   private frameTimes:number[]=[];private lastImpactCue=0;private previousElapsed=0;private lastMachineryCue=-2000;
   private readonly direction=new THREE.Vector3();
+  private readonly hemisphere=new THREE.HemisphereLight(0xe7faff,0x595175,2.5);
+  private readonly sun=new THREE.DirectionalLight(0xfff0d5,2.6);
+  private readonly events=createPrEventArt();
+  private readonly winnerStage=createPrWinnerStage();
+  private lastEnvironmentCue=-2000;private wasLowGravity=false;
+  private qualifiedFocusUntil=0;
+  private readonly warningIds=new Set<string>();
+  private review:PrReviewName|null=null;
   private readonly target=new THREE.Vector3();private readonly desired=new THREE.Vector3();private readonly ray=new THREE.Raycaster();
-  constructor(private readonly renderer:THREE.WebGLRenderer,private readonly canvas:HTMLCanvasElement,private readonly socket:GameSocket,private readonly hud:(s:PrSnapshot)=>void,private readonly cue:(kind:"jump"|"dive"|"tile"|"impact"|"tile-break"|"machinery")=>void=()=>{}){
+  constructor(private readonly renderer:THREE.WebGLRenderer,private readonly canvas:HTMLCanvasElement,private readonly socket:GameSocket,private readonly hud:(s:PrSnapshot)=>void,private readonly cue:(kind:"jump"|"dive"|"tile"|"impact"|"tile-break"|"machinery"|"meteor-warning"|"gravity"|"boost"|"land")=>void=()=>{}){
     const gl=this.renderer.getContext(),extension=gl.getExtension("WEBGL_debug_renderer_info");this.rendererName=extension?String(gl.getParameter(extension.UNMASKED_RENDERER_WEBGL)):String(gl.getParameter(gl.RENDERER));
     this.scene.background=new THREE.Color(0x10243c);this.scene.fog=new THREE.Fog(0x10243c,100,280);
-    this.scene.add(new THREE.HemisphereLight(0xe7faff,0x595175,2.5));const sun=new THREE.DirectionalLight(0xfff0d5,2.6);sun.position.set(30,70,25);this.scene.add(sun);
+    this.sun.position.set(30,70,25);this.scene.add(this.hemisphere,this.sun,this.events.root,this.winnerStage.root);
     addEventListener("keydown",e=>{if(!this.active||this.blocked)return;if(["Space","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.code))e.preventDefault();this.keys.add(e.code);if(e.code==="KeyV"&&!e.repeat)this.socket.emit("pr:emote",{emote:"wave"});if(e.code==="KeyQ")this.spectatorIndex--;if(e.code==="KeyE")this.spectatorIndex++;});
     addEventListener("keyup",e=>this.keys.delete(e.code));addEventListener("mouseup",()=>this.cameraDragging=false);addEventListener("blur",()=>{this.keys.clear();this.cameraDragging=false;});
     canvas.addEventListener("mousedown",e=>{if((e.button===0||e.button===2)&&this.canLook())this.cameraDragging=true;});
@@ -32,20 +45,26 @@ export class PlanetRunGame {
     addEventListener("mousemove",e=>{if(this.canLook()&&(document.pointerLockElement===this.canvas||this.cameraDragging)){this.yaw-=e.movementX*.0025*(this.settings?.mouseSensitivity??1);this.pitch=THREE.MathUtils.clamp(this.pitch+e.movementY*.002*(this.settings?.mouseSensitivity??1)*(this.settings?.invertY?-1:1),-.15,1.1);}});
     canvas.addEventListener("click",()=>{if(this.canLook())void canvas.requestPointerLock().catch(()=>{/* Embedded browsers can deny capture; right-drag look remains available. */});});
   }
-  private canLook():boolean{return this.active&&!this.blocked&&this.snapshot?.phase==="running"&&this.snapshot.players.find(p=>p.id===this.localId)?.status==="active";}
+  private canLook():boolean{return this.active&&!this.blocked&&!this.review&&this.snapshot?.phase==="running"&&this.snapshot.players.find(p=>p.id===this.localId)?.status==="active";}
+  setReviewView(name:PrReviewName|null):void{if(!import.meta.env.DEV)return;this.review=name;this.keys.clear();this.cameraDragging=false;document.exitPointerLock?.();}
   activate(id:string):void{if(this.active&&this.localId===id)return;this.localId=id;this.active=true;if(this.settings)this.setSettings(this.settings);this.lastFrame=performance.now();this.renderer.setAnimationLoop(t=>this.frame(t));}
   private localId="";
   deactivate():void{if(!this.active)return;this.active=false;this.cameraDragging=false;this.keys.clear();this.pending=[];document.exitPointerLock?.();this.renderer.setAnimationLoop(null);}
   setUiCaptured(blocked:boolean):void{this.blocked=blocked;if(blocked){this.cameraDragging=false;this.keys.clear();document.exitPointerLock?.();}}
-  setSettings(settings:UserSettings):void{this.settings=settings;const q=QUALITY_PRESETS[settings.graphicsQuality==="auto"?"medium":settings.graphicsQuality];if(this.active){this.renderer.setPixelRatio(Math.min(devicePixelRatio,q.pixelRatioCap)*q.resolutionScale);this.renderer.shadowMap.enabled=false;}}
-  debugState(){let visibleInstances=0;const materials=new Set<THREE.Material>();this.scene.traverseVisible(o=>{if(o instanceof THREE.Mesh){for(const m of Array.isArray(o.material)?o.material:[o.material])materials.add(m);if(o instanceof THREE.InstancedMesh)visibleInstances+=o.count;}});return {camera:{yaw:this.yaw,pitch:this.pitch},renderer:this.rendererName,quality:this.settings?.graphicsQuality,visibleInstances,materialCount:materials.size,active:this.active,blocked:this.blocked,phase:this.snapshot?.phase,roundId:this.snapshot?.roundId,roundIndex:this.snapshot?.roundIndex,local:this.local?{position:{...this.local.position},grounded:this.local.grounded,velocity:{...this.local.velocity},supportId:this.local.supportId}:null,tileCount:this.tiles.tiles.length,triggeredTiles:this.tiles.triggered.size,tileRevision:this.tileRevision,pendingInputs:this.pending.length,players:this.snapshot?.players.length??0,calls:this.renderer.info.render.calls,triangles:this.renderer.info.render.triangles,geometries:this.renderer.info.memory.geometries,textures:this.renderer.info.memory.textures,frameTimes:[...this.frameTimes]};}
+  setSettings(settings:UserSettings):void{this.settings=settings;const quality=settings.graphicsQuality==="auto"?"medium":settings.graphicsQuality,q=QUALITY_PRESETS[quality];if(this.active){this.world?.setQuality(quality);this.events.setQuality(quality);this.renderer.setPixelRatio(Math.min(devicePixelRatio,q.pixelRatioCap)*q.resolutionScale);this.renderer.shadowMap.enabled=false;}}
+  debugState(){let worldCalls=0;this.world?.root.traverseVisible(o=>{if(o instanceof THREE.Mesh||o instanceof THREE.Points)worldCalls++;});let visibleInstances=0;const materials=new Set<THREE.Material>();this.scene.traverseVisible(o=>{if(o instanceof THREE.Mesh){for(const m of Array.isArray(o.material)?o.material:[o.material])materials.add(m);if(o instanceof THREE.InstancedMesh)visibleInstances+=o.count;}});return {worldCalls,review:this.review,status:this.snapshot?.players.find(p=>p.id===this.localId)?.status,camera:{yaw:this.yaw,pitch:this.pitch},renderer:this.rendererName,quality:this.settings?.graphicsQuality,visibleInstances,materialCount:materials.size,active:this.active,blocked:this.blocked,phase:this.snapshot?.phase,roundId:this.snapshot?.roundId,roundIndex:this.snapshot?.roundIndex,local:this.local?{position:{...this.local.position},grounded:this.local.grounded,velocity:{...this.local.velocity},supportId:this.local.supportId}:null,tileCount:this.tiles.tiles.length,triggeredTiles:this.tiles.triggered.size,tileRevision:this.tileRevision,pendingInputs:this.pending.length,players:this.snapshot?.players.length??0,calls:this.renderer.info.render.calls,triangles:this.renderer.info.render.triangles,geometries:this.renderer.info.memory.geometries,textures:this.renderer.info.memory.textures,frameTimes:[...this.frameTimes]};}
   applySnapshot(s:PrSnapshot):void {
     const changed=s.roundIndex!==this.snapshot?.roundIndex||s.roundId!==this.snapshot?.roundId;
-    if(changed){this.previousElapsed=0;this.lastMachineryCue=-2000;this.world?.dispose();this.world=null;this.pending=[];this.tileRevision=0;
+    if(changed){this.qualifiedFocusUntil=0;this.previousElapsed=0;this.lastMachineryCue=-2000;this.lastEnvironmentCue=-2000;this.wasLowGravity=false;this.warningIds.clear();this.events.update(0);this.world?.dispose();this.world=null;this.pending=[];this.tileRevision=0;
       if(s.roundId){const round=prRound(s.roundId);this.world=new PrWorldRenderer(round);this.scene.add(this.world.root);this.cameraColliders=[];this.world.root.traverse(o=>{if(["authoritative-platform","authoritative-hazard","shatterdeck-cells"].includes(o.name))this.cameraColliders.push(o);});this.tiles=new PrTileState(round.tiles);}else this.tiles=new PrTileState([]);
-      this.yaw=0;
+      this.yaw=0;this.review=null;
+      if(s.roundId){const palette=PR_ART_PALETTES[s.roundId];this.hemisphere.groundColor.set(palette.dark);this.hemisphere.color.set(palette.white);this.sun.color.set(s.roundId==="solar-sweep"?0xffdf9e:palette.white);this.sun.intensity=s.roundId==="shatterdeck"?2:2.6;}
+      if(this.settings)this.setSettings(this.settings);
     }
+    if(!changed&&this.snapshot){const elapsed=Math.max(0,s.serverTime-s.roundStartedAt);for(const p of s.players){const previous=this.snapshot.players.find(old=>old.id===p.id);if(previous?.status!=="active"||p.status==="active")continue;if(p.id===this.localId||this.local&&Math.hypot(p.position.x-this.local.position.x,p.position.z-this.local.position.z)<18){const color=SHOP_CATALOG.find(i=>i.id===p.equippedCosmetics.trail&&i.category==="trail")?.color??p.color;this.events.emit(p.status==="qualified"?"qualify":"eliminate",p.position,color,elapsed);}}}
+    if(!changed&&s.players.find(p=>p.id===this.localId)?.status==="qualified"&&this.snapshot?.players.find(p=>p.id===this.localId)?.status==="active")this.qualifiedFocusUntil=Math.max(0,s.serverTime-s.roundStartedAt)+900;
     this.snapshot=s;this.offset=s.serverTime-performance.now();
+    this.winnerStage.setWinner(s.phase==="results"?s.players.find(p=>p.id===s.winnerId)??null:null);
     if(s.tilesFull){this.tiles=new PrTileState(s.roundId?prRound(s.roundId).tiles:[]);this.tiles.apply(s.tiles);this.tileRevision=s.tileRevision;}
     if(s.tileRevision>this.tileRevision)this.socket.emit("pr:tiles:sync");
     const me=s.players.find(p=>p.id===this.localId);
@@ -67,11 +86,15 @@ export class PlanetRunGame {
     this.frameTimes.push(frameMs);if(this.frameTimes.length>180)this.frameTimes.shift();
     const elapsed=Math.max(0,now+this.offset-s.roundStartedAt),round=prRound(s.roundId!);
     const me=s.players.find(p=>p.id===this.localId);
+    const focusQualified=s.phase==="running"&&me?.status==="qualified"&&elapsed<this.qualifiedFocusUntil;
     if(s.phase==="running"&&!this.blocked&&me?.status==="active"&&this.local){
       for(const [id,at] of this.tiles.triggered){const cell=this.tiles.tiles[id],breakAt=at+B.tileBreakMs;
         if(cell&&this.previousElapsed<breakAt&&elapsed>=breakAt&&Math.hypot(cell.center.x-this.local.position.x,cell.center.y-this.local.position.y,cell.center.z-this.local.position.z)<7){this.cue("tile-break");break;}
       }
       if(elapsed-this.lastMachineryCue>1400&&round.obstacles.some(o=>(o.kind==="rotator"||o.kind==="door")&&Math.hypot(o.center.x-this.local!.position.x,o.center.z-this.local!.position.z)<o.half.x+10)){this.lastMachineryCue=elapsed;this.cue("machinery");}
+      let warning=false;for(const o of round.obstacles){if(o.kind!=="meteor")continue;const active=prMeteorTimeline(o,elapsed,s.seed).warning;if(active&&!this.warningIds.has(o.id)&&Math.hypot(o.center.x-this.local.position.x,o.center.z-this.local.position.z)<o.half.x+9)warning=true;if(active)this.warningIds.add(o.id);else this.warningIds.delete(o.id);}
+      if(warning&&elapsed-this.lastEnvironmentCue>650){this.lastEnvironmentCue=elapsed;this.cue("meteor-warning");}
+      const lowGravity=this.inLowGravity(this.local,elapsed);if(lowGravity&&!this.wasLowGravity&&elapsed-this.lastEnvironmentCue>650){this.lastEnvironmentCue=elapsed;this.cue("gravity");}this.wasLowGravity=lowGravity;
     }
     this.previousElapsed=elapsed;
     this.accumulator+=dt;
@@ -84,27 +107,31 @@ export class PlanetRunGame {
       if(enabled&&pad){const view=prControllerCamera(this.yaw,this.pitch,pad.axes[2]??0,pad.axes[3]??0,1/B.tickRate,this.settings?.controllerSensitivity??1,this.settings?.invertY??false);this.yaw=view.yaw;this.pitch=view.pitch;}
       const length=Math.max(1,Math.hypot(x,z));x/=length;z/=length;const c=Math.cos(this.yaw),sin=Math.sin(this.yaw);
       const input:PrInput={sequence:++this.sequence,moveX:x*c+z*sin,moveZ:-x*sin+z*c,jump:enabled&&(this.keys.has("Space")||!!pad?.buttons[0]?.pressed),dive:enabled&&(this.keys.has("ShiftLeft")||this.keys.has("ShiftRight")||!!pad?.buttons[2]?.pressed)};
-      const grounded=this.local.grounded,diveReady=this.local.diveReadyAt;
+      const grounded=this.local.grounded,diveReady=this.local.diveReadyAt,vertical=this.local.velocity.y;
       this.socket.emit("pr:player:input",input);prStepMotion(this.local,input,1/B.tickRate,elapsed,round,s.seed,this.tiles);
       if(grounded&&!this.local.grounded&&this.local.velocity.y>5)this.cue("jump");
-      if(this.local.diveReadyAt>diveReady)this.cue("dive");this.pending.push({input,elapsed});if(this.pending.length>30)this.pending.shift();
+      if(this.local.diveReadyAt>diveReady){const boosted=prIsBoosting(this.local,elapsed);this.cue(boosted?"boost":"dive");if(boosted)this.events.emit("boost",this.local.position,me.color,elapsed);}
+      if(!grounded&&this.local.grounded&&vertical< -4){this.events.emit("land",this.local.position,me.color,elapsed);this.cue("land");}
+      this.pending.push({input,elapsed});if(this.pending.length>30)this.pending.shift();
     }
     this.world.update(elapsed,s.seed,this.tiles.triggered);
+    this.world.setPhase(s.phase,Math.max(0,Math.ceil((s.phaseEndsAt-now-this.offset)/1000)),elapsed);this.events.update(elapsed);
+    this.world.root.visible=s.phase!=="results";this.events.root.visible=s.phase!=="results";
     const present=new Set(s.players.map(p=>p.id));
     for(const [id,p]of this.pilots)if(!present.has(id)){p.presentation.dispose();this.disposePilot(p.rig);this.pilots.delete(id);}
     for(const p of s.players){
       let visual=this.pilots.get(p.id);
       if(!visual){const rig=createAstronautVisual({identityColor:p.color,suitAccent:p.color,isBot:p.isBot});visual={rig,motion:createAstronautMotion(rig),presentation:createPrPilotPresentation(rig,this.scene)};this.pilots.set(p.id,visual);this.scene.add(rig.group);}
       const state=p.id===this.localId&&this.local?this.local:p,rig=visual.rig;
-      rig.group.visible=p.status==="active"||p.status==="qualified"&&s.phase==="round-results";if(!rig.group.visible){visual.presentation.update(p,elapsed,dt);continue;}
+      rig.group.visible=p.status==="active"||p.status==="qualified"&&(s.phase==="round-results"||p.id===this.localId&&focusQualified);if(!rig.group.visible){visual.presentation.update(p,elapsed,dt);continue;}
       this.desired.set(state.position.x,state.position.y+.295,state.position.z);if(rig.group.position.distanceToSquared(this.desired)>100)rig.group.position.copy(this.desired);else rig.group.position.lerp(this.desired,1-Math.exp(-dt*18));
       rig.group.rotation.y=state.yaw;
       for(const detail of rig.lodDetails)detail.visible=p.id===this.localId||this.settings?.graphicsQuality!=="low"&&rig.group.position.distanceToSquared(this.camera.position)<2500;
       Object.assign(visual.motion.input,{dt,timeSeconds:now/1000,forwardSpeed:state.velocity.x*Math.sin(state.yaw)+state.velocity.z*Math.cos(state.yaw),lateralSpeed:0,verticalSpeed:state.velocity.y,grounded:state.grounded,walkSpeed:4,runSpeed:B.runSpeed,detail:p.id!==this.localId&&(this.settings?.graphicsQuality==="low"||rig.group.position.distanceToSquared(this.camera.position)>1600)?"far":"near"});visual.motion.update();
-      visual.presentation.update({...p,...state,status:s.phase==="results"&&s.winnerId===p.id?"qualified":p.status},elapsed,dt);
+      visual.presentation.update({...p,...state,status:p.status},elapsed,dt,{lowGravity:this.inLowGravity(state,elapsed),boosted:prIsBoosting(state,elapsed),detail:p.id!==this.localId&&rig.group.position.distanceToSquared(this.camera.position)>1600?"far":"near"});
     }
     const candidates=s.players.filter(p=>p.status==="active"&&p.position.y>round.killY).sort((a,b)=>a.position.z-b.position.z||a.id.localeCompare(b.id));
-    const follow=me?.status==="active"&&this.local?this.local:candidates[((this.spectatorIndex%candidates.length)+candidates.length)%candidates.length];
+    const follow=(me?.status==="active"||focusQualified)&&this.local?this.local:candidates[((this.spectatorIndex%candidates.length)+candidates.length)%candidates.length];
     if(follow){this.target.set(follow.position.x,follow.position.y+1.5,follow.position.z);const distance=s.phase==="intro"?24:9;
       if(s.phase==="intro")this.target.z=round.category==="race"?-22:0;
       this.desired.set(Math.sin(this.yaw)*Math.cos(this.pitch)*distance,Math.sin(this.pitch)*distance,Math.cos(this.yaw)*Math.cos(this.pitch)*distance).add(this.target);
@@ -112,9 +139,17 @@ export class PlanetRunGame {
       if(hit)this.desired.copy(this.target).addScaledVector(direction,Math.max(1,hit.distance-.4));
       this.camera.position.lerp(this.desired,1-Math.exp(-dt*9));this.camera.lookAt(this.target);
     }
+    if(s.phase==="intro"){const view=prIntroCamera(round,Math.max(0,1-(s.phaseEndsAt-now-this.offset)/B.introMs));this.camera.position.set(...view.position);this.camera.lookAt(...view.target);}
+    if(import.meta.env.DEV&&this.review){const view=prReviewCamera(round,this.review);this.camera.position.set(...view.position);this.camera.lookAt(...view.target);}
     const width=innerWidth,height=innerHeight;if(this.renderer.domElement.width!==Math.floor(width*this.renderer.getPixelRatio())||this.renderer.domElement.height!==Math.floor(height*this.renderer.getPixelRatio()))this.renderer.setSize(width,height);
-    this.camera.aspect=width/height;this.camera.updateProjectionMatrix();this.renderer.render(this.scene,this.camera);
+    this.camera.fov=65;this.camera.aspect=width/height;this.camera.updateProjectionMatrix();
+    if(s.phase==="results"&&this.winnerStage.root.visible){
+      const rect=document.querySelector<HTMLElement>(".pr-winner-stage")?.getBoundingClientRect();
+      this.winnerStage.update(elapsed,matchMedia("(prefers-reduced-motion: reduce)").matches);
+      this.renderer.clear();if(rect&&rect.width>0&&rect.height>0){this.camera.fov=32;this.camera.aspect=rect.width/rect.height;this.camera.position.set(0,1.4,7);this.camera.lookAt(0,.8,0);this.camera.updateProjectionMatrix();this.renderer.setViewport(rect.left,height-rect.bottom,rect.width,rect.height);this.renderer.setScissor(rect.left,height-rect.bottom,rect.width,rect.height);this.renderer.setScissorTest(true);this.renderer.render(this.scene,this.camera);this.renderer.setScissorTest(false);this.renderer.setViewport(0,0,width,height);}
+    }else this.renderer.render(this.scene,this.camera);
   }
-  reset():void{this.world?.dispose();this.world=null;for(const p of this.pilots.values()){p.presentation.dispose();this.disposePilot(p.rig);}this.pilots.clear();this.snapshot=null;this.local=null;this.pending=[];}
+  private inLowGravity(state:PrMotion,elapsed:number):boolean{if(!this.snapshot?.roundId)return false;return prRound(this.snapshot.roundId).platforms.some(p=>{if(p.gravityScale===undefined||p.gravityScale>=1)return false;const c=prPlatformCenter(p,elapsed);return Math.abs(state.position.x-c.x)<=p.half.x&&Math.abs(state.position.z-c.z)<=p.half.z&&state.position.y>=c.y+p.half.y-.1&&state.position.y<c.y+15;});}
+  reset():void{this.winnerStage.setWinner(null);this.events.update(-1);this.world?.dispose();this.world=null;for(const p of this.pilots.values()){p.presentation.dispose();this.disposePilot(p.rig);}this.pilots.clear();this.snapshot=null;this.local=null;this.pending=[];}
   private disposePilot(rig:AstronautVisual):void{rig.group.removeFromParent();const g=new Set<THREE.BufferGeometry>(),m=new Set<THREE.Material>();rig.group.traverse(o=>{if(o instanceof THREE.Mesh){g.add(o.geometry);for(const mat of Array.isArray(o.material)?o.material:[o.material])m.add(mat);}});g.forEach(x=>x.dispose());m.forEach(x=>x.dispose());}
 }

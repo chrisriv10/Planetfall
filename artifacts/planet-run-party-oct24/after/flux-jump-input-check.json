@@ -1,0 +1,30 @@
+{
+  "before": {
+    "position": {
+      "x": -5.5,
+      "y": 0.6,
+      "z": 7
+    },
+    "grounded": true,
+    "velocity": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "supportId": "flux-gardens-deck-0"
+  },
+  "after": {
+    "position": {
+      "x": -5.5,
+      "y": 0.6,
+      "z": 7
+    },
+    "grounded": true,
+    "velocity": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "supportId": "flux-gardens-deck-0"
+  }
+}

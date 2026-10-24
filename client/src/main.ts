@@ -1433,6 +1433,7 @@ function setGameMode(mode: GameMode): void {
 }
 
 function showScreen(name: keyof typeof screens): void {
+  prUi.setVisible(name==="prLobby"?"lobby":name==="prHud"?"hud":name==="prResults"?"results":null);
   if(name==="pgResults"){pauseOverlay.hidden=true;settingsOverlay.hidden=true;pgUi.showScoreboard(false);captureUi(false);}
   const previousFamily=document.body.dataset.gameFamily;
   currentScreen = name;
@@ -1568,6 +1569,9 @@ if(import.meta.env.DEV){
   const seedField=document.createElement("input");seedField.type="number";seedField.value="42";seedField.setAttribute("aria-label","Review seed");review.append(seedField);
   for(const id of ["cargo-cyclone","solar-sweep","meteor-garden","flux-gardens","capacitor-causeway","shatterdeck"] as const){const b=document.createElement("button");b.textContent=id;b.dataset.round=id;b.addEventListener("click",()=>socket.emit("pr:dev:start",{roundId:id,seed:Number(seedField.value),players:Number(byId<HTMLSelectElement>("pr-target").value) as 10|20|30}));review.append(b);}
   prUi.lobby.querySelector(".pr-lobby-card")?.append(review);
+  const cameras=document.createElement("details");cameras.id="pr-dev-cameras";cameras.style.cssText="position:absolute;left:12px;top:110px;max-width:200px;pointer-events:auto;font-size:10px;background:#10233be0";
+  const cameraTitle=document.createElement("summary");cameraTitle.textContent="DEV · COURSE VIEWS";cameras.append(cameraTitle);
+  for(const view of["player","start","hazard","center","landmark","finish","oblique"]as const){const button=document.createElement("button");button.textContent=view;button.dataset.prView=view;button.addEventListener("click",()=>prGame?.setReviewView(view==="player"?null:view));cameras.append(button);}prUi.hud.append(cameras);
 }
 
 function setPgScoreboard(show:boolean):void{pgUi.showScoreboard(show);captureUi(show||Boolean(activeOverlay()));if(show)byId("pg-scoreboard-close").focus();}

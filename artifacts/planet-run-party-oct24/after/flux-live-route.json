@@ -1,0 +1,164 @@
+[
+  {
+    "step": 0,
+    "status": "active",
+    "local": {
+      "position": {
+        "x": -5.5,
+        "y": 0.6,
+        "z": -7.311111111111107
+      },
+      "grounded": true,
+      "velocity": {
+        "x": 0,
+        "y": 0,
+        "z": -6.333333333333334
+      },
+      "supportId": "flux-gardens-deck-0"
+    }
+  },
+  {
+    "step": 1,
+    "status": "active",
+    "local": {
+      "position": {
+        "x": -5.5,
+        "y": -21.455555555555552,
+        "z": -13.208888888888886
+      },
+      "grounded": false,
+      "velocity": {
+        "x": 0,
+        "y": -10.833333333333334,
+        "z": -0.5333333333333335
+      },
+      "supportId": null
+    }
+  },
+  {
+    "step": 2,
+    "status": "active",
+    "local": {
+      "position": {
+        "x": 0,
+        "y": 2.633333333333333,
+        "z": -1.3777777777777769
+      },
+      "grounded": false,
+      "velocity": {
+        "x": 0,
+        "y": 0.49999999999999967,
+        "z": -9
+      },
+      "supportId": null
+    }
+  },
+  {
+    "step": 3,
+    "status": "active",
+    "local": {
+      "position": {
+        "x": 0,
+        "y": -13.177777777777774,
+        "z": -11.946666666666665
+      },
+      "grounded": false,
+      "velocity": {
+        "x": 0,
+        "y": -25.833333333333325,
+        "z": -7.466666666666666
+      },
+      "supportId": null
+    }
+  },
+  {
+    "step": 4,
+    "status": "active",
+    "local": {
+      "position": {
+        "x": 0,
+        "y": 2.622222222222222,
+        "z": 0.03555555555555606
+      },
+      "grounded": false,
+      "velocity": {
+        "x": 0,
+        "y": -0.3333333333333337,
+        "z": -9
+      },
+      "supportId": null
+    }
+  },
+  {
+    "step": 5,
+    "status": "active",
+    "local": {
+      "position": {
+        "x": 0,
+        "y": -8.427777777777777,
+        "z": -11.466666666666665
+      },
+      "grounded": false,
+      "velocity": {
+        "x": 0,
+        "y": -20.833333333333332,
+        "z": -6.3999999999999995
+      },
+      "supportId": null
+    }
+  },
+  {
+    "step": 6,
+    "status": "active",
+    "local": {
+      "position": {
+        "x": 0,
+        "y": 2.583333333333333,
+        "z": 1.3711111111111094
+      },
+      "grounded": false,
+      "velocity": {
+        "x": 0,
+        "y": -1.166666666666667,
+        "z": -9
+      },
+      "supportId": null
+    }
+  },
+  {
+    "step": 7,
+    "status": "active",
+    "local": {
+      "position": {
+        "x": 0,
+        "y": -5.233333333333333,
+        "z": -10.719999999999999
+      },
+      "grounded": false,
+      "velocity": {
+        "x": 0,
+        "y": -16.66666666666667,
+        "z": -4.266666666666667
+      },
+      "supportId": null
+    }
+  },
+  {
+    "step": 8,
+    "status": "eliminated",
+    "local": {
+      "position": {
+        "x": 0,
+        "y": 0.6,
+        "z": 6.72
+      },
+      "grounded": true,
+      "velocity": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "supportId": "flux-gardens-deck-0"
+    }
+  }
+]

@@ -7,15 +7,20 @@ export function prPlatformCenter(p:PrPlatform,elapsedMs:number):Vec3 {
   const m=p.motion,offset=Math.sin(elapsedMs/1000*Math.PI*2/m.period+m.phase)*m.distance;
   return {...p.center,[m.axis]:p.center[m.axis]+offset};
 }
+/** Read-only visual phase derived from the same deterministic meteor schedule. */
+export function prMeteorTimeline(o:PrObstacle,elapsedMs:number,seed:number):{active:boolean;warning:boolean;warningProgress:number;impactAgeMs:number|null}{
+  const period=Math.max(.25,o.period),duration=period*1000;
+  const firstImpact=2500+(((o.phase+(seed%997)/997)%1+1)%1)*period*1000;
+  const age=elapsedMs-firstImpact,phase=age<0?age:age%duration;
+  const active=age>=0&&phase<period*170,warning=age<0?age>=-1500:phase>=duration-1500;
+  return {active,warning,warningProgress:warning?(age<0?(age+1500)/1500:(phase-duration+1500)/1500):0,impactAgeMs:active?phase:null};
+}
 export function prObstacleTransform(o:PrObstacle,elapsedMs:number,seed:number):{yaw:number;active:boolean;warning:boolean} {
   const period=Math.max(.25,o.period),t=elapsedMs/1000/period+o.phase+(seed%997)/997;
   const cycle=((t%1)+1)%1;
   if(o.kind==="meteor"){
-    const firstImpact=2500+(((o.phase+(seed%997)/997)%1+1)%1)*period*1000;
-    const age=elapsedMs-firstImpact;
-    if(age<0)return {yaw:0,active:false,warning:age>=-1500};
-    const phase=age%(period*1000);
-    return {yaw:0,active:phase<period*170,warning:phase>=(period*1000-1500)};
+    const phase=prMeteorTimeline(o,elapsedMs,seed);
+    return {yaw:0,active:phase.active,warning:phase.warning};
   }
   return {yaw:t*Math.PI*2,active:o.kind==="door"?cycle<.55:true,warning:false};
 }

@@ -1,183 +1,87 @@
 import {createPrMeteorArt} from "./pr-meteor-art";
 import * as THREE from "three";
-import { PR_BALANCE, prObstacleTransform, prPlatformCenter, prTileState, type PrRoundDefinition, type PrRoundId } from "@planetfall/shared";
+import {prMeteorTimeline,prObstacleTransform,prPlatformCenter,type PrRoundDefinition,type PrPhase} from "@planetfall/shared";
+import {createPrCargoArt} from "./art/pr-art-cargo";
+import {createPrSolarArt} from "./art/pr-art-solar";
+import {createPrMeteorArtCourse} from "./art/pr-art-meteor";
+import {createPrFluxArt} from "./art/pr-art-flux";
+import {createPrCapacitorArt} from "./art/pr-art-capacitor";
+import {createPrShatterdeckArt} from "./art/pr-art-shatterdeck";
+import {createPrSkyArt} from "./art/pr-sky-art";
+import {createPrCellArt} from "./art/pr-cell-art";
+import {createPrCountdownArt} from "./art/pr-countdown-art";
+import {PR_ART_PALETTES,type PrRoundArt,type PrArtContext,type PrArtQuality} from "./art/pr-art-shared";
 
-const PALETTES: Record<PrRoundId, readonly [number, number, number]> = {
-  "cargo-cyclone": [0xff765e, 0x173f58, 0x83fff2],
-  "solar-sweep": [0xffcb50, 0x493d69, 0xfff4b0],
-  "meteor-garden": [0x4ed6b8, 0x184d56, 0xb5ff91],
-  "flux-gardens": [0xc59aff, 0x49336b, 0x98fff0],
-  "capacitor-causeway": [0x65baff, 0x203d78, 0xd6faff],
-  shatterdeck: [0x75ead7, 0x423f79, 0xffbf77],
-};
-
-/** Presentation follows shared support/hazard transforms; decoration never extends the course. */
+/** Authority supplies all support volumes, moving platforms and hazard transforms.
+ * Round modules own only their visual shell, ambient motion and pooled effects. */
 export class PrWorldRenderer {
-  readonly root = new THREE.Group();
-  private readonly geometries: THREE.BufferGeometry[] = [];
-  private readonly materials: THREE.Material[] = [];
-  private readonly box = this.geometry(new THREE.BoxGeometry(1, 1, 1));
-  private readonly cylinder = this.geometry(new THREE.CylinderGeometry(1, 1, 1, 12));
-  private readonly platforms: THREE.Group[] = [];
-  private readonly obstacles: { body: THREE.Group; warning: THREE.Mesh | null; meteor?:ReturnType<typeof createPrMeteorArt>; openMark?:THREE.Group }[] = [];
-  private readonly dummy = new THREE.Object3D();
-  private readonly color = new THREE.Color();
-  private readonly tileStates: string[] = [];
-  private readonly batches: THREE.InstancedMesh[] = [];
-  private tiles: THREE.InstancedMesh | null = null;
-  private disposed = false;
-
-  constructor(private readonly round: PrRoundDefinition) {
-    this.root.name = `planet-run-${round.id}`;
-    const [primary, dark, light] = PALETTES[round.id];
-    const deck = this.material(primary), frame = this.material(dark);
-    const cream = this.material(0xf0edf1), ink = this.material(0x17273c);
-    const glow = this.material(light, .65), hazard = this.material(0xff5d74, .18);
-    const emitter = this.material(0xffdba0, .8), passage = this.material(0x83fff2, .65);
-    const solid = (parent: THREE.Object3D, material: THREE.Material, x: number, y: number, z: number, sx: number, sy: number, sz: number) => {
-      const mesh = new THREE.Mesh(this.box, material);
-      mesh.position.set(x,y,z); mesh.scale.set(sx,sy,sz); mesh.receiveShadow = true;
-      parent.add(mesh); return mesh;
-    };
-    for (const p of round.platforms) {
-      const group = new THREE.Group(); group.name = p.id; this.root.add(group); this.platforms.push(group);
-      const surface = solid(group, deck, 0,0,0,p.half.x*2,p.half.y*2,p.half.z*2);
-      surface.name = "authoritative-platform";
-      // All structural dressing sits below the playable top or inset as a thin painted marking.
-      solid(group, frame,0,-p.half.y-.38,0,p.half.x*1.9,.76,p.half.z*1.9);
-      for (const side of [-1,1]) {
-        solid(group,cream,side*(p.half.x-.2),p.half.y+.006,0,.18,.012,p.half.z*2-.4);
-        solid(group,glow,side*(p.half.x-.12),-.15,0,.06,.12,p.half.z*1.85);
-        for (let z=-p.half.z+2;z<p.half.z;z+=4) solid(group,frame,side*(p.half.x-.6),-1,z,1,1.3,.6);
+  readonly root=new THREE.Group();
+  private readonly geometries:THREE.BufferGeometry[]=[];
+  private readonly materials:THREE.Material[]=[];
+  private readonly box=this.geometry(new THREE.BoxGeometry(1,1,1));
+  private readonly cylinder=this.geometry(new THREE.CylinderGeometry(1,1,1,12));
+  private readonly platforms:THREE.Group[]=[];
+  private readonly obstacles:{body:THREE.Group;meteor?:ReturnType<typeof createPrMeteorArt>;openMark?:THREE.Group}[]=[];
+  private readonly batches:THREE.InstancedMesh[]=[];
+  private readonly art:PrRoundArt;
+  private readonly sky:ReturnType<typeof createPrSkyArt>;
+  private readonly countdown:ReturnType<typeof createPrCountdownArt>;
+  private readonly cells:ReturnType<typeof createPrCellArt>|null;
+  private disposed=false;
+  constructor(private readonly round:PrRoundDefinition){
+    this.root.name="planet-run-"+round.id;
+    const palette=PR_ART_PALETTES[round.id],deck=this.material(palette.primary),frame=this.material(palette.dark),cream=this.material(palette.white),ink=this.material(0x17273c),glow=this.material(palette.glow,.65),hazard=this.material(palette.hazard,.18),passage=this.material(0x83fff2,.65);
+    const solid=(parent:THREE.Object3D,material:THREE.Material,x:number,y:number,z:number,sx:number,sy:number,sz:number)=>{const mesh=new THREE.Mesh(this.box,material);mesh.position.set(x,y,z);mesh.scale.set(sx,sy,sz);mesh.receiveShadow=true;parent.add(mesh);return mesh;};
+    const platformGroups=new Map<string,THREE.Group>(),obstacleGroups=new Map<string,THREE.Group>(),surfaces=new Map<string,THREE.Mesh>(),volumes=new Map<string,THREE.Mesh>();
+    for(const p of round.platforms){const group=new THREE.Group();group.name=p.id;this.root.add(group);this.platforms.push(group);platformGroups.set(p.id,group);const surface=solid(group,deck,0,0,0,p.half.x*2,p.half.y*2,p.half.z*2);surface.name="authoritative-platform";surfaces.set(p.id,surface);}
+    for(const o of round.obstacles){
+      const body=new THREE.Group();body.name=o.id;body.position.copy(o.center);this.root.add(body);obstacleGroups.set(o.id,body);
+      let meteor:ReturnType<typeof createPrMeteorArt>|undefined,openMark:THREE.Group|undefined;
+      if(o.kind==="meteor"){meteor=createPrMeteorArt(o.half);body.add(meteor.root);}
+      else if(o.kind==="boost")solid(body,glow,0,.025,0,o.half.x*2,.05,o.half.z*2);
+      else{const volume=solid(body,hazard,0,0,0,o.half.x*2,o.half.y*2,o.half.z*2);volume.name="authoritative-hazard";volumes.set(o.id,volume);}
+      if(o.kind==="door"){
+        openMark=new THREE.Group();openMark.name=o.id+"-open-passage";openMark.position.copy(o.center);this.root.add(openMark);
+        const support=round.platforms.find(p=>Math.abs(p.center.z-o.center.z)<p.half.z&&Math.abs(p.center.x-o.center.x)<p.half.x);
+        const paintY=(support?support.center.y+support.half.y:o.center.y-o.half.y)-o.center.y+.018;
+        for(const x of[-o.half.x+.55,o.half.x-.55])solid(openMark,passage,x,paintY,0,.5,.014,o.half.z*2);
+        for(const side of[-1,1]){const arrow=solid(openMark,passage,side*.3,paintY,0,.15,.014,.9);arrow.rotation.y=side*Math.PI/4;}
+        this.batchDecoration(openMark);
       }
-      if (round.category === "race") {
-        for (let z=-p.half.z+3;z<p.half.z-1;z+=5) {
-          for (const side of [-1,1]) {
-            const stroke=solid(group,cream,side*.42,p.half.y+.015,z,.16,.018,1.2);
-            stroke.rotation.y=side*Math.PI/4;
-          }
-        }
-        if(p.conveyor) for(let z=-p.half.z+1;z<p.half.z;z+=2) {
-          solid(group,frame,0,p.half.y+.009,z,p.half.x*1.6,.014,.12);
-        }
-      }
-      const thruster = new THREE.Mesh(this.cylinder,frame); thruster.position.y=-2; thruster.scale.set(2,2,2); group.add(thruster);
-      const nozzle = new THREE.Mesh(this.cylinder,glow); nozzle.position.y=-3.05; nozzle.scale.set(1.35,.12,1.35); group.add(nozzle);
+      this.obstacles.push({body,meteor,openMark});
     }
-    for(const o of round.obstacles) {
-      const body=new THREE.Group();body.name=o.id;body.position.copy(o.center);this.root.add(body);
-      let warning: THREE.Mesh|null=null;let meteor:ReturnType<typeof createPrMeteorArt>|undefined;
-      let openMark:THREE.Group|undefined;
-      if(o.kind==="boost") {
-        // Boost field is a flat painted pad; it must not resemble a solid obstacle.
-        solid(body,glow,0,.025,0,o.half.x*2,.05,o.half.z*2);
-        for(const x of [-.65,.65]) {const stripe=solid(body,cream,x,.06,0,.2,.02,1.8);stripe.rotation.y=x>0?-.5:.5;}
-      }else if(o.kind==="meteor"){meteor=createPrMeteorArt(o.half);body.add(meteor.root);
-      }else {
-        const volume=solid(body,hazard,0,0,0,o.half.x*2,o.half.y*2,o.half.z*2);
-        volume.name="authoritative-hazard";
-        // Thin face overlays read as inset machinery, while the coral shell retains
-        // the complete shared hit volume. No silhouette or timing interpolation.
-        const hx=o.half.x,hy=o.half.y,hz=o.half.z;
-        solid(body,ink,0,hy+.001,0,hx*2-.7,.002,hz*1.35);
-        for(const face of [-1,1]) {
-          solid(body,ink,0,0,face*(hz+.001),hx*2-.75,hy*.82,.002);
-          // Repeated inset emitters give even the long solar arms a visible scale.
-          for(let x=-hx+1.1;x<hx-.7;x+=2.2)
-            solid(body,emitter,x,0,face*(hz+.003),.55,hy*.28,.002);
-        }
-        for(const side of [-1,1]) {
-          solid(body,cream,side*(hx-.18),0,0,.3,hy*2+.004,hz*2+.004);
-          for(const face of [-1,1]) {
-            solid(body,ink,side*(hx-.18),0,face*(hz+.003),.12,hy*1.3,.002);
-          }
-        }
-        if(o.kind==="rotator") {
-          // A flush central drive plate rotates with the arm, entirely within its footprint.
-          const hub=new THREE.Mesh(this.cylinder,cream);
-          hub.position.y=hy+.002;hub.scale.set(Math.min(hz*.8,.5),.004,Math.min(hz*.8,.5));body.add(hub);
-        }else if(o.kind==="door") {
-          openMark=new THREE.Group();openMark.name=`${o.id}-open-passage`;
-          openMark.position.copy(o.center);this.root.add(openMark);
-          // Painted on the supporting deck, not a persistent solid gate frame.
-          const support=round.platforms.find(p=>Math.abs(p.center.z-o.center.z)<p.half.z&&Math.abs(p.center.x-o.center.x)<p.half.x);
-          const paintY=(support? support.center.y+support.half.y:o.center.y-o.half.y)-o.center.y+.018;
-          for(const x of [-hx+.55,hx-.55]) {
-            solid(openMark,passage,x,paintY,0,.5,.014,hz*2);
-          }
-          for(const side of [-1,1]) {
-            const arrow=solid(openMark,passage,side*.3,paintY,0,.15,.014,.9);
-            arrow.rotation.y=side*Math.PI/4;
-          }
-          this.batchDecoration(openMark);
-        }
-        this.batchDecoration(body);
-      }
-      this.obstacles.push({body,warning,meteor,openMark});
-    }
+    const context:PrArtContext={round,root:this.root,platforms:platformGroups,obstacles:obstacleGroups,surfaces,hazardVolumes:volumes};
+    const factories={"cargo-cyclone":createPrCargoArt,"solar-sweep":createPrSolarArt,"meteor-garden":createPrMeteorArtCourse,"flux-gardens":createPrFluxArt,"capacitor-causeway":createPrCapacitorArt,shatterdeck:createPrShatterdeckArt};
+    this.art=factories[round.id](context);
     this.buildFacility(deck,frame,cream,ink,glow);
-    this.buildSky();
-    // Gate uprights are outside the deck; finish paint sits on its actual support surface.
-    if(round.finish) {
-      for(const [z,finish] of [[16,false],[round.finish.center.z,true]] as const) {
-        for(const side of [-1,1]) {solid(this.root,frame,side*10,3,z,1,7,1);solid(this.root,glow,side*9.45,3,z,.1,5,.6);}
-        solid(this.root,finish?glow:deck,0,6.5,z,21,1,1);
-        if(finish)for(let x=-8;x<9;x++)for(let iz=0;iz<2;iz++)solid(this.root,(x+iz)%2?ink:cream,x,.615,z+iz-.5,1,.02,1);
-      }
-    }
-    if(round.tiles.length) {
-      const hex=this.geometry(new THREE.CylinderGeometry(PR_BALANCE.tileRadius,PR_BALANCE.tileRadius,.38,6));
-      const material=this.material(0xffffff,.12);
-      this.tiles=new THREE.InstancedMesh(hex,material,round.tiles.length);
-      this.tiles.name="shatterdeck-cells";this.tiles.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-      this.tiles.frustumCulled=false;this.tiles.receiveShadow=true;this.root.add(this.tiles);
-    }
-    for(const platform of this.platforms)this.batchDecoration(platform);
-    this.batchDecoration(this.root);
-    this.update(0,0,new Map());
+    this.sky=createPrSkyArt(round);this.root.add(this.sky.root);
+    this.cells=round.tiles.length?createPrCellArt(round):null;if(this.cells)this.root.add(this.cells.root);
+    this.countdown=createPrCountdownArt(round);this.root.add(this.countdown.root);
+    this.batchDecoration(this.root);this.update(0,0,new Map());this.setQuality("medium");
   }
-
-  update(elapsedMs: number, seed: number, tileState: ReadonlyMap<number,number>): void {
+  update(elapsedMs:number,seed:number,tileState:ReadonlyMap<number,number>):void{
     if(this.disposed)return;
     for(let i=0;i<this.platforms.length;i++)this.platforms[i].position.copy(prPlatformCenter(this.round.platforms[i],elapsedMs));
-    for(let i=0;i<this.obstacles.length;i++) {
-      const o=this.round.obstacles[i], view=this.obstacles[i], state=prObstacleTransform(o,elapsedMs,seed);
+    for(let i=0;i<this.obstacles.length;i++){
+      const o=this.round.obstacles[i],view=this.obstacles[i],state=prObstacleTransform(o,elapsedMs,seed);
       view.body.visible=o.kind==="boost"||state.active||o.kind==="meteor"&&state.warning;
-      if(view.openMark)view.openMark.visible=!state.active;
-      view.meteor?.update(state.active,state.warning,elapsedMs);
-      // Shared obstacle collision uses planar +yaw toward +Z; Three's Y rotation has the opposite sign.
       view.body.rotation.y=o.kind==="rotator"?-state.yaw:0;
-      if(view.warning)view.warning.visible=state.warning||state.active;
+      if(view.openMark)view.openMark.visible=!state.active;
+      view.meteor?.update(state.active,state.warning,elapsedMs,prMeteorTimeline(o,elapsedMs,seed));
     }
-    if(this.tiles) {
-      let changed=false;
-      for(let i=0;i<this.round.tiles.length;i++) {
-        const tile=this.round.tiles[i], state=prTileState(tileState.get(tile.id),elapsedMs);
-        if(state===this.tileStates[i])continue;
-        this.tileStates[i]=state;changed=true;
-        this.dummy.position.set(tile.center.x,tile.center.y-.19,tile.center.z);
-        this.dummy.scale.setScalar(state==="gone"?0:1);this.dummy.updateMatrix();this.tiles.setMatrixAt(i,this.dummy.matrix);
-        this.color.setHex(state==="breaking"?0xff596e:state==="triggered"?0xffd276:[0x73ead7,0x8aafff,0xc79bff,0x6bd4ed][tile.deck%4]);
-        if(state==="solid")this.color.offsetHSL(0,0,((tile.column-tile.row)%3)*.035);
-        this.tiles.setColorAt(i,this.color);
-      }
-      if(changed){this.tiles.instanceMatrix.needsUpdate=true;if(this.tiles.instanceColor)this.tiles.instanceColor.needsUpdate=true;}
-    }
+    this.cells?.update(elapsedMs,tileState);this.art.update(elapsedMs,seed,tileState);this.sky.update(elapsedMs);
   }
-
-  dispose(): void {
-    if(this.disposed)return;this.disposed=true;
-    for(const obstacle of this.obstacles)obstacle.meteor?.dispose();
-    this.tiles?.dispose();
-    for(const batch of this.batches)batch.dispose();
-    for(const geometry of this.geometries)geometry.dispose();
-    for(const material of this.materials)material.dispose();
-    this.root.clear();this.root.removeFromParent();
-  }
-
-  private geometry<T extends THREE.BufferGeometry>(geometry:T):T {this.geometries.push(geometry);return geometry;}
+  setPhase(phase:PrPhase,seconds:number,elapsedMs:number):void{this.countdown.update(phase,seconds,elapsedMs);}
+  setQuality(q:PrArtQuality):void{this.art.setQuality(q);this.sky.setQuality(q);this.cells?.setQuality(q);this.countdown.setQuality(q);}
+  dispose():void{if(this.disposed)return;this.disposed=true;this.art.dispose();this.sky.dispose();this.cells?.dispose();this.countdown.dispose();for(const o of this.obstacles)o.meteor?.dispose();for(const batch of this.batches)batch.dispose();for(const g of this.geometries)g.dispose();for(const m of this.materials)m.dispose();this.root.clear();this.root.removeFromParent();}
+  private geometry<T extends THREE.BufferGeometry>(geometry:T):T{this.geometries.push(geometry);return geometry;}
   private buildFacility(deck:THREE.Material,frame:THREE.Material,cream:THREE.Material,ink:THREE.Material,glow:THREE.Material):void {
     const facility=new THREE.Group();facility.name=`signature-${this.round.id}`;this.root.add(facility);
+    if(this.round.id==="shatterdeck"){
+      // The authored open containment replaces the old thick duplicate cage.
+      const containment=this.root.getObjectByName("shatterdeck-final-containment");if(containment)facility.add(containment);
+      return;
+    }
     const leaf=this.material(this.round.id==="meteor-garden"?0x59b894:0x9c88ca);
     const leafTip=this.material(this.round.id==="meteor-garden"?0xa4dbc0:0xd9c7ef);
     const sphere=this.geometry(new THREE.IcosahedronGeometry(1,1));
@@ -261,51 +165,10 @@ export class PrWorldRenderer {
         }
         box(glow,x,-4.7,-55,.4,.2,146);
       }
-    }else {
-      for(let i=0;i<6;i++) {
-        const a=i*Math.PI/3,x=Math.cos(a)*39,z=Math.sin(a)*39;
-        drum(frame,x,7,z,3.5,34);drum(cream,x,24,z,4,1.5);
-        for(const y of [3,8,13,18]){drum(deck,x,y,z,4.3,.7);hoop(glow,x,y+.6,z,4.4,true);}
-        const energy=shape(sphere,glow,x,27,z,2,3.3,2);energy.rotation.y=a;
-      }
-      // An external containment cage frames the stack; no visual disc under the disappearing floor.
-      for(const y of [-3,23])hoop(cream,0,y,0,39,true);
-      for(const y of [3,8,13,18])hoop(glow,0,y,0,38,true);
     }
     this.batchDecoration(facility);
   }
 
-  private buildSky():void {
-    const dome=this.geometry(new THREE.SphereGeometry(650,32,16));
-    const positions=dome.getAttribute("position"),colors=new Float32Array(positions.count*3);
-    const horizon=new THREE.Color(0x547d9b),zenith=new THREE.Color(0x17234c),under=new THREE.Color(0x152c46),color=new THREE.Color();
-    for(let i=0;i<positions.count;i++) {
-      const y=positions.getY(i)/650;
-      color.copy(horizon).lerp(y>0?zenith:under,Math.min(1,Math.abs(y)*1.7));
-      const band=Math.max(0,1-Math.abs(y-.3-Math.sin(positions.getX(i)*.006)*.1)*9)*.13;
-      color.r+=band*.55;color.g+=band*.2;color.b+=band;
-      colors.set([color.r,color.g,color.b],i*3);
-    }
-    dome.setAttribute("color",new THREE.BufferAttribute(colors,3));
-    const skyMaterial=new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.BackSide,depthWrite:false,fog:false});this.materials.push(skyMaterial);
-    const sky=new THREE.Mesh(dome,skyMaterial);sky.name="orbital-sky";sky.position.z=-50;sky.renderOrder=-10;sky.frustumCulled=false;this.root.add(sky);
-    const planetMaterial=new THREE.MeshBasicMaterial({vertexColors:true,fog:false});this.materials.push(planetMaterial);
-    const planetGeometry=this.geometry(new THREE.SphereGeometry(1,40,24));
-    const pp=planetGeometry.getAttribute("position"),pc=new Float32Array(pp.count*3);
-    for(let i=0;i<pp.count;i++) {
-      const x=pp.getX(i),y=pp.getY(i),z=pp.getZ(i);
-      const bands=Math.sin(y*21+Math.sin(x*6+z*3)*.8);
-      color.setHex(bands>.35?0x8bbbc3:bands<-.5?0x45618d:0x637da0);
-      color.multiplyScalar(.35+.65*Math.max(0,x*.4+y*.6+z*.6));pc.set([color.r,color.g,color.b],i*3);
-    }
-    planetGeometry.setAttribute("color",new THREE.BufferAttribute(pc,3));
-    const planet=new THREE.Mesh(planetGeometry,planetMaterial);planet.name="distant-band-planet";planet.position.set(-150,95,-270);planet.scale.setScalar(65);this.root.add(planet);
-    const stars=new Float32Array(160*3);
-    for(let i=0;i<160;i++) {const a=i*2.399963,up=.15+((i*73)%151)/180,r=Math.sqrt(1-up*up);stars.set([Math.cos(a)*r*480,up*480,Math.sin(a)*r*480-50],i*3);}
-    const starGeometry=this.geometry(new THREE.BufferGeometry());starGeometry.setAttribute("position",new THREE.BufferAttribute(stars,3));
-    const starMaterial=new THREE.PointsMaterial({color:0xc7ddf2,size:1.15,sizeAttenuation:true,fog:false,depthWrite:false});this.materials.push(starMaterial);
-    const points=new THREE.Points(starGeometry,starMaterial);points.name="orbital-starfield";this.root.add(points);
-  }
   private batchDecoration(parent:THREE.Object3D):void {
     const groups=new Map<string,THREE.Mesh[]>();
     for(const child of parent.children) {

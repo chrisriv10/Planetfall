@@ -1,8 +1,10 @@
 import { PR_ROUNDS, type PrRoomView, type PrSnapshot } from "@planetfall/shared";
 import "./pr-ui.css";
+import {createPrEventUi} from "./art/pr-event-ui";
 
 export interface PrUi {
   lobby:HTMLElement;hud:HTMLElement;results:HTMLElement;
+  setVisible(screen:"lobby"|"hud"|"results"|null):void;
   render(room:PrRoomView,localId:string):void;
   renderSnapshot(snapshot:PrSnapshot,localId:string):void;
 }
@@ -54,7 +56,8 @@ export function createPrUi():PrUi {
   const get=<T extends HTMLElement=HTMLElement>(id:string)=>ui.querySelector<T>(`#${id}`)!;
   const text=(id:string,value:string)=>{const el=get(id);if(el.textContent!==value)el.textContent=value;};
   let rosterKey="",resultKey="",roundRosterKey="",host=false;
-  return {lobby,hud,results,
+  const events=createPrEventUi({lobby,hud,results});
+  return {lobby,hud,results,setVisible:events.setVisible,
     render(room,localId){
       host=room.hostId===localId;
       text("pr-code",room.code);text("pr-player-count",`${room.players.length} / ${room.configuration.targetPlayers} ASTRONAUTS`);
@@ -116,6 +119,7 @@ export function createPrUi():PrUi {
           }));
         }
       }
+      events.update(snapshot,localId);
     },
   };
 }

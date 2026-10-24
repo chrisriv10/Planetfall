@@ -1,0 +1,33 @@
+
+> planetfall@0.1.0 test
+> npm run build -w @planetfall/shared && vitest run --configLoader native --no-file-parallelism
+
+
+> @planetfall/shared@0.1.0 build
+> tsc -p tsconfig.json
+
+
+ RUN  v5.0.0 C:/Users/Chris/Desktop/planetfall
+
+ ❯ client/src/renderer-mode-ownership.test.ts (8 tests | 1 failed) 16ms
+   ❯ shared renderer mode ownership (8)
+     × keeps inactive arena/race settings off the active renderer 5ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  client/src/renderer-mode-ownership.test.ts > shared renderer mode ownership > keeps inactive arena/race settings off the active renderer
+TypeError: Cannot read properties of undefined (reading 'setQuality')
+ ❯ PlanetRunGame.setSettings client/src/modes/planet-run/pr-game.ts:52:219
+
+
+ Test Files  1 failed | 300 passed (301)
+      Tests  1 failed | 1513 passed (1514)
+   Start at  15:17:19
+ ❯ client/src/renderer-mode-ownership.test.ts:88:10
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+   Duration  355.44s (tests 74%, import 23%, transform 2%, worker 1%)
+
+    Isolate  301 workers spawned · ~142ms startup each (spawn + environment, per file)
+             at least ~42.71s faster with isolate: false — reuses workers across files instead of one per file

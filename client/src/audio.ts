@@ -165,7 +165,11 @@ export class GameAudio {
   brFlyby(source: AudioPosition, listener: AudioPosition, yaw: number): void { this.spatialSample("laser-small", source, listener, yaw, .065, 24, .65); }
   brLoot(crate = false): void { this.playSample("metal-impact", crate ? .065 : .04, crate ? .72 : 1.25); this.tone(crate ? 390 : 720, .12, "sine", .018, crate ? 760 : 1100); }
 
-  prCue(kind:"countdown"|"go"|"qualify"|"eliminate"|"checkpoint"|"dive"|"tile"|"impact"|"tile-break"|"machinery"):void {
+  prCue(kind:"countdown"|"go"|"qualify"|"eliminate"|"checkpoint"|"dive"|"tile"|"impact"|"tile-break"|"machinery"|"meteor-warning"|"gravity"|"boost"|"land"):void {
+    if(kind==="meteor-warning"){this.tone(720,.5,"sine",.018,180);return;}
+    if(kind==="gravity"){this.tone(180,.45,"sine",.016,360);return;}
+    if(kind==="boost"){this.tone(220,.22,"triangle",.025,690);this.noise(.12,.012,800);return;}
+    if(kind==="land"){this.land(5);return;}
     const tones={countdown:[440,.08],go:[880,.18],qualify:[1046,.22],eliminate:[160,.25],checkpoint:[740,.1],dive:[290,.12],tile:[540,.06],impact:[95,.12],"tile-break":[210,.09],machinery:[82,.14]} as const;
     const [frequency,duration]=tones[kind];this.tone(frequency,duration,"triangle",kind==="machinery"?.008:.028,kind==="eliminate"?90:frequency*1.3);
   }

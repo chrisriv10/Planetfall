@@ -1,0 +1,55 @@
+
+> planetfall@0.1.0 build
+> npm run build -w @planetfall/shared && npm run build -w @planetfall/server && npm run build -w @planetfall/client
+
+
+> @planetfall/shared@0.1.0 build
+> tsc -p tsconfig.json
+
+
+> @planetfall/server@0.1.0 build
+> tsc -p tsconfig.json
+
+
+> @planetfall/client@0.1.0 build
+> tsc -p tsconfig.json --noEmit && vite build --configLoader native
+
+vite v8.2.2 building client environment for production...
+transforming...
+✓ 296 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                     22.75 kB │ gzip:     5.43 kB
+dist/assets/index-VCcs_BO9.css                     104.95 kB │ gzip:    23.74 kB
+dist/assets/br-world-D8BCMCvY.js                     0.07 kB │ gzip:     0.08 kB
+dist/assets/home-island-layout-C1On1QEt.js           0.24 kB │ gzip:     0.21 kB │ map:     0.96 kB
+dist/assets/cosmetic-pose-C_mIb-d3.js                0.99 kB │ gzip:     0.38 kB │ map:     3.12 kB
+dist/assets/br-feedback-Cmaes2rY.js                  1.58 kB │ gzip:     0.83 kB │ map:     8.80 kB
+dist/assets/pg-home-preview-8KX1JfEk.js              1.65 kB │ gzip:     0.84 kB │ map:     3.99 kB
+dist/assets/settings-D02em226.js                     1.78 kB │ gzip:     0.72 kB │ map:     5.97 kB
+dist/assets/pg-clock-D8sloyMh.js                     2.45 kB │ gzip:     1.08 kB │ map:     7.69 kB
+dist/assets/cosmetic-flight-trail-CRh4XshT.js        3.19 kB │ gzip:     1.47 kB │ map:     9.55 kB
+dist/assets/pr-art-shared-Cw89bWg6.js                3.29 kB │ gzip:     1.76 kB │ map:     9.88 kB
+dist/assets/astronaut-DA_lbCJ9.js                    4.11 kB │ gzip:     1.81 kB │ map:    14.89 kB
+dist/assets/astronaut-motion-Bkz4WEui.js             4.65 kB │ gzip:     1.81 kB │ map:    16.19 kB
+dist/assets/pr-home-preview-BqvZ7CzE.js              5.57 kB │ gzip:     2.76 kB │ map:    17.66 kB
+dist/assets/br-weapon-model-library-Dw_D-T_b.js      7.79 kB │ gzip:     3.04 kB │ map:    25.34 kB
+dist/assets/br-spatial-audio-Q5cFHo2m.js             8.00 kB │ gzip:     2.91 kB │ map:    26.46 kB
+dist/assets/pg-game-BUhxfzsI.js                     27.76 kB │ gzip:    10.01 kB │ map:    73.52 kB
+dist/assets/pg-world-C9JaLf1S.js                    29.89 kB │ gzip:    11.74 kB │ map:   125.71 kB
+dist/assets/pr-game-BZtcyFPf.js                     66.79 kB │ gzip:    23.54 kB │ map:   200.33 kB
+dist/assets/game-CeMXqHhk.js                       103.85 kB │ gzip:    29.65 kB │ map:   294.11 kB
+dist/assets/index-dBQY-YYR.js                      148.43 kB │ gzip:    48.71 kB │ map:   463.15 kB
+dist/assets/br-game-Od8cK8ES.js                    170.10 kB │ gzip:    53.34 kB │ map:   559.31 kB
+dist/assets/dist-DhxktTJA.js                       174.29 kB │ gzip:    50.22 kB │ map:   662.82 kB
+dist/assets/br-world-xShYAcp5.js                   240.44 kB │ gzip:    70.89 kB │ map:   897.47 kB
+dist/assets/three.core-CB1fycuH.js                 244.53 kB │ gzip:    66.23 kB │ map: 1,882.06 kB
+dist/assets/preload-helper-D34ZZjFC.js             361.84 kB │ gzip:    89.82 kB │ map:   969.88 kB
+dist/assets/reconciliation-B4ZbKy0i.js           2,852.90 kB │ gzip: 1,094.42 kB │ map: 3,023.90 kB
+
+✓ built in 920ms
+[plugin builtin:vite-reporter]
+(!) Some chunks are larger than 1600 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
