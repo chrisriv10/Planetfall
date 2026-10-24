@@ -1,0 +1,22 @@
+{
+  "hitch": {
+    "frames": 1,
+    "lagMs": 350.29999999553
+  },
+  "emissions": [
+    {
+      "observedAgeMs": 2.949951171875,
+      "clientTime": 1792855727574.05,
+      "sequence": 1
+    }
+  ],
+  "gun": {
+    "id": "photon",
+    "magazine": 6,
+    "reserve": 35,
+    "reloadUntil": 0,
+    "nextFireAt": 1792855728297,
+    "shots": 1,
+    "recoil": 0
+  }
+}

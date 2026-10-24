@@ -1,0 +1,41 @@
+
+> planetfall@0.1.0 test:e2e
+> playwright test e2e/planet-gun-fire-hitch.spec.ts --grep snapshots are delayed --workers=1
+
+[WebServer] (node:21648) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:4872) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:14860) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:7980) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  1 e2e\planet-gun-fire-hitch.spec.ts:44:1 › Photon firing keeps a fresh server clock when gameplay snapshots are delayed (23.8s)
+
+
+  1) e2e\planet-gun-fire-hitch.spec.ts:44:1 › Photon firing keeps a fresh server clock when gameplay snapshots are delayed
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: 6
+    Received: 7
+
+    Call Log:
+    - Timeout 15000ms exceeded while waiting on the predicate
+
+      55 |  await page.locator("#pg-loadout").selectOption("photon");await page.locator("#pg-ready").click();await page.locator("#pg-start").click();await page.bringToFront();
+      56 |  const state=()=>page.evaluate(()=>(window as unknown as {__PLANETFALL_PG_DEBUG__:()=>any}).__PLANETFALL_PG_DEBUG__());
+    > 57 |  try{await expect.poll(async()=>(await state())?.phase).toBe("playing");await page.mouse.move(640,360);await page.mouse.down();await expect.poll(async()=>(await state()).local.guns[0].magazine).toBe(6);expect((await state()).local.guns[0].shots).toBe(1);expect(delayed).toBeGreaterThan(10);}
+         |                                                                                                                                                                                                   ^
+      58 |  finally{await page.mouse.up();await writeFile(info.outputPath("delayed-snapshot-clock.json"),JSON.stringify({delayedSnapshots:delayed,shots,gun:(await state()).local.guns[0]},null,2));stopping=true;for(const timer of timers)clearTimeout(timer);await observer.close();}
+      59 | });
+      60 |
+        at C:\Users\Chris\Desktop\planetfall\e2e\planet-gun-fire-hitch.spec.ts:57:195
+
+    Error Context: test-results\planet-gun-fire-hitch-Phot-7a2d3-eplay-snapshots-are-delayed\error-context.md
+
+  1 failed
+    e2e\planet-gun-fire-hitch.spec.ts:44:1 › Photon firing keeps a fresh server clock when gameplay snapshots are delayed

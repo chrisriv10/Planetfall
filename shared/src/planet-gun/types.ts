@@ -4,7 +4,7 @@ export type PgWeaponId="pulse"|"nova"|"photon"|"quasar"|"rail"|"comet";
 export type PgPhase="lobby"|"countdown"|"playing"|"overtime"|"results";
 export interface PgInput {sequence:number;moveX:number;moveZ:number;yaw:number;pitch:number;jump:boolean;sprint:boolean;crouch:boolean;ads:boolean;}
 export interface PgMotion {position:Vec3;velocity:Vec3;yaw:number;pitch:number;grounded:boolean;crouched:boolean;ion:number;launchY:number;jumpHeld:boolean;coyoteUntil:number;jumpBufferUntil:number;lastJumpAt:number;slideUntil:number;slideReadyAt:number;wallId:string|null;wallNormal:Vec3;wallUntil:number;wallReadyAt:number;mantleFrom:Vec3|null;mantleTo:Vec3|null;mantleStart:number;mantleUntil:number;mode:"ground"|"air"|"sprint"|"slide"|"wall-run"|"mantle";}
-export interface PgSolid {id:string;center:Vec3;half:Vec3;kind:"floor"|"habitat"|"planter"|"utility"|"transit"|"wall-run"|"stair"|"rail";mantle:boolean;wallRunFaces?:readonly ("x-"|"x+"|"z-"|"z+")[];}
+export interface PgSolid {id:string;center:Vec3;half:Vec3;kind:"floor"|"habitat"|"planter"|"utility"|"transit"|"wall-run"|"stair"|"rail"|"landscape"|"tree"|"structure";mantle:boolean;wallRunFaces?:readonly ("x-"|"x+"|"z-"|"z+")[];}
 export interface PgSpawn {id:string;team:PgTeam;position:Vec3;yaw:number;}
 export interface PgNavNode {id:number;position:Vec3;links:{to:number;kind:"walk"|"jump"|"mantle"|"wall-run"}[];}
 export interface PgMap {id:"nova-block";name:string;halfWidth:number;halfDepth:number;solids:PgSolid[];spawns:PgSpawn[];navigation:PgNavNode[];}
@@ -20,6 +20,7 @@ export type PgJoinResult={ok:true;playerId:string;sessionToken:string;room:PgRoo
 export interface PgFireRequest {sequence:number;clientTime:number;weapon:PgWeaponId;yaw:number;pitch:number;}
 export interface PgShot {id:number;at:number;shooterId:string;weapon:PgWeaponId;origin:Vec3;end:Vec3;targetId:string|null;damage:number;headshot:boolean;}
 export interface PgClientToServerEvents {
+ "pg:clock":(ack:(serverTime:number)=>void)=>void;
  "pg:room:create":(p:{name:string;sessionToken?:string},ack:(r:PgJoinResult)=>void)=>void;
  "pg:room:join":(p:{code:string;name:string;sessionToken?:string},ack:(r:PgJoinResult)=>void)=>void;
  "pg:room:ready":(p:{ready:boolean})=>void;

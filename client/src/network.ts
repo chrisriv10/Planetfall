@@ -1,5 +1,6 @@
 import { io, type Socket } from "socket.io-client";
 import type { ClientToServerEvents, ServerToClientEvents,GuestProfile } from "@planetfall/shared";
+import {pgClock} from "./modes/planet-gun/pg-clock";
 
 export type GameSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 let guestProfile:GuestProfile|null=null;
@@ -20,5 +21,6 @@ export function createGameSocket(): GameSocket {
   // Register immediately: connection may complete while the renderer imports.
   socket.on("profile:ready",({token,profile})=>{localStorage.setItem("planetfall:profile-token",token);guestProfile=profile;});
   socket.on("profile:state",profile=>{guestProfile=profile;});
+  pgClock(socket);
   return socket;
 }

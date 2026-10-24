@@ -210,6 +210,7 @@ export class RoomManager {
     socket.on("pr:tiles:sync",()=>{const c=this.currentPr(socket);c?.room.syncTiles(c.playerId);});
     socket.on("pr:shop:buy",(p,ack)=>{const c=this.currentPr(socket);if(typeof ack==="function")ack(c?c.room.buyShopItem(c.playerId,String(p?.itemId??"")):{ok:false,error:"Not in PlanetRun."});});
     socket.on("pr:shop:equip",(p,ack)=>{const c=this.currentPr(socket);if(typeof ack==="function")ack(c?c.room.equipShopItem(c.playerId,String(p?.itemId??"")):{ok:false,error:"Not in PlanetRun."});});
+    socket.on("pg:clock",ack=>{if(typeof ack==="function")ack(Date.now());});
     socket.on("pg:room:create",(payload,ack)=>{
       if(typeof ack!=="function")return;
       if(this.current(socket))return ack({ok:false,error:"Already in a room."});

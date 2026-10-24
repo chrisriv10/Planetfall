@@ -1,0 +1,182 @@
+[
+  {
+    "label": "solar approach",
+    "position": {
+      "x": -40,
+      "y": 0,
+      "z": 1.928333333333359
+    },
+    "mode": "ground",
+    "wallId": null,
+    "ion": 100,
+    "grounded": true
+  },
+  {
+    "label": "habitat lobby",
+    "position": {
+      "x": -25.062500000000075,
+      "y": 0,
+      "z": -10.51583333333331
+    },
+    "mode": "ground",
+    "wallId": null,
+    "ion": 100,
+    "grounded": true
+  },
+  {
+    "label": "habitat stairs",
+    "position": {
+      "x": -31.045000000000133,
+      "y": 3.5,
+      "z": -12.909166666666643
+    },
+    "mode": "ground",
+    "wallId": null,
+    "ion": 100,
+    "grounded": true
+  },
+  {
+    "label": "habitat observation suite",
+    "position": {
+      "x": -26.09250000000009,
+      "y": 3.5,
+      "z": -17.38833333333332
+    },
+    "mode": "ground",
+    "wallId": null,
+    "ion": 100,
+    "grounded": true
+  },
+  {
+    "label": "raised garden terrace",
+    "position": {
+      "x": -11.971666666666723,
+      "y": 1.2,
+      "z": -24.120000000000037
+    },
+    "mode": "ground",
+    "wallId": null,
+    "ion": 100,
+    "grounded": true
+  },
+  {
+    "label": "hydro corner wall run",
+    "position": {
+      "x": -20.136666666666724,
+      "y": 0.36999999999999994,
+      "z": -26.889444444444482
+    },
+    "mode": "wall-run",
+    "wallId": "hydro-run-turn",
+    "ion": 98.25000000000001,
+    "grounded": false
+  },
+  {
+    "label": "hydro wall run",
+    "position": {
+      "x": -6.968888888888897,
+      "y": 3.933333333333333,
+      "z": -30.226111111111152
+    },
+    "mode": "wall-run",
+    "wallId": "hydro-run-north",
+    "ion": 50.41666666666654,
+    "grounded": false
+  },
+  {
+    "label": "transit street and pier bypass",
+    "position": {
+      "x": 11.582499999999987,
+      "y": 0,
+      "z": 15.686388888888914
+    },
+    "mode": "ground",
+    "wallId": null,
+    "ion": 100,
+    "grounded": true
+  },
+  {
+    "label": "ion wall run",
+    "position": {
+      "x": 12.189166666666654,
+      "y": 0.2533333333333333,
+      "z": 20.408055555555602
+    },
+    "mode": "wall-run",
+    "wallId": "service-run-east",
+    "ion": 98.83333333333334,
+    "grounded": false
+  },
+  {
+    "label": "ion stairs and control room",
+    "position": {
+      "x": 15.594999999999976,
+      "y": 3.5,
+      "z": 26.93722222222233
+    },
+    "mode": "ground",
+    "wallId": null,
+    "ion": 100,
+    "grounded": true
+  },
+  {
+    "label": "maintenance interior",
+    "position": {
+      "x": -1.9616666666666591,
+      "y": 0,
+      "z": 24.985000000000106
+    },
+    "mode": "ground",
+    "wallId": null,
+    "ion": 100,
+    "grounded": true
+  },
+  {
+    "label": "observatory interior",
+    "position": {
+      "x": 29.0133333333334,
+      "y": 0,
+      "z": 15.760000000000035
+    },
+    "mode": "ground",
+    "wallId": null,
+    "ion": 100,
+    "grounded": true
+  },
+  {
+    "label": "observatory upper gallery",
+    "position": {
+      "x": 27.940000000000058,
+      "y": 3.5,
+      "z": 22.937500000000078
+    },
+    "mode": "ground",
+    "wallId": null,
+    "ion": 100,
+    "grounded": true
+  },
+  {
+    "label": "void spawn approach",
+    "position": {
+      "x": 39.98944444444448,
+      "y": 0,
+      "z": 28.983333333333466
+    },
+    "mode": "ground",
+    "wallId": null,
+    "ion": 100,
+    "grounded": true
+  },
+  {
+    "label": "void outer lane",
+    "position": {
+      "x": 39.98944444444448,
+      "y": 0,
+      "z": -26.914166666666645
+    },
+    "mode": "ground",
+    "wallId": null,
+    "ion": 100,
+    "grounded": true
+  }
+]

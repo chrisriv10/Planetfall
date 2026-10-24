@@ -1,0 +1,18 @@
+{
+  "delayedSnapshots": 55,
+  "shots": [
+    {
+      "clientTime": 1792855736083.95,
+      "observedAgeMs": 12.050048828125
+    }
+  ],
+  "gun": {
+    "id": "photon",
+    "magazine": 6,
+    "reserve": 35,
+    "reloadUntil": 0,
+    "nextFireAt": 1792855736816,
+    "shots": 1,
+    "recoil": 0.059
+  }
+}

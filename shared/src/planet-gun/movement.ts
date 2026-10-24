@@ -70,7 +70,10 @@ export function pgStepMovement(p:PgMotion,input:PgInput,dt:number,at:number,map:
  }
  p.position.y+=p.velocity.y*dt;p.grounded=false;
  let support=-Infinity;
- for(const b of map.solids){if(!overlapXZ(p.position,b,B.radius*.65))continue;const top=b.center.y+b.half.y,bottom=b.center.y-b.half.y;
+ // Stairs must support the same footprint that their horizontal risers stop.
+ // A narrower support test repeatedly undid a slow step-up before the feet
+ // reached the tread, trapping crouched players at its leading edge.
+ for(const b of map.solids){if(!overlapXZ(p.position,b,b.kind==="stair"?B.radius-.01:B.radius*.65))continue;const top=b.center.y+b.half.y,bottom=b.center.y-b.half.y;
   if(p.velocity.y<=0&&oldY>=top-.07&&p.position.y<=top&&top>support)support=top;
   if(p.velocity.y>0&&oldY+height<=bottom+.03&&p.position.y+height>=bottom){p.position.y=bottom-height;p.velocity.y=0;}
  }

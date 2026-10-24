@@ -1,0 +1,41 @@
+
+> planetfall@0.1.0 test:e2e
+> playwright test e2e/planet-gun-fire-hitch.spec.ts --workers=1
+
+[WebServer] (node:14272) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:23320) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:11636) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:22476) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  1 e2e\planet-gun-fire-hitch.spec.ts:7:1 › a single Photon trigger survives a stalled render frame without an extra shot (22.8s)
+
+
+  1) e2e\planet-gun-fire-hitch.spec.ts:7:1 › a single Photon trigger survives a stalled render frame without an extra shot
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: 6
+    Received: 7
+
+    Call Log:
+    - Timeout 15000ms exceeded while waiting on the predicate
+
+      29 |  const before=(await state()).local.guns[0];
+      30 |  try{
+    > 31 |   await page.mouse.down();await expect.poll(async()=>(await state()).local.guns[0].magazine).toBe(before.magazine-1);
+         |                                                                                              ^
+      32 |   await page.waitForTimeout(850);expect((await state()).local.guns[0].shots).toBe(before.shots+1);
+      33 |   expect(emissions).toHaveLength(1);expect(emissions[0].ageMs).toBeLessThan(PG_BALANCE.rewindMs);expect(emissions[0].ageMs).toBeGreaterThanOrEqual(-50);
+      34 |  }finally{
+        at C:\Users\Chris\Desktop\planetfall\e2e\planet-gun-fire-hitch.spec.ts:31:94
+
+    Error Context: test-results\planet-gun-fire-hitch-a-si-0e237-frame-without-an-extra-shot\error-context.md
+
+  1 failed
+    e2e\planet-gun-fire-hitch.spec.ts:7:1 › a single Photon trigger survives a stalled render frame without an extra shot

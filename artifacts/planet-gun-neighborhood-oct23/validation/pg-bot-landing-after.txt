@@ -1,0 +1,8 @@
+
+ RUN  v5.0.0 C:/Users/Chris/Desktop/planetfall
+
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  23:19:21
+   Duration  808ms (transform 61%, import 33%, tests 5%, worker 1%)

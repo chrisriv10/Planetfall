@@ -1,0 +1,20 @@
+
+> planetfall@0.1.0 test:e2e
+> playwright test e2e/planet-gun-fire-hitch.spec.ts e2e/planet-gun-scoped.spec.ts --workers=1
+
+[WebServer] (node:21388) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:8396) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:15948) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 3 tests using 1 worker
+
+(node:24468) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 1 e2e\planet-gun-fire-hitch.spec.ts:7:1 › a single Photon trigger survives a stalled render frame without an extra shot (11.3s)
+  ok 2 e2e\planet-gun-fire-hitch.spec.ts:44:1 › Photon firing keeps a fresh server clock when gameplay snapshots are delayed (7.6s)
+  ok 3 e2e\planet-gun-scoped.spec.ts:14:1 › two opposing FPS clients traverse Nova Block, register a scoped hit and respawn (33.7s)
+
+  3 passed (1.1m)

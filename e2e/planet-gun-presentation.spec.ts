@@ -1,8 +1,22 @@
-import {test,expect} from "@playwright/test";
+import {test,expect,type Page} from "@playwright/test";
+import {writeFile} from "node:fs/promises";
 import {selectExperimentalFamily} from "./select-family";
+
+const diagnostics=new WeakMap<Page,{shots:unknown[];snapshots:unknown[]}>();
+test.afterEach(async({page},info)=>{
+ const network=diagnostics.get(page);if(!network)return;
+ const client=await page.evaluate(()=>{const w=window as unknown as {__PLANETFALL_PG_DEBUG__?:()=>any;__PG_INPUT_REVIEW__?:unknown};const s=w.__PLANETFALL_PG_DEBUG__?.();return {renderer:s?.renderer,quality:s?.quality,input:w.__PG_INPUT_REVIEW__,blocked:s?.blocked,phase:s?.phase,local:s?.local,frames:s?.frameTimes?.slice(-20)};}).catch(()=>null);
+ await writeFile(info.outputPath("input-network-review.json"),JSON.stringify({network,client},null,2));
+});
 
 for(const weapon of["pulse","nova","photon","quasar","rail"]){
  test(`PlanetGun ${weapon} held hip, ADS, recoil, reload and sprint presentation`,async({page},info)=>{
+  const network={shots:[] as unknown[],snapshots:[] as unknown[]};diagnostics.set(page,network);
+  page.on("websocket",socket=>{
+   socket.on("framesent",event=>{const text=String(event.payload);if(!text.startsWith('42["pg:weapon:fire"'))return;const [,shot]=JSON.parse(text.slice(2));network.shots.push({at:Date.now(),ageMs:Date.now()-shot.clientTime,shot,lastSnapshot:network.snapshots.at(-1)});});
+   socket.on("framereceived",event=>{const text=String(event.payload);if(!text.startsWith('42["pg:match:snapshot"'))return;const [,s]=JSON.parse(text.slice(2)),p=s.players.find((p:{name:string})=>p.name==="Optic Review");network.snapshots.push({arrivedAt:Date.now(),serverTime:s.serverTime,ageMs:Date.now()-s.serverTime,phase:s.phase,mode:p?.mode,gun:p?.guns[p.slot],yaw:p?.yaw,pitch:p?.pitch,fireReadyAt:p?.fireReadyAt,lastInputSequence:p?.lastInputSequence});if(network.snapshots.length>20)network.snapshots.shift();});
+  });
+  await page.addInitScript(()=>{const events:unknown[]=[];Object.assign(window,{__PG_INPUT_REVIEW__:events});for(const type of["mousedown","mouseup","blur","pointerlockchange"])addEventListener(type,event=>{events.push({type,at:Date.now(),button:event instanceof MouseEvent?event.button:null,target:(event.target as HTMLElement)?.id,locked:!!document.pointerLockElement});if(events.length>32)events.shift();},true);});
   await page.setViewportSize({width:1280,height:720});
   await page.goto("/");await page.getByLabel("Name",{exact:true}).fill("Optic Review");await selectExperimentalFamily(page,"planet-gun");
   // A passive second human keeps pose capture deterministic. Combat against

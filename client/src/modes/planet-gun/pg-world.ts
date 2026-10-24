@@ -1,5 +1,9 @@
 import * as THREE from "three";
 import { PG_MAP } from "@planetfall/shared";
+import {createPgEnvironmentBuilder} from "./pg-environment-builder";
+import {buildPgNeighborhoodArchitecture} from "./pg-neighborhood-architecture";
+import {buildPgNeighborhoodStreets} from "./pg-neighborhood-streets";
+import {createPgOrbitalEnvironment} from "./pg-orbital-environment";
 
 type Quality = "low" | "medium" | "high";
 type Box = readonly [number, number, number, number, number, number];
@@ -13,6 +17,8 @@ export class PgWorldRenderer {
   private readonly resources = new Set<THREE.BufferGeometry | THREE.Material | THREE.Texture>();
   private readonly batches = new Map<string, { material: THREE.Material; boxes: Box[]; parent: THREE.Group }>();
   private readonly hologram = new THREE.Group();
+  private neighborhood:ReturnType<typeof createPgEnvironmentBuilder>;
+  private orbital=createPgOrbitalEnvironment();
   private disposed = false;
 
   constructor() {
@@ -28,8 +34,11 @@ export class PgWorldRenderer {
     const solarPaving=material(0x35414b),voidPaving=material(0x35414b),hydroPaving=material(0x35464b),servicePaving=material(0x3b444b),plazaPaving=material(0x3b4b5b);
     const cyan = material(0x62ffdc, 1.15), amber = material(0xffcd76, 1), violet = material(0xc2a0ff, 1);
     const glass = material(0x36778c, .16), runPanel=material(0x253c45,.025);
+    const soil=material(0x4c5545),leaf=material(0x5d9c72);
     glass.roughness=.22;glass.metalness=.58;trim.roughness=.42;trim.metalness=.48;
     deck.roughness=.93;deck.metalness=.08;ivory.roughness=.57;garden.roughness=.86;
+    this.neighborhood=createPgEnvironmentBuilder({ivory,frame:west,dark:trim,glass,soil,leaf,cyan,amber,violet,paving:plazaPaving});
+    buildPgNeighborhoodArchitecture(this.neighborhood.context);buildPgNeighborhoodStreets(this.neighborhood.context);this.neighborhood.finish();this.root.add(this.neighborhood.root,this.orbital.root);
     const add = (key: string, mat: THREE.Material, b: Box, parent = this.root) => {
       key = `${key}:${mat.uuid}`;
       let batch = this.batches.get(key);
@@ -38,9 +47,9 @@ export class PgWorldRenderer {
     };
     for (const s of PG_MAP.solids) {
       const c = s.center, h = s.half;
-      const color = s.kind === "rail" ? ivory : s.id.startsWith("maintenance-") ? maintenance : s.kind === "wall-run" || s.kind === "planter" ? garden : s.kind === "habitat" ? c.x < 0 ? west : east : s.kind === "transit" ? ivory : deck;
+      const color = s.kind === "tree"?soil:s.kind === "landscape"?garden:s.kind === "structure"?trim:s.kind === "rail" ? ivory : s.id.startsWith("maintenance-") ? maintenance : s.kind === "wall-run" || s.kind === "planter" ? garden : s.kind === "habitat" ? c.x < 0 ? west : east : s.kind === "transit" ? ivory : deck;
       add(`body-${color.uuid}`, color, [c.x,c.y,c.z,h.x*2,h.y*2,h.z*2]);
-      if (s.id === "orbital-deck") continue;
+      if (s.id === "orbital-deck"||s.id==="service-run-east"||s.id.startsWith("nova-")||s.id.startsWith("ion-")||s.id.startsWith("center-relay-")||s.id.startsWith("garden-bed-")||s.id==="transit-ticket-bank") continue;
       if (s.kind === "habitat" || s.kind === "wall-run") {
         const wide = h.x > h.z, length = wide ? h.x * 2 : h.z * 2;
         // Insets sit on opaque collision-backed walls, never across an opening.
@@ -62,8 +71,8 @@ export class PgWorldRenderer {
             face(along,c.y,.18,h.y*2-.12,ivory,"structural-pilaster",.052);
           const step=service?3.4:2.5;
           for(let along=-length/2+step*.56;along<length/2-step*.32;along+=step){
-            const ph=service?2.65:Math.min(1.75,h.y*1.1),pw=service?2.75:2.05;
-            const py=service?2.55:c.y+.04;
+            const ph=service?Math.min(2.65,h.y*1.25):Math.min(1.75,h.y*1.1),pw=service?2.75:2.05;
+            const py=service?c.y:c.y+.04;
             face(along,py,pw+.16,ph+.18,trim,"bay-shadow",.010);
             face(along,py,pw,ph,service?runPanel:glass,"panel",.023);
             face(along,py-ph/2-.06,pw+.23,.1,ivory,"window-sill",.048);
@@ -83,8 +92,8 @@ export class PgWorldRenderer {
           // Crown equipment stays within the existing solid silhouette, so it
           // never masquerades as extra cover on a traversable roof.
           if(service)for(let along=-length/2+2;along<length/2-1;along+=4.5){
-            face(along,4.55,1.5,.32,trim,"roof-service-recess",.027);
-            for(let q=0;q<5;q++)face(along-.5+q*.25,4.55,.1,.24,ivory,"roof-service-fin",.054);
+            face(along,c.y+h.y-.45,1.5,.32,trim,"roof-service-recess",.027);
+            for(let q=0;q<5;q++)face(along-.5+q*.25,c.y+h.y-.45,.1,.24,ivory,"roof-service-fin",.054);
           }
 
         }
@@ -172,7 +181,6 @@ export class PgWorldRenderer {
       const c=s.center,h=s.half;
       add("contact-footprint",trim,[c.x,.006,c.z,h.x*2+.14,.008,h.z*2+.14]);
     }
-    this.buildHydroFoliage();
     // Flat paving bands, expansion joints and route identity; no extra collision.
     for(let x=-44;x<=44;x+=4) add("deck-joints",trim,[x,.006,0,.018,.01,74],this.detail);
     for(let z=-36;z<=36;z+=4) add("deck-joints",trim,[0,.006,z,90,.01,.018],this.detail);
@@ -186,27 +194,13 @@ export class PgWorldRenderer {
     // Underside structure and distant station are clearly beyond the playable deck.
     add("foundation",trim,[0,-2.7,0,88,4.4,72]);
     for(const x of [-34,0,34])add("foundation-lights",cyan,[x,-3.8,36.01,13,.12,.03]);
-    for(let i=0;i<9;i++) {
-      const x=-120+i*30,z=-110-Math.sin(i*1.7)*20,height=12+(i%3)*9;
-      add("skyline",deck,[x,height/2-8,z,10,height,12],this.skyline);
-      add("skyline-lights",violet,[x,height-9,z+6.01,8,.5,.03],this.skyline);
-    }
-    const planetGeometry=new THREE.SphereGeometry(82,32,18);
-    const planetMaterial=new THREE.MeshBasicMaterial({color:0x345e86,fog:false});
-    const planet=new THREE.Mesh(planetGeometry,planetMaterial);planet.position.set(80,-40,-210);planet.name="distant-planet";
-    this.resources.add(planetGeometry);this.resources.add(planetMaterial);this.root.add(planet);
-    const atmosphereGeometry=new THREE.TorusGeometry(83,.9,5,80);
-    const atmosphereMaterial=new THREE.MeshBasicMaterial({color:0x6bafd5,transparent:true,opacity:.5,fog:false,depthWrite:false,blending:THREE.AdditiveBlending});
-    const atmosphere=new THREE.Mesh(atmosphereGeometry,atmosphereMaterial);atmosphere.position.copy(planet.position);atmosphere.lookAt(0,0,0);
-    this.resources.add(atmosphereGeometry);this.resources.add(atmosphereMaterial);this.root.add(atmosphere);
-    this.buildOrbitalBackdrop();
     this.buildLabels();
     // A lightweight open hologram above the collision-backed transit console.
     const ringGeometry = new THREE.TorusGeometry(1.45,.018,4,48);
     const holo = new THREE.MeshBasicMaterial({color:0x6cffe4,transparent:true,opacity:.5,depthWrite:false,blending:THREE.AdditiveBlending});
     this.resources.add(ringGeometry); this.resources.add(holo);
-    for(let i=0;i<3;i++){const ring=new THREE.Mesh(ringGeometry,holo);ring.rotation.set(i*.7,0,i*.45);this.hologram.add(ring);}
-    this.hologram.position.set(-2,5.8,-7);
+    for(let i=0;i<2;i++){const ring=new THREE.Mesh(ringGeometry,holo);ring.rotation.set(i*.7,0,i*.45);this.hologram.add(ring);}
+    this.hologram.position.set(-2,7.5,-7);
     this.hologram.userData.cameraCollision=false;
     for(const [key,batch]of this.batches){
       const mesh=new THREE.InstancedMesh(this.geometry,batch.material,batch.boxes.length),matrix=new THREE.Matrix4();
@@ -218,46 +212,18 @@ export class PgWorldRenderer {
     this.setQuality("medium");
   }
 
-  private buildOrbitalBackdrop():void {
-    // A single star draw plus two ring draws: visible from player height and
-    // retained on Low. No depth-tested scenery enters the gameplay arena.
-    const positions:number[]=[];
-    for(let i=0;i<170;i++){
-      const az=i*2.39996323,el=.08+(i%37)/37*1.2,r=260;
-      positions.push(Math.cos(az)*Math.cos(el)*r,Math.sin(el)*r,Math.sin(az)*Math.cos(el)*r);
-    }
-    const g=new THREE.BufferGeometry();g.setAttribute("position",new THREE.Float32BufferAttribute(positions,3));
-    const m=new THREE.PointsMaterial({color:0xa9c4df,size:.55,sizeAttenuation:true,fog:false});
-    const stars=new THREE.Points(g,m);stars.name="orbital-starfield";this.root.add(stars);this.resources.add(g);this.resources.add(m);
-    for(const [radius,color,tube]of [[115,0x45647d,1.2],[117,0x82c5db,.16]]){
-      const geometry=new THREE.TorusGeometry(radius,tube,4,96,Math.PI*1.3);
-      const material=new THREE.MeshBasicMaterial({color,fog:false});
-      const ring=new THREE.Mesh(geometry,material);ring.name="distant-station-arc";ring.position.set(-55,-42,170);ring.rotation.set(.25,.35,.15);
-      this.root.add(ring);this.resources.add(geometry);this.resources.add(material);
-    }
-  }
   private buildLabels():void {
     if(typeof document==="undefined")return;
-    for(const [text,x,y,z,color]of [["SOLAR / HABITAT 01",-25,2.35,-20.515,"#ffd5a1"],["VOID / OBSERVATORY",27,2.35,26.515,"#d9c5ff"],["HYDROPONICS  /  ION RUN",-6,4.45,-30.565,"#a1ffe2"],["NOVA BLOCK / TRANSIT",-2,1.6,-9.065,"#a1ffe2"],["ION SERVICE / 04",12.60,4.32,25,"#a1ffe2"],["MAINTENANCE / 03",-5,2.25,29.435,"#ffe3a3"]] as const){
+    for(const [text,x,y,z,color]of [["SOLAR / HABITAT 01",-25,2.35,-20.515,"#ffd5a1"],["NOVA HABITAT",-26.5,6.98,-13.245,"#ffd5a1"],["VOID / OBSERVATORY",27,2.35,26.515,"#d9c5ff"],["HYDROPONICS  /  ION RUN",-6,4.45,-30.565,"#a1ffe2"],["NOVA BLOCK / TRANSIT",-2,1.6,-9.065,"#a1ffe2"],["ION SERVICE / 04",12.515,6.95,27.5,"#a1ffe2"],["MAINTENANCE / 03",-5,2.25,29.435,"#ffe3a3"]] as const){
       const canvas=document.createElement("canvas");canvas.width=1024;canvas.height=128;const ctx=canvas.getContext("2d");if(!ctx)continue;
       ctx.fillStyle="#10232d";ctx.fillRect(0,0,1024,128);ctx.fillStyle=color;ctx.font="600 54px sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(text,512,64);
       const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
-      const mat=new THREE.MeshBasicMaterial({map:texture,side:THREE.DoubleSide});const width=text.startsWith("MAINTENANCE")?3.6:text.startsWith("NOVA")?5:9;const geometry=new THREE.PlaneGeometry(width,width/8);
-      const mesh=new THREE.Mesh(geometry,mat);mesh.name=`district-sign:${text}`;mesh.position.set(x,y,z);if(text.startsWith("ION"))mesh.rotation.y=-Math.PI/2;if(text.startsWith("VOID")||text.startsWith("NOVA"))mesh.rotation.y=Math.PI;
+      const mat=new THREE.MeshBasicMaterial({map:texture,side:THREE.DoubleSide});const width=text.startsWith("MAINTENANCE")?3.6:text.startsWith("ION")?7.5:text==="NOVA HABITAT"?7:text.startsWith("NOVA")?5:9;const geometry=new THREE.PlaneGeometry(width,text==="NOVA HABITAT"?.43:text.startsWith("ION")?.75:width/8);
+      const mesh=new THREE.Mesh(geometry,mat);mesh.name=`district-sign:${text}`;mesh.position.set(x,y,z);if(text.startsWith("ION"))mesh.rotation.y=-Math.PI/2;if(text.startsWith("VOID")||text==="NOVA BLOCK / TRANSIT")mesh.rotation.y=Math.PI;
       this.resources.add(texture);this.resources.add(mat);this.resources.add(geometry);this.root.add(mesh);
     }
   }
-  private buildHydroFoliage():void{
-    const leaves: {x:number;y:number;z:number;angle:number}[]=[];
-    for(const s of PG_MAP.solids.filter(s=>s.kind==="planter"))for(let x=-s.half.x+.45;x<s.half.x-.45;x+=.65)for(let z=-s.half.z+.35;z<s.half.z-.35;z+=.6)
-      for(let leaf=0;leaf<4;leaf++){const angle=leaf*Math.PI/2;leaves.push({x:s.center.x+x+Math.sin(angle)*.09,y:s.center.y+s.half.y+.04,z:s.center.z+z+Math.cos(angle)*.09,angle});}
-    const geometry=new THREE.SphereGeometry(1,6,4),mat=new THREE.MeshStandardMaterial({color:0x8dcf83,roughness:.9,emissive:0x33562c,emissiveIntensity:.15});
-    this.resources.add(geometry);this.resources.add(mat);
-    const mesh=new THREE.InstancedMesh(geometry,mat,leaves.length),dummy=new THREE.Object3D(),color=new THREE.Color();mesh.name="hydroponic-low-rosettes";
-    leaves.forEach((leaf,i)=>{dummy.position.set(leaf.x,leaf.y,leaf.z);dummy.rotation.y=leaf.angle;dummy.scale.set(.105,.035,.2);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);color.setHex(i%3===0?0xa8cb6c:i%3===1?0x73bb91:0x9bc59b);mesh.setColorAt(i,color);});
-    mesh.computeBoundingSphere();this.root.add(mesh);
-  }
-  setQuality(quality:Quality):void {this.detail.visible=quality!=="low";this.skyline.visible=quality!=="low";this.hologram.visible=quality!=="low";this.root.traverse(o=>{if(o instanceof THREE.InstancedMesh)o.castShadow=quality==="high"&&o.name.startsWith("body-");});}
-  update(time:number):void {if(Number.isFinite(time))this.hologram.rotation.y=time*.00016;}
-  dispose():void {if(this.disposed)return;this.disposed=true;for(const resource of this.resources)resource.dispose();this.resources.clear();this.root.clear();}
+  setQuality(quality:Quality):void {this.detail.visible=quality!=="low";this.skyline.visible=quality!=="low";this.hologram.visible=quality!=="low";this.neighborhood.setQuality(quality);this.orbital.setQuality(quality);this.root.traverse(o=>{if(o instanceof THREE.InstancedMesh)o.castShadow=quality==="high"&&o.name.startsWith("body-");});}
+  update(time:number):void {if(Number.isFinite(time))this.hologram.rotation.y=time*.00016;this.orbital.update(time);}
+  dispose():void {if(this.disposed)return;this.disposed=true;this.neighborhood.dispose();this.orbital.dispose();for(const resource of this.resources)resource.dispose();this.resources.clear();this.root.clear();}
 }

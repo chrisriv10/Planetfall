@@ -1,0 +1,10 @@
+{
+  "mode": "planet-gun",
+  "population": 8,
+  "averageTickMs": 0.6773311111111737,
+  "p95TickMs": 1.1398000000044703,
+  "maxTickMs": 2.1969999999855645,
+  "maxSnapshotBytes": 11152,
+  "shotCount": 282,
+  "kills": 44
+}

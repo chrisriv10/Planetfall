@@ -1,4 +1,5 @@
 import {pgFireReady,pgFirePressValid} from "./pg-fire-readiness";
+import {pgClock} from "./pg-clock";
 import {pgReconcileMotion} from "./pg-prediction";
 import {PgEffects} from "./pg-effects";
 import {createPgPilotPresentation} from "./pg-pilot-presentation";
@@ -15,7 +16,7 @@ import {createPgViewmodel,PG_VIEWMODEL_LAYER} from "./pg-viewmodel";
 import {renderPgFrame} from "./pg-render";
 const audioWeapons:Record<PgShot["weapon"],BrWeaponId>={pulse:"pulse-rifle",nova:"nova-smg",photon:"photon-shotgun",quasar:"quasar-carbine",rail:"rail-laser",comet:"comet-hand-cannon"};
 export class PlanetGunGame {
- private viewmodelScene=new THREE.Scene();private viewCamera=new THREE.PerspectiveCamera(78,1,.01,12);private sun=new THREE.DirectionalLight(0xfff0d7,2.5);private scene=new THREE.Scene();private camera=new THREE.PerspectiveCamera(78,1,.03,400);private world=new PgWorldRenderer();private viewmodel=createPgViewmodel();
+ private viewmodelScene=new THREE.Scene();private viewCamera=new THREE.PerspectiveCamera(78,1,.01,12);private sun=new THREE.DirectionalLight(0xcbe4ff,2.5);private scene=new THREE.Scene();private camera=new THREE.PerspectiveCamera(78,1,.03,400);private world=new PgWorldRenderer();private viewmodel=createPgViewmodel();
  onAim:(weapon:PgShot["weapon"],ads:number,spread:number)=>void=()=>{};
  onMenuNavigate:(action:"up"|"down"|"left"|"right"|"confirm"|"back")=>void=()=>{};onPause:()=>void=()=>{};onScoreboard:()=>void=()=>{};
  private padButtons:boolean[]=[];private menuAt=0;private review:keyof typeof PG_REVIEW_VIEWS|null=null;
@@ -25,7 +26,7 @@ export class PlanetGunGame {
  constructor(private renderer:THREE.WebGLRenderer,private canvas:HTMLCanvasElement,private socket:GameSocket,private hud:(s:PgSnapshot)=>void,private hit:(n:number,headshot:boolean)=>void,private audio:GameAudio){
   const gl=renderer.getContext(),extension=gl.getExtension("WEBGL_debug_renderer_info");this.rendererName=String(gl.getParameter(extension?extension.UNMASKED_RENDERER_WEBGL:gl.RENDERER));
   this.scene.background=new THREE.Color(0x101c32);this.scene.fog=new THREE.Fog(0x101c32,100,230);this.scene.add(this.world.root,this.camera,this.effects.root);this.viewCamera.layers.set(PG_VIEWMODEL_LAYER);this.viewmodelScene.add(this.viewCamera);this.viewCamera.add(this.viewmodel.root);this.attachMuzzle();
-  this.scene.add(new THREE.HemisphereLight(0xb8d7ef,0x526574,1.7));this.sun.position.set(-35,55,20);this.sun.shadow.mapSize.set(1024,1024);Object.assign(this.sun.shadow.camera,{left:-64,right:64,top:64,bottom:-64,near:10,far:150});this.sun.shadow.bias=-.0003;this.sun.shadow.normalBias=.035;this.sun.shadow.camera.updateProjectionMatrix();this.scene.add(this.sun);const fill=new THREE.DirectionalLight(0xa9ccff,.35);fill.position.set(30,18,-25);this.scene.add(fill);
+  this.scene.add(new THREE.HemisphereLight(0xb8d7ef,0x526574,1.7));this.sun.position.set(-35,55,20);this.sun.shadow.mapSize.set(1024,1024);Object.assign(this.sun.shadow.camera,{left:-64,right:64,top:64,bottom:-64,near:10,far:150});this.sun.shadow.bias=-.0003;this.sun.shadow.normalBias=.035;this.sun.shadow.camera.updateProjectionMatrix();this.scene.add(this.sun);const fill=new THREE.DirectionalLight(0xffd8ad,.5);fill.position.set(30,18,-25);this.scene.add(fill);
   addEventListener("keydown",e=>{if(!this.canPlay())return;if(["Space","Tab","ControlLeft","ControlRight","ShiftLeft","ShiftRight","KeyW","KeyA","KeyS","KeyD","KeyC","KeyR","Digit1","Digit2"].includes(e.code))e.preventDefault();this.keys.add(e.code);if(e.code==="Space"&&!e.repeat)this.jumpQueuedUntil=performance.now()+150;if(e.repeat)return;if(e.code==="KeyR")this.socket.emit("pg:weapon:reload");if(e.code==="Digit1"||e.code==="Digit2")this.socket.emit("pg:weapon:switch",{slot:e.code==="Digit1"?0:1});});
   addEventListener("keyup",e=>this.keys.delete(e.code));addEventListener("blur",()=>this.clearInput());
   canvas.addEventListener("mousedown",e=>{if(!this.canPlay())return;this.audio.unlock();this.dragged=true;if(e.button===0){this.mouseFire=true;this.semiPending=true;this.semiPendingUntil=performance.now()+1000;}if(e.button===2)this.mouseAds=true;void canvas.requestPointerLock().catch(()=>{});});
@@ -60,7 +61,7 @@ export class PlanetGunGame {
  }
  setReviewView(name:keyof typeof PG_REVIEW_VIEWS|null):void{if(!import.meta.env.DEV)return;this.review=name;this.clearInput();document.exitPointerLock?.();}
  private frame(now:number):void {
-  if(!this.active)return;const frameMs=Math.max(0,now-this.lastFrame),dt=Math.min(.05,Math.max(0,frameMs/1000));this.lastFrame=now;this.times.push(frameMs);if(this.times.length>240)this.times.shift();const s=this.snapshot,me=s?.players.find(p=>p.id===this.id);if(!s||!me||!this.local)return;
+  if(!this.active)return;const inputNow=performance.now(),frameMs=Math.max(0,now-this.lastFrame),dt=Math.min(.05,Math.max(0,frameMs/1000));this.lastFrame=now;this.times.push(frameMs);if(this.times.length>240)this.times.shift();const s=this.snapshot,me=s?.players.find(p=>p.id===this.id);if(!s||!me||!this.local)return;
   const controller=navigator.getGamepads?.().find(p=>p?.connected);
   if(controller){const buttons=controller.buttons.map(b=>b.pressed),pressed=(n:number)=>buttons[n]&&!this.padButtons[n];
    if(pressed(9))this.onPause();if(pressed(8))this.onScoreboard();
@@ -69,15 +70,18 @@ export class PlanetGunGame {
    this.padButtons=buttons;
   }
   this.accumulator+=Math.min(.1,frameMs/1000);while(this.accumulator>=1/B.tickRate){this.accumulator-=1/B.tickRate;const at=now+this.offset-this.accumulator*1000;if(!this.socket.connected||!["playing","overtime"].includes(s.phase)||me.hp<=0)continue;
-   this.semiPending&&=pgFirePressValid(now,this.semiPendingUntil,me.guns[me.slot]);
+   this.semiPending&&=pgFirePressValid(inputNow,this.semiPendingUntil,me.guns[me.slot]);
    const enabled=this.canPlay(),pad=navigator.getGamepads?.().find(p=>p?.connected),dead=(v:number)=>Math.abs(v)>.18?v:0;
    if(enabled&&pad){this.yaw-=dead(pad.axes[2]??0)*2.3/B.tickRate*(this.settings?.controllerSensitivity??1)*(this.ads>.5?.5:1);this.pitch=THREE.MathUtils.clamp(this.pitch-dead(pad.axes[3]??0)*1.8/B.tickRate*(this.settings?.invertY?-1:1),-1.4,1.4);}
    const input:PgInput={sequence:++this.sequence,moveX:enabled?Number(this.keys.has("KeyD"))-Number(this.keys.has("KeyA"))+dead(pad?.axes[0]??0):0,moveZ:enabled?Number(this.keys.has("KeyS"))-Number(this.keys.has("KeyW"))+dead(pad?.axes[1]??0):0,yaw:this.yaw,pitch:this.pitch,jump:enabled&&(this.keys.has("Space")||now<this.jumpQueuedUntil||!!pad?.buttons[0]?.pressed),sprint:enabled&&!this.mouseFire&&!this.semiPending&&!this.mouseAds&&!pad?.buttons[7]?.pressed&&!pad?.buttons[6]?.pressed&&(this.keys.has("ShiftLeft")||!!pad?.buttons[10]?.pressed),crouch:enabled&&(this.keys.has("ControlLeft")||this.keys.has("KeyC")||!!pad?.buttons[1]?.pressed),ads:enabled&&(this.mouseAds||!!pad?.buttons[6]?.pressed)};
    this.jumpQueuedUntil=0;const grounded=this.local.grounded,mode=this.local.mode,vertical=this.local.velocity.y;this.socket.emit("pg:player:input",input);pgStepMovement(this.local,input,1/B.tickRate,at);if(mode==="sprint"&&this.local.mode!=="sprint"){this.sprintFireAt=Math.max(this.sprintFireAt,at+PG_WEAPONS[me.guns[me.slot].id].sprintDelayMs);this.sprintExitSequence=input.sequence;}this.pending.push({input,at});if(this.pending.length>60)this.pending.shift();
    if(grounded&&!this.local.grounded&&this.local.velocity.y>5)this.audio.jump();if(input.jump&&!this.local.grounded&&this.local.ion>0&&now-this.thrustCueAt>900){this.audio.burst();this.thrustCueAt=now;}if(!grounded&&this.local.grounded)this.audio.land(-vertical);if(this.local.mode!==mode){if(this.local.mode==="slide")this.audio.slide();if(this.local.mode==="mantle")this.audio.mantle();if(this.local.mode==="wall-run")this.audio.wings();}if(this.local.grounded&&Math.hypot(this.local.velocity.x,this.local.velocity.z)>2&&now-this.lastStep>330){this.audio.brRemoteFootstep(this.local.position,this.local.position,this.yaw,input.sprint);this.lastStep=now;}
-   const gun=me.guns[me.slot],w=PG_WEAPONS[gun.id],fire=enabled&&(this.mouseFire||this.semiPending||!!pad?.buttons[7]?.pressed);
+   // A queued RAF timestamp can be stale after a render stall. Fire uses the
+   // live RTT-calibrated processing clock; fixed-step movement keeps its
+   // simulation clock. Snapshot arrival latency must not age a new shot.
+   const fireAt=pgClock(this.socket).now(performance.now(),this.offset),gun=me.guns[me.slot],w=PG_WEAPONS[gun.id],fire=enabled&&(this.mouseFire||this.semiPending||!!pad?.buttons[7]?.pressed);
    if(this.firingWeapon!==gun.id){this.firingWeapon=gun.id;this.nextFire=0;this.fireHeld=false;}
-   if(fire&&(w.automatic||!this.fireHeld||this.semiPending)&&at>=this.nextFire&&pgFireReady(at,this.local.mode,me,this.sprintFireAt,this.sprintExitSequence)){this.socket.emit("pg:weapon:fire",{sequence:++this.shotSequence,clientTime:at,weapon:gun.id,yaw:this.yaw,pitch:this.pitch});this.semiPending=false;this.nextFire=at+w.intervalMs;this.recoil=Math.min(1,this.recoil+w.recoil*6);this.pitch=Math.min(1.4,this.pitch+w.recoil);this.audio.brWeapon(audioWeapons[gun.id]);}
+   if(fire&&(w.automatic||!this.fireHeld||this.semiPending)&&fireAt>=this.nextFire&&pgFireReady(fireAt,this.local.mode,me,this.sprintFireAt,this.sprintExitSequence)){this.socket.emit("pg:weapon:fire",{sequence:++this.shotSequence,clientTime:fireAt,weapon:gun.id,yaw:this.yaw,pitch:this.pitch});this.semiPending=false;this.nextFire=fireAt+w.intervalMs;this.recoil=Math.min(1,this.recoil+w.recoil*6);this.pitch=Math.min(1.4,this.pitch+w.recoil);this.audio.brWeapon(audioWeapons[gun.id]);}
    if(!fire)this.semiPending=false;this.fireHeld=fire;
   }
   const gun=me.guns[me.slot],weapon=PG_WEAPONS[gun.id],aim=this.canPlay()&&(this.mouseAds||!!navigator.getGamepads?.().find(p=>p?.connected)?.buttons[6]?.pressed)&&this.local.mode!=="sprint"&&gun.reloadUntil<=s.serverTime;
