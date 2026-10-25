@@ -1,0 +1,50 @@
+[WebServer] (node:21432) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:34176) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:24700) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 9 tests using 1 worker
+
+(node:32672) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  1 e2e\planet-run-party.spec.ts:4:1 › PlanetRun themed thirty-pilot courses and responsive canonical winner stage (1.0m)
+(node:31996) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 2 e2e\planet-run.spec.ts:7:1 › PlanetRun lifecycle, input, UI capture and cross-family renderer ownership (27.2s)
+  ok 3 e2e\planet-run.spec.ts:26:1 › PlanetRun quick solo fills bots and advances an ordinary tournament (30.2s)
+  ok 4 e2e\planet-run.spec.ts:32:1 › Shatterdeck contact breaks cells and falls to a lower deck (20.0s)
+  ok 5 e2e\planet-run.spec.ts:43:1 › PlanetRun six-round rendering samples at low (1.1m)
+  ok 6 e2e\planet-run.spec.ts:43:1 › PlanetRun six-round rendering samples at medium (1.2m)
+  ok 7 e2e\planet-run.spec.ts:43:1 › PlanetRun six-round rendering samples at high (1.2m)
+  ok 8 e2e\planet-run.spec.ts:43:1 › PlanetRun six-round rendering samples at auto (1.2m)
+  ok 9 e2e\planet-run.spec.ts:58:1 › Meteor Garden renders telegraphed fields without opaque hazard boxes (16.1s)
+
+
+  1) e2e\planet-run-party.spec.ts:4:1 › PlanetRun themed thirty-pilot courses and responsive canonical winner stage 
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: "running"
+    Received: "intro"
+
+    Call Log:
+    - Timeout 15000ms exceeded while waiting on the predicate
+
+      15 |   await page.locator(`[data-round="${round}"]`).click();
+      16 |   const state=()=>page.locator('#pr-dev-state').textContent().then(v=>JSON.parse(v!));
+    > 17 |   await expect.poll(async()=>(await state()).phase).toBe('running');
+         |                                                     ^
+      18 |   const debug=await state();expect(debug.players).toBe(30);expect(debug.roundId).toBe(round);expect(debug.worldCalls).toBeGreaterThan(0);expect(debug.worldCalls).toBeLessThan(200);
+      19 |   await expect(page.locator('#pr-hud')).toHaveAttribute('data-pr-round',round);
+      20 |   await expect(page.locator('#pr-hud')).toHaveAttribute('data-pr-visible','true');
+        at C:\Users\Chris\Desktop\planetfall\e2e\planet-run-party.spec.ts:17:53
+
+    Error Context: artifacts\planet-run-background-oct24\e2e\planet-run-party-PlanetRun-098ee-sive-canonical-winner-stage\error-context.md
+
+  Slow test file: e2e\planet-run.spec.ts (6.2m)
+  Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+  1 failed
+    e2e\planet-run-party.spec.ts:4:1 › PlanetRun themed thirty-pilot courses and responsive canonical winner stage 
+  8 passed (7.4m)

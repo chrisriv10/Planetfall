@@ -8,6 +8,7 @@ import {createPrFluxArt} from "./art/pr-art-flux";
 import {createPrCapacitorArt} from "./art/pr-art-capacitor";
 import {createPrShatterdeckArt} from "./art/pr-art-shatterdeck";
 import {createPrSkyArt} from "./art/pr-sky-art";
+import {createPrBackdrop} from "./art/pr-backdrop";
 import {createPrCellArt} from "./art/pr-cell-art";
 import {createPrCountdownArt} from "./art/pr-countdown-art";
 import {PR_ART_PALETTES,type PrRoundArt,type PrArtContext,type PrArtQuality} from "./art/pr-art-shared";
@@ -25,6 +26,7 @@ export class PrWorldRenderer {
   private readonly batches:THREE.InstancedMesh[]=[];
   private readonly art:PrRoundArt;
   private readonly sky:ReturnType<typeof createPrSkyArt>;
+  private readonly backdrop:ReturnType<typeof createPrBackdrop>;
   private readonly countdown:ReturnType<typeof createPrCountdownArt>;
   private readonly cells:ReturnType<typeof createPrCellArt>|null;
   private disposed=false;
@@ -55,6 +57,7 @@ export class PrWorldRenderer {
     this.art=factories[round.id](context);
     this.buildFacility(deck,frame,cream,ink,glow);
     this.sky=createPrSkyArt(round);this.root.add(this.sky.root);
+    this.backdrop=createPrBackdrop(round);this.root.add(this.backdrop.root);
     this.cells=round.tiles.length?createPrCellArt(round):null;if(this.cells)this.root.add(this.cells.root);
     this.countdown=createPrCountdownArt(round);this.root.add(this.countdown.root);
     this.batchDecoration(this.root);this.update(0,0,new Map());this.setQuality("medium");
@@ -69,11 +72,11 @@ export class PrWorldRenderer {
       if(view.openMark)view.openMark.visible=!state.active;
       view.meteor?.update(state.active,state.warning,elapsedMs,prMeteorTimeline(o,elapsedMs,seed));
     }
-    this.cells?.update(elapsedMs,tileState);this.art.update(elapsedMs,seed,tileState);this.sky.update(elapsedMs);
+    this.cells?.update(elapsedMs,tileState);this.art.update(elapsedMs,seed,tileState);this.sky.update(elapsedMs);this.backdrop.update(elapsedMs);
   }
   setPhase(phase:PrPhase,seconds:number,elapsedMs:number):void{this.countdown.update(phase,seconds,elapsedMs);}
-  setQuality(q:PrArtQuality):void{this.art.setQuality(q);this.sky.setQuality(q);this.cells?.setQuality(q);this.countdown.setQuality(q);}
-  dispose():void{if(this.disposed)return;this.disposed=true;this.art.dispose();this.sky.dispose();this.cells?.dispose();this.countdown.dispose();for(const o of this.obstacles)o.meteor?.dispose();for(const batch of this.batches)batch.dispose();for(const g of this.geometries)g.dispose();for(const m of this.materials)m.dispose();this.root.clear();this.root.removeFromParent();}
+  setQuality(q:PrArtQuality):void{this.art.setQuality(q);this.sky.setQuality(q);this.backdrop.setQuality(q);this.cells?.setQuality(q);this.countdown.setQuality(q);}
+  dispose():void{if(this.disposed)return;this.disposed=true;this.art.dispose();this.sky.dispose();this.backdrop.dispose();this.cells?.dispose();this.countdown.dispose();for(const o of this.obstacles)o.meteor?.dispose();for(const batch of this.batches)batch.dispose();for(const g of this.geometries)g.dispose();for(const m of this.materials)m.dispose();this.root.clear();this.root.removeFromParent();}
   private geometry<T extends THREE.BufferGeometry>(geometry:T):T{this.geometries.push(geometry);return geometry;}
   private buildFacility(deck:THREE.Material,frame:THREE.Material,cream:THREE.Material,ink:THREE.Material,glow:THREE.Material):void {
     const facility=new THREE.Group();facility.name=`signature-${this.round.id}`;this.root.add(facility);

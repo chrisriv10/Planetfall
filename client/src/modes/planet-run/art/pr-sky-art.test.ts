@@ -2,6 +2,7 @@ import {describe,it,expect,vi} from "vitest";
 import * as THREE from "three";
 import {PR_ROUNDS} from "@planetfall/shared";
 import {createPrSkyArt} from "./pr-sky-art";
+import {prReviewCamera} from "../pr-review";
 
 describe("parameterized PlanetRun sky",()=>{
  it("keeps each round distinct, finite and within ten draws",()=>{
@@ -16,6 +17,17 @@ describe("parameterized PlanetRun sky",()=>{
    for(let i=0;i<station.count;i++){station.getMatrixAt(i,matrix);expect(new THREE.Vector3().setFromMatrixPosition(matrix).length()).toBeGreaterThan(300);}
    sky.dispose();
   }expect(compositions.size).toBe(6);
+ });
+ it("keeps the major celestial body in normal course framing",()=>{
+  for(const round of PR_ROUNDS){
+   const sky=createPrSkyArt(round),planet=sky.root.getObjectByName("distant-band-planet")!;
+   for(const view of ["start","center"] as const){
+    const pose=prReviewCamera(round,view),camera=new THREE.PerspectiveCamera(65,16/9,.1,1000);
+    camera.position.set(...pose.position);camera.lookAt(...pose.target);camera.updateMatrixWorld();
+    const frustum=new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));
+    expect(frustum.intersectsSphere(new THREE.Sphere(planet.position,planet.scale.x)),`${round.id} ${view}`).toBe(true);
+   }sky.dispose();
+  }
  });
  it("retains the core sky on Low and restores higher detail without reallocating",()=>{
   const sky=createPrSkyArt(PR_ROUNDS[0]),planet=sky.root.getObjectByName("distant-band-planet")!,stars=sky.root.getObjectByName("orbital-starfield") as THREE.Points,traffic=sky.root.children.find(o=>o.name.endsWith("-traffic")) as THREE.InstancedMesh;

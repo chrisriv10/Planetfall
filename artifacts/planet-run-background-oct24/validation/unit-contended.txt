@@ -1,0 +1,10 @@
+
+ RUN  v5.0.0 C:/Users/Chris/Desktop/planetfall
+
+ ❯ client/src/astronaut-arm-articulation-pitch.test.ts (4 tests | 3 failed) 67955ms
+   × keeps pitched arms and all four weapons clear in settled ads 19346ms
+   × keeps pitched arms and all four weapons clear in settled sprint 19811ms
+   × keeps pitched arms and all four weapons clear in settled crouch 18326ms
+stdout | server/src/modes/battle-royale/br-scale.test.ts > Battle Royale 40-player lifecycle > completes a seeded 40-player solo simulation without invalid state
+BR_SCALE solo ticks=4800 simulatedSeconds=480
+
