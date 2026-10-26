@@ -16,15 +16,29 @@ export function buildPgNeighborhoodArchitecture(ctx: PgArtContext): void {
     put("base", "dark",0,c.y-h.y+.15,half*2,.3,.010);
     put("crown",interior,0,c.y+h.y-.18,half*2,.36,.013);
     put("light",style==="habitat"?"amber":"cyan",0,c.y+h.y-.26,half*2-.12,.045,.026);
-    const bays=Math.max(1,Math.floor(half*2/2.5)),step=(half*2-.18)/bays;
+    // Observation ribbons, paired residential panes and high service glazing
+    // have distinct rhythms while remaining embossed on their own real wall.
+    const ribbon=style==="habitat"&&id.endsWith("north");
+    const bays=Math.max(1,Math.floor(half*2/(ribbon?4.8:2.5))),step=(half*2-.18)/bays;
     for(let i=0;i<bays;i++) {
-      const a=(i-(bays-1)/2)*step,w=step-.18,ph=h.y*1.18;
-      put("window-reveal","dark",a,c.y,w+.08,ph+.12,.016);
-      put("window", "glass",a,c.y,w,ph,.028);
-      for(const side of[-1,1])put("window-jamb",interior,a+side*(w/2+.04),c.y,.065,ph+.12,.042);
-      put("window-sill",interior,a,c.y-ph/2-.05,w+.16,.10,.043);
-      put("transom",interior,a,c.y+.22,w,.065,.043);
-      if(style==="service")for(let row=0;row<3;row++)put("vent","frame",a,c.y-.35+row*.11,w*.8,.04,.044,true);
+      const a=(i-(bays-1)/2)*step,w=step-.18,ph=h.y*(style==="service"?.68:ribbon?.9:1.18),cy=c.y+(style==="service"?.38:0);
+      put("window-reveal","dark",a,cy,w+.08,ph+.12,.016);
+      put("window", "glass",a,cy,w,ph,.028);
+      for(const side of[-1,1])put("window-jamb",interior,a+side*(w/2+.04),cy,.065,ph+.12,.042);
+      put("window-sill",interior,a,cy-ph/2-.05,w+.16,.10,.043);
+      if(style==="service"){
+        put("service-panel","frame",a,c.y-.65,w,.52,.025);
+        for(let row=0;row<3;row++)put("vent","dark",a,c.y-.8+row*.14,w*.78,.045,.044);
+        put("service-status","cyan",a+w*.3,c.y-.65,.05,.18,.044);
+      }else if(ribbon){
+        put("window-transom",interior,a,cy+.25,w,.065,.043);
+        put("window-reading-light","amber",a,cy+ph/2-.1,w*.72,.035,.044);
+      }else{
+        put("window-mullion",interior,a+w*.12,cy,.075,ph,.043);
+        // A partial opaque shade makes living quarters read as occupied rooms,
+        // rather than another copy of the observation gallery's continuous glass.
+        put("window-shade","ivory",a-w*.22,cy+ph*.3,w*.48,ph*.22,.044);
+      }
     }
   }
   for(const [id,axis]of [["nova-suite-north","z"],["nova-suite-west","x"],["nova-suite-east","x"],["nova-suite-front-west","z"],["nova-suite-front-east","z"]]as const)
@@ -36,6 +50,10 @@ export function buildPgNeighborhoodArchitecture(ctx: PgArtContext): void {
     box("nova-roof-reveal","dark",roof.center.x,6.46,roof.center.z+sign*(roof.half.z+.013),11.5,.12,.018);
     box("nova-roof-coping","ivory",roof.center.x,6.72,roof.center.z+sign*(roof.half.z+.013),11.5,.14,.018);
   }
+  // Recessed fascia joints articulate the existing slab silhouette, without
+  // inventing roof equipment or a climbable parapet that lacks collision.
+  for(let i=0;i<5;i++)for(const sign of[-1,1])
+    box("nova-roof-fascia-joint","frame",roof.center.x-4.6+i*2.3,6.58,roof.center.z+sign*(roof.half.z+.024),.045,.2,.008);
   for(const x of[-30.25,-22.25]){
     ctx.add("nova-observation-medallion","torus","frame",[x,4.95,-13.407,.43,.43,.22]);
     box("nova-medallion-core","amber",x,4.95,-13.393,.08,.08,.012);
@@ -46,6 +64,10 @@ export function buildPgNeighborhoodArchitecture(ctx: PgArtContext): void {
   box("nova-canopy-nose","ivory",-25,3.5,2.218,7,.32,.025);
   box("nova-canopy-shadow","dark",-25,3.38,2.234,6.9,.065,.012);
   box("nova-canopy-entry-light","amber",-25,3.305,1.5,5.6,.012,.16);
+  for(const x of[-27.75,-22.25]){
+    box("nova-entry-bearing-reveal","dark",x,3.26,-.569,1.2,.09,.012);
+    box("nova-entry-bearing-light","amber",x,3.26,-.56,.6,.035,.006);
+  }
   // The continuous lower west bulkhead is a smooth running surface. Its broad
   // three service cassettes stay within 3cm of the collision face and below
   // the gallery; no projecting fins or vertical sticks catch the silhouette.
@@ -92,6 +114,9 @@ export function buildPgNeighborhoodArchitecture(ctx: PgArtContext): void {
   ctx.add("ion-turbine-collar","torus","frame",[tower.center.x,7.85,30.13,.76,.76,.20]);
   ctx.add("ion-turbine-core","torus","frame",[tower.center.x,7.85,30.118,.5,.5,.12]);
   box("ion-tower-cap","ivory",16,9.19,31.2,2,.025,2.1);
+  // The three existing tower levels retain their tall service silhouette;
+  // dark joints and small identification bars give it a manufactured cadence.
+  for(const y of[7.15,8.1])box("ion-tower-section-joint","dark",16,y,30.139,1.8,.045,.008);
   // Purposeful terminal tops stay within their existing cover's footprint.
   for(const id of["west-interior-console","west-gallery-terminal","east-interior-console","east-observatory-optics","maintenance-workbench"]){
     const s=solid(id),c=s.center,h=s.half;

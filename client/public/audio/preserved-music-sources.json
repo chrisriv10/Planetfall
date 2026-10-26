@@ -1,0 +1,24 @@
+{
+  "menu": {
+    "localFile": "client/public/audio/low-battery.ogg",
+    "originalAssetName": "DavidKBD - My Little Bots Pack - 05 - Low battery.ogg",
+    "creator": "David KBD",
+    "sourcePage": "https://davidkbd.itch.io/my-little-bots-crazy-music-for-robots-asset-pack",
+    "license": "CC-BY-4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "verifiedOn": "2026-10-25",
+    "modifications": "Existing project asset; no audio-byte changes in this pass. Original menu assignment and base gain restored at the user's request.",
+    "sha256": "8396bc0986cf4d0286e2bea9d0210f1ea60c5f1bb7e755ad2f7ae010f420bb3d"
+  },
+  "game": {
+    "localFile": "client/public/audio/bot-city.ogg",
+    "originalAssetName": "DavidKBD - My Little Bots Pack - 03 - Bot City.ogg",
+    "creator": "David KBD",
+    "sourcePage": "https://davidkbd.itch.io/my-little-bots-crazy-music-for-robots-asset-pack",
+    "license": "CC-BY-4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "verifiedOn": "2026-10-25",
+    "modifications": "Existing project asset; no audio-byte changes in this pass. Original Classic assignment and base gain restored at the user's request.",
+    "sha256": "b0cdd544f33c7a37cf40dc11a1cb15f77277edf9f5e02be7d51c908300936a2b"
+  }
+}

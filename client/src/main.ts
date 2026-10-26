@@ -1,4 +1,6 @@
 import {createPgUi} from "./modes/planet-gun/pg-ui";
+import {createPgKitEditor} from "./modes/planet-gun/pg-kit-editor";
+import {createDevCanvasRecording} from "./dev-canvas-recording";
 import type {PgRoomView,PgSnapshot} from "@planetfall/shared";
 import {MODE_DEVELOPMENT} from "./mode-development";
 import {createModeWarningArt} from "./mode-warning-art";
@@ -8,6 +10,7 @@ import "./style.css";
 import "./home-family.css";
 import "./mode-warning.css";
 import "./br-squad-hud.css";
+import "./ui-foundation.css";
 import { brItemName, brItemDescription, BR_RARITIES } from "@planetfall/shared";
 import { mouseButtonIcon } from "./mouse-button-icon";
 import { BALANCE, BR_BALANCE, BR_HEALS, BR_MAP, BR_POIS, BR_SECONDARY_LOCATIONS, BR_WEAPONS, CHAOS_COPY, PLANET_PASS_REWARDS, SESSION_PROGRESSION, SHOP_CATALOG, WEAPON_COPY, WEAPON_ORDER, brPickupDisposition, isBrWeapon, type BotDifficulty, type BrCrateState, type BrItemId, type BrJoinResult, type BrLootState, type BrMatchResult, type BrPlayerState, type BrRoomView, type BrTeamMode, type ChaosModifier, type CosmeticCategory, type EmoteType, type GameFamily, type GameMode, type JoinResult, type MatchCalloutType, type MatchEvent, type MatchResult, type RoomView, type WeaponType } from "@planetfall/shared";
@@ -118,6 +121,14 @@ const prefersReducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matc
 let settings = parseStoredSettings(localStorage.getItem(SETTINGS_STORAGE_KEY), prefersReducedMotion);
 
 const socket = createGameSocket();
+let pgKitFocus:HTMLElement|null=null;
+const pgKits=createPgKitEditor({
+  onApply:loadout=>{socket.emit("pg:loadout",loadout);pgUi.renderKit(loadout);},
+  onOpen:()=>{document.exitPointerLock?.();captureUi(true);},
+  onClose:()=>{captureUi(Boolean(activeOverlay()));if(pgKitFocus?.isConnected)pgKitFocus.focus();pgKitFocus=null;}
+});
+byId("ui").append(pgKits.root);
+function openPgKits():void{pgKitFocus=document.activeElement instanceof HTMLElement?document.activeElement:null;pgKits.open(currentScreen==="pgLobby"?"lobby":"game");}
 const { PlanetfallGame } = await import("./game");
 const game = new PlanetfallGame(canvas);
 const autoQuality = new AutoQualityController({
@@ -404,6 +415,7 @@ byId("pass-results").addEventListener("click", openPass);
 byId("pass-close").addEventListener("click", closePass);
 byId("settings-lobby").addEventListener("click", () => openSettings("screen"));
 addEventListener("keydown", (event) => {
+  if(event.key==="Escape"&&!pgKits.root.hidden){event.preventDefault();pgKits.close();return;}
   if(event.key==="Escape"&&!modeWarning.root.hidden){event.preventDefault();closeModeWarning(false);return;}
   if(event.key==="Escape"&&(currentFamily==="planet-run"&&currentScreen==="prHud"||currentFamily==="planet-gun"&&currentScreen==="pgHud")){
     event.preventDefault();togglePause();return;
@@ -584,6 +596,7 @@ function joinOrCreate(kind: "create" | "join" | "solo", family = selectedFamily)
       if(!result.ok)return toast(result.error);
       currentFamily="planet-gun";playerId=result.playerId;currentCode=result.room.code;
       sessionStorage.setItem(`planetfall:pg:${currentCode}`,result.sessionToken);applyPgRoom(result.room);
+      socket.emit("pg:loadout",pgKits.selected());
       if(kind==="solo")socket.emit("pg:match:quick-start");
     };
     if(kind==="join")socket.emit("pg:room:join",{code,name,sessionToken:sessionStorage.getItem(`planetfall:pg:${code}`)??undefined},done);
@@ -1424,7 +1437,7 @@ function focusFirst(root: HTMLElement): void {
 }
 
 function focusableElements(root:HTMLElement):HTMLElement[]{return [...root.querySelectorAll<HTMLElement>("button:not([disabled]):not([hidden]), input:not([disabled]):not([hidden]), select:not([disabled]):not([hidden]), [tabindex]:not([tabindex='-1'])")].filter(element=>element.offsetParent!==null);}
-function activeOverlay():HTMLElement|null{return pgUi.scoreboardVisible?byId("pg-scoreboard"):!modeWarning.root.hidden?modeWarning.root:!brQuickPlay.hidden?brQuickPlay:!brInventoryOverlay.hidden?brInventoryOverlay:!brMapOverlay.hidden?brMapOverlay:!shopOverlay.hidden?shopOverlay:!passOverlay.hidden?passOverlay:!settingsOverlay.hidden?settingsOverlay:!pauseOverlay.hidden?pauseOverlay:null;}
+function activeOverlay():HTMLElement|null{return !pgKits.root.hidden?pgKits.root:pgUi.scoreboardVisible?byId("pg-scoreboard"):!modeWarning.root.hidden?modeWarning.root:!brQuickPlay.hidden?brQuickPlay:!brInventoryOverlay.hidden?brInventoryOverlay:!brMapOverlay.hidden?brMapOverlay:!shopOverlay.hidden?shopOverlay:!passOverlay.hidden?passOverlay:!settingsOverlay.hidden?settingsOverlay:!pauseOverlay.hidden?pauseOverlay:null;}
 
 function setGameMode(mode: GameMode): void {
   if (!room || room.hostId !== playerId || room.phase !== "lobby" || room.gameMode === mode) return;
@@ -1433,6 +1446,12 @@ function setGameMode(mode: GameMode): void {
 }
 
 function showScreen(name: keyof typeof screens): void {
+  if(name!==currentScreen)pgKits.close();
+  if(name==="home"){
+    pauseOverlay.hidden=true;settingsOverlay.hidden=true;pgUi.showScoreboard(false);
+    captureUi(Boolean(activeOverlay()));
+  }
+  byId("pause-kits").hidden=name!=="pgHud";
   prUi.setVisible(name==="prLobby"?"lobby":name==="prHud"?"hud":name==="prResults"?"results":null);
   if(name==="pgResults"){pauseOverlay.hidden=true;settingsOverlay.hidden=true;pgUi.showScoreboard(false);captureUi(false);}
   const previousFamily=document.body.dataset.gameFamily;
@@ -1534,7 +1553,7 @@ function applyPrRoom(next:PrRoomView):void {
   if(currentFamily!=="planet-run"||next.code!==currentCode)return;
   prRoom=next;prUi.render(next,playerId);
   if(next.phase==="lobby"){
-    prGame?.deactivate();game.setActive(true);game.setMode("home");game.setHomeFamily("planet-run");showScreen("prLobby");
+    prGame?.deactivate();game.audio.setPrAmbience(null);game.setActive(true);game.setMode("home");game.setHomeFamily("planet-run");showScreen("prLobby");
   }else {
     game.setActive(false);brGame?.deactivate();
     if(!prGame&&!prGameLoading)prGameLoading=import("./modes/planet-run/pr-game").then(({PlanetRunGame})=>{
@@ -1554,6 +1573,7 @@ socket.on("pr:match:snapshot",s=>{if(currentFamily!=="planet-run")return;const m
   if(me&&me.checkpoint>prAudioState.checkpoint)game.audio.prCue("checkpoint");
   if(s.phase==="results"&&prAudioState.phase!=="results")game.audio.result(s.winnerId===playerId);
   prAudioState={phase:s.phase,countdown,status:me?.status??"",checkpoint:me?.checkpoint??0};
+  if(s.roundId!==pendingPrSnapshot?.roundId||s.phase!==pendingPrSnapshot?.phase)game.audio.setPrAmbience(s.phase==="results"?null:s.roundId);
   pendingPrSnapshot=s;prGame?.applySnapshot(s);});
 socket.on("pr:tiles:delta",d=>{if(currentFamily==="planet-run")prGame?.applyTiles(d);});
 socket.on("pr:error",p=>toast(p.message));
@@ -1571,7 +1591,7 @@ if(import.meta.env.DEV){
   prUi.lobby.querySelector(".pr-lobby-card")?.append(review);
   const cameras=document.createElement("details");cameras.id="pr-dev-cameras";cameras.style.cssText="position:absolute;left:12px;top:110px;max-width:200px;pointer-events:auto;font-size:10px;background:#10233be0";
   const cameraTitle=document.createElement("summary");cameraTitle.textContent="DEV · COURSE VIEWS";cameras.append(cameraTitle);
-  for(const view of["player","start","hazard","center","landmark","finish","oblique"]as const){const button=document.createElement("button");button.textContent=view;button.dataset.prView=view;button.addEventListener("click",()=>prGame?.setReviewView(view==="player"?null:view));cameras.append(button);}prUi.hud.append(cameras);
+  for(const view of["player","start","hazard","center","landmark","finish","oblique"]as const){const button=document.createElement("button");button.textContent=view;button.dataset.prView=view;button.addEventListener("click",()=>prGame?.setReviewView(view==="player"?null:view));cameras.append(button);}cameras.append(createDevCanvasRecording(canvas,()=>{const s=prGame?.debugState();return `pr-${s?.roundId}-${s?.players}`;}));prUi.hud.append(cameras);
 }
 
 function setPgScoreboard(show:boolean):void{pgUi.showScoreboard(show);captureUi(show||Boolean(activeOverlay()));if(show)byId("pg-scoreboard-close").focus();}
@@ -1579,7 +1599,7 @@ function applyPgRoom(next:PgRoomView):void {
  if(currentFamily!=="planet-gun"||next.code!==currentCode)return;pgRoom=next;pgUi.render(next,playerId);
  if(next.phase==="lobby"){pgGame?.deactivate();game.setActive(true);game.setMode("home");game.setHomeFamily("planet-gun");showScreen("pgLobby");}
  else {game.setActive(false);brGame?.deactivate();prGame?.deactivate();
-  if(!pgGame&&!pgLoading)pgLoading=import("./modes/planet-gun/pg-game").then(({PlanetGunGame})=>{pgGame=new PlanetGunGame(game.renderer,canvas,socket,s=>pgUi.renderSnapshot(s,playerId),(n,head)=>pgUi.hit(n,head),game.audio);pgGame.onAim=(weapon,ads,spread)=>pgUi.updateAim(weapon,ads,spread);pgGame.onMenuNavigate=navigateUi;pgGame.onPause=()=>togglePause();pgGame.onScoreboard=()=>setPgScoreboard(!pgUi.scoreboardVisible);pgGame.setSettings(runtimeSettings());if(currentFamily==="planet-gun"&&pgRoom?.phase!=="lobby"){pgGame.activate(playerId);if(pendingPgSnapshot)pgGame.applySnapshot(pendingPgSnapshot);}}).finally(()=>pgLoading=null);
+  if(!pgGame&&!pgLoading)pgLoading=import("./modes/planet-gun/pg-game").then(({PlanetGunGame})=>{pgGame=new PlanetGunGame(game.renderer,canvas,socket,s=>pgUi.renderSnapshot(s,playerId),(n,head)=>pgUi.hit(n,head),game.audio);pgGame.onAim=(weapon,ads,spread,optic)=>pgUi.updateAim(weapon,ads,spread,optic);pgGame.onMenuNavigate=navigateUi;pgGame.onPause=()=>togglePause();pgGame.onScoreboard=()=>setPgScoreboard(!pgUi.scoreboardVisible);pgGame.setSettings(runtimeSettings());if(currentFamily==="planet-gun"&&pgRoom?.phase!=="lobby"){pgGame.activate(playerId);if(pendingPgSnapshot)pgGame.applySnapshot(pendingPgSnapshot);}}).finally(()=>pgLoading=null);
   else pgGame?.activate(playerId);showScreen(next.phase==="results"?"pgResults":"pgHud");
  }
 }
@@ -1593,8 +1613,10 @@ byId("pg-return").addEventListener("click",()=>socket.emit("pg:match:return"));
 for(const id of ["pg-leave-lobby","pg-leave-results"])byId(id).addEventListener("click",()=>void leaveRoom());
 byId("pg-shop").addEventListener("click",openShop);byId("pg-pass").addEventListener("click",openPass);byId("pg-settings").addEventListener("click",()=>openSettings("screen"));byId("pg-pause").addEventListener("click",()=>togglePause());
 for(const id of ["pg-target","pg-limit","pg-difficulty","pg-fill"])byId(id).addEventListener("change",()=>socket.emit("pg:room:configure",{targetPlayers:Number(byId<HTMLSelectElement>("pg-target").value)as 4|8|12,scoreLimit:Number(byId<HTMLSelectElement>("pg-limit").value)as 25|50|75,botDifficulty:byId<HTMLSelectElement>("pg-difficulty").value as BotDifficulty,fillBots:byId<HTMLInputElement>("pg-fill").checked}));
-byId("pg-loadout").addEventListener("change",()=>socket.emit("pg:loadout",{primary:byId<HTMLSelectElement>("pg-loadout").value as import("@planetfall/shared").PgLoadout["primary"],secondary:"comet"}));
+byId("pg-loadout").addEventListener("change",()=>pgKits.selectPrimaryLegacy(byId<HTMLSelectElement>("pg-loadout").value as import("@planetfall/shared").PgLoadout["primary"]));
+byId("pg-edit-kits").addEventListener("click",openPgKits);
+byId("pause-kits").addEventListener("click",openPgKits);
 byId("pg-scoreboard-toggle").addEventListener("click",()=>setPgScoreboard(true));byId("pg-scoreboard-close").addEventListener("click",()=>setPgScoreboard(false));
 if(import.meta.env.DEV){Object.defineProperty(window,"__PLANETFALL_PG_DEBUG__",{value:()=>pgGame?.debugState(),configurable:true});setInterval(()=>{if(!pgGame)return;let output=byId("pg-dev-state");if(!output){output=document.createElement("output");output.id="pg-dev-state";output.hidden=true;document.body.append(output);}output.textContent=JSON.stringify(pgGame.debugState());},500);}
 
-if(import.meta.env.DEV){const review=document.createElement("details");review.id="pg-dev-review";review.style.cssText="position:absolute;top:120px;left:16px;pointer-events:auto;font-size:11px;background:#08162be0;max-width:190px";const title=document.createElement("summary");title.textContent="DEV · MAP REVIEW";review.append(title);for(const name of ["player","overhead","solar","void","center","left","right","upper","wallRun","westInterior","eastInterior","serviceInterior","habitatSuite","oblique","orbit"]as const){const b=document.createElement("button");b.textContent=name;b.dataset.pgView=name;b.addEventListener("click",()=>pgGame?.setReviewView(name==="player"?null:name));review.append(b);}pgUi.hud.append(review);}
+if(import.meta.env.DEV){const review=document.createElement("details");review.id="pg-dev-review";review.style.cssText="position:absolute;top:120px;left:16px;pointer-events:auto;font-size:11px;background:#08162be0;max-width:190px";const title=document.createElement("summary");title.textContent="DEV · MAP REVIEW";review.append(title);for(const name of ["player","overhead","solar","void","center","left","right","upper","wallRun","westInterior","eastInterior","serviceInterior","habitatSuite","oblique","orbit","crowd3","crowd6"]as const){const b=document.createElement("button");b.textContent=name;b.dataset.pgView=name;b.addEventListener("click",()=>pgGame?.setReviewView(name==="player"?null:name));review.append(b);}for(const enabled of [false,true]){const b=document.createElement("button");b.textContent=enabled?"Batched pilots":"Original pilots";b.dataset.pgBatching=String(enabled);b.addEventListener("click",()=>pgGame?.setPilotBatching(enabled));review.append(b);}review.append(createDevCanvasRecording(canvas,()=>`pg-${pgGame?.debugState().players}`));pgUi.hud.append(review);}

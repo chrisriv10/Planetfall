@@ -1,0 +1,26 @@
+[
+  {
+    "name": "typecheck",
+    "startedAt": "2026-10-26T07:41:37.4599258-05:00",
+    "status": "passed",
+    "exitCode": 0
+  },
+  {
+    "name": "build",
+    "startedAt": "2026-10-26T07:41:49.3438798-05:00",
+    "status": "passed",
+    "exitCode": 0
+  },
+  {
+    "name": "unit",
+    "startedAt": "2026-10-26T07:42:06.6716039-05:00",
+    "status": "passed",
+    "exitCode": 0
+  },
+  {
+    "name": "e2e",
+    "startedAt": "2026-10-26T07:48:30.1867074-05:00",
+    "status": "passed",
+    "exitCode": 0
+  }
+]

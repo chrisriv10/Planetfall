@@ -1,4 +1,4 @@
-import {PG_BALANCE as B,PG_MAP,PG_WEAPONS,pgDamage,pgFinishReload,pgPilotHit,pgRayBox,pgShotAim,pgSpread,type PgFireRequest,type PgPlayer,type PgShot} from "@planetfall/shared";
+import {PG_BALANCE as B,PG_MAP,pgGunProfile,pgUpdateGunHeat,pgDamage,pgFinishReload,pgPilotHit,pgRayBox,pgShotAim,pgSpread,type PgFireRequest,type PgPlayer,type PgShot} from "@planetfall/shared";
 import {PgHistory} from "./pg-history.js";
 
 /** No client origin, damage, target or ammunition is trusted. */
@@ -10,14 +10,16 @@ export class PgCombat {
     if(!raw||!Number.isSafeInteger(raw.sequence)||raw.sequence<0||raw.sequence<=(this.sequences.get(shooter.id)??-1)||!Number.isFinite(raw.clientTime)||raw.clientTime<now-B.rewindMs||raw.clientTime>now+50||!Number.isFinite(raw.yaw)||!Number.isFinite(raw.pitch)||Math.abs(raw.pitch)>1.45)return [];
     // Consume valid sequence numbers even on rejected cooldown packets; replay cannot become a later shot.
     this.sequences.set(shooter.id,raw.sequence);
-    const gun=shooter.guns[shooter.slot],w=PG_WEAPONS[gun.id];
-    pgFinishReload(gun,now);
+    const gun=shooter.guns[shooter.slot],w=pgGunProfile(gun);
+    pgFinishReload(gun,now);pgUpdateGunHeat(gun,now);
     const yawError=Math.atan2(Math.sin(raw.yaw-shooter.yaw),Math.cos(raw.yaw-shooter.yaw));
-    if(shooter.hp<=0||!shooter.connected&&!shooter.isBot||raw.weapon!==gun.id||gun.reloadUntil||gun.magazine<=0||now<gun.nextFireAt||now<shooter.fireReadyAt||shooter.mode==="sprint"||shooter.mode==="mantle"||Math.abs(yawError)>.25||Math.abs(raw.pitch-shooter.pitch)>.25)return [];
+    if(shooter.hp<=0||!shooter.connected&&!shooter.isBot||raw.weapon!==gun.id||gun.reloadUntil||gun.magazine<=0||now<gun.nextFireAt||now<(gun.overheatedUntil??0)||now<shooter.fireReadyAt||shooter.mode==="sprint"||shooter.mode==="mantle"||Math.abs(yawError)>.25||Math.abs(raw.pitch-shooter.pitch)>.25)return [];
     gun.magazine--;gun.nextFireAt=now+w.intervalMs;gun.shots++;gun.recoil+=w.recoil;shooter.protectedUntil=0;
+    if(w.burstShots){gun.burstRemaining=(gun.burstRemaining||w.burstShots)-1;if(!gun.burstRemaining)gun.nextFireAt=now+(w.burstRecoveryMs??w.intervalMs);}
+    if(w.heatPerShot){gun.heat=Math.min(1,(gun.heat??0)+w.heatPerShot);gun.heatUpdatedAt=now;if(gun.heat>=1-1e-9){gun.heat=1;gun.overheatedUntil=now+(w.overheatMs??900);}}
     const origin={...shooter.position,y:shooter.position.y+(shooter.crouched?B.crouchEye:B.eye)};
     const ads=shooter.adsSince>0?Math.min(1,(now-shooter.adsSince)/w.adsMs):0;
-    const spread=pgSpread(gun.id,ads,Math.hypot(shooter.velocity.x,shooter.velocity.z)>1,!shooter.grounded);
+    const spread=pgSpread(gun.id,ads,Math.hypot(shooter.velocity.x,shooter.velocity.z)>1,!shooter.grounded,gun.modules);
     const all=[...players],shots:PgShot[]=[];
     for(let pellet=0;pellet<w.pellets;pellet++){
       const direction=pgShotAim(raw.yaw,raw.pitch,spread,gun.shots*31+pellet);

@@ -1,0 +1,846 @@
+{
+  "head": "ea179c12e34bb4c742dbd150c743880fd2ccd4a2",
+  "recordedAt": "2026-10-26T07:45:31.274549-05:00",
+  "files": [
+    {
+      "path": "client/index.html",
+      "sha256": "4a905bec0db6dd2b634328048f86929ffb518f03eb09324588c25bbdb358669f"
+    },
+    {
+      "path": "client/public/audio/bot-city.ogg",
+      "sha256": "b0cdd544f33c7a37cf40dc11a1cb15f77277edf9f5e02be7d51c908300936a2b"
+    },
+    {
+      "path": "client/public/audio/low-battery.ogg",
+      "sha256": "8396bc0986cf4d0286e2bea9d0210f1ea60c5f1bb7e755ad2f7ae010f420bb3d"
+    },
+    {
+      "path": "client/public/audio/preserved-music-sources.json",
+      "sha256": "c540b3b3a919b0ddcefc1d1e1ae77ba9f54907ee60df40cfe9f4850ce6d5e8fe"
+    },
+    {
+      "path": "client/public/audio/refresh/brute-force-brute_force_loop.ogg",
+      "sha256": "1ae49d04109937e29c7aab9fd8270e563fec616f7826423eaed6fa8432fe4a97"
+    },
+    {
+      "path": "client/public/audio/refresh/claimed-by-void-claimed_by_the_void_loop.ogg",
+      "sha256": "30ce5e6d35aecd1a4e1d5ecc03b955f1bca67418346abedf957083baac7df5ac"
+    },
+    {
+      "path": "client/public/audio/refresh/dark-sci-fi-victory.ogg",
+      "sha256": "5770ed7dcc4e7b9d8fffe75b7d44ced7d46d3b4b6cab922c637af7e5ef4257ee"
+    },
+    {
+      "path": "client/public/audio/refresh/footsteps-01-footstep_0.ogg",
+      "sha256": "924cf37929a9a72eb133d32d3df26efc0f4c4e34221e9e5993e8153cef2f4be0"
+    },
+    {
+      "path": "client/public/audio/refresh/footsteps-02-footstep.ogg",
+      "sha256": "7b9ab0fd3865b62d98ec8b74bc7b7236aa3144d84339fad4adb8431e1cf1da76"
+    },
+    {
+      "path": "client/public/audio/refresh/footsteps-03-footstep.ogg",
+      "sha256": "c0d012af27058eaec81bf6b35c3553dceaad1bfbd8233d7012a46a40ac712012"
+    },
+    {
+      "path": "client/public/audio/refresh/footsteps-04-footstep.ogg",
+      "sha256": "40a98652108891e23a744c3288b0fc8fe405561cc767785fc5b6e163eb6eb2de"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-back_001.ogg",
+      "sha256": "88317b522250ed014e90c22a8bc71efd21e15e3c074915e9c82c2eef8d5608ec"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-back_002.ogg",
+      "sha256": "9fb3559a0fce74c22a29edc5eb6e26de9f8cf49f5ff8a700a839eb04170b03aa"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-click_001.ogg",
+      "sha256": "45f5eed98f53a2ed2aefa7280871385e2a154e538eafe907e4203c6535d50406"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-click_002.ogg",
+      "sha256": "88286d073b973f68d90c201b156957fcdb84a363e13d09250a1aabd706660bc0"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-close_001.ogg",
+      "sha256": "cfe1d6b934b6181d4265401b6f67accfd351a2bcc209a281d9af204ec76e27b2"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-close_002.ogg",
+      "sha256": "69f7a47d6928687705420f33775910163f3469d3183ff73c769232cb8fca31a9"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-confirmation_001.ogg",
+      "sha256": "5a347fadd607f9a4db8e4ff84813d60526efc3a63d1a61de406a21d276b52ffe"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-confirmation_002.ogg",
+      "sha256": "9321a8e367ada35f6ce4cc4b1de7dc082ed917898aef6086620ec31efb82c229"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-confirmation_003.ogg",
+      "sha256": "355d271b94e60a8887af77099acadf89b72362fb398de285ee00bbb775af8fdb"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-confirmation_004.ogg",
+      "sha256": "fde167a14aa357277a7e279404e5053684a8356e3026c9bd0b8c5b54dd2ac92c"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-error_003.ogg",
+      "sha256": "b361404e7daa1b41677cb392fa9bb4639d894b54a53629fb5bb9615ae9060cc0"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-error_004.ogg",
+      "sha256": "98986ed7545471e219a0646192343b4967bc7a12cad28d9f586692e3e5d70cf4"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-error_005.ogg",
+      "sha256": "a810d99519fd513a193691e89783795865ad9bf00745b41c07c1ea4bbbfe92b3"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-error_006.ogg",
+      "sha256": "d13e202e8391f48adcdf3c8d553baa7d1f08a46ee6e81da7a7594d64f7d2c012"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-error_007.ogg",
+      "sha256": "ec3450884e25e94b46cf6962bb3acc78c13a93f4eb42e8f3110594bbb6a720d9"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-glass_002.ogg",
+      "sha256": "0cbe265f2a8a4913bb2306e8e2c47a37887e4f68f4715dff7db130294d13aa6a"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-glitch_001.ogg",
+      "sha256": "b9fa77202afcb082b1b49317ec9bcdf17aaf3f65d1c8a90ea4a7c98640b15ffa"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-glitch_002.ogg",
+      "sha256": "2b8fed919e8fdd0c0efe62b8970e8ba924c82ad56fe369f63cbbb0f583ad49d6"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-glitch_003.ogg",
+      "sha256": "0fc2665b152600e5a898785d1845d231ab8709afe00cf4bf5bb2de464ce8b2c3"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-glitch_004.ogg",
+      "sha256": "e117dd3f28ea99778adf26c729980da002589601b7af8b364235205170e2cc5b"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-maximize_008.ogg",
+      "sha256": "f4e859e248d22dbdb5025ad0bb273e90a4a41cbe8e2efa0899088268ecf201a2"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-minimize_005.ogg",
+      "sha256": "dea16e8c7b5888e4d709303c5bf7222f7064dc5ad53185d4b7bf42a890961bcc"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-open_001.ogg",
+      "sha256": "8e2194c19ec986ea81480472f09f1e69932a7b66eb70e4541808655b13adf33d"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-open_002.ogg",
+      "sha256": "08611990ce5530ecbe28159357cb2b6fb5f81bd9d41c75e8676d967bcb00255a"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-question_002.ogg",
+      "sha256": "699f74bc50d579bc6798c0ead38fb82daec276a2608850bc5986486a01728a31"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-question_003.ogg",
+      "sha256": "70a470f6fe40f250d4d005e9e3adf4b30d4cc857bafcce583bba8b8425681761"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-question_004.ogg",
+      "sha256": "33362079dc6c4279f25f378c0cddcd72ee5fcaadc576622bf6587c5195f5819a"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-select_001.ogg",
+      "sha256": "34b064225cbca70f39c659a236e09cfac32d2d0f054696f90479f2cfff397722"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-select_002.ogg",
+      "sha256": "d434d0d10c59140ac1593ea77df0a49519ffc4856a3e7be5c953f8fab64abac0"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-switch_001.ogg",
+      "sha256": "b41d15b4aa6b9cabaef4c09cae18c747c433eaedc7c56ffa9726e08c6646d507"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-switch_002.ogg",
+      "sha256": "7a79f4dba631d7e1f234d5dcfb888d7296f36830bc99ecd2620e8ed276400f4c"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-switch_003.ogg",
+      "sha256": "518ad1c1994faaaba10407cf5d0054caecf15283c145b1a935568995e7b86aec"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-switch_004.ogg",
+      "sha256": "5fd7c495022b887f421015dc4b3b7c6613bf96c6eae8d60f503b2f1c2a47a93a"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-switch_005.ogg",
+      "sha256": "319c99ffab3fcf302ceb54fa342e9c3361ef445fdb070a1b97c679e784f84112"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-switch_006.ogg",
+      "sha256": "e36b9670fb72c76457beb18f46126e9711cffd4f20ed2cc551b67271e30ade7c"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-switch_007.ogg",
+      "sha256": "d63a3fe1a5f2951fbc53c35b448fdf851d32f8ad7e89f66d39cf5d0e7546e121"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-tick_001.ogg",
+      "sha256": "2f8a10499e2515fc17ceae314a3b15f35cc79ed84b3fd733bec8e0f88e1cb595"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-tick_002.ogg",
+      "sha256": "b1e5f8431dd9d708d80e073921b67f5b7d7520e573b3866a36558826b3cd4a90"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-toggle_002.ogg",
+      "sha256": "835e2c62c383ea43040ba181cb0d8d10b03caf846271f7d6542920c97ef0bad6"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-interface-toggle_004.ogg",
+      "sha256": "6dc80a013786eb4b51cb2c97e6974f623d2d4c73c59c7122d468941e08ffd6d5"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-computernoise_001.ogg",
+      "sha256": "5e829a2c97a7a32479e8c5c271c40a22b3bd45c37a3c30f7296103b19f31c5f7"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-computernoise_002.ogg",
+      "sha256": "1b0479afafd4e44693ec7d3bb98e9031e5989a81d2944e77ddcedf4f1e15d850"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-doorclose_000.ogg",
+      "sha256": "7505bf1ccc2ce2b4295e5a5b53af8232f603db7abcb53f0703fde568f94be229"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-doorclose_001.ogg",
+      "sha256": "385bb424917a2c861f55458ae6f305ef1f3b8641fa59b3ce6b48d648601f25c5"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-doorclose_002.ogg",
+      "sha256": "2ae40e60ab89a02c3da3be607cf879c59cd5ed215540676215f3c74881a7e56d"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-dooropen_000.ogg",
+      "sha256": "ddd784323cbe892d098f4019c9362af456c59637a34ca49121d4e6928158b132"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-dooropen_001.ogg",
+      "sha256": "e49a145567bd37377c9c5da7422e12e7e320034359aee518db6ebb6c755c15f9"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-enginecircular_000.ogg",
+      "sha256": "ee354c5a4c6883a70356ba243ff755f894898b8ad5c4705cc1adabc369b72a72"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-enginecircular_001.ogg",
+      "sha256": "3bb32bdd00868abbd87fe43d927627c4e5df94d0490bfe22c8c17e7b6ba5f15e"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-enginecircular_002.ogg",
+      "sha256": "55256cc57a91bb07835dee8951a2d9ceff32ba7de39b15f373fa142dff3b97db"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-enginecircular_003.ogg",
+      "sha256": "8e2a8146db5a06d45188fb96656872925c3bf1c5920394369149a9ad628805e7"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-explosioncrunch_000.ogg",
+      "sha256": "7d039202dec8e3e3cc0153f96aa938f283220b97dc9fd6c56c92b7b28f794c6d"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-explosioncrunch_001.ogg",
+      "sha256": "651ab006f0435d57be65067da7935c9900124d188e656e9dd299c0832f469c76"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-explosioncrunch_002.ogg",
+      "sha256": "4f7cbcb3dfab95bc2f086deb07b0ab967b86a38e23f67c580392dbc60812325f"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-explosioncrunch_003.ogg",
+      "sha256": "6ab26e0e08f1e32c995b77e0bba33bc7466221b8f0d5805199a7c21d4fcded31"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-explosioncrunch_004.ogg",
+      "sha256": "2a0093fbd38c934a4da686d25aa09daa42c2bb029851017c5202cf2c6cb5386e"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-forcefield_000.ogg",
+      "sha256": "34c069de83008845469079427468e4dd22c8f67fda36787d566e8522c4200a9c"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-forcefield_001.ogg",
+      "sha256": "9b883ed3fe09319f72c6f386d0f9c09dbed30456cfceba777d1916abf47e93d7"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-forcefield_002.ogg",
+      "sha256": "813205cb3f0fd69c66bf8d9fb032d0fc5333f3ad0150cd4c602b68d78c83beed"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-forcefield_003.ogg",
+      "sha256": "13929f42d6e811b793a6a18cc37868d8ff089da1bcb5bdb9f151fdb49706f003"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-forcefield_004.ogg",
+      "sha256": "2a25ffdecebf208b42d9876439614e5e7c09cccecc75419fdeaeac7dcfb58e6a"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-impactmetal_000.ogg",
+      "sha256": "1b4af1baf50c457372d37d63564a874fc435284e437f7031d8b520b07022ad53"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-impactmetal_001.ogg",
+      "sha256": "b1b5204c3ee0388af98f6192e1af089348d25a63414b6aa31c6fcde7e3b036d9"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-impactmetal_002.ogg",
+      "sha256": "0be455934a363cf8071b51fa817f586210c12d641ce12b5d82dd5e4a3a150c6f"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-impactmetal_003.ogg",
+      "sha256": "f90b6aa6275a1d3484a94deebbbc7b8256ff5c01a29296224ca3de95e2d70163"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-impactmetal_004.ogg",
+      "sha256": "740f5f279dd5d3368099438d850a27a344f12f48246dd6cbb061d85569263983"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-laserlarge_000.ogg",
+      "sha256": "c94bacc387d99ebe9be3c87c96f66d387f66229fa2bb06f0aa60c5e392638597"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-laserlarge_001.ogg",
+      "sha256": "267a2a4dbc52a47d7301b47728101c5c8233ba8ed8a443a7b4519dea6165606d"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-laserlarge_003.ogg",
+      "sha256": "b3e67de5b38a4b4aa064c18a73d84b5890a05d47b2f16276c62403bf670d5fca"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-laserlarge_004.ogg",
+      "sha256": "78fa8d3abba5bd845b35d603b9aa278bd4a6c758a2cf176271406e07e99b1ee1"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-laserretro_000.ogg",
+      "sha256": "b93ff0c8791efd5c5e895e80735af4b01944794403b6ccf776f9838d82c1f5a3"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-laserretro_001.ogg",
+      "sha256": "1f5ec70dbbe0d62bb249d9303f28e4fca2d96685f6c42834a181da2ef97e3b52"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-laserretro_002.ogg",
+      "sha256": "6c90fef52c68b9b2a1613da857af0a69ebc498c48b6822c0e5e8c5d90938669b"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-laserretro_003.ogg",
+      "sha256": "d0e4e0060f400d8fd096d80436eef9171b81036626ddd70d234ee1a11671eadd"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-laserretro_004.ogg",
+      "sha256": "e170197990e651008dcda04cc748c6accc2d540ef1f6178c0a8b195b12c52cc7"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-lasersmall_000.ogg",
+      "sha256": "d40d8b3776ddec152e83619952cc52cf22984063e0b5f702ad01fc7377a15703"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-lasersmall_001.ogg",
+      "sha256": "dbd304ff9bcb7f4550568b5af03e05b1595cfb96ed6a0f39125868de0bf54579"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-lasersmall_002.ogg",
+      "sha256": "173a554731eaf35ea85960c877e25516f04bf0ca8261333e4020c067bc34714f"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-lasersmall_003.ogg",
+      "sha256": "6930b17b173af484ac6cbe625c6691d652e3c07d6028b5b824c241592a0b39aa"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-lasersmall_004.ogg",
+      "sha256": "6e360ce7d84245e4a0b51223578f3d58a9545e82bd9fe9e3fc29b48e59a36eb8"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-lowfrequency_explosion_000.ogg",
+      "sha256": "c17d457dea8c6587cbcc97b9ce7607965f129655437fbd6f1414472c3a11348e"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-lowfrequency_explosion_001.ogg",
+      "sha256": "1b1871e6109826a54ce6e477d12ccda64320c53afd2d948aa6c405024bfee713"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-spaceenginelarge_002.ogg",
+      "sha256": "d477705b46684cb39f6c92978a0958d12934e5048d529a8149fdcb7f0ac5e832"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-spaceenginelow_000.ogg",
+      "sha256": "dc59b4b4109e3148060ea1bd837923177247e4c6e567a7ddce5be9b7945022b3"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-spaceenginelow_001.ogg",
+      "sha256": "84fda7c46f9e2112b16cde6cd09152f970a905c95c22bc6f91f1badbce3ec979"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-spaceenginelow_002.ogg",
+      "sha256": "35fd5218888461df25d8f29dd5050957055f45857e10bfbeb1e371ceded281d2"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-spaceenginelow_003.ogg",
+      "sha256": "96e46672a8cadae548b80e7fceb7ae67083424db43fa54335c3616c1a4cdbb99"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-spaceenginelow_004.ogg",
+      "sha256": "abb01ccda99028f8f3061c7378987c63132be215e88086f754730fcee290afce"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-spaceenginesmall_001.ogg",
+      "sha256": "8b12fd0ea4ccc6551eb7c9138d5f07429b7af4988a820baea0f2d323a7a4ecc9"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-thrusterfire_000.ogg",
+      "sha256": "b7b9ef3222a02ea20ebf7a1eab5c3788976c025cb9c6a099f2e6432d2785b5e0"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-thrusterfire_001.ogg",
+      "sha256": "5c8241e2f4c5366aefb9b13c39e003e46b83fdd1beeb9e4e5c6a060aa9703d87"
+    },
+    {
+      "path": "client/public/audio/refresh/kenney-sci-fi-thrusterfire_003.ogg",
+      "sha256": "7a432ad1a18d8e91fc18244035920973b3973484ac5fb584e5a1799f39121f10"
+    },
+    {
+      "path": "client/public/audio/refresh/owlish-320138__owlstorm__blanket-movement-2.ogg",
+      "sha256": "45f0e33da381e7c0fc2298e2aab890daa4357b468d5a93232de07631f1ebf200"
+    },
+    {
+      "path": "client/public/audio/refresh/owlish-320141__owlstorm__blanket-movement-3.ogg",
+      "sha256": "5afbc20619953a9b8a70b0211e76ac84069a2e2fbcf50f0b62f032446223a23f"
+    },
+    {
+      "path": "client/public/audio/refresh/owlish-hard-footstep1.ogg",
+      "sha256": "f2fe84a89d75cf16e7188942cd914272b7ee8ff11500f1a03a283e92780da26b"
+    },
+    {
+      "path": "client/public/audio/refresh/owlish-hard-footstep2.ogg",
+      "sha256": "4f92054e38f6cc780bb5ce7fac7a6b431d5ac79448e630686750b563848a2f04"
+    },
+    {
+      "path": "client/public/audio/refresh/owlish-hard-footstep3.ogg",
+      "sha256": "94e1ce75496a8ca32c09a52ef9d8c0c9ed6cd0e51ea0fa6da6b285a57162fbe1"
+    },
+    {
+      "path": "client/public/audio/refresh/owlish-hard-footstep4.ogg",
+      "sha256": "45810d8e50a3a4e5cef98e5f0cbf0c27d19066ebd2bbbad5dfc6a9eb6d85dda7"
+    },
+    {
+      "path": "client/public/audio/refresh/owlish-hit.ogg",
+      "sha256": "c0a81d528121169dc8b5a5aa641f043afdc95593a64e4baf7541adb7fe0d3e56"
+    },
+    {
+      "path": "client/public/audio/refresh/owlish-plugpull.ogg",
+      "sha256": "20003d0d1ab8fa08e355537de8b57b6f1ce8d3257e4204401eab665c3ac1cc9d"
+    },
+    {
+      "path": "client/public/audio/refresh/owlish-robotics1.ogg",
+      "sha256": "dc43b23c4174fbcf6353a522325b5e427ff6821644cfb00e6ce0366d3810e753"
+    },
+    {
+      "path": "client/public/audio/refresh/owlish-robotics2.ogg",
+      "sha256": "5123d0114c8ce9172812ac080ae9c10cae58d26ab2678554849348793c336bac"
+    },
+    {
+      "path": "client/public/audio/refresh/owlish-scrape1.ogg",
+      "sha256": "1ca0df0b84b2326f2aa56f347e39170463cbb9c8255ed74d3ad83ecc1dd5c10e"
+    },
+    {
+      "path": "client/public/audio/refresh/owlish-scrape2.ogg",
+      "sha256": "d60a77b38e29b7de06c1844d2a8ed89c296c2ba2bef47ddace79500a2a6733af"
+    },
+    {
+      "path": "client/public/audio/refresh/owlish-slap2.ogg",
+      "sha256": "0043b7615ad5770f143e78798e40aa7443988d016a7a84183d66a0cd6b0f2da8"
+    },
+    {
+      "path": "client/public/audio/refresh/source-manifest.json",
+      "sha256": "a431e11baff273cf0022158071dd4cc8966b5040fcd4cda1ad81485adeb4a8b0"
+    },
+    {
+      "path": "client/public/audio/refresh/space-flight-spaceflight3.ogg",
+      "sha256": "385b445daa52251baff389e877c887763fbe518b55bc50eed6f3df50e7b7cd24"
+    },
+    {
+      "path": "client/public/audio/refresh/space-flight-spaceflight4.ogg",
+      "sha256": "779bd24be45a3cf109402b70df1dfb710c20c4ede3994c3f99d549412142010d"
+    },
+    {
+      "path": "client/public/audio/refresh/space-flight-spaceflight5.ogg",
+      "sha256": "08fcbeb486e1cf1e28aaffebe5b73d7b54395f000e7d08d379c65270b28c341f"
+    },
+    {
+      "path": "client/public/audio/refresh/virtual-rush-virtual_rush_loop_0.ogg",
+      "sha256": "7fea29b8da3548b1b2411b7f00a79fe2bb3478015722bcf7fb6861fade6522bc"
+    },
+    {
+      "path": "client/src/audio-catalog.test.ts",
+      "sha256": "5db6ef5c81e460cf7421b106561939ee54830db2731acb3aae6ec8076b300034"
+    },
+    {
+      "path": "client/src/audio-catalog.ts",
+      "sha256": "8eb449c9bce212be428d738bf17045c11e0b1bbf132762ca0ea145107a7f5fd2"
+    },
+    {
+      "path": "client/src/audio-sample-bank.test.ts",
+      "sha256": "3ed8cb5a691d6bcbdd3179322172e8cdd07f8bd83220d365f380ba6f7ced4cbf"
+    },
+    {
+      "path": "client/src/audio-sample-bank.ts",
+      "sha256": "79def0c2d8269b4b2eede1f592afa5903e9b4bdb87783cc239f763904c601e48"
+    },
+    {
+      "path": "client/src/audio-test-fakes.ts",
+      "sha256": "9d4795e624be220dbbf2ea867cc398013198bd26808aaf0c86992e7bfd12c30b"
+    },
+    {
+      "path": "client/src/audio.test.ts",
+      "sha256": "64d41f71f2f268f0e6d2e9ff880851a28c5ae22c895db9f6424b0980829cbf6b"
+    },
+    {
+      "path": "client/src/audio.ts",
+      "sha256": "b00d99c31cee161cd36522e696f23f5d60cec9641553cefc72d4552d8c41b655"
+    },
+    {
+      "path": "client/src/dev-canvas-recording.ts",
+      "sha256": "0becc0d5a31eaef68f605922f982dda7a928bf6a31e07d33215ff1be7c304d1e"
+    },
+    {
+      "path": "client/src/main.ts",
+      "sha256": "b407b1c288b919c64e49f4e3b6ac49a50fa88806d3e80fc936c127947f36df97"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-burst-cycle.test.ts",
+      "sha256": "6fc2a5948acad04e488c59b224158e9fa711bb24eb057df559f49a9d351e7a54"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-burst-cycle.ts",
+      "sha256": "f456b4f3e8989dac19b79cdaed42deef3f5d10b39e69d0ecec60c7c755ba7b3c"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-client-profile.test.ts",
+      "sha256": "282091db6d7938c36e10bb34319fa0ef05a71c30413f0a610d9ee5eed5b7f298"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-client-profile.ts",
+      "sha256": "1a401866d20a3f5ad24aa9fa7a78f23163780e5d75e433accb42c07b2e04de0b"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-combat-kits.test.ts",
+      "sha256": "e28bd7b68d4511242dc5a154c54ac4731aa8a0c076f843e1097702d088c1798b"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-combat-kits.ts",
+      "sha256": "20883000fbd98d3b9a30d0d70f71b490d0a747cd04dfea7554179833743f6d6a"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-effects.ts",
+      "sha256": "2ad3e600e848e631542fcf60880a642d399e6070ae23d2083919addc9b722625"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-fire-readiness.test.ts",
+      "sha256": "50aadcc11febd62cfc675f8b930d4c5faa68f86c185a838c5864778248d7ca8a"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-fire-readiness.ts",
+      "sha256": "e8bd6b8f9aebcc7b10902feac177346e2530e3f68af5cb792960289de7a35d27"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-game.ts",
+      "sha256": "7b302d10ed2146a74355b67f009821e2f6439db7acf1cfc3de78e0c4ab415d33"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-home-composition.test.ts",
+      "sha256": "45aca07360ff1f0778978b9d97cc7ba93478facf06f4b5ca98d4a98ac9924eaf"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-home-composition.ts",
+      "sha256": "1ae8e96be09bd086e5556aa86eea901edf0364378845c3f67b98f8851cff7e41"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-home-preview.ts",
+      "sha256": "d311a8dc36e04654245d257b8733c25876b56fa33ca514dcacc29a301d67cf00"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-hud-presentation.ts",
+      "sha256": "a9e6edbef1bce55e34f7091d4af07fad34597ad3959cc17e1d6416b1a9d6811a"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-kit-editor.css",
+      "sha256": "794480abf4b3906ecaa296773e209db96ab167e2d11aa72b278c345c74300719"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-kit-editor.ts",
+      "sha256": "b56c141f7369d5552dd957dd293687d2bd45c1ee2ad7266a1169f61dc394de55"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-neighborhood-architecture.test.ts",
+      "sha256": "9404021a0e6b5cbe791910cf30ebb21d593c7143267203b0f9286f1f994bf8cc"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-neighborhood-architecture.ts",
+      "sha256": "c99e6cd5be5642ff02e037ab7ed29e40f12cff8b4d15871dc7a1c3d12f90c2ac"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-neighborhood-streets.test.ts",
+      "sha256": "cf48ca1f0d83784cbd59a3dc7e664402257d8b50285a9a99a38d96decb23b7e9"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-neighborhood-streets.ts",
+      "sha256": "0fde2b00f291451bdb3a0a6547aa21d2c1911b925aa74e65d900cd15067fb706"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-optic-module-art.ts",
+      "sha256": "33d005a1d7c714a36b3d83dccb22991ca0d33052225a3435729b377e2217baed"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-orbital-environment.ts",
+      "sha256": "fd8e358a4ab39e29b2841382e692eec4e27d2d95cb8c47a2611c326339e11894"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-pilot-batches.test.ts",
+      "sha256": "5583307ef254938b85a0d556b27109b4845c430f29d929bcbe1413dc7a9bd701"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-pilot-batches.ts",
+      "sha256": "6a47687c67a86c9b873c340df6ec3f0a91a7dd7cd9c37e4e0ff2602c6ec1e6f1"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-pilot-detail.test.ts",
+      "sha256": "04748551670138633573240b550a7242fc7de58151b6dd9cdafe83ef7e7db9f2"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-pilot-detail.ts",
+      "sha256": "f9bc969096de7e64a608146ed26395dea50c8c29b5965de3eae515747a26aa05"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-pilot-lod-art.test.ts",
+      "sha256": "45dc8390dc7e9f149d96545872e3e29644515074231a7be3b0d830a550920637"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-pilot-lod-art.ts",
+      "sha256": "b445fee49fc4578cae0fa8c44075e1971a3b9154ccbbc65d21d89dd8973d3386"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-pilot-presentation.ts",
+      "sha256": "ca5771677346ed466979eb665650999c850ba19de86d43f57427b26efd136a7d"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-profile-views.ts",
+      "sha256": "d40d697ea5a9ff23e8f5e1f44cf6d9c081f52b6410298be6ec9b80cdfef9564a"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-rear-housing.test.ts",
+      "sha256": "473654e8c08b1d2976c16bf868e27e9e43d3b60e51e1aed95037f54dc09a78d3"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-reload-art.test.ts",
+      "sha256": "a2f167c02ff7f1d18d2dde9b213d44429703e0ac5e739d3876e890c10555d566"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-reload-art.ts",
+      "sha256": "f3b7d6ce05a947f47ca288fe8d5ad8ea5e5d9ac36eb06366b1a0c04c6eac34a2"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-ui.css",
+      "sha256": "f8784b9e74b67e05af1ed9ab158c30f852434df5813693f054a976ed07c19761"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-ui.ts",
+      "sha256": "b82f5d63ede02dadcdbbcb604c30eadfd8762b06114c5403f2866c34bffee3c6"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-viewmodel-arm-art.test.ts",
+      "sha256": "5a92f8b7b136d1c8e90dcdafb25d4b874b4d5afac9fbdca901bdef964655b897"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-viewmodel-arm-art.ts",
+      "sha256": "c7edcf475d7e06cfe190d9696581a19877d1c4254e3b6cf8c2c41fe5355ddc8a"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-viewmodel-polish.test.ts",
+      "sha256": "4716e94e20ca05d66f3bee4ae512a52bf4067c3e18e20d088b01d9dc906ed4ea"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-viewmodel-reload.test.ts",
+      "sha256": "3a2d8b9bb1d2eacbffd005d11f310476c06d10a0bf31e62c260ec309443fec4b"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-viewmodel.ts",
+      "sha256": "71de65a2e488c92b9dcceb437991dda2c51ea77be0b0a7a313c5b794b8ba598b"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-weapon-presentation.test.ts",
+      "sha256": "34d9fa3a23a8ded1100b7dddebadde0edfb44a42cdd0ca9aced55863500e3114"
+    },
+    {
+      "path": "client/src/modes/planet-gun/pg-weapon-presentation.ts",
+      "sha256": "2350c33180997292d110d7d4457e41c9975f745f900a619f2621a3b314856bf5"
+    },
+    {
+      "path": "client/src/modes/planet-run/art/pr-showcase-art.test.ts",
+      "sha256": "56d0d8fd47cf395952c37bf87c034104a7c25fe9a276b619d184645e9b4b2f83"
+    },
+    {
+      "path": "client/src/modes/planet-run/art/pr-showcase-art.ts",
+      "sha256": "d2dc85191b3a3a4f72064546380cc51519bec25619aab08aa00bd33142f0380e"
+    },
+    {
+      "path": "client/src/modes/planet-run/art/pr-showcase-timeline.test.ts",
+      "sha256": "a17066138f78035c68e3ea1c5690da3e7e52015af55f06fb5f6f8fa040149949"
+    },
+    {
+      "path": "client/src/modes/planet-run/art/pr-showcase-timeline.ts",
+      "sha256": "3c2270acd695291673c8f965c96b43f462c593b5e860797542ad6efef4347717"
+    },
+    {
+      "path": "client/src/modes/planet-run/pr-game.ts",
+      "sha256": "57c69a6a3b3bce3ffa7fd63a61ef4d809067fdeec50bf556dd39b1f3ddd16e77"
+    },
+    {
+      "path": "client/src/modes/planet-run/pr-ui.css",
+      "sha256": "1d5a27ac22c89825aa53c9a4d7c50902fa07cc2bd4c4183b8b9288fea78a3155"
+    },
+    {
+      "path": "client/src/modes/planet-run/pr-ui.ts",
+      "sha256": "d7c4f8cd9336cc5a4c6666b0f8abea7869dd3474aea0238e36877269f8f5ecb5"
+    },
+    {
+      "path": "client/src/renderer-mode-ownership.test.ts",
+      "sha256": "3fccc0aa3cec02d74173020f53480996d0303364e81459f18a2487a202300776"
+    },
+    {
+      "path": "client/src/ui-foundation.css",
+      "sha256": "a90a4547d495271efa81f745f7ceae27213331766814155e188807d5c79a616d"
+    },
+    {
+      "path": "docs/AUDIO_SOURCES.md",
+      "sha256": "83bad389674a412677ce7944132bbbc74282fbbd8ce500dc483a854d3beb118c"
+    },
+    {
+      "path": "docs/audio-license-evidence/brute-force/source-manifest.json",
+      "sha256": "e571c360f38313ec2fe886893a276cf071170de94047ec6d4ab96768a3e1400f"
+    },
+    {
+      "path": "docs/audio-license-evidence/claimed-by-void/source-manifest.json",
+      "sha256": "228c9387b72639af1aaae525791909965b7de67f99a5f2d34163ebbd0cf313db"
+    },
+    {
+      "path": "docs/audio-license-evidence/dark-sci-fi/source-manifest.json",
+      "sha256": "fec17e710f50318fc399dcdf60175912f5dffd19de5ee33d908ac2215424f361"
+    },
+    {
+      "path": "docs/audio-license-evidence/footsteps/source-manifest.json",
+      "sha256": "d1d37987b43b4441cf391463f2b756e8eb062972773cd276ce2935292e3c5ce5"
+    },
+    {
+      "path": "docs/audio-license-evidence/kenney-interface/License.txt",
+      "sha256": "6b2f28c27ec96be3698cb528951accc58836f9f250816038d421076f287b8959"
+    },
+    {
+      "path": "docs/audio-license-evidence/kenney-interface/source-manifest.json",
+      "sha256": "b5229ad8be0de0f01795fa45b46f492c30935d44b5809429c1c6584e69029695"
+    },
+    {
+      "path": "docs/audio-license-evidence/kenney-sci-fi/License.txt",
+      "sha256": "3150f0c2a4d8386ea38673b9f16a9b4cb4607abd100a1a62e4944ec534344aba"
+    },
+    {
+      "path": "docs/audio-license-evidence/kenney-sci-fi/source-manifest.json",
+      "sha256": "ed3e242fb0de4a2097d520b1626ae8eeac564a3f39a00d4d63dd1d3dcf4362f2"
+    },
+    {
+      "path": "docs/audio-license-evidence/owlish/source-manifest.json",
+      "sha256": "ae1b2528963c8cb8b2776320a49c8de2a967e4daed46b997488b3acd27da76b7"
+    },
+    {
+      "path": "docs/audio-license-evidence/space-flight/source-manifest.json",
+      "sha256": "34ef21eff8a849f430f95990ac0fe1d6cdbb8c1117cb52142f442890718fe9f4"
+    },
+    {
+      "path": "docs/audio-license-evidence/virtual-rush/source-manifest.json",
+      "sha256": "f76f25c95a4d76d4b238a73474b828abc2f0b1b7e90bbdd7724eb3b178e8f66f"
+    },
+    {
+      "path": "e2e/multiplayer.spec.ts",
+      "sha256": "ef3cc082eb07e599021339cd3b2d4417ab66061a75b55829106b0ccd46e4eafa"
+    },
+    {
+      "path": "e2e/planet-gun-kits.spec.ts",
+      "sha256": "2a51f35d89e3271a787cb504b1f6a4956d4b4646c428ac8640430b43cece5010"
+    },
+    {
+      "path": "e2e/planet-run.spec.ts",
+      "sha256": "decc5e355c5b252f8b16dc3c79478f376c0e11bdc6f1034d20242ec94aa84e5b"
+    },
+    {
+      "path": "server/src/modes/planet-gun/pg-combat.ts",
+      "sha256": "790122c5b3218aacbe3b9df902d3985e13dc6dbff734ac3907aaf75662a74c1e"
+    },
+    {
+      "path": "server/src/modes/planet-gun/pg-loadouts.test.ts",
+      "sha256": "d752636877c0cbe3c2843727c414f2f5402c6141541eb9b3b82d4c7cad440309"
+    },
+    {
+      "path": "server/src/modes/planet-gun/pg-room.ts",
+      "sha256": "aaab46f6074e777900c267988baf1f36771d13aece8acdb3365975417a5f2741"
+    },
+    {
+      "path": "server/src/modes/planet-gun/pg-weapon-cadence.test.ts",
+      "sha256": "0381148cef84832d4b4c46e699e30743ab51230262f26a192f146ffae5a26607"
+    },
+    {
+      "path": "server/src/modes/planet-run/pr-bot-steering.test.ts",
+      "sha256": "fcbde17e640c82244eff8bb0a618d56dfee86966b236b0eadef25f782819e4cd"
+    },
+    {
+      "path": "server/src/modes/planet-run/pr-bot-steering.ts",
+      "sha256": "cc74166a843f5e0a137b8da401c18bf098b3a791d6569a2d18fc88185904529d"
+    },
+    {
+      "path": "server/src/modes/planet-run/pr-bots.test.ts",
+      "sha256": "20c7d2ff4702dc9eee07034de308a612b6834393d1fbbddc201e6eb8375dd1a0"
+    },
+    {
+      "path": "server/src/modes/planet-run/pr-bots.ts",
+      "sha256": "e8ff57b13fc1f15962f40ed370c53d1f29d35841a30fcf677cc32a4c0f33cd74"
+    },
+    {
+      "path": "server/src/modes/planet-run/pr-room.ts",
+      "sha256": "2a523adaea67cce3a5e924c7f2200f5523872a508b1631f0dff4c774cc403885"
+    },
+    {
+      "path": "shared/src/planet-gun/index.ts",
+      "sha256": "df75423b474c544022d35f70b9a7c16c7bad84a23e53d3b5485511617c6d6500"
+    },
+    {
+      "path": "shared/src/planet-gun/loadouts.test.ts",
+      "sha256": "ba400adb85f29e5894640507d39082591a9031e629958b7700210d366946ef58"
+    },
+    {
+      "path": "shared/src/planet-gun/loadouts.ts",
+      "sha256": "9d197612b63d13e56d5f020f6e34a1c81db9361e5a291223e32132e163bc20d1"
+    },
+    {
+      "path": "shared/src/planet-gun/types.ts",
+      "sha256": "631aec96a0afab4fd25114c030954d191a35731237a105dfd3f809a4afbe8552"
+    },
+    {
+      "path": "shared/src/planet-gun/weapons.ts",
+      "sha256": "161dee75a130f9d48b52cda502632a3aefbce8bb5ce0f9a55777d4f10ad6fb51"
+    }
+  ]
+}

@@ -10,5 +10,5 @@ export function pgFirePressValid(now:number, expiresAt:number, gun:PgGunState):b
  * ground snapshot can predate the sprint entry and does not prove readiness. */
 export function pgFireReady(at:number, predictedMode:PgMotion["mode"], authority:Pick<PgSnapshotPlayer,"mode"|"guns"|"slot"|"fireReadyAt"|"lastInputSequence">, predictedReadyAt:number, exitSequence=-1):boolean {
  const gun=authority.guns[authority.slot];
- return authority.lastInputSequence>=exitSequence&&predictedMode!=="sprint"&&predictedMode!=="mantle"&&authority.mode!=="sprint"&&authority.mode!=="mantle"&&gun.magazine>0&&!gun.reloadUntil&&at>=Math.max(authority.fireReadyAt,predictedReadyAt,gun.nextFireAt);
+ return authority.lastInputSequence>=exitSequence&&predictedMode!=="sprint"&&predictedMode!=="mantle"&&authority.mode!=="sprint"&&authority.mode!=="mantle"&&gun.magazine>0&&!gun.reloadUntil&&at>=Math.max(authority.fireReadyAt,predictedReadyAt,gun.nextFireAt,gun.overheatedUntil??0);
 }

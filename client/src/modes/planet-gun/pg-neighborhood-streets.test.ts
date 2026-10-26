@@ -5,6 +5,19 @@ import type {PgArtContext} from "./pg-environment-builder";
 
 const capture=()=>{const calls:Parameters<PgArtContext["add"]>[]=[];buildPgNeighborhoodStreets({add:(...args)=>calls.push(args)});return calls;};
 describe("Nova neighborhood streets and landscape",()=>{
+  it("backs maintenance diagrams with real planter faces instead of freestanding props",()=>{
+    for(const [name,,,p]of capture().filter(([name])=>name.includes('-maintenance-'))){
+      const id=name.split('-maintenance-')[0],s=PG_MAP.solids.find(s=>s.id===id)!;
+      expect(s,name).toBeDefined();
+      expect(Math.abs(p[0]-s.center.x)+p[3]/2).toBeLessThanOrEqual(s.half.x);
+      expect(Math.abs(p[1]-s.center.y)+p[4]/2).toBeLessThanOrEqual(s.half.y);
+      expect(p[2]+p[5]/2-s.center.z-s.half.z).toBeLessThan(.04);
+    }
+    const calls=capture();
+    for(const [name,,,p]of calls.filter(([name])=>name.startsWith('walk-drain-joint-'))){
+      expect(p[1]-p[4]/2,name).toBeGreaterThan(.02);
+    }
+  });
   it("separates cap and rim faces from their solid bodies within a four-centimeter silhouette",()=>{
     const calls=capture();
     const bodies=PG_MAP.solids.filter(s=>s.id==="habitat-garden-terrace"||s.id.startsWith("garden-bed-")||s.id==="transit-ticket-bank");

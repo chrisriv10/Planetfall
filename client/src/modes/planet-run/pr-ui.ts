@@ -19,22 +19,21 @@ export function createPrUi():PrUi {
   };
   const lobby=section("pr-lobby-screen",`
     <div class="pr-lobby-layout">
-      <div class="pr-panel pr-lobby-card">
-        <p class="pr-eyebrow">PLANETFALL · ORBITAL COMPETITION</p>
-        <h1>Planet<span>Run</span></h1>
+      <div class="pr-panel pr-lobby-card glass mode-panel">
+        <div class="lobby-heading"><div><p class="pr-eyebrow panel-kicker">PLANETFALL · ORBITAL COMPETITION</p><h1>Planet<span>Run</span></h1></div><div class="room-code mode-room-code"><small>ROOM CODE</small><span id="pr-code">—</span></div></div>
         <p class="pr-lead">One astronaut. A station full of surprises.</p>
-        <div class="pr-room-strip"><span>ROOM CODE <strong id="pr-code">—</strong></span><span id="pr-player-count"></span></div>
+        <div class="pr-room-strip"><span id="pr-player-count"></span></div>
+        <nav class="pr-nav lobby-hub-nav" aria-label="Session hub"><button id="pr-shop" class="hub-tab">SHOP</button><button id="pr-pass" class="hub-tab">PLANET PASS</button><button id="pr-settings" class="hub-tab">SETTINGS</button></nav>
         <div id="pr-roster" class="pr-roster" aria-label="Players"></div>
-        <fieldset id="pr-host-controls" class="pr-config">
+        <fieldset id="pr-host-controls" class="pr-config mode-fields">
           <legend>SET THE COURSE</legend>
           <label>Players<select id="pr-target"><option value="10">10 players</option><option value="20">20 players</option><option value="30">30 players</option></select></label>
           <label>Bot difficulty<select id="pr-difficulty"><option value="easy">Easy</option><option value="normal">Normal</option><option value="hard">Hard</option></select></label>
           <label class="pr-checkbox"><input id="pr-fill" type="checkbox"> Fill empty places with bots</label>
         </fieldset>
         <p id="pr-lobby-note" class="pr-note"></p>
-        <div class="pr-actions"><button id="pr-ready" class="pr-primary">READY UP</button><button id="pr-start" class="pr-primary">START RUN</button></div>
-        <div class="pr-nav"><button id="pr-shop">SHOP</button><button id="pr-pass">PLANET PASS</button><button id="pr-settings">SETTINGS</button></div>
-        <button id="pr-leave-lobby" class="pr-back">← BACK TO MAIN MENU</button>
+        <div class="pr-actions"><button id="pr-ready" class="pr-primary button button-secondary">READY UP</button><button id="pr-start" class="pr-primary button button-primary">START RUN</button></div>
+        <button id="pr-leave-lobby" class="pr-back button button-quiet">← BACK TO MAIN MENU</button>
       </div>
       <aside class="pr-course-card" aria-label="How to play">
         <span class="pr-orbit-icon" aria-hidden="true">✦</span>
@@ -44,6 +43,7 @@ export function createPrUi():PrUi {
         <p class="pr-control-guide"><kbd>W A S D</kbd> Move <kbd>SPACE</kbd> Jump <kbd>SHIFT</kbd> Dive <kbd>MOUSE / DRAG</kbd> Look</p>
       </aside>
     </div>`);
+  lobby.classList.add("mode-lobby");
   const hud=section("pr-hud",`
     <div class="pr-hud-top">
       <div class="pr-hud-objective"><span id="pr-round-number" class="pr-eyebrow"></span><h2 id="pr-round-name"></h2><p id="pr-objective"></p></div>

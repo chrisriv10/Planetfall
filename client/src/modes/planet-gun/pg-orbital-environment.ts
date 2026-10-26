@@ -100,6 +100,24 @@ export function createPgOrbitalEnvironment() {
     for(let j=0;j<4;j++)box(detail,j%2?0x917d62:0x768e9a,x+(j-1)*5*s,y+3*s,z,4*s,3*s,7*s);
     for(let j=0;j<6;j++)box(fine,0xc9d8b4,x-10*s+j*4*s,y+5.9*s,z,1,.3,1);
   }
+  // The west/north sightlines previously ended in stars alone. A low distant
+  // habitat spine and two docked modules establish another district beyond
+  // the arena rails. They reuse the three baked batches, not new scene draws.
+  for(const [x,y,z]of [[-112,-9,-96],[-146,4,-116]]as const){
+    box(base,0x293c51,x,y,z,27,8,13);
+    box(base,0x52697b,x,y+5,z,23,2,12);
+    box(base,0x354d64,x+9,y+10,z-2,6,9,9);
+    box(base,0x1b2d43,x-8,y+8,z+1,7,4,10);
+    box(detail,0x6c8f9d,x,y+1.5,z+6.6,21,.5,.18);
+    for(let i=0;i<5;i++)box(detail,0x8c9b92,x-8+i*4,y+1.5,z+6.75,1.3,.35,.12);
+    box(fine,0xa5c7ba,x+9,y+14.7,z-2,.45,.25,.45);
+  }
+  box(base,0x273b51,-128,-9,-106,41,2,5,-.32);
+  // A recessed docking collar gives the foreground gantry a destination and
+  // depth cue. It remains wholly beyond the competitive arena and horizon.
+  box(base,0x23394f,75,-1,112,14,8,5);
+  box(detail,0x6b8a9a,75,1,114.6,10,.6,.18);
+  box(detail,0x162b40,75,-1,114.65,8,3,.18);
   const batches:THREE.Mesh[]=[];
   for(const [name,list]of [["orbital-structural-silhouettes",base],["orbital-equipment",detail],["orbital-navigation-lights",fine]] as const){
     const geometry=mergeGeometries(list,false)!;for(const part of list)part.dispose();

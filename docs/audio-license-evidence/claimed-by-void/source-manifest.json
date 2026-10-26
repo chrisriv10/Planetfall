@@ -1,0 +1,21 @@
+{
+  "author": "vitalezzz",
+  "page": "https://opengameart.org/content/claimed-by-the-void",
+  "license": "CC0-1.0",
+  "sourcePageSha256": "cf67897883615aae75de0bd2aca96ab09a5c084d1d1d6b2d52c4f0fd88ef33d3",
+  "verifiedDate": "2026-10-25",
+  "downloads": [
+    {
+      "url": "https://opengameart.org/sites/default/files/claimed_by_the_void_0.mp3",
+      "filename": "claimed_by_the_void_0.mp3",
+      "bytes": 7801264,
+      "sha256": "59842d236a8074fdba86aafcede94b4005d35da65ddc54d2af3135214e0859fd"
+    },
+    {
+      "url": "https://opengameart.org/sites/default/files/claimed_by_the_void_loop.mp3",
+      "filename": "claimed_by_the_void_loop.mp3",
+      "bytes": 7801264,
+      "sha256": "25c81bee74c37dc91f0895fa68db72b026c028c65d951634d07cd4ae0b325fa2"
+    }
+  ]
+}

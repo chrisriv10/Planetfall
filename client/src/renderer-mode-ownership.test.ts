@@ -84,10 +84,12 @@ describe("shared renderer mode ownership", () => {
   });
   it.each([PlanetGunGame,PlanetRunGame])("keeps inactive arena/race settings off the active renderer",Mode=>{
     const {renderer}=fixture(true),world={setQuality:vi.fn()};
-    const mode=Object.assign(Object.create(Mode.prototype),{active:false,renderer,world,events:{setQuality:vi.fn()},settings:defaultSettings()});
+    const audio={setPgAmbience:vi.fn()};
+    const mode=Object.assign(Object.create(Mode.prototype),{active:false,renderer,world,audio,events:{setQuality:vi.fn()},settings:defaultSettings()});
     mode.setSettings({...defaultSettings(),graphicsQuality:"low"});
     expect(renderer.setPixelRatio).not.toHaveBeenCalled();expect(renderer.shadowMap.enabled).toBe(true);
     mode.activate("pilot");expect(renderer.setPixelRatio).toHaveBeenCalledExactlyOnceWith(.72);expect(renderer.shadowMap.enabled).toBe(false);
     mode.activate("pilot");expect(renderer.setPixelRatio).toHaveBeenCalledOnce();
+    if(Mode===PlanetGunGame)expect(audio.setPgAmbience).toHaveBeenCalledExactlyOnceWith(true);
   });
 });

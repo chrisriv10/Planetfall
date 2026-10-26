@@ -1,6 +1,6 @@
 import {randomBytes,randomUUID} from "node:crypto";
 import type {Server,Socket} from "socket.io";
-import {DEFAULT_COSMETICS,SHOP_CATALOG,PLANET_PASS_REWARDS,PG_BALANCE as B,PG_WEAPONS,PG_PRIMARY_WEAPONS,pgCreateGun,pgFinishReload,pgSanitizeInput,pgSpawnMotion,pgStartReload,pgStepMovement,sessionLevelForXp,sessionXpInLevel,type ClientToServerEvents,type ServerToClientEvents,type GuestProfile,type PgPlayer,type PgInput,type PgJoinResult,type PgRoomView,type PgConfiguration,type PgLoadout,type PgSnapshot,type PgFireRequest} from "@planetfall/shared";
+import {DEFAULT_COSMETICS,SHOP_CATALOG,PLANET_PASS_REWARDS,PG_BALANCE as B,pgGunProfile,pgUpdateGunHeat,pgValidateLoadout,pgCreateGun,pgFinishReload,pgSanitizeInput,pgSpawnMotion,pgStartReload,pgStepMovement,sessionLevelForXp,sessionXpInLevel,type ClientToServerEvents,type ServerToClientEvents,type GuestProfile,type PgPlayer,type PgInput,type PgJoinResult,type PgRoomView,type PgConfiguration,type PgLoadout,type PgSnapshot,type PgFireRequest} from "@planetfall/shared";
 import {PgCombat} from "./pg-combat.js";
 import {PgMatch} from "./pg-match.js";
 import {pgChooseSpawn,type PgSpawnDanger} from "./pg-spawns.js";
@@ -31,7 +31,13 @@ export class PlanetGunRoom {
   }
   configure(id:string,p:Partial<PgConfiguration>):void{if(id!==this.hostId||this.phase!=="lobby")return;if([4,8,12].includes(p.targetPlayers!))this.configuration.targetPlayers=p.targetPlayers!;if([25,50,75].includes(p.scoreLimit!))this.configuration.scoreLimit=p.scoreLimit!;if(typeof p.fillBots==="boolean")this.configuration.fillBots=p.fillBots;if(["easy","normal","hard"].includes(p.botDifficulty!))this.configuration.botDifficulty=p.botDifficulty!;this.emitRoom();}
   setReady(id:string,ready:boolean):void{const p=this.players.get(id);if(p&&this.phase==="lobby"){p.ready=!!ready;this.emitRoom();}}
-  setLoadout(id:string,loadout:PgLoadout):void {const p=this.players.get(id);if(!p||!loadout||!PG_PRIMARY_WEAPONS.includes(loadout.primary)||loadout.secondary!=="comet"||!["lobby","results"].includes(this.phase)&&p.hp>0)return;p.loadout={primary:loadout.primary,secondary:"comet"};if(this.phase==="lobby")p.guns=[pgCreateGun(loadout.primary),pgCreateGun("comet")];this.emitRoom();}
+  setLoadout(id:string,raw:unknown):void {
+    const p=this.players.get(id),loadout=pgValidateLoadout(raw);if(!p||!loadout)return;
+    if(this.phase==="lobby"||this.phase==="results"){
+      p.loadout=loadout;delete p.queuedLoadout;p.guns=[pgCreateGun(loadout.primary,loadout.primaryModules),pgCreateGun(loadout.secondary,loadout.secondaryModules)];
+    }else p.queuedLoadout=loadout;
+    this.emitRoom();
+  }
   start(id:string,now=Date.now()):boolean {
     if(id!==this.hostId||this.phase!=="lobby")return false;const humans=[...this.players.values()].filter(p=>!p.isBot&&p.connected);if(!humans.length||humans.some(p=>!p.ready))return false;
     for(const [key,p]of this.players)if(p.isBot)this.players.delete(key);
@@ -44,7 +50,7 @@ export class PlanetGunRoom {
   setInput(id:string,raw:unknown):void {const p=this.players.get(id),input=pgSanitizeInput(raw);if(!p||p.isBot||p.hp<=0||!input||!["playing","overtime"].includes(this.phase)||input.sequence<=Math.max(p.lastInputSequence,p.input.sequence))return;input.jump||=p.input.sequence>p.lastInputSequence&&p.input.jump;p.input=input;p.lastInputAt=Date.now();}
   fire(id:string,request:PgFireRequest,now=Date.now()):void {if(!["playing","overtime"].includes(this.phase))return;const p=this.players.get(id);if(!p)return;const shots=this.combat.fire(p,request,this.players.values(),now);for(const shot of shots){this.io.to(this.code).emit("pg:combat:shot",shot);if(shot.targetId){const victim=this.players.get(shot.targetId);if(victim&&victim.hp<=0)this.kill(victim,p,shot.weapon,shot.headshot,now);}}if(this.phase==="results"){this.reward(now);this.emitRoom();}}
   reload(id:string,now=Date.now()):void{const p=this.players.get(id);if(p&&p.hp>0&&["playing","overtime"].includes(this.phase))pgStartReload(p.guns[p.slot],now);}
-  switchWeapon(id:string,slot:unknown,now=Date.now()):void {const p=this.players.get(id);if(!p||p.hp<=0||slot!==0&&slot!==1||p.slot===slot)return;p.guns[p.slot].reloadUntil=0;p.slot=slot;p.adsSince=0;p.fireReadyAt=now+200;}
+  switchWeapon(id:string,slot:unknown,now=Date.now()):void {const p=this.players.get(id);if(!p||p.hp<=0||slot!==0&&slot!==1||p.slot===slot)return;p.guns[p.slot].reloadUntil=0;p.guns[p.slot].burstRemaining=0;p.slot=slot;p.adsSince=0;p.fireReadyAt=now+200;}
   update(dt:number,now:number):void {
     for(const [id,p]of this.players)if(!p.isBot&&!p.connected&&p.disconnectedAt!==null&&now-p.disconnectedAt>=B.disconnectGraceMs){this.onProgress?.([p]);this.players.delete(id);this.combat.forget(id);}
     const previous=this.phase;this.match.update(now);
@@ -61,9 +67,9 @@ export class PlanetGunRoom {
       if(p.isBot){const decision=pgBotInput(p,this.players.values(),now,this.configuration.botDifficulty,p.bot);input=decision.input;if(decision.fire)shots.push({id:p.id,sequence:++p.fireSequence});if(p.guns[p.slot].magazine===0)this.reload(p.id,now);}
       else if(!p.connected||now-p.lastInputAt>400)input={...idle(),sequence:p.input.sequence,yaw:p.yaw,pitch:p.pitch};
       const wasSprint=p.mode==="sprint";pgStepMovement(p,input,dt,now);p.lastInputSequence=input.sequence;
-      if(wasSprint&&p.mode!=="sprint")p.fireReadyAt=Math.max(p.fireReadyAt,now+PG_WEAPONS[p.guns[p.slot].id].sprintDelayMs);
+      if(wasSprint&&p.mode!=="sprint")p.fireReadyAt=Math.max(p.fireReadyAt,now+pgGunProfile(p.guns[p.slot]).sprintDelayMs);
       if(input.ads&&p.mode!=="sprint"){if(!p.adsSince)p.adsSince=now;}else p.adsSince=0;
-      for(const gun of p.guns){pgFinishReload(gun,now);gun.recoil=Math.max(0,gun.recoil-dt*.09);}
+      for(const gun of p.guns){pgFinishReload(gun,now);pgUpdateGunHeat(gun,now);gun.recoil=Math.max(0,gun.recoil-dt*.09);}
       if(now-p.lastDamageAt>B.regenDelayMs)p.hp=Math.min(100,p.hp+B.regenPerSecond*dt);
       if(p.position.y<-8)this.kill(p,null,p.guns[p.slot].id,false,now);
     }
@@ -73,10 +79,10 @@ export class PlanetGunRoom {
   }
   private kill(victim:Pilot,killer:Pilot|null,weapon:PgPlayer["guns"][0]["id"],headshot:boolean,now:number):void {
     if(!this.match.elimination(victim.id,victim.lifeId,killer?.team??null,victim.team))return;
-    victim.hp=0;victim.deaths++;victim.deadAt=now;victim.respawnAt=now+B.respawnMs;victim.velocity={x:0,y:0,z:0};this.deathDanger.push({position:{...victim.position},at:now});
+    victim.hp=0;victim.deaths++;victim.deadAt=now;victim.respawnAt=now+B.respawnMs;victim.velocity={x:0,y:0,z:0};for(const gun of victim.guns)gun.burstRemaining=0;this.deathDanger.push({position:{...victim.position},at:now});
     if(killer&&killer.team!==victim.team){killer.kills++;this.feed.push({id:this.feed.length?this.feed.at(-1)!.id+1:1,at:now,killerId:killer.id,victimId:victim.id,weapon,headshot});if(this.feed.length>8)this.feed.shift();}
   }
-  private respawn(p:Pilot,now:number):void {const s=pgChooseSpawn(p.team,this.players.values(),this.deathDanger,now);Object.assign(p,pgSpawnMotion(s.position,s.yaw));p.hp=100;p.lifeId++;p.deadAt=0;p.respawnAt=0;p.protectedUntil=now+1000;p.lastDamageAt=now;p.lastAttacker=null;p.guns=[pgCreateGun(p.loadout.primary),pgCreateGun("comet")];p.slot=0;p.adsSince=0;p.fireReadyAt=now+150;p.input={...idle(),sequence:p.lastInputSequence,yaw:s.yaw};p.bot=pgBotMemory();}
+  private respawn(p:Pilot,now:number):void {if(p.queuedLoadout){p.loadout=p.queuedLoadout;delete p.queuedLoadout;}const s=pgChooseSpawn(p.team,this.players.values(),this.deathDanger,now);Object.assign(p,pgSpawnMotion(s.position,s.yaw));p.hp=100;p.lifeId++;p.deadAt=0;p.respawnAt=0;p.protectedUntil=now+1000;p.lastDamageAt=now;p.lastAttacker=null;p.guns=[pgCreateGun(p.loadout.primary,p.loadout.primaryModules),pgCreateGun(p.loadout.secondary,p.loadout.secondaryModules)];p.slot=0;p.adsSince=0;p.fireReadyAt=now+150;p.input={...idle(),sequence:p.lastInputSequence,yaw:s.yaw};p.bot=pgBotMemory();}
   private reward(now:number):void {this.rewarded=true;if(now-this.startedAt<60000||this.players.size<6)return;for(const p of this.players.values())if(!p.isBot){const old=p.sessionLevel,win=p.team===this.match.winner;p.fallbucks+=5+Math.min(15,p.kills)+(win?10:0);p.sessionTotalXp+=25+Math.min(100,p.kills*5)+(win?35:0);p.sessionLevel=sessionLevelForXp(p.sessionTotalXp);p.sessionXp=sessionXpInLevel(p.sessionTotalXp);for(const r of PLANET_PASS_REWARDS)if(r.level>old&&r.level<=p.sessionLevel&&!p.unlockedPassRewards.includes(r.id)){p.unlockedPassRewards.push(r.id);p.fallbucks+=r.fallbucks??0;if(r.cosmeticId&&!p.ownedCosmetics.includes(r.cosmeticId))p.ownedCosmetics.push(r.cosmeticId);}}this.onProgress?.(this.players.values());}
   leave(id:string):void {this.onProgress?.(this.players.values());this.players.delete(id);this.combat.forget(id);if(this.hostId===id)this.migrateHost();this.emitRoom();}
   disconnect(id:string):void{const p=this.players.get(id);if(p){p.connected=false;p.socketId=null;p.disconnectedAt=Date.now();p.input=idle();if(this.hostId===id)this.migrateHost();this.emitRoom();}}

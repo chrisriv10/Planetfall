@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import {createAstronautVisual} from "../../../astronaut";
 import {createAstronautMotion} from "../../../astronaut-motion";
+import {createPrShowcasePose,samplePrShowcasePose} from "./pr-showcase-timeline";
 
 export const PR_SHOWCASE_MOTIFS=["cargo","solar","meteor","flux","capacitor","shatterdeck"] as const;
 /** A standalone animated maquette. No renderer, simulation, world or lights. */
@@ -54,23 +55,29 @@ export function createPrShowcaseArt(){
  const astronaut=createAstronautVisual({identityColor:"#a5ffe4",suitAccent:"#8edbc7",isBot:false}),motion=createAstronautMotion(astronaut);astronaut.group.name="showcase-astronaut";astronaut.group.scale.setScalar(.7);course.add(astronaut.group);
  astronaut.group.traverse(o=>{if(o instanceof THREE.Mesh){geometries.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:[o.material])materials.add(m);if(o instanceof THREE.InstancedMesh)instances.add(o);}});
  const reduced=typeof matchMedia!=="undefined"?matchMedia("(prefers-reduced-motion: reduce)"):null;
- let lastTime:number|null=null,disposed=false,index=0;
+ const pose=createPrShowcasePose();
+ const fadeMaterials=[...materials].map(material=>({material,opacity:material.opacity,transparent:material.transparent,depthWrite:material.depthWrite}));
+ const floorHeights=[.25,.025,-.01,0,0,.1];
+ let lastTime:number|null=null,disposed=false,index=0,wasReduced=false;
  const update=(timeSeconds:number)=>{
-  if(disposed)return;const time=Number.isFinite(timeSeconds)?Math.max(0,timeSeconds):0,t=reduced?.matches?1:time,local=t%5,newIndex=Math.floor(t/5)%6;
-  if(newIndex!==index){index=newIndex;motion.reset();}
+  if(disposed)return;
+  const time=Number.isFinite(timeSeconds)?Math.max(0,timeSeconds):0,isReduced=reduced?.matches??false;
+  samplePrShowcasePose(time,isReduced,pose);
+  if(pose.motif!==index||isReduced!==wasReduced){index=pose.motif;motion.reset();}
+  wasReduced=isReduced;
   for(let i=0;i<6;i++)groups[i].visible=i===index;
   const dt=lastTime===null?1/60:THREE.MathUtils.clamp(time-lastTime,0,.05);lastTime=time;
-  course.rotation.y=.2+Math.sin(t*.15)*.15;
-  pod.position.x=Math.sin(local*1.1)*2.2;sweeper.rotation.y=-local*.9;
-  const warning=local<3.3;comet.visible=warning;comet.position.y=warning?.3+(1-local/3.3)*3:0;target.visible=local<4;target.scale.setScalar(warning?1:1+(local-3.3)*1.4);
-  levitation.position.y=Math.sin(local*1.4)*.35;levitation.rotation.y=local*.2;
-  const opening=(.5+.5*Math.sin(local*1.8))*1.15;left.position.x=-opening;right.position.x=opening;
-  if(index===5){for(let i=0;i<tilePositions.length;i++){const p=tilePositions[i],collapse=i<19?Math.max(0,Math.min(1,(local-1.4-i*.06)*1.5)):0;dummy.position.set(p.x,p.y-collapse*.8,p.z);dummy.scale.set(.82*(1-collapse),.2*(1-collapse),.82*(1-collapse));dummy.rotation.set(0,0,0);dummy.updateMatrix();tiles.setMatrixAt(i,dummy.matrix);}tiles.instanceMatrix.needsUpdate=true;}
-  const a=local*1.05,hop=index===3?Math.max(0,Math.sin(local*1.25))*1.3:index===1||index===5?Math.max(0,Math.sin(local*2.1))*.55:0;
-  const falling=index===5&&local>2.7&&local<3.3;
-  const floor=index===3?.6:index===5?-1.9*THREE.MathUtils.smoothstep(local,2.7,3.3):0;
-  astronaut.group.position.set(Math.sin(a)*2.4,.21+floor+hop,Math.cos(a)*1.8);astronaut.group.rotation.y=Math.atan2(Math.cos(a)*2.4,-Math.sin(a)*1.8);
-  const input=motion.input;input.dt=reduced?.matches?0:dt;input.timeSeconds=t;input.forwardSpeed=2.7;input.grounded=hop<.06&&!falling;input.verticalSpeed=falling?-3:hop>0?Math.cos(local*(index===3?1.25:2.1))*(index===3?1.625:1.155):0;input.turnRate=1.05;motion.update();
+  course.rotation.y=.2;
+  for(const entry of fadeMaterials){entry.material.opacity=entry.opacity*pose.opacity;entry.material.transparent=entry.transparent||pose.opacity<1;entry.material.depthWrite=entry.depthWrite&&pose.opacity>=1;}
+  pod.position.x=pose.cargoX;sweeper.rotation.y=pose.sweeperYaw;
+  comet.visible=pose.meteorVisible;comet.position.y=pose.meteorY;target.visible=pose.warningVisible;target.scale.setScalar(pose.warningScale);
+  levitation.position.y=isReduced?0:Math.sin(pose.local*.8)*.1;levitation.rotation.y=0;
+  left.position.x=-pose.gateOpen*1.15;right.position.x=pose.gateOpen*1.15;
+  // Only the tile already crossed gives way; the pilot stays on the upper deck.
+  if(index===5){for(let i=0;i<tilePositions.length;i++){const p=tilePositions[i],collapse=p.y===0&&p.z===0&&p.x<-.1&&p.x>-2?pose.collapse:0;dummy.position.set(p.x,p.y-collapse*.8,p.z);dummy.scale.set(.82*(1-collapse),.2*(1-collapse),.82*(1-collapse));dummy.rotation.set(0,0,0);dummy.updateMatrix();tiles.setMatrixAt(i,dummy.matrix);}tiles.instanceMatrix.needsUpdate=true;}
+  // Canonical astronaut soles sit .29 below its root; scaled to .7 here.
+  astronaut.group.position.set(pose.x,.203+floorHeights[index]+pose.y,pose.z);astronaut.group.rotation.y=pose.yaw;
+  const input=motion.input;input.dt=isReduced?0:dt;input.timeSeconds=isReduced?2:time;input.forwardSpeed=pose.speed;input.grounded=pose.y<.01;input.verticalSpeed=pose.verticalSpeed;input.turnRate=0;motion.update();
  };
  update(0);
  return {root,update,get currentMotif(){return PR_SHOWCASE_MOTIFS[index];},dispose(){if(disposed)return;disposed=true;root.removeFromParent();root.clear();for(const instance of instances)instance.dispose();for(const g of geometries)g.dispose();for(const m of materials)m.dispose();instances.clear();geometries.clear();materials.clear();}};

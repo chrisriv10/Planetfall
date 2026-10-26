@@ -3,7 +3,7 @@ import {writeFile} from "node:fs/promises";
 import {expect,test,type Page} from "@playwright/test";
 const debug=(page:Page)=>page.evaluate(()=>(window as unknown as {__PLANETFALL_PR_DEBUG__?:()=>{phase:string;roundId:string;roundIndex:number;active:boolean;camera:{yaw:number;pitch:number};players:number;triggeredTiles:number;local:{position:{x:number;y:number;z:number};velocity:{y:number};grounded:boolean};calls:number;triangles:number;frameTimes:number[]}}).__PLANETFALL_PR_DEBUG__?.());
 async function home(page:Page){await page.goto("/");await page.getByLabel("Name",{exact:true}).fill("Course Pilot");await selectExperimentalFamily(page,"planet-run");}
-async function review(page:Page,round:string){await home(page);await page.locator("#create-room").click();await expect(page.locator("#pr-lobby-screen")).toBeVisible();await page.locator("#pr-target").selectOption("10");if(!await page.locator(`[data-round='${round}']`).isVisible())await page.locator("#pr-dev-review summary").click();await page.locator(`[data-round='${round}']`).click();await expect.poll(async()=>(await debug(page))?.phase).toBe("running");}
+async function review(page:Page,round:string,beforeRunning?:()=>Promise<void>){await home(page);await page.locator("#create-room").click();await expect(page.locator("#pr-lobby-screen")).toBeVisible();await page.locator("#pr-target").selectOption("10");if(!await page.locator(`[data-round='${round}']`).isVisible())await page.locator("#pr-dev-review summary").click();await page.locator(`[data-round='${round}']`).click();await beforeRunning?.();await expect.poll(async()=>(await debug(page))?.phase).toBe("running");}
 test("PlanetRun lifecycle, input, UI capture and cross-family renderer ownership",async({page},info)=>{
   const errors:string[]=[];page.on("pageerror",e=>errors.push(e.message));
   await home(page);await page.locator("#create-room").click();await expect(page.locator("#pr-lobby-screen")).toBeVisible();
@@ -30,7 +30,12 @@ test("PlanetRun quick solo fills bots and advances an ordinary tournament",async
   await page.locator("#pr-leave-game").click();await expect(page.locator("#home-screen")).toBeVisible();
 });
 test("Shatterdeck contact breaks cells and falls to a lower deck",async({page},info)=>{
-  await review(page,"shatterdeck");expect((await debug(page))!.local.position.y).toBeGreaterThan(17);
+  // Observe the upper spawn during deployment. A normal phase poll can return
+  // after the620ms contact tile has already broken; that is expected gameplay.
+  await review(page,"shatterdeck",async()=>{
+    await expect.poll(async()=>(await debug(page))?.roundId).toBe("shatterdeck");
+    await expect.poll(async()=>(await debug(page))?.local.position.y).toBeGreaterThan(17);
+  });
   await expect.poll(async()=>(await debug(page))!.triggeredTiles).toBeGreaterThan(0);
   await expect.poll(async()=>(await debug(page))!.local.position.y).toBeLessThan(17);
   await page.screenshot({path:info.outputPath("shatterdeck-lower-deck.png")});

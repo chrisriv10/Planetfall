@@ -6,6 +6,21 @@ import {createPgViewmodel,PG_VIEWMODEL_LAYER} from "./pg-viewmodel";
 const weapons:PgWeaponId[]=["pulse","nova","photon","quasar","rail","comet"];
 function settle(vm:ReturnType<typeof createPgViewmodel>,weapon:PgWeaponId,ads=1){for(let i=0;i<180;i++)vm.update({weapon,ads,recoil:0,reload:0,speed:0,mode:"ground",time:i*1000/60});vm.root.updateMatrixWorld(true);}
 describe("PlanetGun first-person composition",()=>{
+  it("keeps cuff edges outside the rounded sleeve in hip and ADS across the roster",()=>{
+    for(const weapon of["pulse","nova","photon","quasar","rail","comet","helix","arc","prism","orbit"]as const){
+      const vm=createPgViewmodel();
+      try{for(const ads of[0,1]){
+        settle(vm,weapon,ads);
+        for(const name of["support-forearm","trigger-forearm"]){
+          const group=vm.root.getObjectByName(name)!,sleeve=group.getObjectByName("astronaut-sleeve")as THREE.Mesh,cuff=group.getObjectByName("suit-cuff")as THREE.Mesh<THREE.CylinderGeometry>;
+          expect(cuff.geometry.parameters.radiusTop).toBe(cuff.geometry.parameters.radiusBottom);
+          expect(cuff.scale.x-sleeve.scale.x).toBeGreaterThanOrEqual(.0005);
+          expect(cuff.scale.x-sleeve.scale.x).toBeLessThan(.003);
+          expect(cuff.scale.z).toBe(cuff.scale.x);
+        }
+      }}finally{vm.dispose();}
+    }
+  });
   it("keeps all geometry and bounded unshadowed lighting exclusively in the viewmodel pass",()=>{
     const vm=createPgViewmodel();let lights=0;
     vm.root.traverse(o=>{expect(o.layers.mask).toBe(1<<PG_VIEWMODEL_LAYER);if(o instanceof THREE.Light){lights++;expect(o.castShadow).toBe(false);}if(o instanceof THREE.Mesh){expect(o.castShadow).toBe(false);expect(o.receiveShadow).toBe(false);}});

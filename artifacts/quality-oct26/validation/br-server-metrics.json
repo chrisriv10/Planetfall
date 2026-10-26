@@ -1,0 +1,57 @@
+[
+  {
+    "idOffset": 0,
+    "participants": 10,
+    "averageTickMs": 1.518721444444333,
+    "p95TickMs": 2.8871999999973923,
+    "worstTickMs": 48.83060000000114,
+    "averageSnapshotBytes": 11836.84958263773,
+    "p95SnapshotBytes": 11991,
+    "maximumSnapshotBytes": 12024,
+    "heapDeltaMb": 6.443046569824219
+  },
+  {
+    "idOffset": 0,
+    "participants": 20,
+    "averageTickMs": 2.91590933333337,
+    "p95TickMs": 5.471399999994901,
+    "worstTickMs": 10.204199999992852,
+    "averageSnapshotBytes": 20203.99532554257,
+    "p95SnapshotBytes": 20531,
+    "maximumSnapshotBytes": 20577,
+    "heapDeltaMb": 1.3222808837890625
+  },
+  {
+    "idOffset": 0,
+    "participants": 40,
+    "averageTickMs": 7.412476111111028,
+    "p95TickMs": 13.082099999999627,
+    "worstTickMs": 19.720000000001164,
+    "averageSnapshotBytes": 35334.20388146912,
+    "p95SnapshotBytes": 37497,
+    "maximumSnapshotBytes": 37586,
+    "heapDeltaMb": 4.9261474609375
+  },
+  {
+    "idOffset": 1000,
+    "participants": 40,
+    "averageTickMs": 7.457757999999805,
+    "p95TickMs": 12.175699999992503,
+    "worstTickMs": 17.832699999999022,
+    "averageSnapshotBytes": 36916.361936560934,
+    "p95SnapshotBytes": 37429,
+    "maximumSnapshotBytes": 37609,
+    "heapDeltaMb": -6.852653503417969
+  },
+  {
+    "idOffset": 5000,
+    "participants": 40,
+    "averageTickMs": 7.888922444444842,
+    "p95TickMs": 13.60460000000603,
+    "worstTickMs": 25.02039999999397,
+    "averageSnapshotBytes": 37175.04115191987,
+    "p95SnapshotBytes": 37431,
+    "maximumSnapshotBytes": 37553,
+    "heapDeltaMb": -7.798439025878906
+  }
+]

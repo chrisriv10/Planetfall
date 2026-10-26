@@ -1,0 +1,151 @@
+/* Canonical menu foundations. Opt-in hooks keep gameplay HUDs independent. */
+:root {
+  --ui-space-1: 6px;
+  --ui-space-2: 12px;
+  --ui-space-3: 18px;
+  --ui-space-4: 28px;
+  --ui-panel-fill: linear-gradient(145deg,rgba(20,29,72,.96),rgba(7,13,35,.94));
+  --ui-panel-border: rgba(141,226,255,.26);
+  --ui-panel-shadow: 0 24px 70px #0006,inset 0 1px #ffffff15;
+  --ui-panel-corners: 8px 24px 8px 24px;
+  --ui-control-corners: 10px;
+  --ui-accent: #70f5ff;
+  --ui-primary: #ffdc4f;
+  --ui-primary-end: #ff994d;
+  --ui-primary-shadow: #a94d45;
+  --ui-muted: #b5c5de;
+  --ui-focus: #ffdc4f;
+}
+.pr-screen { --ui-accent:#a2ffe0; --ui-primary:#b8ffe4; --ui-primary-end:#77d8d4; --ui-primary-shadow:#397d78; }
+.pg-screen { --ui-accent:#83ffe0; --ui-primary:#a8ffe8; --ui-primary-end:#65dacb; --ui-primary-shadow:#327f7a; }
+.screen.mode-lobby {
+  padding:clamp(16px,3vw,42px);
+  align-items:center;
+  overflow:auto;
+  scrollbar-gutter:stable;
+}
+.mode-panel.glass {
+  position:relative;
+  min-width:0;
+  padding:clamp(20px,2.4vw,32px);
+  border:1px solid var(--ui-panel-border);
+  border-top:3px solid var(--ui-accent);
+  border-radius:var(--ui-panel-corners);
+  background:var(--ui-panel-fill);
+  box-shadow:var(--ui-panel-shadow);
+  backdrop-filter:blur(14px);
+  pointer-events:auto;
+  color:#f7fbff;
+}
+.mode-panel .panel-kicker {
+  color:var(--ui-accent);
+  font:900 .68rem/1.5 "Trebuchet MS",system-ui,sans-serif;
+  letter-spacing:.14em;
+  margin:0;
+}
+.mode-panel .lobby-heading { align-items:center; gap:var(--ui-space-3); }
+.mode-panel .lobby-heading > :first-child { min-width:0; }
+.mode-panel .lobby-heading :is(h1,h2) {
+  margin:6px 0;
+  font:900 clamp(30px,3.2vw,46px)/1.04 "Arial Black",sans-serif;
+  letter-spacing:-.05em;
+}
+.mode-panel :is(h1,h2) > span { color:var(--ui-accent); }
+.mode-panel .mode-room-code {
+  flex-shrink:0;
+  padding:10px 13px;
+  border:1px solid var(--ui-panel-border);
+  border-radius:12px 4px 12px 4px;
+  background:#07152d99;
+  cursor:default;
+  transform:none;
+  filter:none;
+}
+.mode-panel .mode-room-code small { color:var(--ui-muted); font-size:9px; letter-spacing:.08em; }
+.mode-panel .mode-room-code :is(span,strong) { display:block; margin:3px 0 0; color:var(--ui-accent); font:900 18px/1.2 "Arial Black",sans-serif; letter-spacing:.14em; }
+.mode-panel .lobby-hub-nav { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:16px 0; }
+.mode-panel .lobby-hub-nav .hub-tab {
+  min-width:0;
+  min-height:44px;
+  padding:10px 7px;
+  border:1px solid var(--ui-panel-border);
+  border-radius:8px 14px 8px 14px;
+  color:#edf4ff;
+  background:linear-gradient(145deg,#26365088,#0b1735aa);
+  font:900 10px/1.4 "Arial Black",sans-serif;
+  letter-spacing:.035em;
+  box-shadow:inset 0 1px #ffffff0d;
+  cursor:pointer;
+}
+.mode-panel .button {
+  min-height:46px;
+  padding:12px 18px;
+  border-radius:var(--ui-control-corners);
+  font:900 12px/1.4 "Trebuchet MS",system-ui,sans-serif;
+  letter-spacing:.045em;
+  cursor:pointer;
+}
+.mode-panel .button.button-primary {
+  color:#102733;
+  border:0;
+  background:linear-gradient(135deg,var(--ui-primary),var(--ui-primary-end));
+  box-shadow:0 5px 0 var(--ui-primary-shadow),0 10px 20px #0002;
+}
+.mode-panel .button.button-secondary { color:#eef7ff; background:linear-gradient(145deg,#7586da3d,#404b922f); border:1px solid var(--ui-panel-border); box-shadow:inset 0 1px #ffffff12; }
+.mode-panel .button.button-quiet { min-height:44px; color:var(--ui-accent); background:#70f5ff08; border:1px dashed var(--ui-panel-border); box-shadow:none; }
+.mode-panel :is(.button,.hub-tab):hover:not(:disabled) { filter:brightness(1.1); transform:translateY(-1px); }
+.mode-panel :is(.button,.hub-tab):active:not(:disabled) { transform:translateY(1px); }
+.mode-panel :is(.button,.hub-tab):disabled { opacity:.4; cursor:default; filter:none; transform:none; }
+.mode-panel :is(button,input,select):focus-visible { outline:3px solid var(--ui-focus); outline-offset:3px; }
+.mode-panel .mode-fields {
+  min-width:0;
+  border:1px solid #a2c3e322;
+  border-radius:12px;
+  padding:14px;
+  background:#030c201f;
+}
+.mode-panel .mode-fields legend { padding:0 6px; color:var(--ui-accent); font-size:10px; font-weight:900; letter-spacing:.12em; }
+.mode-panel .mode-fields label { color:var(--ui-muted); font-size:12px; font-weight:700; letter-spacing:.015em; }
+.mode-panel :is(select,input:not([type=checkbox]):not([type=range])) {
+  width:100%;
+  min-width:0;
+  min-height:44px;
+  padding:10px 12px;
+  border:1px solid #849fdc5c;
+  border-radius:var(--ui-control-corners);
+  background:#071329;
+  color:#f7fbff;
+  font:700 13px/1.4 "Trebuchet MS",system-ui,sans-serif;
+}
+.mode-panel input[type=checkbox] { width:18px; height:18px; min-height:18px; accent-color:var(--ui-accent); }
+.mode-panel.mode-aside { border-top-color:#a2c3e344; background:linear-gradient(145deg,#14213bcc,#071123bb); }
+.mode-panel.mode-aside p { font-size:13px; line-height:1.65; color:var(--ui-muted); }
+.mode-panel.mode-aside h2 { font-size:clamp(26px,2.7vw,38px); }
+@media(max-width:800px) {
+  .screen.mode-lobby { padding:16px; }
+  .mode-panel.glass { padding:20px; }
+  .mode-panel .lobby-heading { flex-wrap:wrap; gap:10px; }
+  .mode-panel .lobby-heading :is(h1,h2) { font-size:34px; }
+  .mode-panel .mode-room-code { padding:8px 11px; }
+}
+@media(max-width:420px) {
+  .mode-panel.glass { padding:16px; }
+  .mode-panel .lobby-hub-nav { gap:5px; }
+  .mode-panel .lobby-hub-nav .hub-tab { font-size:9px; padding-inline:4px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .mode-panel :is(.button,.hub-tab,.room-code) { transition:none; }
+  .mode-panel :is(.button,.hub-tab):hover { transform:none; }
+}
+/* Laptop ready rooms: compact whitespace, never reduced gameplay HUD scale.
+ * Classic and BR retain their established composition. */
+@media(min-width:801px) and (max-height:820px) {
+  :is(#pg-lobby-screen,#pr-lobby-screen).mode-lobby { padding:18px 28px; }
+  :is(#pg-lobby-screen,#pr-lobby-screen) .mode-panel.glass { padding:18px 22px; }
+  :is(#pg-lobby-screen,#pr-lobby-screen) .mode-panel .lobby-heading { gap:12px; }
+  :is(#pg-lobby-screen,#pr-lobby-screen) .mode-panel .lobby-heading h1 { font-size:36px; margin:4px 0; }
+  :is(#pg-lobby-screen,#pr-lobby-screen) .mode-panel .lobby-hub-nav { margin:10px 0; }
+  :is(#pg-lobby-screen,#pr-lobby-screen) .mode-panel .mode-fields { padding:10px; }
+  :is(#pg-lobby-screen,#pr-lobby-screen) .mode-panel .button { min-height:44px; padding:10px 14px; }
+  :is(#pg-lobby-screen,#pr-lobby-screen).mode-lobby .mode-panel select { min-height:44px; padding:8px 10px; }
+}

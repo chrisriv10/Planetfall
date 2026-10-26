@@ -1,0 +1,21 @@
+{
+  "author": "vitalezzz",
+  "page": "https://opengameart.org/content/brute-force",
+  "license": "CC0-1.0",
+  "sourcePageSha256": "8afed209247618a02f2cf7c1b436e8d15630cc2bd3d53267863408b539462d19",
+  "verifiedDate": "2026-10-25",
+  "downloads": [
+    {
+      "url": "https://opengameart.org/sites/default/files/brute_force_0.mp3",
+      "filename": "brute_force_0.mp3",
+      "bytes": 6286176,
+      "sha256": "612eb1ba4194c5362239a5bf154630d4c4950f7a9ccbb55b18a6e5d5e478f4ba"
+    },
+    {
+      "url": "https://opengameart.org/sites/default/files/brute_force_loop.mp3",
+      "filename": "brute_force_loop.mp3",
+      "bytes": 5936135,
+      "sha256": "2881e333950479db4a1be420f1aa6b582ee92f13ce9e8742d4a56b434de4e943"
+    }
+  ]
+}

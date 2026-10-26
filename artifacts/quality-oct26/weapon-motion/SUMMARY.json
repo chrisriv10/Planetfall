@@ -1,0 +1,82 @@
+[
+  {
+    "weapon": "pulse",
+    "shots": 7,
+    "sprintObserved": true,
+    "hpAtEnd": 100,
+    "slotAfter": 1,
+    "videoBytes": 2649998
+  },
+  {
+    "weapon": "nova",
+    "shots": 9,
+    "sprintObserved": true,
+    "hpAtEnd": 100,
+    "slotAfter": 1,
+    "videoBytes": 2317220
+  },
+  {
+    "weapon": "photon",
+    "shots": 1,
+    "sprintObserved": true,
+    "hpAtEnd": 100,
+    "slotAfter": 1,
+    "videoBytes": 2422803
+  },
+  {
+    "weapon": "quasar",
+    "shots": 1,
+    "sprintObserved": true,
+    "hpAtEnd": 100,
+    "slotAfter": 1,
+    "videoBytes": 2568292
+  },
+  {
+    "weapon": "rail",
+    "shots": 1,
+    "sprintObserved": true,
+    "hpAtEnd": 100,
+    "slotAfter": 1,
+    "videoBytes": 2653779
+  },
+  {
+    "weapon": "helix",
+    "shots": 3,
+    "sprintObserved": true,
+    "hpAtEnd": 100,
+    "slotAfter": 1,
+    "videoBytes": 2474120
+  },
+  {
+    "weapon": "arc",
+    "shots": 4,
+    "sprintObserved": true,
+    "hpAtEnd": 100,
+    "slotAfter": 1,
+    "videoBytes": 2496458
+  },
+  {
+    "weapon": "prism",
+    "shots": 30,
+    "sprintObserved": true,
+    "hpAtEnd": 100,
+    "slotAfter": 1,
+    "videoBytes": 2620345
+  },
+  {
+    "weapon": "comet",
+    "shots": 1,
+    "sprintObserved": true,
+    "hpAtEnd": 100,
+    "slotAfter": 0,
+    "videoBytes": 2325022
+  },
+  {
+    "weapon": "orbit",
+    "shots": 1,
+    "sprintObserved": true,
+    "hpAtEnd": 100,
+    "slotAfter": 0,
+    "videoBytes": 2281048
+  }
+]

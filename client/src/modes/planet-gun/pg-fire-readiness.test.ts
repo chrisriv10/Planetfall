@@ -3,6 +3,11 @@ import {pgCreateGun} from "@planetfall/shared";
 import {pgFireReady,pgFirePressValid} from "./pg-fire-readiness";
 
 describe("PlanetGun acknowledged sprint-to-fire",()=>{
+ it("cannot present a beam shot while the authoritative heat lock is active",()=>{
+  const gun=pgCreateGun("prism");gun.overheatedUntil=1900;
+  const authority={mode:"ground" as const,slot:0 as const,guns:[gun,pgCreateGun("orbit")] as [typeof gun,typeof gun],fireReadyAt:0,lastInputSequence:1};
+  expect(pgFireReady(1899,"ground",authority,0)).toBe(false);expect(pgFireReady(1900,"ground",authority,0)).toBe(true);
+ });
  it("keeps a recent sprint press but discards stale, empty and reloading presses",()=>{
   const gun=pgCreateGun("comet");
   expect(pgFirePressValid(750,1000,gun)).toBe(true);

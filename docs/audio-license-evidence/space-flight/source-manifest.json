@@ -1,0 +1,99 @@
+{
+  "author": "Bret Bernhoft",
+  "page": "https://opengameart.org/content/space-flight-sound-effects",
+  "license": "CC0-1.0",
+  "sourcePageSha256": "d485f05e2286ce9431eae028e12338687511e42505b5b0c02a08b45f60b3e6ce",
+  "verifiedDate": "2026-10-25",
+  "downloads": [
+    {
+      "url": "https://opengameart.org/sites/default/files/spaceflight3.wav",
+      "filename": "spaceflight3.wav",
+      "bytes": 21168044,
+      "sha256": "261ec24595a1c2fd71d897700cfd43496d48e4a9bf6ed8560c9e17a932cdc1a4"
+    },
+    {
+      "url": "https://opengameart.org/sites/default/files/spaceflight4.wav",
+      "filename": "spaceflight4.wav",
+      "bytes": 42336052,
+      "sha256": "16b982943b60cfc762da2ee8d349a120bb0e53bc332ca821e8d47db9d5d43c83"
+    },
+    {
+      "url": "https://opengameart.org/sites/default/files/spaceflight5.wav",
+      "filename": "spaceflight5.wav",
+      "bytes": 42336044,
+      "sha256": "085a06b66f02560693111d108e5190ed1458258058750f50de1338f8098bd5bd"
+    },
+    {
+      "url": "https://opengameart.org/sites/default/files/spaceflight6.wav",
+      "filename": "spaceflight6.wav",
+      "bytes": 42336044,
+      "sha256": "18388ac3f56fa76e62b8fe9b119a0c9e5d8ac514c2a486a626a4edf6c12bfafe"
+    },
+    {
+      "url": "https://opengameart.org/sites/default/files/spaceflight7.wav",
+      "filename": "spaceflight7.wav",
+      "bytes": 42336044,
+      "sha256": "d50014cb9dcfed840e5d2ac1d911778b1b697b1207fb57a7d4b87ed0ff2847da"
+    },
+    {
+      "url": "https://opengameart.org/sites/default/files/spaceflight8.wav",
+      "filename": "spaceflight8.wav",
+      "bytes": 42336044,
+      "sha256": "b460857a489463fc3d233de4bf6b625d3d40768b64b1ef30b854a41ce8798f1a"
+    },
+    {
+      "url": "https://opengameart.org/sites/default/files/spaceflight9.wav",
+      "filename": "spaceflight9.wav",
+      "bytes": 46080178,
+      "sha256": "f3738e480638b066b16f17eff9cd21b20f350f6c8579a72e65aefeb845d3ca59"
+    },
+    {
+      "url": "https://opengameart.org/sites/default/files/spaceflight10.wav",
+      "filename": "spaceflight10.wav",
+      "bytes": 42336162,
+      "sha256": "960cfe655857c96cd470cd0f23c148d1f8b9dbb25ba7f9bfea8e921220ef9d09"
+    },
+    {
+      "url": "https://opengameart.org/sites/default/files/spaceflight11.wav",
+      "filename": "spaceflight11.wav",
+      "bytes": 42336170,
+      "sha256": "ec842ff038bdbf3e63f95da27b13249f970bcaa36d649100b8c0f22d95c99eeb"
+    },
+    {
+      "url": "https://opengameart.org/sites/default/files/spaceflight12.wav",
+      "filename": "spaceflight12.wav",
+      "bytes": 42336170,
+      "sha256": "11276b95cbad5a7752b62c1984cc6ad0aed2c363e618583b796044c7d0d864ce"
+    },
+    {
+      "url": "https://opengameart.org/sites/default/files/spaceflight13.wav",
+      "filename": "spaceflight13.wav",
+      "bytes": 42336162,
+      "sha256": "87bd989bbaf5f9f35dbb0cae042b7c0681f49eacdf8aad1a1dd594c424e2d660"
+    },
+    {
+      "url": "https://opengameart.org/sites/default/files/spaceflight14.wav",
+      "filename": "spaceflight14.wav",
+      "bytes": 42336052,
+      "sha256": "a09421fdaa84983f2dd747393dc337239229bfec68af0928a0fd526bd5c2b29e"
+    },
+    {
+      "url": "https://opengameart.org/sites/default/files/spaceflight15.wav",
+      "filename": "spaceflight15.wav",
+      "bytes": 42336084,
+      "sha256": "c24b1de54bab60daab07ea7f3a1c8fc96b066085cb90ef87a8ca328419811fc4"
+    },
+    {
+      "url": "https://opengameart.org/sites/default/files/spaceflight16.wav",
+      "filename": "spaceflight16.wav",
+      "bytes": 42336044,
+      "sha256": "e5125acd2fff5f47d9d2b4137d3b82168f46ce7defd29d6ee681956747e2c97f"
+    },
+    {
+      "url": "https://opengameart.org/sites/default/files/spaceflight17.wav",
+      "filename": "spaceflight17.wav",
+      "bytes": 42336044,
+      "sha256": "ca4964832d469c1bc5a0a20bb531dd90b7fde94c2d6cf32814cfc82e90c2fc79"
+    }
+  ]
+}

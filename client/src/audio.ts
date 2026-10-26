@@ -1,433 +1,236 @@
-import { brSpatialMix, type AudioPosition } from "./br-spatial-audio";
-export type MusicScene = "menu" | "game" | "battle-royale" | "planet-run" | "planet-gun";
-export function musicSceneForScreen(screen: string): MusicScene {
+import type {PgWeaponId,PrRoundId} from "@planetfall/shared";
+import {brSpatialMix,type AudioPosition} from "./br-spatial-audio";
+import {AudioSampleBank} from "./audio-sample-bank";
+import {AUDIO_CUES,AMBIENCE_LOOPS,MUSIC_TRACKS,PG_AUDIO_FAMILY,PG_RELOAD_PHASE,PR_AMBIENCE,PR_AUDIO_CUES,SAMPLE_URLS,WEAPON_AUDIO,type PrAudioCue,type WeaponAudioId} from "./audio-catalog";
+
+export type MusicScene=keyof typeof MUSIC_TRACKS;
+export type PgReloadAudioPhase=keyof typeof PG_RELOAD_PHASE;
+export function musicSceneForScreen(screen:string):MusicScene {
   if(screen==="pgLobby"||screen==="pgHud"||screen==="pgResults")return "planet-gun";
   if(screen==="prLobby"||screen==="prHud"||screen==="prResults")return "planet-run";
-  return screen === "brLobby" || screen === "brHud" || screen === "brResults"
-    ? "battle-royale" : screen === "hud" ? "game" : "menu";
+  return screen==="brLobby"||screen==="brHud"||screen==="brResults"?"battle-royale":screen==="hud"?"game":"menu";
 }
-type MediaRoute = { source: MediaElementAudioSourceNode; filter: BiquadFilterNode; shelf: BiquadFilterNode; gain: GainNode; pan: StereoPannerNode };
-type SampleVoice = { element: HTMLAudioElement; route: MediaRoute | null; mix: number; timer: ReturnType<typeof setTimeout> };
+type Spatial={source:AudioPosition;listener:AudioPosition;yaw:number};
+type MusicRoute={source:MediaElementAudioSourceNode;filter:BiquadFilterNode};
 
+/** All player-facing effects are licensed recordings. The catalog owns sound
+ * identities; this class owns scene/caller semantics and user settings. */
 export class GameAudio {
-  private context: AudioContext | null = null;
-  private readonly music: Record<MusicScene, HTMLAudioElement>;
-  private musicScene: MusicScene = "menu";
-  private musicUnlocked = false;
-  private musicFade: ReturnType<typeof setInterval> | null = null;
-  private musicTransition = 0;
-  private musicVolume = .8;
-  private sfxVolume = .9;
-  private urgency = 0;
-  private readonly samples = new Map<string, HTMLAudioElement>();
-  private readonly brLoops = new Map<"starliner" | "skimmer" | "drop", HTMLAudioElement>();
-  private readonly routes = new WeakMap<HTMLAudioElement, MediaRoute>();
-  private readonly loopStops = new Map<HTMLAudioElement, ReturnType<typeof setTimeout>>();
-  private readonly voices = new Set<SampleVoice>();
+  private context:AudioContext|null=null;
+  private readonly bank=new AudioSampleBank(SAMPLE_URLS);
+  private readonly music:Record<MusicScene,HTMLAudioElement>;
+  private readonly musicRoutes=new WeakMap<HTMLAudioElement,MusicRoute>();
+  private musicScene:MusicScene="menu";
+  private musicUnlocked=false;
+  private musicFade:ReturnType<typeof setInterval>|null=null;
+  private musicTransition=0;
+  private musicVolume=.8;
+  private sfxVolume=.9;
+  private urgency=0;
+  private duckUntil=0;
+  private duckAmount=0;
+  private readonly choices=new Map<string,number>();
+  private readonly lastCue=new Map<string,number>();
+  private readonly desiredBrLoops=new Map<"starliner"|"skimmer"|"drop",number>();
+  private pgAmbience=false;
+  private prRound:PrRoundId|null=null;
+  private beamActive=false;
 
-  private get activeMusic(): HTMLAudioElement { return this.music[this.musicScene]; }
-  private get musicTarget(): number { return (this.musicScene === "battle-royale" ? .085 : this.musicScene === "planet-gun" ? .09 : this.musicScene === "menu" ? .14 : .18) * this.musicVolume; }
-
-  constructor() {
-    this.music = {
-      menu: this.makeMusic("/audio/low-battery.ogg"),
-      game: this.makeMusic("/audio/bot-city.ogg"),
-      "battle-royale": this.makeMusic("/audio/br/orbital-drift.ogg"),
-      "planet-gun":this.makeMusic("/audio/pg/nova-afterlight.wav"),
-      "planet-run":this.makeMusic("/audio/pr/orbital-sprint.ogg")
-    };
-    this.registerSample("laser-small", "/audio/br/br-laser-small.ogg");
-    this.registerSample("laser-large", "/audio/br/br-laser-large.ogg");
-    this.registerSample("shield-hit", "/audio/br/br-shield-hit.ogg");
-    this.registerSample("shield-break", "/audio/br/br-shield-break.ogg");
-    this.registerSample("metal-impact", "/audio/br/br-metal-impact.ogg");
-    this.registerSample("plasma-explosion", "/audio/br/br-plasma-explosion.ogg");
-    this.registerSample("footstep-1", "/audio/br/br-footstep-1.ogg");
-    this.registerSample("footstep-2", "/audio/br/br-footstep-2.ogg");
-    this.brLoops.set("starliner", this.makeLoop("/audio/br/br-starliner-engine.ogg"));
-    this.brLoops.set("skimmer", this.makeLoop("/audio/br/br-skimmer-engine.ogg"));
-    // A filtered, quieter thruster layer gives freefall useful speed feedback
-    // without introducing another large asset or masking combat cues.
-    this.brLoops.set("drop", this.makeLoop("/audio/br/br-skimmer-engine.ogg"));
+  constructor(){
+    this.music=Object.fromEntries(Object.entries(MUSIC_TRACKS).map(([scene,track])=>[scene,this.makeMusic(track.url)])) as Record<MusicScene,HTMLAudioElement>;
   }
-
-  unlock(): void {
-    if (!this.context) this.context = new AudioContext();
-    if (this.context.state === "suspended") void this.context.resume();
-    for (const [scene, track] of Object.entries(this.music)) {
-      const route = this.mediaRoute(track);
-      if (route) route.filter.frequency.value = scene === "battle-royale" ? 1800 : 20_000;
-    }
-    for (const [kind, loop] of this.brLoops) this.configureLoop(kind, loop);
-    if (this.musicUnlocked && !this.activeMusic.paused) return;
-    this.musicUnlocked = true;
-    const active = this.activeMusic;
-    const transition = ++this.musicTransition;
-    this.cancelMusicFade();
-    this.stopInactiveMusic(active);
-    if (active.paused) {
-      active.volume = 0;
-      void active.play().then(() => {
-        if (transition !== this.musicTransition || active !== this.activeMusic) {
-          this.stopMusic(active);
-          return;
-        }
-        this.fadeMusicIn(active, transition);
-      }).catch(() => undefined);
-    } else {
-      this.fadeMusicIn(active, transition);
-    }
+  debugState(){return {...this.bank.debugState(),musicScene:this.musicScene,unlocked:this.musicUnlocked,musicElements:Object.keys(this.music).length};}
+  private get activeMusic():HTMLAudioElement{return this.music[this.musicScene];}
+  private get musicTarget():number {
+    const duck=performance.now()<this.duckUntil?1-this.duckAmount:1;
+    return MUSIC_TRACKS[this.musicScene].gain*this.musicVolume*duck*(this.musicScene==="game"?1+this.urgency*.025:1);
   }
-
-  setMusicScene(scene: MusicScene): void {
-    if (scene === this.musicScene) {
-      return;
-    }
-    this.musicScene = scene;
-    const incoming = this.activeMusic;
-    const transition = ++this.musicTransition;
-    this.cancelMusicFade();
-    incoming.playbackRate = scene === "game" ? 1 + this.urgency * .035 : 1;
-    if (!this.musicUnlocked) {
-      this.stopMusic(incoming);
-      return;
-    }
-    incoming.volume = 0;
-    void incoming.play().then(() => {
-      if (transition !== this.musicTransition || incoming !== this.activeMusic) {
-        this.stopMusic(incoming);
-        return;
+  unlock():void {
+    const wasUnlocked=this.musicUnlocked;
+    if(!this.context){
+      this.context=new AudioContext();
+      // One shared mix guard catches crowded simultaneous transients. It only
+      // processes recorded samples/music; it never creates a sound source.
+      const mixGuard=this.context.createDynamicsCompressor();
+      mixGuard.threshold.value=-5;mixGuard.knee.value=3;mixGuard.ratio.value=16;
+      mixGuard.attack.value=.001;mixGuard.release.value=.14;mixGuard.connect(this.context.destination);
+      this.bank.attach(this.context,mixGuard);this.bank.setVolume(this.sfxVolume);
+      for(const [scene,track] of Object.entries(this.music)){
+        const source=this.context.createMediaElementSource(track),filter=this.context.createBiquadFilter();
+        filter.type="lowpass";filter.frequency.value=scene==="battle-royale"?12000:20000;filter.Q.value=.5;
+        source.connect(filter).connect(mixGuard);this.musicRoutes.set(track,{source,filter});
       }
-      this.fadeMusicIn(incoming, transition);
-    }).catch(() => undefined);
-  }
-
-  setUrgency(level: number): void {
-    this.urgency = Math.min(2, Math.max(0, Math.round(level)));
-    this.music.game.playbackRate = 1 + this.urgency * .035;
-  }
-
-  setVolumes(music: number, sfx: number): void {
-    this.musicVolume = Math.min(1, Math.max(0, music));
-    this.sfxVolume = Math.min(1, Math.max(0, sfx));
-    const active = this.activeMusic;
-    this.stopInactiveMusic(active);
-    if (!active.paused) active.volume = this.musicTarget;
-    for (const loop of this.brLoops.values()) {
-      const mix = Number(loop.dataset.mix ?? "0");
-      this.setLoopGain(loop, mix * this.sfxVolume);
+      const first=["ui.click","movement.footstep-composite","match.countdown",...Object.values(WEAPON_AUDIO).map(w=>w.fire)]
+        .flatMap(id=>AUDIO_CUES[id]!.layers.flatMap(l=>l.pool.map(p=>p.sample)));
+      void this.bank.preload(first).then(()=>this.bank.preload(Object.keys(SAMPLE_URLS)));
     }
-    for (const voice of this.voices) {
-      if (voice.route) this.ramp(voice.route.gain.gain, voice.mix * this.sfxVolume, .04);
-      else voice.element.volume = Math.min(1, voice.mix * this.sfxVolume);
-    }
+    if(this.context.state==="suspended")void this.context.resume();
+    this.musicUnlocked=true;if(!wasUnlocked||this.activeMusic.paused)this.startMusic();
+    for(const [kind,intensity] of this.desiredBrLoops)this.setBrLoop(kind,true,intensity);
+    if(this.pgAmbience)this.setPgAmbience(true);
+    if(this.prRound)this.setPrAmbience(this.prRound);
+    if(this.beamActive)this.pgBeam(true);
   }
-
-  setBrLoop(kind: "starliner" | "skimmer" | "drop", active: boolean, intensity = 1): void {
-    const loop = this.brLoops.get(kind);
-    if (!loop) return;
-    const clamped = Math.min(1, Math.max(0, intensity));
-    const mix = active ? (kind === "starliner" ? .065 : kind === "drop" ? .085 : .15) * (.45 + clamped * .55) : 0;
-    loop.dataset.mix = String(mix);
-    loop.playbackRate = kind === "starliner" ? .72 + clamped * .08 : kind === "drop" ? .78 + clamped * .35 : .72 + clamped * .5;
-    this.configureLoop(kind, loop);
-    this.setLoopGain(loop, mix * this.sfxVolume);
-    const pending = this.loopStops.get(loop);
-    if (pending && active) { clearTimeout(pending); this.loopStops.delete(loop); }
-    if (!active || !this.musicUnlocked) {
-      if (!active) this.pauseLoopAfterFade(loop);
-      return;
-    }
-    if (loop.paused) void loop.play().catch(() => undefined);
+  setMusicScene(scene:MusicScene):void {
+    if(scene===this.musicScene)return;
+    const previous=this.musicScene;this.musicScene=scene;this.musicTransition++;this.duckUntil=0;this.duckAmount=0;
+    if(previous==="battle-royale")this.stopBrLoops();
+    if(previous==="game")this.bank.stopGroup("classic");
+    if(previous==="planet-run"){this.setPrAmbience(null);this.bank.stopGroup("pr");}
+    if(previous==="planet-gun"){this.setPgAmbience(false);this.pgBeam(false);this.bank.stopGroup("pg");}
+    if(this.musicUnlocked)this.startMusic();else this.stopMusic(this.activeMusic);
   }
-
-  stopBrLoops(): void {
-    for (const loop of this.brLoops.values()) { loop.dataset.mix = "0"; this.setLoopGain(loop, 0); this.pauseLoopAfterFade(loop); }
-    for (const voice of [...this.voices]) this.releaseVoice(voice);
+  setUrgency(level:number):void {
+    const urgency=Number.isFinite(level)?Math.min(2,Math.max(0,Math.round(level))):0;
+    if(urgency===this.urgency)return;this.urgency=urgency;
+    if(this.musicScene==="game"&&!this.activeMusic.paused)this.fadeMusic(this.activeMusic,this.musicTransition);
   }
-
-  brRemoteWeapon(weapon: string, source: AudioPosition, listener: AudioPosition, yaw: number): void {
-    if(weapon==="vortex-cannon"){this.spatialSample("plasma-explosion",source,listener,yaw,.13,180,.65);return;}
-    if(weapon==="comet-hand-cannon"){this.spatialSample("metal-impact",source,listener,yaw,.15,160,.68);return;}
-    if(weapon==="quasar-carbine"){this.spatialSample("laser-large",source,listener,yaw,.11,180,1.12);return;}
-    if(weapon==="prism-beam"){this.spatialSample("shield-hit",source,listener,yaw,.045,110,.82);return;}
-    const sample = weapon === "plasma-launcher" ? "plasma-explosion" : weapon === "arc-blaster" ? "shield-hit" : weapon === "rail-laser" || weapon === "photon-shotgun" ? "laser-large" : "laser-small";
-    this.spatialSample(sample, source, listener, yaw, .13, 180);
+  setVolumes(music:number,sfx:number):void {
+    this.musicVolume=Number.isFinite(music)?Math.min(1,Math.max(0,music)):0;
+    this.sfxVolume=Number.isFinite(sfx)?Math.min(1,Math.max(0,sfx)):0;
+    this.bank.setVolume(this.sfxVolume);
+    if(!this.activeMusic.paused)this.activeMusic.volume=this.musicTarget;
+    this.stopInactiveMusic();
   }
-  brCharge():void {this.tone(65,.7,"sine",.022,210);this.tone(130,.65,"triangle",.008,310);}
-  brScannerPulse(source:AudioPosition,listener:AudioPosition,yaw:number):void {
-    this.spatialSample("shield-hit",source,listener,yaw,.15,80,.72);
+  setBrLoop(kind:"starliner"|"skimmer"|"drop",active:boolean,intensity=1):void {
+    if(!active){this.desiredBrLoops.delete(kind);this.bank.stopLoop("br."+kind);return;}
+    const amount=Number.isFinite(intensity)?Math.min(1,Math.max(0,intensity)):0;
+    this.desiredBrLoops.set(kind,amount);if(!this.musicUnlocked)return;
+    const loop=AMBIENCE_LOOPS["br."+kind]!;
+    this.bank.setLoop("br."+kind,loop.sample,{gain:loop.gain*(.45+amount*.55),rate:1,cutoff:kind==="starliner"?900:kind==="drop"?2400:6500,priority:25,group:"br",tag:"br."+kind});
   }
-  brRemoteFootstep(source: AudioPosition, listener: AudioPosition, yaw: number, sprinting = false): void {
-    this.spatialSample(Math.random() > .5 ? "footstep-1" : "footstep-2", source, listener, yaw, sprinting ? .075 : .05, 32);
+  stopBrLoops():void {this.desiredBrLoops.clear();this.bank.stopGroup("br");}
+  setPgAmbience(active:boolean):void {
+    this.pgAmbience=active;
+    if(!active){this.bank.stopLoop("pg.outdoor");this.bank.stopLoop("pg.machinery");return;}
+    if(this.musicUnlocked)for(const key of ["pg.outdoor","pg.machinery"])this.environment(key,"pg");
   }
-  brImpact(source: AudioPosition, listener: AudioPosition, yaw: number): void { this.spatialSample("metal-impact", source, listener, yaw, .1, 70); }
-  brFlyby(source: AudioPosition, listener: AudioPosition, yaw: number): void { this.spatialSample("laser-small", source, listener, yaw, .065, 24, .65); }
-  brLoot(crate = false): void { this.playSample("metal-impact", crate ? .065 : .04, crate ? .72 : 1.25); this.tone(crate ? 390 : 720, .12, "sine", .018, crate ? 760 : 1100); }
-
-  prCue(kind:"countdown"|"go"|"qualify"|"eliminate"|"checkpoint"|"dive"|"tile"|"impact"|"tile-break"|"machinery"|"meteor-warning"|"gravity"|"boost"|"land"):void {
-    if(kind==="meteor-warning"){this.tone(720,.5,"sine",.018,180);return;}
-    if(kind==="gravity"){this.tone(180,.45,"sine",.016,360);return;}
-    if(kind==="boost"){this.tone(220,.22,"triangle",.025,690);this.noise(.12,.012,800);return;}
-    if(kind==="land"){this.land(5);return;}
-    const tones={countdown:[440,.08],go:[880,.18],qualify:[1046,.22],eliminate:[160,.25],checkpoint:[740,.1],dive:[290,.12],tile:[540,.06],impact:[95,.12],"tile-break":[210,.09],machinery:[82,.14]} as const;
-    const [frequency,duration]=tones[kind];this.tone(frequency,duration,"triangle",kind==="machinery"?.008:.028,kind==="eliminate"?90:frequency*1.3);
+  setPrAmbience(roundId:PrRoundId|null):void {
+    this.prRound=roundId;const desired=roundId?PR_AMBIENCE[roundId]:null;
+    for(const key of Object.values(PR_AMBIENCE))if(key!==desired)this.bank.stopLoop(key);
+    if(desired&&this.musicUnlocked)this.environment(desired,"pr");
   }
-  click(): void { this.tone(360, 0.04, "square", 0.025, 520); }
-  pickup(): void { this.tone(720, 0.1, "sine", 0.05, 1180); }
-  stolen(): void { this.tone(610, 0.08, "square", 0.045, 980); setTimeout(() => this.tone(880, 0.12, "triangle", 0.04, 1320), 65); }
-  jump(): void { this.tone(190, 0.12, "triangle", 0.04, 330); }
-  land(impact = 5): void {
-    const weight = Math.min(1, Math.max(.35, impact / 11));
-    this.noise(0.05 + weight * .06, 0.018 + weight * .025, 150 + weight * 120);
-    this.tone(105 - weight * 25, 0.06 + weight * .06, "sine", 0.016 + weight * .024, 58);
+  pgBeam(active:boolean):void {
+    this.beamActive=active;
+    if(!active){this.bank.stopLoop("pg.beam");return;}
+    if(this.musicUnlocked)this.bank.setLoop("pg.beam","kenney-sci-fi:forceField_000",{gain:.045,priority:50,rate:1,group:"pg",tag:"pg.beam"});
   }
-  burst(): void { this.noise(0.11, 0.045, 900); this.tone(170, 0.14, "sawtooth", 0.035, 360); }
-  grapple(): void { this.tone(130, 0.16, "sawtooth", 0.035, 90); }
-  tether(): void { this.tone(220, .12, "triangle", .035, 520); this.tone(92, .18, "sine", .02, 62); }
-  grappleRelease(): void { this.tone(180, 0.07, "triangle", 0.025, 280); }
-  cannonTrigger(heavy: boolean): void { this.tone(heavy ? 82 : 145, .055, "square", .018, heavy ? 64 : 118); }
-  denied(): void { this.tone(125, .055, "square", .018, 92); }
-  launch(): void { this.duckMusic(480, .55); this.noise(0.24, 0.1, 760); this.tone(110, 0.32, "sawtooth", 0.065, 520); }
-  shove(): void { this.noise(0.09, 0.065, 420); this.tone(120, 0.11, "square", 0.045, 75); }
-  sabotage(): void { this.noise(0.2, 0.035, 1200); this.tone(390, 0.28, "square", 0.035, 105); }
-  intruder(): void { this.tone(520, 0.08, "square", 0.04, 350); setTimeout(() => this.tone(520, 0.08, "square", 0.035, 350), 120); }
-  incoming(heavy: boolean): void {
-    this.tone(heavy ? 190 : 310, heavy ? 0.2 : 0.12, "triangle", heavy ? 0.045 : 0.03, heavy ? 95 : 220);
-    setTimeout(() => this.tone(heavy ? 150 : 280, 0.1, "square", heavy ? 0.035 : 0.022, heavy ? 80 : 210), heavy ? 170 : 130);
+  pgWeapon(weapon:PgWeaponId):void {this.weapon(PG_AUDIO_FAMILY[weapon],false,undefined,"pg");}
+  pgRemoteWeapon(weapon:PgWeaponId,source:AudioPosition,listener:AudioPosition,yaw:number):void {this.weapon(PG_AUDIO_FAMILY[weapon],true,{source,listener,yaw},"pg");}
+  pgReloadPhase(weapon:PgWeaponId,phase:PgReloadAudioPhase):void {
+    const family=WEAPON_AUDIO[PG_AUDIO_FAMILY[weapon]];
+    const cues:Readonly<Partial<Record<string,string>>>=family.reload;
+    const cue=cues[PG_RELOAD_PHASE[phase]];if(cue)this.cue(cue,undefined,"pg");
   }
-  brWeapon(weapon: string): void {
-    if (weapon === "pulse-rifle") { this.playSample("laser-small",.18,1.03);this.tone(210,.055,"square",.026,410); this.noise(.035,.018,1500); }
-    else if (weapon === "nova-smg") { this.playSample("laser-small",.13,1.18);this.tone(310,.035,"sawtooth",.018,210); this.noise(.025,.014,2200); }
-    else if (weapon === "photon-shotgun") { this.playSample("laser-large",.24,.76);this.duckMusic(120,.18);this.noise(.13,.085,720);this.tone(115,.15,"square",.055,58); }
-    else if (weapon === "rail-laser") { this.playSample("laser-large",.22,1.14);this.tone(1080,.11,"sine",.04,1820);setTimeout(()=>this.tone(170,.18,"sawtooth",.046,72),42); }
-    else if (weapon === "plasma-launcher") { this.playSample("plasma-explosion",.18,.82);this.tone(125,.22,"sine",.055,420);this.noise(.08,.035,520); }
-    else if (weapon === "arc-blaster") { this.playSample("shield-hit",.15,1.18);this.tone(760,.08,"square",.028,280);setTimeout(()=>this.tone(1120,.055,"triangle",.018,650),28); }
-    else if (weapon === "energy-saber") { this.noise(.09,.036,1300);this.tone(240,.16,"sawtooth",.035,480); }
-    else if(weapon==="helix-burst-rifle"){this.tone(540,.055,"triangle",.035,260);this.noise(.025,.017,1800);}
-    else if(weapon==="comet-hand-cannon"){this.playSample("metal-impact",.12,.68);this.tone(95,.16,"sine",.065,48);this.noise(.045,.035,680);}
-    else if(weapon==="quasar-carbine"){this.tone(920,.08,"sine",.035,1540);this.tone(320,.11,"triangle",.018,180);}
-    else if(weapon==="prism-beam"){this.tone(340,.13,"sine",.012,365);this.tone(680,.12,"triangle",.005,710);}
-    else if(weapon==="vortex-cannon"){this.tone(62,.35,"sine",.06,42);this.noise(.16,.025,280);this.tone(150,.24,"triangle",.024,80);}
-  }
-  hitConfirm(kind:"shield"|"hp"|"break"|"headshot"):void {
-    const start=kind==="headshot"?980:kind==="break"?760:kind==="shield"?610:430;
-    this.tone(start,kind==="break"?.13:.065,kind==="hp"?"square":"triangle",.025,kind==="break"?1260:start*1.18);
-    if(kind==="break")this.noise(.09,.026,1800);
-    if(kind==="shield")this.playSample("shield-hit",.12,1.08);
-    else if(kind==="break")this.playSample("shield-break",.19,.96);
-    else if(kind==="hp"||kind==="headshot")this.playSample("metal-impact",kind==="headshot"?.16:.1,kind==="headshot"?1.2:1);
-  }
-  footstep(sprinting=false):void { this.playSample(Math.random()>.5?"footstep-1":"footstep-2",sprinting?.11:.075,sprinting?1.08:.94);this.noise(.035,sprinting?.02:.013,sprinting?330:260);this.tone(sprinting?92:115,.035,"sine",.009,70); }
-  slide():void { this.noise(.17,.03,540); }
-  mantle():void { this.noise(.07,.023,420);this.tone(145,.08,"triangle",.016,95); }
-  wings():void { this.tone(280,.28,"sine",.04,840);this.noise(.16,.025,1600); }
-  brJumpShip():void { this.duckMusic(220,.2);this.noise(.18,.03,980);this.tone(150,.24,"sawtooth",.028,410); }
+  brRemoteWeapon(weapon:string,source:AudioPosition,listener:AudioPosition,yaw:number):void {this.weapon(weapon,true,{source,listener,yaw},"br");}
+  brWeapon(weapon:string):void {this.weapon(weapon,false,undefined,"br");}
+  brCharge():void {this.cue("br.charge",undefined,"br");}
+  brScannerPulse(source:AudioPosition,listener:AudioPosition,yaw:number):void {this.cue("br.scanner",{source,listener,yaw},"br");}
+  brRemoteFootstep(source:AudioPosition,listener:AudioPosition,yaw:number,sprinting=false):void {this.cue("movement.footstep-composite",{source,listener,yaw},this.currentGroup,sprinting?1.12:.85);}
+  brImpact(source:AudioPosition,listener:AudioPosition,yaw:number):void {this.cue("br.impact",{source,listener,yaw},"br");}
+  brFlyby(source:AudioPosition,listener:AudioPosition,yaw:number):void {this.cue("br.flyby",{source,listener,yaw},"br");}
+  brLoot(crate=false):void {this.cue(crate?"br.crate":"br.loot",undefined,"br");}
+  prCue(kind:PrAudioCue):void {this.cue(PR_AUDIO_CUES[kind],undefined,"pr");}
+  click():void {this.cue("ui.click");}
+  pickup():void {this.cue("classic.pickup");}
+  stolen():void {this.cue("classic.stolen");}
+  jump():void {this.cue("movement.jump");}
+  land(impact=5):void {this.cue(impact>=8?"movement.land-heavy":"movement.land-light",undefined,this.currentGroup,Math.min(1.2,Math.max(.55,impact/9)));}
+  burst():void {this.cue("movement.thrust");}
+  grapple():void {this.cue("classic.grapple");}
+  tether():void {this.cue("classic.tether");}
+  grappleRelease():void {this.cue("classic.grapple-release");}
+  cannonTrigger(heavy:boolean):void {this.cue(heavy?"classic.cannon-trigger-heavy":"classic.cannon-trigger");}
+  denied():void {this.cue("ui.error");}
+  launch():void {this.duckMusic(480,.35);this.cue("classic.launch");}
+  shove():void {this.cue("classic.shove");}
+  sabotage():void {this.cue("classic.sabotage");}
+  intruder():void {this.cue("classic.intruder");}
+  incoming(heavy:boolean):void {this.cue(heavy?"classic.incoming-heavy":"classic.incoming");}
+  hitConfirm(kind:"shield"|"hp"|"break"|"headshot"):void {this.cue("br.hit-"+kind);}
+  footstep(sprinting=false):void {this.cue("movement.footstep-composite",undefined,this.currentGroup,sprinting?1.12:.85);}
+  slide():void {this.cue("movement.slide");}
+  mantle():void {this.cue("movement.mantle");}
+  wings():void {this.cue(this.musicScene==="planet-gun"?"movement.wallrun":"movement.wings");}
+  brJumpShip():void {this.duckMusic(220,.2);this.cue("br.jump-ship",undefined,"br");}
+  /** BR's legacy start event emits release only. PG phase completion belongs to
+   * authoritative animation callbacks and is never scheduled here. */
   brReload(weapon:string):void {
-    const heavy=weapon==="photon-shotgun"||weapon==="plasma-launcher"||weapon==="rail-laser";
-    this.tone(heavy?170:260,.07,"square",.018,heavy?120:340);
-    setTimeout(()=>this.tone(heavy?310:470,.09,"triangle",.02,heavy?520:690),95);
+    const family=this.family(weapon);if(family&&"release" in family.reload)this.cue(family.reload.release,undefined,"br");
   }
-  brEmpty():void { this.tone(92,.045,"square",.018,72);setTimeout(()=>this.tone(76,.035,"square",.012,68),54); }
-  brUseItem(shield=false):void { this.tone(shield?520:330,.2,"sine",.025,shield?910:540);this.noise(.06,.012,shield?1450:760); }
-  brVoid(urgent=false):void { this.duckMusic(urgent?420:260,urgent?.34:.2);this.tone(urgent?118:175,urgent?.28:.2,"sawtooth",urgent?.04:.027,urgent?72:112);setTimeout(()=>this.tone(urgent?96:148,.16,"triangle",urgent?.03:.02,urgent?64:105),150); }
-  brEvent(kind:"closing"|"safe"|"final"|"inventory"):void {
-    if(kind==="inventory"){this.tone(420,.055,"triangle",.018,610);return;}
-    const notes=kind==="final"?[155,116]:kind==="closing"?[310,235]:[440,620];
-    notes.forEach((note,index)=>setTimeout(()=>this.tone(note,.13,kind==="final"?"sawtooth":"triangle",kind==="final"?.035:.024,note*.82),index*105));
-  }
-  critical(): void { this.tone(160, .16, "triangle", .035, 105); setTimeout(() => this.tone(130, .18, "triangle", .03, 82), 190); }
-  rocket(): void { this.noise(0.18, 0.14, 600); this.tone(95, 0.18, "sawtooth", 0.07, 45); }
-  asteroid(): void { this.duckMusic(520, .62); this.noise(0.28, 0.19, 320); this.tone(64, 0.3, "square", 0.08, 38); }
-  cluster(): void { this.noise(.13, .08, 880); this.tone(220, .18, "square", .045, 410); }
-  clusterBurst(): void {
-    this.noise(.16, .08, 1100);
-    [420, 560, 740].forEach((note, index) => setTimeout(() => this.tone(note, .07, "triangle", .025, note * 1.22), index * 28));
-  }
-  gravityBomb(): void { this.duckMusic(360, .38); this.tone(260, .32, "sine", .055, 52); this.tone(110, .25, "triangle", .035, 48); }
-  explosion(heavy = false): void { if (heavy) this.duckMusic(850, .72); this.noise(heavy ? 0.7 : 0.42, heavy ? 0.3 : 0.2, heavy ? 170 : 260); }
-  repair(): void { this.tone(420, 0.22, "sine", 0.04, 820); }
-  countdown(value: number): void { this.tone(value === 0 ? 660 : 300 + value * 55, value === 0 ? .22 : .08, "square", value === 0 ? .045 : .025, value === 0 ? 980 : 360 + value * 55); }
-  chaos(): void {
-    this.duckMusic(700, .6);
-    [220, 330, 494].forEach((note, index) => setTimeout(() => this.tone(note, .16, index === 2 ? "square" : "triangle", .035, note * 1.28), index * 85));
-  }
-  result(won: boolean): void {
-    const notes = won ? [440, 554, 659, 880] : [280, 235, 196];
-    notes.forEach((note, index) => setTimeout(() => this.tone(note, .18, "triangle", .035, note * 1.04), index * 110));
-  }
+  brEmpty():void {this.cue("weapon.pulse-rifle.empty");}
+  brUseItem(shield=false):void {this.cue(shield?"br.use-shield":"br.use-health",undefined,"br");}
+  brVoid(urgent=false):void {this.duckMusic(420,.25);this.cue(urgent?"br.void-urgent":"br.void",undefined,"br");}
+  brEvent(kind:"closing"|"safe"|"final"|"inventory"):void {this.cue(kind==="inventory"?"ui.inventory":"br.zone-"+kind,undefined,"br");}
+  critical():void {this.cue("match.critical");}
+  rocket():void {this.cue("classic.rocket");}
+  asteroid():void {this.duckMusic(520,.45);this.cue("classic.asteroid");}
+  cluster():void {this.cue("classic.cluster");}
+  clusterBurst():void {this.cue("classic.cluster-burst");}
+  gravityBomb():void {this.duckMusic(360,.25);this.cue("classic.gravity-bomb");}
+  explosion(heavy=false):void {if(heavy)this.duckMusic(850,.5);this.cue(heavy?"classic.explosion-heavy":"classic.explosion");}
+  repair():void {this.cue("classic.repair");}
+  countdown(value:number):void {this.cue(value===0?"match.go":"match.countdown");}
+  chaos():void {this.duckMusic(700,.4);this.cue("match.chaos");}
+  result(won:boolean):void {this.cue(won?"match.win":"match.loss");}
+  highFive():void {this.cue("social.high-five");}
+  levelUp():void {this.cue("match.level-up");}
+  callout(heavy=false):void {this.duckMusic(300,.2);this.cue(heavy?"match.callout-urgent":"match.callout");}
 
-  private fadeMusicIn(active: HTMLAudioElement, transition: number): void {
+  private get currentGroup():string {return this.musicScene==="battle-royale"?"br":this.musicScene==="planet-gun"?"pg":this.musicScene==="planet-run"?"pr":"classic";}
+  private family(weapon:string){return Object.hasOwn(WEAPON_AUDIO,weapon)?WEAPON_AUDIO[weapon as WeaponAudioId]:null;}
+  private weapon(weapon:string,remote:boolean,spatial?:Spatial,group=this.currentGroup):void {
+    const family=this.family(weapon);if(family)this.cue(remote?family.distant:family.fire,spatial,group);
+  }
+  private cue(id:string,spatial?:Spatial,group=this.currentGroup,scale=1):void {
+    if(!this.musicUnlocked)return;
+    const cue=AUDIO_CUES[id];if(!cue)return;
+    const now=performance.now(),last=this.lastCue.get(id)??-Infinity;
+    // Spatial events from separate pilots must not share a global cooldown.
+    if(!spatial&&now-last<cue.cooldownMs)return;
+    if(!spatial)this.lastCue.set(id,now);
+    const mix=spatial?brSpatialMix(spatial.source,spatial.listener,spatial.yaw,cue.range||180):{gain:1,pan:0,cutoff:20000};
+    if(mix.gain<.002)return;
+    const distance=spatial?Math.hypot(spatial.source.x-spatial.listener.x,spatial.source.y-spatial.listener.y,spatial.source.z-spatial.listener.z):0;
+    cue.layers.forEach((layer,index)=>{
+      const key=id+":"+index,previous=this.choices.get(key)??-1,count=layer.pool.length;
+      let chosen=Math.floor(Math.random()*(count>1&&previous>=0?count-1:count));if(count>1&&previous>=0&&chosen>=previous)chosen++;
+      const sample=layer.pool[chosen]!;this.choices.set(key,chosen);
+      this.bank.play(sample.sample,{gain:sample.gain*scale*mix.gain,rate:sample.rate*(1+(Math.random()*2-1)*sample.variation),pan:mix.pan,cutoff:mix.cutoff,priority:cue.priority,distance,duration:cue.duration,delaySeconds:layer.delayMs/1000,tag:id,group,limit:cue.limit});
+    });
+  }
+  private environment(key:string,group:string):void {
+    const loop=AMBIENCE_LOOPS[key];if(loop)this.bank.setLoop(key,loop.sample,{gain:loop.gain,priority:20,group,tag:key,cutoff:8500});
+  }
+  private makeMusic(source:string):HTMLAudioElement {
+    const music=new Audio(source);music.loop=true;music.preload="metadata";music.volume=0;return music;
+  }
+  private startMusic():void {
+    const active=this.activeMusic,transition=++this.musicTransition;this.cancelMusicFade();
+    if(!active.paused){this.fadeMusic(active,transition);return;}
+    active.volume=0;
+    void active.play().then(()=>{
+      if(active!==this.activeMusic){this.stopMusic(active);return;}
+      if(transition===this.musicTransition)this.fadeMusic(active,transition);
+    }).catch(()=>undefined);
+  }
+  private fadeMusic(active:HTMLAudioElement,transition:number):void {
     this.cancelMusicFade();
-    const outgoing = Object.values(this.music).filter(track => track !== active && !track.paused);
-    const timer = setInterval(() => {
-      if (transition !== this.musicTransition || active !== this.activeMusic) {
-        clearInterval(timer);
-        if (this.musicFade === timer) this.musicFade = null;
-        this.stopMusic(active);
-        return;
-      }
-      active.volume = Math.min(this.musicTarget, active.volume + .01);
-      for (const track of outgoing) {
-        track.volume = Math.max(0, track.volume - .015);
-        if (track.volume === 0) this.stopMusic(track);
-      }
-      if (active.volume >= this.musicTarget && outgoing.every(track => track.paused)) {
-        clearInterval(timer);
-        if (this.musicFade === timer) this.musicFade = null;
-      }
-    }, 90);
-    this.musicFade = timer;
+    this.musicFade=setInterval(()=>{
+      if(transition!==this.musicTransition||active!==this.activeMusic){this.cancelMusicFade();return;}
+      const target=this.musicTarget;active.volume=Math.max(0,Math.min(1,active.volume+Math.max(-.012,Math.min(.012,target-active.volume))));
+      let outgoing=false;
+      for(const track of Object.values(this.music))if(track!==active&&!track.paused){track.volume=Math.max(0,track.volume-.018);if(track.volume===0)this.stopMusic(track);else outgoing=true;}
+      if(Math.abs(active.volume-target)<.0001&&!outgoing&&performance.now()>=this.duckUntil)this.cancelMusicFade();
+    },45);
   }
-  highFive(): void { this.noise(.07, .035, 950); this.tone(520, .1, "square", .035, 840); setTimeout(() => this.tone(960, .1, "triangle", .026, 1220), 60); }
-  levelUp(): void { [440, 554, 659, 880].forEach((note, index) => setTimeout(() => this.tone(note, .16, "triangle", .035, note * 1.1), index * 70)); }
-  callout(heavy = false): void { this.duckMusic(300, .25); this.tone(heavy ? 110 : 210, .13, "square", heavy ? .044 : .03, heavy ? 72 : 330); }
-
-  private cancelMusicFade(): void {
-    if (!this.musicFade) return;
-    clearInterval(this.musicFade);
-    this.musicFade = null;
+  private duckMusic(duration:number,amount:number):void {
+    if(this.activeMusic.paused)return;
+    if(performance.now()>=this.duckUntil)this.duckAmount=0;
+    this.duckUntil=Math.max(this.duckUntil,performance.now()+duration);this.duckAmount=Math.max(this.duckAmount,amount);
+    this.activeMusic.volume=Math.min(this.activeMusic.volume,this.musicTarget);this.fadeMusic(this.activeMusic,this.musicTransition);
   }
-
-  private stopMusic(track: HTMLAudioElement): void {
-    track.pause();
-    track.volume = 0;
-  }
-
-  private stopInactiveMusic(active: HTMLAudioElement): void {
-    for (const track of Object.values(this.music)) {
-      if (track !== active) this.stopMusic(track);
-    }
-  }
-
-  private duckMusic(duration: number, amount: number): void {
-    const active = this.activeMusic;
-    if (active.paused) return;
-    const transition = this.musicTransition;
-    active.volume = Math.min(active.volume, this.musicTarget * (1 - amount));
-    setTimeout(() => {
-      if (this.activeMusic === active && transition === this.musicTransition) {
-        this.fadeMusicIn(active, transition);
-      }
-    }, duration);
-  }
-
-  private makeMusic(source: string): HTMLAudioElement {
-    const music = new Audio(source);
-    music.loop = true;
-    music.preload = "auto";
-    music.volume = 0;
-    return music;
-  }
-
-  private registerSample(name: string, source: string): void {
-    const sample = new Audio(source);
-    sample.preload = "auto";
-    this.samples.set(name, sample);
-  }
-
-  private makeLoop(source: string): HTMLAudioElement {
-    const loop = new Audio(source);
-    loop.loop = true;
-    loop.preload = "auto";
-    loop.volume = 0;
-    loop.dataset.mix = "0";
-    return loop;
-  }
-
-  private playSample(name: string, volume: number, playbackRate = 1): void {
-    this.spatialSample(name, {x:0,y:0,z:0}, {x:0,y:0,z:0}, 0, volume, 180, playbackRate);
-  }
-
-  private ramp(parameter: AudioParam, target: number, seconds: number): void {
-    if (!this.context) return;
-    const now = this.context.currentTime;
-    parameter.cancelScheduledValues(now); parameter.setValueAtTime(parameter.value, now);
-    parameter.linearRampToValueAtTime(target, now + seconds);
-  }
-
-  private mediaRoute(element: HTMLAudioElement, initialGain = 1): MediaRoute | null {
-    if (!this.context) return null;
-    const existing = this.routes.get(element); if (existing) return existing;
-    const source = this.context.createMediaElementSource(element);
-    const filter = this.context.createBiquadFilter(), shelf = this.context.createBiquadFilter();
-    filter.type = "lowpass"; filter.frequency.value = 20000; filter.Q.value = .5;
-    shelf.type = "lowshelf"; shelf.frequency.value = 180; shelf.gain.value = 0;
-    const gain = this.context.createGain(), pan = this.context.createStereoPanner();
-    gain.gain.value = initialGain;
-    source.connect(filter).connect(shelf).connect(gain).connect(pan).connect(this.context.destination);
-    const route = {source, filter, shelf, gain, pan}; this.routes.set(element, route); return route;
-  }
-
-  private configureLoop(kind: "starliner" | "skimmer" | "drop", loop: HTMLAudioElement): void {
-    const route = this.mediaRoute(loop, 0); if (!route) return;
-    route.filter.frequency.value = kind === "starliner" ? 680 : kind === "drop" ? 1000 : 1800;
-    route.shelf.gain.value = kind === "starliner" ? 3 : 0;
-  }
-
-  private setLoopGain(loop: HTMLAudioElement, mix: number): void {
-    const route = this.mediaRoute(loop, 0);
-    if (route) { loop.volume = 1; this.ramp(route.gain.gain, mix, .18); }
-    else loop.volume = mix;
-  }
-
-  private pauseLoopAfterFade(loop: HTMLAudioElement): void {
-    if (this.loopStops.has(loop) || loop.paused) return;
-    const pause = () => { this.loopStops.delete(loop); if (Number(loop.dataset.mix) === 0) { loop.pause(); loop.currentTime = 0; } };
-    if (!this.context) { pause(); return; }
-    this.loopStops.set(loop, setTimeout(pause, 220));
-  }
-
-  private spatialSample(name: string, source: AudioPosition, listener: AudioPosition, yaw: number, volume: number, range: number, rate = 1): void {
-    if (!this.musicUnlocked) return;
-    const mix = brSpatialMix(source, listener, yaw, range);
-    const template = this.samples.get(name); if (!template || mix.gain < .002) return;
-    if (this.voices.size >= 16) this.releaseVoice(this.voices.values().next().value!);
-    const element = template.cloneNode(true) as HTMLAudioElement;
-    const route = this.mediaRoute(element), gain = Math.min(1, Math.max(0, volume * mix.gain));
-    element.playbackRate = Math.min(2, Math.max(.5, rate));
-    if (route) { element.volume = 1; route.gain.gain.value = gain * this.sfxVolume; route.pan.pan.value = mix.pan; route.filter.frequency.value = mix.cutoff; }
-    else element.volume = gain * this.sfxVolume;
-    const voice: SampleVoice = {element, route, mix:gain, timer:setTimeout(() => this.releaseVoice(voice), 2500)};
-    this.voices.add(voice); element.onended = () => this.releaseVoice(voice);
-    void element.play().catch(() => this.releaseVoice(voice));
-  }
-
-  private releaseVoice(voice: SampleVoice): void {
-    if (!this.voices.delete(voice)) return;
-    clearTimeout(voice.timer); voice.element.pause(); voice.element.onended = null;
-    if (voice.route) for (const node of Object.values(voice.route)) node.disconnect();
-  }
-
-  private tone(start: number, duration: number, type: OscillatorType, gain: number, end = start): void {
-    if (!this.context) return;
-    const now = this.context.currentTime;
-    const oscillator = this.context.createOscillator();
-    const volume = this.context.createGain();
-    oscillator.type = type;
-    oscillator.frequency.setValueAtTime(start, now);
-    oscillator.frequency.exponentialRampToValueAtTime(Math.max(20, end), now + duration);
-    volume.gain.setValueAtTime(Math.max(.0001, gain * this.sfxVolume), now);
-    volume.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-    oscillator.connect(volume).connect(this.context.destination);
-    oscillator.start(now);
-    oscillator.stop(now + duration);
-  }
-
-  private noise(duration: number, gain: number, cutoff: number): void {
-    if (!this.context) return;
-    const frames = Math.ceil(this.context.sampleRate * duration);
-    const buffer = this.context.createBuffer(1, frames, this.context.sampleRate);
-    const channel = buffer.getChannelData(0);
-    for (let i = 0; i < frames; i++) channel[i] = (Math.random() * 2 - 1) * (1 - i / frames);
-    const source = this.context.createBufferSource();
-    const filter = this.context.createBiquadFilter();
-    const volume = this.context.createGain();
-    filter.type = "lowpass";
-    filter.frequency.value = cutoff;
-    volume.gain.value = gain * this.sfxVolume;
-    source.buffer = buffer;
-    source.connect(filter).connect(volume).connect(this.context.destination);
-    source.start();
-  }
+  private cancelMusicFade():void {if(this.musicFade!==null){clearInterval(this.musicFade);this.musicFade=null;}}
+  private stopMusic(track:HTMLAudioElement):void {track.pause();track.volume=0;}
+  private stopInactiveMusic():void {for(const track of Object.values(this.music))if(track!==this.activeMusic)this.stopMusic(track);}
 }

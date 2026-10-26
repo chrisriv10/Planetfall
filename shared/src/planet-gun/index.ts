@@ -4,3 +4,4 @@ export * from "./map.js";
 export * from "./math.js";
 export * from "./movement.js";
 export * from "./weapons.js";
+export * from "./loadouts.js";

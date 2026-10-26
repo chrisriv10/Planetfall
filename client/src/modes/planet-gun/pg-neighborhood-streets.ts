@@ -50,6 +50,16 @@ export function buildPgNeighborhoodStreets(ctx:PgArtContext):void{
     surface(`crossing-habitat-${i}`,[8.3,7.9+i*.48,11.7,8.14+i*.48],"ivory",.023);
     surface(`crossing-engineering-${i}`,[14.4+i*.48,-8.7,14.65+i*.48,-5.3],"ivory",.023);
   }
+  // Two maintained drain runs belong to the sidewalk edge, not combat lanes.
+  // Their shallow relief and regular access joints break up the broad paving.
+  for(const [x,z,length]of [[7.35,14,14],[-27,7.55,8]]as const){
+    const alongZ=x>0;
+    surface(`walk-drain-${x}`,[x-.09,z-.09,x+(alongZ?.09:length),z+(alongZ?length:.09)],"frame",.021);
+    for(let i=0;i<4;i++){
+      const a=length*(i+.5)/4;
+      surface(`walk-drain-joint-${x}-${i}`,[x+(alongZ?-.12:a),z+(alongZ?a:-.12),x+(alongZ?.12:a+.045),z+(alongZ?a+.045:.12)],"ivory",.025);
+    }
+  }
   // The relay is a purposeful small civic plaza. Rings are horizontal flush
   // paving segments, omitted wherever the real console occupies the ground.
   for(let i=0;i<32;i++){
@@ -79,6 +89,13 @@ export function buildPgNeighborhoodStreets(ctx:PgArtContext):void{
       ctx.add(`${bed.id}-shrub-${i}`,"sphere","leaf",[x,top+.22,z,.65,.35,.58]);
     }
     ctx.add(`${bed.id}-irrigation`,"box","frame",[c.x-h.x+.25,top+.023,c.z,.035,.035,h.z*2-.5],undefined,true);
+    // Maintenance badges and irrigation controls sit flush against real beds.
+    // The transit bank carries a route diagram; planted beds use a water gauge.
+    const face=c.z+h.z+.013;
+    ctx.add(`${bed.id}-maintenance-label`,"box","frame",[c.x,top-.23,face,Math.min(1.1,h.x),.24,.016]);
+    const transit=bed.id==="transit-ticket-bank";
+    ctx.add(`${bed.id}-maintenance-readout`,"box","cyan",[c.x,top-.23,face+.012,transit?.8:.38,.025,.006]);
+    for(let i=0;i<(transit?3:2);i++)ctx.add(`${bed.id}-maintenance-stop-${i}`,"box","ivory",[c.x+(i-(transit?1:.5))*.28,top-.23,face+.018,.045,.08,.004]);
   }
   for(const trunk of PG_MAP.solids.filter(s=>s.id.startsWith("garden-tree-"))){
     const {center:c,half:h}=trunk,top=c.y+h.y;

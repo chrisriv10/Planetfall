@@ -1,0 +1,45 @@
+{
+  "author": "GboxMikeFozzy",
+  "page": "https://opengameart.org/content/footsteps-0",
+  "license": "CC0-1.0",
+  "sourcePageSha256": "0d46970df4a2afefae4125d9763039f1a062eb7499634693debba090fba41458",
+  "verifiedDate": "2026-10-25",
+  "downloads": [
+    {
+      "url": "https://opengameart.org/sites/default/files/01-footstep_0.ogg",
+      "filename": "01-footstep_0.ogg",
+      "bytes": 9715,
+      "sha256": "33c9bef5e8aeb1069455699a34a0c5e1ef1787fd3f61594b0859d7e6bb9f9dec"
+    },
+    {
+      "url": "https://opengameart.org/sites/default/files/02-footstep.ogg",
+      "filename": "02-footstep.ogg",
+      "bytes": 10531,
+      "sha256": "f05396c807eb8eaecffb2a1ead611ec971c5a7914d1d081c91d7796e852692a2"
+    },
+    {
+      "url": "https://opengameart.org/sites/default/files/03-footstep.ogg",
+      "filename": "03-footstep.ogg",
+      "bytes": 14136,
+      "sha256": "9817cc93897ed1de5da87675b26be4196bfda3daa6f1de9dc4398a68d250cdb9"
+    },
+    {
+      "url": "https://opengameart.org/sites/default/files/04-footstep.ogg",
+      "filename": "04-footstep.ogg",
+      "bytes": 13771,
+      "sha256": "b373ff981e44d6f7ba2291225a4803078771029615ed81606136fdb9599906d5"
+    },
+    {
+      "url": "https://opengameart.org/sites/default/files/05-footstep.ogg",
+      "filename": "05-footstep.ogg",
+      "bytes": 13595,
+      "sha256": "f1b4893dd3cebe23438567a0dcaf047848a52b594e7eb03e5c212d99e83d2298"
+    },
+    {
+      "url": "https://opengameart.org/sites/default/files/06-footstep.ogg",
+      "filename": "06-footstep.ogg",
+      "bytes": 11329,
+      "sha256": "39147cc1b98abb4b5378ad07b15d50d18f2aa0f0fd2f5514f078c1e574d14773"
+    }
+  ]
+}

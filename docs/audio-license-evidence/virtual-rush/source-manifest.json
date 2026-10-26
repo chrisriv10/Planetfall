@@ -1,0 +1,21 @@
+{
+  "author": "vitalezzz",
+  "page": "https://opengameart.org/content/virtual-rush",
+  "license": "CC0-1.0",
+  "sourcePageSha256": "ff59f9b6ae04c8a7cd70665d9909015b8bdd8222581ff130a64fc2ecd7f56c5b",
+  "verifiedDate": "2026-10-25",
+  "downloads": [
+    {
+      "url": "https://opengameart.org/sites/default/files/virtual_rush_2.mp3",
+      "filename": "virtual_rush_2.mp3",
+      "bytes": 6341541,
+      "sha256": "d8477fef3511da6dd27eca9ba0ecbb14de817507bcc03d963f2fcf353c879290"
+    },
+    {
+      "url": "https://opengameart.org/sites/default/files/virtual_rush_loop_0.mp3",
+      "filename": "virtual_rush_loop_0.mp3",
+      "bytes": 6441852,
+      "sha256": "be1bef582464c164f11869291662ed04fa9844af1921b558853be7e9b7b0d5e5"
+    }
+  ]
+}

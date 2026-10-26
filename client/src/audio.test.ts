@@ -1,99 +1,65 @@
 import {afterEach,beforeEach,describe,expect,it,vi} from "vitest";
 import {GameAudio,musicSceneForScreen} from "./audio";
+import {AUDIO_CUES,MUSIC_TRACKS,PG_AUDIO_FAMILY,PR_AUDIO_CUES,SAMPLE_URLS,WEAPON_AUDIO} from "./audio-catalog";
+import {AudioSampleBank} from "./audio-sample-bank";
+import {FakeAudio,FakeAudioContext,installAudioFakes} from "./audio-test-fakes";
 
-class FakeAudio {
-  static instances:FakeAudio[]=[];
-  loop=false;preload="";volume=0;playbackRate=1;paused=true;currentTime=0;
-  dataset:Record<string,string>={};plays=0;
-  constructor(public src=""){FakeAudio.instances.push(this);}
-  play(){this.paused=false;this.plays++;return Promise.resolve();}
-  pause(){this.paused=true;}
-  cloneNode(){return new FakeAudio(this.src);}
-}
-
-describe("Battle Royale sample audio lifecycle",()=>{
-  beforeEach(()=>{FakeAudio.instances=[];vi.stubGlobal("Audio",FakeAudio);});
-  afterEach(()=>{vi.useRealTimers();vi.unstubAllGlobals();});
-
-  it("keeps the same BR track playing through lobby, gameplay, results and rematch",async()=>{
-    vi.useFakeTimers();
-    const audio=new GameAudio();Object.assign(audio,{musicUnlocked:true});
-    const track=FakeAudio.instances.find(entry=>entry.src.endsWith("orbital-drift.ogg"))!;
+describe("licensed game audio integration",()=>{
+  beforeEach(()=>{vi.useFakeTimers();installAudioFakes();});
+  afterEach(()=>{vi.useRealTimers();vi.unstubAllGlobals();vi.restoreAllMocks();});
+  async function ready(){const audio=new GameAudio();audio.unlock();await (audio as unknown as {bank:AudioSampleBank}).bank.preload(Object.keys(SAMPLE_URLS));return audio;}
+  it("retains one BR music playhead across lobby, combat, results and rematch",async()=>{
+    const audio=await ready(),track=FakeAudio.instances.find(entry=>entry.src===MUSIC_TRACKS["battle-royale"].url)!;
     for(const screen of ["brLobby","brHud","brResults","brLobby"]){
-      audio.setMusicScene(musicSceneForScreen(screen));
-      await Promise.resolve();await vi.advanceTimersByTimeAsync(1200);
-      track.currentTime=42;
-      expect(track.paused).toBe(false);
-      expect(track.plays).toBe(1);
+      audio.setMusicScene(musicSceneForScreen(screen));await Promise.resolve();await vi.advanceTimersByTimeAsync(1200);track.currentTime=42;
+      expect(track.paused).toBe(false);expect(track.plays).toBe(1);
     }
     expect(track.currentTime).toBe(42);
-    audio.setMusicScene(musicSceneForScreen("home"));
-    await Promise.resolve();await vi.advanceTimersByTimeAsync(1200);
-    expect(track.paused).toBe(true);
-    expect(musicSceneForScreen("hud")).toBe("game");
+    audio.setMusicScene("menu");await Promise.resolve();await vi.advanceTimersByTimeAsync(1200);expect(track.paused).toBe(true);
   });
-
-  it("starts the first transport loop from silence, not the Web Audio default gain",()=>{
-    const audio=new GameAudio();
-    const parameter=(value=0)=>({value,cancelScheduledValues:vi.fn(),setValueAtTime:vi.fn(),linearRampToValueAtTime:vi.fn()});
-    const node=()=>({connect(){return this;},disconnect:vi.fn(),frequency:parameter(),Q:parameter(),gain:parameter(),pan:parameter()});
-    const gainNode={...node(),gain:parameter(1)};
-    Object.assign(audio,{musicUnlocked:true,context:{currentTime:12,destination:{},createMediaElementSource:node,createBiquadFilter:node,createGain:()=>gainNode,createStereoPanner:node}});
-    audio.setBrLoop("starliner",true);
-    expect(gainNode.gain.setValueAtTime).toHaveBeenCalledWith(0,12);
-    expect(gainNode.gain.linearRampToValueAtTime).toHaveBeenCalledWith(.065*.9,12.18);
-    const loop=FakeAudio.instances.find(entry=>entry.src.endsWith("br-starliner-engine.ogg"))!;
-    expect(loop.plays).toBe(1);
+  it("crossfades scenes and keeps user music/SFX settings independent",async()=>{
+    const audio=await ready();await vi.advanceTimersByTimeAsync(1200);
+    const menu=FakeAudio.instances.find(entry=>entry.src===MUSIC_TRACKS.menu.url)!;expect(menu.volume).toBeCloseTo(MUSIC_TRACKS.menu.gain*.8);
+    audio.setMusicScene("planet-gun");await Promise.resolve();expect(menu.paused).toBe(false);await vi.advanceTimersByTimeAsync(1200);expect(menu.paused).toBe(true);
+    audio.setVolumes(.5,.25);const pg=FakeAudio.instances.find(entry=>entry.src===MUSIC_TRACKS["planet-gun"].url)!;
+    expect(pg.volume).toBeCloseTo(MUSIC_TRACKS["planet-gun"].gain*.5);
+    expect(FakeAudioContext.instances[0]!.gains[0]!.gain.linearRampToValueAtTime).toHaveBeenLastCalledWith(.25,10.035);
   });
-
-  it("finishes a loop fade even when inactive is reported every frame",async()=>{
-    vi.useFakeTimers();
-    const audio=new GameAudio();
-    const parameter=()=>({value:0,cancelScheduledValues:vi.fn(),setValueAtTime:vi.fn(),linearRampToValueAtTime:vi.fn()});
-    const node=()=>({connect(){return this;},disconnect:vi.fn(),frequency:parameter(),Q:parameter(),gain:parameter(),pan:parameter()});
-    Object.assign(audio,{musicUnlocked:true,context:{currentTime:0,destination:{},createMediaElementSource:node,createBiquadFilter:node,createGain:node,createStereoPanner:node}});
-    audio.setBrLoop("starliner",true);
-    const loop=FakeAudio.instances.find(entry=>entry.src.endsWith("br-starliner-engine.ogg"))!;
-    expect(loop.paused).toBe(false);
-    for(let i=0;i<20;i++){audio.setBrLoop("starliner",false);await vi.advanceTimersByTimeAsync(16);}
-    expect(loop.paused).toBe(true);
-    expect(loop.currentTime).toBe(0);
+  it("bounds weapon voices without HTML audio cloning or new media routes per shot",async()=>{
+    const audio=await ready(),context=FakeAudioContext.instances[0]!;
+    for(let i=0;i<40;i++)audio.pgRemoteWeapon("pulse",{x:1,y:0,z:0},{x:0,y:0,z:0},0);
+    expect(audio.debugState().oneShotCount).toBeLessThanOrEqual(16);expect(audio.debugState().activeVoices).toBeGreaterThan(0);
+    expect(context.createMediaElementSource).toHaveBeenCalledTimes(5);expect(FakeAudio.instances).toHaveLength(5);
+    expect(context.createDynamicsCompressor).toHaveBeenCalledTimes(1);
+    const count=context.sources.length;audio.pgRemoteWeapon("pulse",{x:400,y:0,z:0},{x:0,y:0,z:0},0);expect(context.sources).toHaveLength(count);
   });
-
-  it("bounds remote voices and fades the previous music scene out",async()=>{
-    vi.useFakeTimers();
-    const audio=new GameAudio();Object.assign(audio,{musicUnlocked:true});
-    const menu=FakeAudio.instances.find(entry=>entry.src.endsWith("low-battery.ogg"))!;
-    menu.paused=false;menu.volume=.14;
-    audio.setMusicScene("battle-royale");await Promise.resolve();
-    expect(menu.paused).toBe(false);
-    await vi.advanceTimersByTimeAsync(1200);
-    expect(menu.paused).toBe(true);
-    const source={x:1,y:0,z:0},listener={x:0,y:0,z:0};
-    for(let i=0;i<30;i++)audio.brRemoteWeapon("pulse-rifle",source,listener,0);
-    expect(FakeAudio.instances.filter(x=>x.src.endsWith("br-laser-small.ogg")&&!x.paused)).toHaveLength(16);
-    audio.stopBrLoops();
-    expect(FakeAudio.instances.filter(x=>x.src.endsWith("br-laser-small.ogg")&&!x.paused)).toHaveLength(0);
+  it("uses phase events for reload contacts and schedules no completion after start",async()=>{
+    const audio=await ready(),bank=(audio as unknown as {bank:AudioSampleBank}).bank,play=vi.spyOn(bank,"play");
+    audio.pgReloadPhase("orbit","start");const count=play.mock.calls.length;expect(count).toBeGreaterThan(0);
+    await vi.advanceTimersByTimeAsync(4000);expect(play).toHaveBeenCalledTimes(count);
+    audio.pgReloadPhase("orbit","insert");expect(play.mock.calls.length).toBeGreaterThan(count);
+    const phase=WEAPON_AUDIO[PG_AUDIO_FAMILY.orbit].reload.insert;
+    expect(play.mock.calls.at(-1)![0]).toBe(AUDIO_CUES[phase]!.layers[0]!.pool[0]!.sample);
   });
-
-  it("preloads the curated local sample set and stops all continuous mode loops",()=>{
-    const audio=new GameAudio();
-    const sources=FakeAudio.instances.map(entry=>entry.src);
-    expect(sources.filter(source=>source.startsWith("/audio/br/")&&!source.endsWith("orbital-drift.ogg"))).toHaveLength(11);
-    expect(sources).toContain("/audio/br/orbital-drift.ogg");
-    expect(new Set(sources)).toContain("/audio/br/br-starliner-engine.ogg");
-    expect(new Set(sources)).toContain("/audio/br/br-footstep-1.ogg");
-    // Simulate the one-time browser gesture without constructing Web Audio;
-    // loop lifecycle itself belongs to HTMLAudioElement.
-    Object.assign(audio,{musicUnlocked:true});
-    audio.setBrLoop("starliner",true,.8);
-    audio.setBrLoop("skimmer",true,1);
-    const starliner=FakeAudio.instances.find(entry=>entry.src.endsWith("br-starliner-engine.ogg"))!;
-    const skimmer=FakeAudio.instances.find(entry=>entry.src.endsWith("br-skimmer-engine.ogg"))!;
-    expect(starliner.paused).toBe(false);expect(skimmer.paused).toBe(false);
-    expect(starliner.volume).toBeGreaterThan(0);expect(skimmer.volume).toBeGreaterThan(0);
-    audio.stopBrLoops();
-    expect(starliner.paused).toBe(true);expect(skimmer.paused).toBe(true);
-    expect(starliner.currentTime).toBe(0);expect(skimmer.currentTime).toBe(0);
+  it("does not immediately repeat a step recording, even with a constant random source",async()=>{
+    const audio=await ready(),bank=(audio as unknown as {bank:AudioSampleBank}).bank,play=vi.spyOn(bank,"play");vi.spyOn(Math,"random").mockReturnValue(0);
+    const heard:string[]=[];
+    for(let i=0;i<6;i++){audio.footstep();heard.push(play.mock.calls.at(-1)![0]);await vi.advanceTimersByTimeAsync(120);}
+    expect(heard.every((sample,i)=>i===0||sample!==heard[i-1])).toBe(true);
+  });
+  it("replaces PR environment loops without cutting the qualification effect",async()=>{
+    const audio=await ready();audio.setMusicScene("planet-run");audio.setPrAmbience("cargo-cyclone");audio.setPrAmbience("solar-sweep");
+    audio.prCue("qualify");audio.setPrAmbience(null);
+    expect(audio.debugState().oneShotCount).toBeGreaterThan(0);
+    await vi.advanceTimersByTimeAsync(250);expect(audio.debugState().loopCount).toBe(0);
+    audio.setPgAmbience(true);expect(audio.debugState().loopCount).toBe(2);audio.setMusicScene("planet-gun");
+    audio.setMusicScene("menu");await vi.advanceTimersByTimeAsync(250);expect(audio.debugState().loopCount).toBe(0);
+  });
+  it("has a recorded replacement for all PR state cues and canonical PG identities",()=>{
+    expect(Object.keys(PR_AUDIO_CUES)).toHaveLength(14);
+    for(const cue of Object.values(PR_AUDIO_CUES))expect(AUDIO_CUES[cue]!.layers.length).toBeGreaterThan(0);
+    expect(Object.keys(PG_AUDIO_FAMILY)).toEqual(expect.arrayContaining(["helix","arc","prism","orbit"]));
+    const orbit=WEAPON_AUDIO[PG_AUDIO_FAMILY.orbit],comet=WEAPON_AUDIO[PG_AUDIO_FAMILY.comet];
+    expect(AUDIO_CUES[orbit.fire]!.layers[0]!.pool[0]!.sample).not.toBe(AUDIO_CUES[comet.fire]!.layers[0]!.pool[0]!.sample);
   });
 });

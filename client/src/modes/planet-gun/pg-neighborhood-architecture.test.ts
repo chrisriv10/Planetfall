@@ -8,6 +8,14 @@ type Feature={name:string;primitive:PgArtPrimitive;material:PgArtMaterial;p:PgAr
 function features(){const result:Feature[]=[];buildPgNeighborhoodArchitecture({add(name,primitive,material,p,r=[0,0,0],detail=false){result.push({name,primitive,material,p,r,detail});}});return result;}
 const overlaps=(a:PgArtPlacement,b:PgArtPlacement)=>[0,1,2].every(i=>Math.abs(a[i]-b[i])<(a[i+3]+b[i+3])/2-1e-6);
 describe("collision-backed neighborhood architecture",()=>{
+ it("uses distinct observation, habitat and service glazing without new batch types",()=>{
+   const all=features();
+   expect(all.some(f=>f.name==="nova-suite-north:window-reading-light")).toBe(true);
+   expect(all.some(f=>f.name==="nova-suite-west:window-shade")).toBe(true);
+   expect(all.some(f=>f.name==="ion-service-back:service-panel")).toBe(true);
+   const allowed=new Set(["box:dark:false","box:ivory:false","box:amber:false","box:glass:false","box:frame:false","box:cyan:false","box:frame:true","torus:frame:false","sphere:frame:false","box:ivory:true"]);
+   for(const f of all)expect(allowed.has(`${f.primitive}:${f.material}:${f.detail}`),f.name).toBe(true);
+ });
  it("keeps new upholstered furniture and fixtures within four centimetres of real cover",()=>{
    const ids=["nova-lounge-seat","nova-lounge-back","nova-suite-table","ion-repair-bench","ion-control-console","ion-diagnostic-rack"];
    const geometry={box:new THREE.BoxGeometry(1,1,1),sphere:new THREE.SphereGeometry(1,10,7),torus:new THREE.TorusGeometry(1,.045,4,32)};

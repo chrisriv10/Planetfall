@@ -1,7 +1,7 @@
 import {randomBytes,randomUUID} from "node:crypto";
 import type {Server,Socket} from "socket.io";
 import {DEFAULT_COSMETICS,FREE_EMOTES,SHOP_CATALOG,PLANET_PASS_REWARDS,PR_BALANCE as B,PR_ROUNDS,PrTileState,prBump,prQualificationTarget,prRank,prSanitizeInput,prSelectRound,prRound,prSpawn,prStepMotion,sessionLevelForXp,sessionXpInLevel,type ClientToServerEvents,type GuestProfile,type PrConfiguration,type PrInput,type PrJoinResult,type PrPhase,type PrPlayerState,type PrRoomView,type PrRoundDefinition,type PrSnapshot,type ServerToClientEvents,type Vec3} from "@planetfall/shared";
-import {prBotInput,type PrBotMemory} from "./pr-bots.js";
+import {prBotInput,PrCrowdGrid,PR_CROWD_LIMITS,type PrBotMemory} from "./pr-bots.js";
 type GameServer=Server<ClientToServerEvents,ServerToClientEvents>;
 type GameSocket=Socket<ClientToServerEvents,ServerToClientEvents>;
 interface Record extends PrPlayerState {socketId:string|null;sessionToken:string;disconnectedAt:number|null;input:PrInput;lastInputAt:number;respawnAt:number;bot:PrBotMemory;eliminatedAt:number;}
@@ -15,6 +15,7 @@ export class PlanetRunRoom {
   hostId="";phase:PrPhase="lobby";configuration:PrConfiguration={targetPlayers:20,fillBots:true,botDifficulty:"normal"};
   round:PrRoundDefinition|null=null;roundIndex=0;seed=0;roundStartedAt=0;phaseEndsAt=0;qualificationTarget=0;winnerId:string|null=null;
   tiles=new PrTileState([]);onProgress?:(players:Iterable<GuestProfile>)=>void;
+  private crowd:PrCrowdGrid|null=null;private crowdEpoch=-1;
   private accumulator=0;private lastSnapshot=0;private matchStartedAt=0;private rewarded=false;private finishOrder:string[]=[];private roundParticipants=new Set<string>();
   constructor(readonly code:string,private readonly io:GameServer){}
   view():PrRoomView{return {code:this.code,gameFamily:this.family,hostId:this.hostId,phase:this.phase,configuration:{...this.configuration},players:[...this.players.values()].map(publicPlayer)};}
@@ -57,7 +58,7 @@ export class PlanetRunRoom {
   leave(id:string):void{const p=this.players.get(id);if(!p)return;this.onProgress?.(this.players.values());this.players.delete(id);if(this.hostId===id)this.migrateHost();this.emitRoom();}
   disconnect(id:string):void {const p=this.players.get(id);if(!p)return;p.connected=false;p.socketId=null;p.disconnectedAt=Date.now();p.input=idle();if(id===this.hostId)this.migrateHost();this.emitRoom();}
   isEmpty():boolean{return ![...this.players.values()].some(p=>!p.isBot&&(p.connected||p.disconnectedAt!==null&&Date.now()-p.disconnectedAt<B.disconnectGraceMs));}
-  dispose():void{this.onProgress?.(this.players.values());this.players.clear();this.tiles=new PrTileState([]);}
+  dispose():void{this.onProgress?.(this.players.values());this.players.clear();this.tiles=new PrTileState([]);this.crowd=null;}
   returnToLobby(id:string):void{if(id!==this.hostId||this.phase!=="results")return;for(const [key,p]of this.players){if(p.isBot)this.players.delete(key);else {p.ready=false;p.status="active";}}this.phase="lobby";this.round=null;this.tiles=new PrTileState([]);this.emitRoom();}
   playEmote(id:string,emote:import("@planetfall/shared").EmoteType,now=Date.now()):void {
     const p=this.players.get(id),elapsed=now-this.roundStartedAt;
@@ -99,6 +100,7 @@ export class PlanetRunRoom {
     this.io.to(this.code).emit("pr:match:snapshot",this.snapshot(now,true));return true;
   }
   private beginRound(now:number):void {
+    this.crowd=null;this.crowdEpoch=-1;
     const active=[...this.players.values()].filter(p=>p.status!=="eliminated");
     if(active.length<=1){this.finish(active[0]?.id??null,now);return;}
     this.round=prSelectRound(PR_ROUNDS,active.length,this.roundIndex,this.round?.id??null,this.seed);this.tiles=new PrTileState(this.round.tiles);this.finishOrder=[];this.roundParticipants=new Set(active.map(p=>p.id));
@@ -109,11 +111,13 @@ export class PlanetRunRoom {
   }
   private step(dt:number,now:number):void {
     const round=this.round!,elapsed=now-this.roundStartedAt;
+    const epoch=Math.floor(elapsed/PR_CROWD_LIMITS.decisionMs);
+    if(!this.crowd||epoch!==this.crowdEpoch){this.crowdEpoch=epoch;this.crowd=new PrCrowdGrid([...this.players.values()].filter(p=>p.status==="active"&&!p.respawnAt),elapsed);}
     for(const p of this.players.values()){
       if(p.status!=="active")continue;
       if(p.respawnAt>now)continue;
-      if(p.respawnAt){Object.assign(p,prSpawn(round.checkpoints[p.checkpoint]?.spawn??round.spawns[0]));p.respawnAt=0;p.bot.goal=Math.max(0,Math.floor(p.checkpoint*4));}
-      const input=p.isBot?prBotInput(p,round,this.tiles,elapsed,this.seed,this.configuration.botDifficulty,p.bot):now-p.lastInputAt<400?p.input:{...idle(),sequence:p.input.sequence};
+      if(p.respawnAt){Object.assign(p,prSpawn(round.checkpoints[p.checkpoint]?.spawn??round.spawns[0]));p.respawnAt=0;p.bot={goal:0,nextDecision:0,sequence:p.bot.sequence,identitySeed:p.bot.identitySeed};}
+      const input=p.isBot?prBotInput(p,round,this.tiles,elapsed,this.seed,this.configuration.botDifficulty,p.bot,this.crowd):now-p.lastInputAt<400?p.input:{...idle(),sequence:p.input.sequence};
       prStepMotion(p,input,dt,elapsed,round,this.seed,this.tiles);p.lastInputSequence=input.sequence;
       if(round.category==="race"){
         for(let i=p.checkpoint+1;i<round.checkpoints.length;i++)if(i===p.checkpoint+1&&inside(p.position,round.checkpoints[i]))p.checkpoint=i;

@@ -1,6 +1,7 @@
 import {selectExperimentalFamily} from "./select-family";
 import { expect, test, type Page } from "@playwright/test";
 import { BALANCE, isInsideBrIslandInterior } from "@planetfall/shared";
+import { MUSIC_TRACKS } from "../client/src/audio-catalog";
 
 type Point = { x: number; y: number; z: number };
 type DebugState = {
@@ -836,7 +837,7 @@ test("six participants remain readable and within the visual budget", async ({ p
 
 test("solo quick play starts with three clearly marked bots", async ({ page }) => {
   const browserErrors = collectBrowserErrors(page);
-  const musicResponse = page.waitForResponse((response) => response.url().endsWith("/audio/bot-city.ogg"));
+  const musicResponse = page.waitForResponse((response) => response.url().endsWith(MUSIC_TRACKS.menu.url));
   await page.goto("/");
   expect((await musicResponse).ok()).toBe(true);
   await page.getByLabel("Name").fill("Chris");
