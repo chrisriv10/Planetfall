@@ -33,10 +33,14 @@ export function createPgOrbitalEnvironment() {
     const u=(i%textureWidth+.5)/textureWidth,v=(Math.floor(i/textureWidth)+.5)/textureHeight;
     const phi=u*Math.PI*2,theta=(1-v)*Math.PI;
     const x=-Math.cos(phi)*Math.sin(theta),y=Math.cos(theta),z=Math.sin(phi)*Math.sin(theta);
-    const land=Math.sin(y*8+Math.sin(z*7)*1.7)+Math.sin(x*9+z*5)*.68+Math.cos(z*16-y*6)*.3;
-    const coast=smooth(.20,.34,land),elevation=smooth(.4,1.8,land),shallows=smooth(-1.3,.20,land);
+    // Warped geography has continental scale and fine coastal breakup. Cloud
+    // bands follow latitude instead of reading as isolated white polka dots.
+    const warp=Math.sin(z*5+x*3)*.8+Math.cos(y*7-z*4)*.4;
+    const land=Math.sin(y*7+warp)+Math.sin(x*8+z*4)*.6+Math.cos(z*19-y*8)*.18+Math.sin(x*43+y*31+z*27)*.07;
+    const coast=smooth(.20,.30,land),elevation=smooth(.4,1.8,land),shallows=smooth(-.12,.20,land);
     const ice=smooth(.78,.94,Math.abs(y+.13*Math.sin(x*4)));
-    const clouds=smooth(.88,1.18,Math.sin(y*30+Math.sin(z*8)*3+x*7)+Math.sin(x*22-z*17)*.35)*.55;
+    const cloudBand=Math.sin(y*39+Math.sin(x*6+z*4)*2.5+z*3);
+    const clouds=smooth(.55,1.03,cloudBand)*smooth(-.3,.8,Math.sin(x*13-z*9)+Math.cos(y*18+x*5))*.48;
     const light=(.24+.80*smooth(-.28,.72,(-x*.8+y*.7+z*.3)/sunLength))*.8;
     terrainColors[i*4]=Math.round(255*mix(mix(mix(mix(.025,.07,shallows),mix(.30,.67,elevation),coast),.73,ice),.87,clouds)*light);
     terrainColors[i*4+1]=Math.round(255*mix(mix(mix(mix(.13,.39,shallows),mix(.42,.52,elevation),coast),.86,ice),.90,clouds)*light);
@@ -62,7 +66,13 @@ export function createPgOrbitalEnvironment() {
   const add=(list:THREE.BufferGeometry[],geometry:THREE.BufferGeometry,tint:number,x:number,y:number,z:number,rz=0,ry=0)=>{
     geometry.rotateZ(rz);geometry.rotateY(ry);geometry.translate(x,y,z);
     color.setHex(tint);const colors=new Float32Array(geometry.getAttribute("position").count*3);
-    for(let i=0;i<colors.length;i+=3){colors[i]=color.r;colors[i+1]=color.g;colors[i+2]=color.b;}
+    const normals=geometry.getAttribute("normal");
+    // Baked key/fill makes the structural faces readable in a single unlit
+    // batch. No extra lights, runtime shader work or dynamic shadow casters.
+    for(let i=0;i<normals.count;i++){
+      const light=.48+.52*Math.max(0,-normals.getX(i)*.48+normals.getY(i)*.8+normals.getZ(i)*.36);
+      colors[i*3]=color.r*light;colors[i*3+1]=color.g*light;colors[i*3+2]=color.b*light;
+    }
     geometry.setAttribute("color",new THREE.BufferAttribute(colors,3));list.push(geometry);
   };
   const box=(list:THREE.BufferGeometry[],tint:number,x:number,y:number,z:number,w:number,h:number,d:number,rz=0)=>add(list,new THREE.BoxGeometry(w,h,d),tint,x,y,z,rz);
@@ -71,7 +81,7 @@ export function createPgOrbitalEnvironment() {
     box(base,0x263c50,70,-13,z,11,35,14);
     box(base,0x8fabb8,70,5,z,23,3,18);
     box(base,0x3b566c,88,3,z,35,2.5,5);
-    box(base,0x70dccd,101,4.4,z,5,.45,5.5);
+    box(base,0x70dfff,101,4.4,z,5,.45,5.5);
     for(let y=-22;y<3;y+=6)box(detail,0x506b80,63.9,y,z,.6,1,15);
     for(let x=76;x<102;x+=6)box(detail,0x65808b,x,1,z,1.2,6,4,.5);
   }

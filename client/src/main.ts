@@ -1,3 +1,4 @@
+import {createLobbyRosterRow} from "./lobby-roster-art";
 import {createPgUi} from "./modes/planet-gun/pg-ui";
 import {createPgKitEditor} from "./modes/planet-gun/pg-kit-editor";
 import {createDevCanvasRecording} from "./dev-canvas-recording";
@@ -596,7 +597,9 @@ function joinOrCreate(kind: "create" | "join" | "solo", family = selectedFamily)
       if(!result.ok)return toast(result.error);
       currentFamily="planet-gun";playerId=result.playerId;currentCode=result.room.code;
       sessionStorage.setItem(`planetfall:pg:${currentCode}`,result.sessionToken);applyPgRoom(result.room);
-      socket.emit("pg:loadout",pgKits.selected());
+      // A live rejoin preserves the server's current/queued equipment. Sending
+      // the saved kit here would queue it again just because the page rejoined.
+      if(result.room.phase==="lobby")socket.emit("pg:loadout",pgKits.selected());
       if(kind==="solo")socket.emit("pg:match:quick-start");
     };
     if(kind==="join")socket.emit("pg:room:join",{code,name,sessionToken:sessionStorage.getItem(`planetfall:pg:${code}`)??undefined},done);
@@ -821,7 +824,8 @@ function renderBrLobby(): void {
   brTeamList.replaceChildren(...brRoom.teams.map((team, index) => {
     const card = document.createElement("article"); card.className = "br-team"; card.style.setProperty("--team-color", ["#70f5ff", "#ff6b8a", "#ffd84d", "#9d7bff"][index % 4]);
     const members = team.playerIds.map((id) => brRoom!.players.find((player) => player.id === id)).filter(Boolean);
-    card.innerHTML = `<header><span>CREW ${index + 1}</span><small>${members.length} PILOT${members.length === 1 ? "" : "S"}</small></header>${members.map((player) => `<div class="br-member" data-player-id="${player!.id}" style="--member-color:${player!.color}"><i></i><span>${escapeHtml(player!.name)}${player!.isBot ? " · BOT" : ""}</span><small>${player!.ready ? "READY" : "WAIT"}</small></div>`).join("")}`;
+    const heading=document.createElement("header");heading.innerHTML=`<span>CREW ${index+1}</span><small>${members.length} PILOT${members.length===1?"":"S"}</small>`;card.append(heading);
+    for(const player of members){const row=createLobbyRosterRow(document,{...player!,localId:playerId,hostId:brRoom!.hostId});row.classList.add("br-member");card.append(row);}
     return card;
   }));
   const me = brRoom.players.find((player) => player.id === playerId); brReadyButton.textContent = me?.ready ? "Ready ✓" : "Ready"; brStartButton.hidden = !isHost;
@@ -962,15 +966,11 @@ function renderLobby(): void {
   if (!room) return;
   byId("lobby-code").textContent = room.code;
   playerList.replaceChildren(...room.players.map((player) => {
-    const row = document.createElement("div"); row.className = "player-row"; row.dataset.playerId = player.id;
-    row.style.setProperty("--player-color", player.color);
-    const botBadge = player.isBot ? `<span class="bot-badge">BOT</span>` : "";
-    const status = player.isBot ? "CPU PILOT" : player.id === room!.hostId ? "HOST" : player.connected ? "ONLINE" : "RECONNECTING";
-    const remove = player.isBot && room!.hostId === playerId ? `<button class="remove-bot" aria-label="Remove ${escapeHtml(player.name)}">×</button>` : "";
-    const crowns = player.crowns > 0 ? `<span class="crown-count" title="Session Crowns">♛ ${player.crowns}</span>` : "";
-    const level = !player.isBot ? `<span class="crown-count" title="Session Level">LV ${player.sessionLevel}</span>` : "";
-    const badge = player.lobbyBadge ? ` · ${escapeHtml(player.lobbyBadge)}` : "";
-    row.innerHTML = `<i class="player-orb" style="background:${player.color};color:${player.color}"></i><div class="player-meta"><b>${escapeHtml(player.name)}${botBadge}</b><br><small>${status}${badge}</small></div>${crowns}${level}<span class="ready-badge ${player.ready ? "" : "waiting"}">${player.ready ? "READY" : "WAIT"}</span>${remove}`;
+    const row=createLobbyRosterRow(document,{...player,localId:playerId,hostId:room!.hostId});row.classList.add("player-row");
+    const details=document.createElement("small");details.textContent=player.isBot?"CPU PILOT":`${player.connected?"":"RECONNECTING"}${player.lobbyBadge?" · "+player.lobbyBadge:""}`;if(details.textContent)row.append(details);
+    if(player.crowns>0){const crowns=document.createElement("span");crowns.className="crown-count";crowns.title="Session Crowns";crowns.textContent=`♛ ${player.crowns}`;row.append(crowns);}
+    if(!player.isBot){const level=document.createElement("span");level.className="crown-count";level.title="Session Level";level.textContent=`LV ${player.sessionLevel}`;row.append(level);}
+    if(player.isBot&&room!.hostId===playerId){const remove=document.createElement("button");remove.className="remove-bot";remove.setAttribute("aria-label","Remove "+player.name);remove.textContent="×";row.append(remove);}
     row.querySelector<HTMLButtonElement>(".remove-bot")?.addEventListener("click", () => socket.emit("room:bot:remove", { botId: player.id }));
     return row;
   }));

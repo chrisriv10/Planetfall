@@ -1,0 +1,398 @@
+[
+  {
+    "mode": "walk",
+    "rtt": 0,
+    "jitterMs": 0,
+    "maxCorrection": 0,
+    "maxVertical": 0,
+    "corrections": 0,
+    "smoothed": 0,
+    "pending": 0,
+    "modes": [
+      "ground"
+    ]
+  },
+  {
+    "mode": "walk",
+    "rtt": 40,
+    "jitterMs": 4,
+    "maxCorrection": 0,
+    "maxVertical": 0,
+    "corrections": 0,
+    "smoothed": 0,
+    "pending": 5,
+    "modes": [
+      "ground"
+    ]
+  },
+  {
+    "mode": "walk",
+    "rtt": 80,
+    "jitterMs": 4,
+    "maxCorrection": 0,
+    "maxVertical": 0,
+    "corrections": 0,
+    "smoothed": 0,
+    "pending": 6,
+    "modes": [
+      "ground"
+    ]
+  },
+  {
+    "mode": "walk",
+    "rtt": 120,
+    "jitterMs": 4,
+    "maxCorrection": 0,
+    "maxVertical": 0,
+    "corrections": 0,
+    "smoothed": 0,
+    "pending": 10,
+    "modes": [
+      "ground"
+    ]
+  },
+  {
+    "mode": "sprint",
+    "rtt": 0,
+    "jitterMs": 0,
+    "maxCorrection": 0,
+    "maxVertical": 0,
+    "corrections": 0,
+    "smoothed": 0,
+    "pending": 0,
+    "modes": [
+      "sprint",
+      "ground"
+    ]
+  },
+  {
+    "mode": "sprint",
+    "rtt": 40,
+    "jitterMs": 4,
+    "maxCorrection": 0,
+    "maxVertical": 0,
+    "corrections": 0,
+    "smoothed": 0,
+    "pending": 5,
+    "modes": [
+      "sprint",
+      "ground"
+    ]
+  },
+  {
+    "mode": "sprint",
+    "rtt": 80,
+    "jitterMs": 4,
+    "maxCorrection": 0,
+    "maxVertical": 0,
+    "corrections": 0,
+    "smoothed": 0,
+    "pending": 6,
+    "modes": [
+      "sprint",
+      "ground"
+    ]
+  },
+  {
+    "mode": "sprint",
+    "rtt": 120,
+    "jitterMs": 4,
+    "maxCorrection": 0,
+    "maxVertical": 0,
+    "corrections": 0,
+    "smoothed": 0,
+    "pending": 10,
+    "modes": [
+      "sprint",
+      "ground"
+    ]
+  },
+  {
+    "mode": "slide",
+    "rtt": 0,
+    "jitterMs": 0,
+    "maxCorrection": 0,
+    "maxVertical": 0,
+    "corrections": 0,
+    "smoothed": 0,
+    "pending": 0,
+    "modes": [
+      "sprint",
+      "slide",
+      "ground"
+    ]
+  },
+  {
+    "mode": "slide",
+    "rtt": 40,
+    "jitterMs": 4,
+    "maxCorrection": 0,
+    "maxVertical": 0,
+    "corrections": 0,
+    "smoothed": 0,
+    "pending": 5,
+    "modes": [
+      "sprint",
+      "slide",
+      "ground"
+    ]
+  },
+  {
+    "mode": "slide",
+    "rtt": 80,
+    "jitterMs": 4,
+    "maxCorrection": 0,
+    "maxVertical": 0,
+    "corrections": 0,
+    "smoothed": 0,
+    "pending": 6,
+    "modes": [
+      "sprint",
+      "slide",
+      "ground"
+    ]
+  },
+  {
+    "mode": "slide",
+    "rtt": 120,
+    "jitterMs": 4,
+    "maxCorrection": 0,
+    "maxVertical": 0,
+    "corrections": 0,
+    "smoothed": 0,
+    "pending": 10,
+    "modes": [
+      "sprint",
+      "slide",
+      "ground"
+    ]
+  },
+  {
+    "mode": "jump",
+    "rtt": 0,
+    "jitterMs": 0,
+    "maxCorrection": 0,
+    "maxVertical": 0,
+    "corrections": 0,
+    "smoothed": 0,
+    "pending": 0,
+    "modes": [
+      "ground",
+      "air"
+    ]
+  },
+  {
+    "mode": "jump",
+    "rtt": 40,
+    "jitterMs": 4,
+    "maxCorrection": 0,
+    "maxVertical": 0,
+    "corrections": 0,
+    "smoothed": 0,
+    "pending": 5,
+    "modes": [
+      "ground",
+      "air"
+    ]
+  },
+  {
+    "mode": "jump",
+    "rtt": 80,
+    "jitterMs": 4,
+    "maxCorrection": 0,
+    "maxVertical": 0,
+    "corrections": 0,
+    "smoothed": 0,
+    "pending": 6,
+    "modes": [
+      "ground",
+      "air"
+    ]
+  },
+  {
+    "mode": "jump",
+    "rtt": 120,
+    "jitterMs": 4,
+    "maxCorrection": 0,
+    "maxVertical": 0,
+    "corrections": 0,
+    "smoothed": 0,
+    "pending": 10,
+    "modes": [
+      "ground",
+      "air"
+    ]
+  },
+  {
+    "mode": "thrust",
+    "rtt": 0,
+    "jitterMs": 0,
+    "maxCorrection": 0,
+    "maxVertical": 0,
+    "corrections": 0,
+    "smoothed": 0,
+    "pending": 0,
+    "modes": [
+      "ground",
+      "air"
+    ]
+  },
+  {
+    "mode": "thrust",
+    "rtt": 40,
+    "jitterMs": 4,
+    "maxCorrection": 0,
+    "maxVertical": 0,
+    "corrections": 0,
+    "smoothed": 0,
+    "pending": 5,
+    "modes": [
+      "ground",
+      "air"
+    ]
+  },
+  {
+    "mode": "thrust",
+    "rtt": 80,
+    "jitterMs": 4,
+    "maxCorrection": 0,
+    "maxVertical": 0,
+    "corrections": 0,
+    "smoothed": 0,
+    "pending": 6,
+    "modes": [
+      "ground",
+      "air"
+    ]
+  },
+  {
+    "mode": "thrust",
+    "rtt": 120,
+    "jitterMs": 4,
+    "maxCorrection": 0,
+    "maxVertical": 0,
+    "corrections": 0,
+    "smoothed": 0,
+    "pending": 10,
+    "modes": [
+      "ground",
+      "air"
+    ]
+  },
+  {
+    "mode": "wall-run",
+    "rtt": 0,
+    "jitterMs": 0,
+    "maxCorrection": 0,
+    "maxVertical": 0,
+    "corrections": 0,
+    "smoothed": 0,
+    "pending": 0,
+    "modes": [
+      "wall-run",
+      "ground"
+    ]
+  },
+  {
+    "mode": "wall-run",
+    "rtt": 40,
+    "jitterMs": 4,
+    "maxCorrection": 0.3002815345638157,
+    "maxVertical": 0.013000000000000012,
+    "corrections": 1,
+    "smoothed": 1,
+    "pending": 5,
+    "modes": [
+      "wall-run",
+      "ground"
+    ]
+  },
+  {
+    "mode": "wall-run",
+    "rtt": 80,
+    "jitterMs": 4,
+    "maxCorrection": 0.4506395455350095,
+    "maxVertical": 0.02400000000000002,
+    "corrections": 1,
+    "smoothed": 1,
+    "pending": 6,
+    "modes": [
+      "wall-run",
+      "ground"
+    ]
+  },
+  {
+    "mode": "wall-run",
+    "rtt": 120,
+    "jitterMs": 4,
+    "maxCorrection": 0.45080927230925466,
+    "maxVertical": 0.027000000000000024,
+    "corrections": 2,
+    "smoothed": 2,
+    "pending": 10,
+    "modes": [
+      "wall-run",
+      "ground"
+    ]
+  },
+  {
+    "mode": "mantle",
+    "rtt": 0,
+    "jitterMs": 0,
+    "maxCorrection": 1.9100999153570945e-15,
+    "maxVertical": 1.5543122344752192e-15,
+    "corrections": 0,
+    "smoothed": 0,
+    "pending": 0,
+    "modes": [
+      "air",
+      "mantle",
+      "ground"
+    ]
+  },
+  {
+    "mode": "mantle",
+    "rtt": 40,
+    "jitterMs": 4,
+    "maxCorrection": 0.17207212814041722,
+    "maxVertical": 0.13506422896662218,
+    "corrections": 1,
+    "smoothed": 1,
+    "pending": 5,
+    "modes": [
+      "air",
+      "mantle",
+      "ground"
+    ]
+  },
+  {
+    "mode": "mantle",
+    "rtt": 80,
+    "jitterMs": 4,
+    "maxCorrection": 0.10914418274383951,
+    "maxVertical": 0.07103009259259252,
+    "corrections": 1,
+    "smoothed": 1,
+    "pending": 6,
+    "modes": [
+      "air",
+      "mantle",
+      "ground"
+    ]
+  },
+  {
+    "mode": "mantle",
+    "rtt": 120,
+    "jitterMs": 4,
+    "maxCorrection": 0.0997413908822813,
+    "maxVertical": 0.0649108367626885,
+    "corrections": 2,
+    "smoothed": 2,
+    "pending": 10,
+    "modes": [
+      "air",
+      "mantle",
+      "ground"
+    ]
+  }
+]

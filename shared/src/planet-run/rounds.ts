@@ -12,8 +12,7 @@ function race(id:PrRoundId,name:string,theme:string):PrRoundDefinition {
     if(id==="flux-gardens")p.gravityScale=i%2===1?.65:1;
     if(id==="cargo-cyclone"&&(i===2||i===4))p.motion={axis:"x",distance:2.4,period:6,phase:i*.7};
     platforms.push(p);
-    if(i>0&&i<6)obstacles.push({id:`${id}-hazard-${i}`,kind:id==="capacitor-causeway"?"door":"rotator",center:v(0,y+1,-i*20),half:v(id==="capacitor-causeway"?7:6,.45,.6),period:5+i*.6,phase:i*.8,strength:7});
-    if(id==="capacitor-causeway"&&i%2===1)obstacles.push({id:`boost-${i}`,kind:"boost",center:v(0,y+.6,-i*20+6),half:v(2,.5,1.5),period:1,phase:0,strength:13});
+    if(i>0&&i<6&&id!=="capacitor-causeway")obstacles.push({id:`${id}-hazard-${i}`,kind:"rotator",center:v(0,y+1,-i*20),half:v(6,.45,.6),period:5+i*.6,phase:i*.8,strength:7});
   }
   const spawns=Array.from({length:30},(_,i)=>v((i%6-2.5)*2.2,.6,7+Math.floor(i/6)*2.2));
   platforms.push(platform(`${id}-start`,0,0,11,9,12));
@@ -27,6 +26,25 @@ function survival(id:"solar-sweep"|"meteor-garden",name:string,theme:string):PrR
     obstacles.push({id:"solar-high",kind:"rotator",center:v(0,2.8,0),half:v(17,.6,.8),period:11,phase:1.5,strength:7});
   }else for(let i=0;i<16;i++)obstacles.push({id:`meteor-${i}`,kind:"meteor",center:v((i%4-1.5)*8,.5,(Math.floor(i/4)-1.5)*8),half:v(3.2,2,3.2),period:5.2+(i%3)*.4,phase:i*.213,strength:12});
   return {id,name,theme,category:"survival",minimumPlayers:2,maximumPlayers:30,timeoutMs:65000,objective:"Stay on the station",platforms,obstacles,checkpoints:[],finish:null,waypoints:[],spawns:Array.from({length:30},(_,i)=>v((i%6-2.5)*4,.6,(Math.floor(i/6)-2)*5)),killY:-12,tiles:[]};
+}
+function capacitorCauseway():PrRoundDefinition{
+ const round=race("capacitor-causeway","Capacitor Causeway","An active orbital energy circuit");
+ round.objective="Read the lanes · time the arcs · choose your boost";
+ round.obstacles=[];
+ const shutter=(id:string,z:number,phase:number,period=6.6)=>{
+  for(const lane of [0,1,2] as const)round.obstacles.push({id:`${id}-${lane}`,kind:"shutter",lane,center:v((lane-1)*6.2,2.25,z),half:v(3.1,1.65,.65),period,phase,strength:3.5});
+ };
+ shutter("pulse-shutter",-20,0);
+ for(const [i,x,z,phase]of [[0,-3.5,-39,.12],[1,3.5,-48,.61],[2,-2.5,-115,.32]] as const)
+  round.obstacles.push({id:`capacitor-arc-${i}`,kind:"arc",center:v(x,1.05,z),half:v(5.5,.3,.85),period:4.8,phase,strength:4.8});
+ round.obstacles.push({id:"launch-coil",kind:"boost",center:v(5.2,.65,-61),half:v(2.45,.45,2.2),period:1,phase:0,strength:17,launch:v(0,10.8,-17)});
+ // A broad, forgiving landing apron; the ordinary left route stays continuous.
+ round.platforms.push(platform("capacitor-boost-landing",5.2,0,-76,3.2,3.8));
+ for(const [i,z,phase]of [[0,-80,0],[1,-94,Math.PI]] as const)
+  round.obstacles.push({id:`moving-energy-barrier-${i}`,kind:"barrier",center:v(0,2.1,z),half:v(3.5,1.5,.65),period:6.2,phase,travel:4.5,strength:3.8});
+ shutter("final-shutter",-106,.36,7.2);
+ round.obstacles.push({id:"final-launch-coil",kind:"boost",center:v(-5.2,.65,-100),half:v(2.1,.45,1.65),period:1,phase:0,strength:14,launch:v(0,5.5,-14)});
+ return round;
 }
 function shatterdeck():PrRoundDefinition {
   const tiles:PrTile[]=[],r=PR_BALANCE.tileRadius;
@@ -51,7 +69,7 @@ export const PR_ROUNDS:readonly PrRoundDefinition[]=[
   survival("solar-sweep","Solar Sweep","Gold solar turbine terraces"),
   survival("meteor-garden","Meteor Garden","Teal orbital arboretum"),
   race("flux-gardens","Flux Gardens","Lilac variable-gravity conservatory"),
-  race("capacitor-causeway","Capacitor Causeway","Blue pulse-gate research pier"),
+  capacitorCauseway(),
   shatterdeck(),
 ];
 export function prRound(id:PrRoundId):PrRoundDefinition {const round=PR_ROUNDS.find(r=>r.id===id);if(!round)throw new Error(`Unknown PlanetRun round ${id}`);return round;}

@@ -1,0 +1,23 @@
+{
+  "initialHead": "16db708fa2d51b0193d15c959bbd95951a13dbf8",
+  "host": "DESKTOP-JL99F36",
+  "date": "2026-10-28",
+  "sourceFiles": 69,
+  "typecheck": "passed",
+  "build": "passed; existing chunk-size advisory",
+  "unit": {
+    "testsPassed": 1766,
+    "filesPassed": 338,
+    "durationSeconds": 361.65
+  },
+  "e2e": {
+    "passed": 47,
+    "workers": 1,
+    "durationMinutes": 29.9,
+    "cleanFullRun": true
+  },
+  "tracedRepairCasesPassed": 2,
+  "nativeReview": "completed; see README and selected screenshots",
+  "audioChanged": false,
+  "deploymentCommandRun": false
+}

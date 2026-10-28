@@ -35,13 +35,6 @@ export function createPrEventUi(elements:PrEventUiElements){
  const departed=make('ul','pr-departed-roster',hud.querySelector<HTMLElement>('#pr-round-roster')??hud);departed.setAttribute('aria-label','Eliminated pilots');departed.hidden=true;
  const stage=make('div','pr-winner-stage',results);
  make('span','pr-winner-laurel',stage,'✦  ORBITAL CHAMPION  ✦');
- const card=lobby.querySelector<HTMLElement>('.pr-course-card')??lobby,showcase=make('div','pr-six-showcase',card);card.prepend(showcase);
- showcase.setAttribute('aria-label','Six orbital courses: freight, solar, meteor, gravity, energy and Shatterdeck');
- for(const [index,round] of PR_ROUNDS.entries()){
-  const motif=make('div','pr-showcase-motif',showcase);motif.dataset.motif=round.id;motif.style.setProperty('--motif-index',String(index));applyPrRoundTheme(motif,round.id);
-  const sculpture=make('div','pr-mini-sculpture',motif);sculpture.setAttribute('aria-hidden','true');for(let i=0;i<7;i++){const part=make('i','pr-mini-part',sculpture);part.style.setProperty('--part',String(i));}
-  make('small','pr-mini-number',motif,`0${index+1} / ${round.category.toUpperCase()}`);make('strong','pr-mini-title',motif,round.name);
- }
  let visible:'lobby'|'hud'|'results'|null=null,disposed=false,lastPhase='',lastRound=-1,lastStatus='',noticeUntil=0,notice='',rosterKey='';
  const syncVisibility=()=>{for(const [key,root] of Object.entries(elements))root.dataset.prVisible=String(key===visible&&!owner.hidden);};
  owner.addEventListener('visibilitychange',syncVisibility);

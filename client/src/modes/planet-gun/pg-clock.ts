@@ -3,10 +3,11 @@ import type {GameSocket} from "../../network";
 /** Midpoint clock samples, independent of renderer-delayed match snapshots. */
 export class PgClock {
  private offset:number|null=null;
- private bestRtt=Infinity;
- reset():void{this.offset=null;this.bestRtt=Infinity;}
+ private bestRtt=Infinity;private lastRtt:number|null=null;
+ reset():void{this.offset=null;this.bestRtt=Infinity;this.lastRtt=null;}
+ measurements(){return {rttMs:this.lastRtt,bestAcceptedRttMs:Number.isFinite(this.bestRtt)?this.bestRtt:null,calibrated:this.offset!==null};}
  sample(sent:number,received:number,serverTime:number):boolean{
-  const rtt=received-sent;
+  const rtt=received-sent;if(Number.isFinite(rtt)&&rtt>=0)this.lastRtt=rtt;
   // Slow callback delivery cannot safely estimate the server's 50ms future
   // allowance. Keep the best lightweight home/lobby sample instead.
   if(![sent,received,serverTime].every(Number.isFinite)||rtt<0||rtt>100||rtt>=this.bestRtt)return false;

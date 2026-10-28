@@ -1,4 +1,5 @@
 import {prControllerCamera} from "./pr-camera-input";
+import {prCameraSurfaceBlocks} from "./pr-camera-collision";
 import {createPrPilotPresentation} from "./pr-pilot-presentation";
 import * as THREE from "three";
 import {PR_BALANCE as B,PrTileState,prRound,prStepMotion,prPlatformCenter,prMeteorTimeline,SHOP_CATALOG,type PrInput,type PrMotion,type PrSnapshot,type PrTileDelta} from "@planetfall/shared";
@@ -135,7 +136,7 @@ export class PlanetRunGame {
     if(follow){this.target.set(follow.position.x,follow.position.y+1.5,follow.position.z);const distance=s.phase==="intro"?24:9;
       if(s.phase==="intro")this.target.z=round.category==="race"?-22:0;
       this.desired.set(Math.sin(this.yaw)*Math.cos(this.pitch)*distance,Math.sin(this.pitch)*distance,Math.cos(this.yaw)*Math.cos(this.pitch)*distance).add(this.target);
-      const direction=this.direction.copy(this.desired).sub(this.target),length=direction.length();this.ray.set(this.target,direction.normalize());this.ray.far=length;const hit=this.ray.intersectObjects(this.cameraColliders,false).find(h=>h.distance>.5&&(h.object.name==="authoritative-platform"||h.object.name==="authoritative-hazard"||h.object.name==="shatterdeck-cells"));
+      const direction=this.direction.copy(this.desired).sub(this.target),length=direction.length();this.ray.set(this.target,direction.normalize());this.ray.far=length;const hit=this.ray.intersectObjects(this.cameraColliders,false).find(h=>h.distance>.5&&prCameraSurfaceBlocks(h.object));
       if(hit)this.desired.copy(this.target).addScaledVector(direction,Math.max(1,hit.distance-.4));
       this.camera.position.lerp(this.desired,1-Math.exp(-dt*9));this.camera.lookAt(this.target);
     }

@@ -87,3 +87,15 @@
   #pr-lobby-screen.mode-lobby .pr-lobby-card > .button-quiet { margin-top:12px; }
   #pr-lobby-screen.mode-lobby #pr-dev-review { margin-top:12px; padding-top:8px; }
 }
+/* Planetfall palette and a compact, centered competition lobby. */
+#pr-lobby-screen.mode-lobby .pr-lobby-layout { display:block; width:min(680px,100%); margin:auto; }
+#pr-lobby-screen.mode-lobby .pr-course-card { display:none; }
+#pr-lobby-screen.mode-lobby .pr-lobby-card { max-height:calc(100dvh - 36px); }
+#pr-lobby-screen.mode-lobby .pr-roster { max-height:180px; margin-top:16px; }
+.pr-screen .pr-primary { color:#142039; background:linear-gradient(135deg,var(--ui-primary),var(--ui-primary-end)); border-color:#ffda77; box-shadow:0 4px 0 #a94d45; }
+.pr-screen .pr-primary:hover { background:linear-gradient(135deg,#ffe681,#ffb66b); }
+.pr-panel { background:var(--ui-panel-fill); }
+.pr-eyebrow,.pr-lobby-card h1 span,.pr-config legend { color:var(--ui-accent); }
+.pr-checkbox input { accent-color:var(--ui-accent); }
+.pr-player-row .pr-ready-badge { color:#70f5ff; } .pr-is-you { background:#70f5ff09; }
+.home-card .family-card.pr.selected { color:#f4f7ff; border-color:#70f5ff; background:linear-gradient(125deg,#293b72,#24234e); box-shadow:inset 3px 0 #ffce58; }

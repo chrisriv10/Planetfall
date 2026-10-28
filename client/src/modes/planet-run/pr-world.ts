@@ -1,6 +1,6 @@
 import {createPrMeteorArt} from "./pr-meteor-art";
 import * as THREE from "three";
-import {prMeteorTimeline,prObstacleTransform,prPlatformCenter,type PrRoundDefinition,type PrPhase} from "@planetfall/shared";
+import {prMeteorTimeline,prObstacleTransform,prObstacleCenter,prPlatformCenter,type PrRoundDefinition,type PrPhase} from "@planetfall/shared";
 import {createPrCargoArt} from "./art/pr-art-cargo";
 import {createPrSolarArt} from "./art/pr-art-solar";
 import {createPrMeteorArtCourse} from "./art/pr-art-meteor";
@@ -42,7 +42,7 @@ export class PrWorldRenderer {
       if(o.kind==="meteor"){meteor=createPrMeteorArt(o.half);body.add(meteor.root);}
       else if(o.kind==="boost")solid(body,glow,0,.025,0,o.half.x*2,.05,o.half.z*2);
       else{const volume=solid(body,hazard,0,0,0,o.half.x*2,o.half.y*2,o.half.z*2);volume.name="authoritative-hazard";volumes.set(o.id,volume);}
-      if(o.kind==="door"){
+      if(o.kind==="door"||o.kind==="shutter"){
         openMark=new THREE.Group();openMark.name=o.id+"-open-passage";openMark.position.copy(o.center);this.root.add(openMark);
         const support=round.platforms.find(p=>Math.abs(p.center.z-o.center.z)<p.half.z&&Math.abs(p.center.x-o.center.x)<p.half.x);
         const paintY=(support?support.center.y+support.half.y:o.center.y-o.half.y)-o.center.y+.018;
@@ -67,7 +67,9 @@ export class PrWorldRenderer {
     for(let i=0;i<this.platforms.length;i++)this.platforms[i].position.copy(prPlatformCenter(this.round.platforms[i],elapsedMs));
     for(let i=0;i<this.obstacles.length;i++){
       const o=this.round.obstacles[i],view=this.obstacles[i],state=prObstacleTransform(o,elapsedMs,seed);
-      view.body.visible=o.kind==="boost"||state.active||o.kind==="meteor"&&state.warning;
+      view.body.userData.prHazardActive=state.active;
+      view.body.position.copy(prObstacleCenter(o,elapsedMs,seed));
+      view.body.visible=o.kind==="boost"||state.active||["meteor","shutter","arc"].includes(o.kind)&&state.warning;
       view.body.rotation.y=o.kind==="rotator"?-state.yaw:0;
       if(view.openMark)view.openMark.visible=!state.active;
       view.meteor?.update(state.active,state.warning,elapsedMs,prMeteorTimeline(o,elapsedMs,seed));

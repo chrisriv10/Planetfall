@@ -43,12 +43,25 @@ export function buildPgNeighborhoodStreets(ctx:PgArtContext):void{
     ["engineering-north",[13,-10,39,-9.1]],["engineering-south",[13,-4.9,39,-4]],
     ["garden-north",[-12,-21,8,-20.1]],
   ] as const)surface(`walk-${name}`,rect,"ivory",.016);
-  for(const z of [-15,-11,9,13,19,23,27,31])surface(`spine-guide-${z}`,[9.94,z,10.06,z+1.6],"cyan",.023);
+  for(const z of [-15,-11,9,13,19,23,27,31])surface(`spine-guide-${z}`,[9.94,z,10.06,z+1.6],"ivory",.023);
   for(const x of [-32,-28,-24,-20,-16,-12,-4,0,4])surface(`habitat-guide-${x}`,[x,4.94,x+1.5,5.06],"amber",.023);
   // Crosswalks stay on the actual four-meter street surface.
   for(let i=0;i<6;i++){
     surface(`crossing-habitat-${i}`,[8.3,7.9+i*.48,11.7,8.14+i*.48],"ivory",.023);
     surface(`crossing-engineering-${i}`,[14.4+i*.48,-8.7,14.65+i*.48,-5.3],"ivory",.023);
+  }
+  // The road is assembled from large serviceable slabs. Fine dark expansion
+  // joints and inset access lids provide scale without glowing grid clutter.
+  for(const z of[-18,-12,12,18,24,30]){
+    surface(`street-spine-joint-${z}`,[8.03,z,11.97,z+.035],"frame",.019);
+    for(const x of[7.12,12.12])surface(`walk-spine-joint-${x}-${z}`,[x,z,x+.76,z+.035],"frame",.025);
+  }
+  for(const x of[-32,-26,-20,-14,-8,-2,4])surface(`street-habitat-joint-${x}`,[x,3.03,x+.035,6.97],"frame",.019);
+  for(const [x,z]of[[11.15,14],[-18.5,6.05],[23,-8.05]]as const){
+    surface(`street-access-frame-${x}`,[x-.41,z-.57,x+.41,z+.57],"frame",.021);
+    surface(`street-access-lid-${x}`,[x-.35,z-.51,x+.35,z+.51],"paving",.024);
+    // Two recessed grips make these maintenance hatches rather than road paint.
+    for(const dz of[-.35,.35])surface(`street-access-grip-${x}-${dz}`,[x-.14,z+dz-.025,x+.14,z+dz+.025],"dark",.025);
   }
   // Two maintained drain runs belong to the sidewalk edge, not combat lanes.
   // Their shallow relief and regular access joints break up the broad paving.
@@ -89,6 +102,13 @@ export function buildPgNeighborhoodStreets(ctx:PgArtContext):void{
       ctx.add(`${bed.id}-shrub-${i}`,"sphere","leaf",[x,top+.22,z,.65,.35,.58]);
     }
     ctx.add(`${bed.id}-irrigation`,"box","frame",[c.x-h.x+.25,top+.023,c.z,.035,.035,h.z*2-.5],undefined,true);
+    // Low paired crop rows leave a visible soil channel and read as maintained
+    // hydroponics. Everything remains inside an existing raised planter.
+    if(bed.id!=="transit-ticket-bank")for(const side of[-1,1]){
+      const x=c.x+side*Math.min(.65,h.x*.48);
+      ctx.add(`${bed.id}-crop-row-${side}`,"sphere","leaf",[x,top+.12,c.z,.22,.14,Math.max(.3,h.z-.38)]);
+      ctx.add(`${bed.id}-feed-rail-${side}`,"box","ivory",[x,top+.027,c.z,.035,.025,h.z*2-.55],undefined,true);
+    }
     // Maintenance badges and irrigation controls sit flush against real beds.
     // The transit bank carries a route diagram; planted beds use a water gauge.
     const face=c.z+h.z+.013;

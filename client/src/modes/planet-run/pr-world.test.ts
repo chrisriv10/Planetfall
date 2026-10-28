@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
-import { PR_BALANCE, PR_ROUNDS, prObstacleTransform, prPlatformCenter } from "@planetfall/shared";
+import { PR_BALANCE, PR_ROUNDS, prObstacleTransform, prObstacleCenter, prPlatformCenter } from "@planetfall/shared";
 import { PrWorldRenderer } from "./pr-world";
 
 describe("PlanetRun visible authoritative surfaces",()=>{
@@ -68,7 +68,8 @@ describe("PlanetRun visible authoritative surfaces",()=>{
       for(const o of round.obstacles){
         const body=view.root.getObjectByName(o.id)!;
         const state=prObstacleTransform(o,3412,173);
-        expect(body.visible).toBe(o.kind==="boost"||state.active||o.kind==="meteor"&&state.warning);
+        expect(body.visible).toBe(o.kind==="boost"||state.active||["meteor","shutter","arc"].includes(o.kind)&&state.warning);
+        expect(body.position.toArray()).toEqual(Object.values(prObstacleCenter(o,3412,173)));
         expect(body.rotation.y).toBe(o.kind==="rotator"?-state.yaw:0);
         if(o.kind==="rotator") {
           body.updateMatrixWorld(true);

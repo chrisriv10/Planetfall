@@ -1,6 +1,6 @@
 import {createPrShowcaseArt} from "./art/pr-showcase-art";
 
-/** Purpose-built six-course miniature; reuses the owning menu renderer. */
+/** Purpose-built solar-sweeper hero diorama; reuses the owning menu renderer. */
 export class PrHomePreview {
   private readonly art=createPrShowcaseArt();
   readonly root=this.art.root;

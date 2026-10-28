@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { PG_MAP } from "@planetfall/shared";
 import {createPgEnvironmentBuilder} from "./pg-environment-builder";
-import {buildPgNeighborhoodArchitecture} from "./pg-neighborhood-architecture";
+import {buildPgNeighborhoodArchitecture,PG_AUTHORED_FACADE_IDS} from "./pg-neighborhood-architecture";
 import {buildPgNeighborhoodStreets} from "./pg-neighborhood-streets";
 import {createPgOrbitalEnvironment} from "./pg-orbital-environment";
 
@@ -29,10 +29,10 @@ export class PgWorldRenderer {
       const m = new THREE.MeshStandardMaterial({ color, roughness: .68, metalness: .24, emissive: color, emissiveIntensity: emissive });
       this.resources.add(m); return m;
     };
-    const deck = material(0x243549), west = material(0x96a9b6), east = material(0x8b9eaf);
-    const ivory = material(0xd1e1da), trim = material(0x182538), garden = material(0x344f53), maintenance=material(0x7f8b91);
+    const deck = material(0x243549), west = material(0xa6b0c3), east = material(0x8494ae);
+    const ivory = material(0xe0e5ed), trim = material(0x182538), garden = material(0x344f53), maintenance=material(0x7f8b91);
     const solarPaving=material(0x35414b),voidPaving=material(0x35414b),hydroPaving=material(0x35464b),servicePaving=material(0x3b444b),plazaPaving=material(0x3b4b5b);
-    const cyan = material(0x62ffdc, 1.15), amber = material(0xffcd76, 1), violet = material(0xc2a0ff, 1);
+    const cyan = material(0x70dfff, 1.15), amber = material(0xffcd76, 1), violet = material(0xc2a0ff, 1);
     const glass = material(0x36778c, .16), runPanel=material(0x253c45,.025);
     const soil=material(0x4c5545),leaf=material(0x5d9c72);
     glass.roughness=.22;glass.metalness=.58;trim.roughness=.42;trim.metalness=.48;
@@ -50,7 +50,7 @@ export class PgWorldRenderer {
       const color = s.kind === "tree"?soil:s.kind === "landscape"?garden:s.kind === "structure"?trim:s.kind === "rail" ? ivory : s.id.startsWith("maintenance-") ? maintenance : s.kind === "wall-run" || s.kind === "planter" ? garden : s.kind === "habitat" ? c.x < 0 ? west : east : s.kind === "transit" ? ivory : deck;
       add(`body-${color.uuid}`, color, [c.x,c.y,c.z,h.x*2,h.y*2,h.z*2]);
       if (s.id === "orbital-deck"||s.id==="service-run-east"||s.id.startsWith("nova-")||s.id.startsWith("ion-")||s.id.startsWith("center-relay-")||s.id.startsWith("garden-bed-")||s.id==="transit-ticket-bank") continue;
-      if (s.kind === "habitat" || s.kind === "wall-run") {
+      if ((s.kind === "habitat" || s.kind === "wall-run") && !PG_AUTHORED_FACADE_IDS.has(s.id)) {
         const wide = h.x > h.z, length = wide ? h.x * 2 : h.z * 2;
         // Insets sit on opaque collision-backed walls, never across an opening.
         for (const sign of [-1,1]) {

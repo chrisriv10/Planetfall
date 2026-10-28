@@ -1,3 +1,4 @@
+import {createLobbyRosterRow} from "../../lobby-roster-art";
 import { PR_ROUNDS, type PrRoomView, type PrSnapshot } from "@planetfall/shared";
 import "./pr-ui.css";
 import {createPrEventUi} from "./art/pr-event-ui";
@@ -24,24 +25,16 @@ export function createPrUi():PrUi {
         <p class="pr-lead">One astronaut. A station full of surprises.</p>
         <div class="pr-room-strip"><span id="pr-player-count"></span></div>
         <nav class="pr-nav lobby-hub-nav" aria-label="Session hub"><button id="pr-shop" class="hub-tab">SHOP</button><button id="pr-pass" class="hub-tab">PLANET PASS</button><button id="pr-settings" class="hub-tab">SETTINGS</button></nav>
-        <div id="pr-roster" class="pr-roster" aria-label="Players"></div>
         <fieldset id="pr-host-controls" class="pr-config mode-fields">
           <legend>SET THE COURSE</legend>
           <label>Players<select id="pr-target"><option value="10">10 players</option><option value="20">20 players</option><option value="30">30 players</option></select></label>
           <label>Bot difficulty<select id="pr-difficulty"><option value="easy">Easy</option><option value="normal">Normal</option><option value="hard">Hard</option></select></label>
           <label class="pr-checkbox"><input id="pr-fill" type="checkbox"> Fill empty places with bots</label>
         </fieldset>
-        <p id="pr-lobby-note" class="pr-note"></p>
+        <div id="pr-roster" class="pr-roster" aria-label="Players"></div>
         <div class="pr-actions"><button id="pr-ready" class="pr-primary button button-secondary">READY UP</button><button id="pr-start" class="pr-primary button button-primary">START RUN</button></div>
-        <button id="pr-leave-lobby" class="pr-back button button-quiet">← BACK TO MAIN MENU</button>
+        <button id="pr-leave-lobby" class="pr-back button button-quiet">BACK TO MAIN MENU</button><p id="pr-lobby-note" class="pr-note"></p>
       </div>
-      <aside class="pr-course-card" aria-label="How to play">
-        <span class="pr-orbit-icon" aria-hidden="true">✦</span>
-        <p class="pr-eyebrow">KEEP YOUR FEET. FIND YOUR ROUTE.</p>
-        <h2>Small steps.<br>Cosmic stakes.</h2>
-        <ol><li><b>RACE</b><span>Beat the course. Earn your place.</span></li><li><b>SURVIVE</b><span>Read the hazards. Stay on the station.</span></li><li><b>SHATTERDECK</b><span>Keep moving as the floor falls away.</span></li></ol>
-        <p class="pr-control-guide"><kbd>W A S D</kbd> Move <kbd>SPACE</kbd> Jump <kbd>SHIFT</kbd> Dive <kbd>MOUSE / DRAG</kbd> Look</p>
-      </aside>
     </div>`);
   lobby.classList.add("mode-lobby");
   const hud=section("pr-hud",`
@@ -72,12 +65,7 @@ export function createPrUi():PrUi {
       const key=JSON.stringify(room.players.map(p=>[p.id,p.name,p.ready,p.connected,p.isBot,p.id===room.hostId,p.id===localId]));
       if(key!==rosterKey){
         rosterKey=key;const rows=room.players.map(p=>{
-          const row=document.createElement("div");row.className=`pr-player-row${p.id===localId?" pr-is-you":""}`;
-          const name=document.createElement("strong");name.textContent=p.name+(p.id===localId?" · YOU":"");
-          const badge=document.createElement("span");badge.textContent=!p.connected?"RECONNECTING":p.isBot?"BOT":p.ready?"READY":"GETTING READY";
-          badge.className=p.ready?"pr-ready-badge":"";
-          if(p.id===room.hostId)name.textContent+=" · HOST";
-          row.append(name,badge);return row;
+          const row=createLobbyRosterRow(document,{...p,localId,hostId:room.hostId});row.classList.add("pr-player-row");return row;
         });get("pr-roster").replaceChildren(...rows);
       }
     },

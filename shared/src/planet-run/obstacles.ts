@@ -22,7 +22,19 @@ export function prObstacleTransform(o:PrObstacle,elapsedMs:number,seed:number):{
     const phase=prMeteorTimeline(o,elapsedMs,seed);
     return {yaw:0,active:phase.active,warning:phase.warning};
   }
+  if(o.kind==="shutter"){
+    const lanePhase=cycle*3,openLane=Math.floor(lanePhase);
+    return {yaw:0,active:o.lane!==openLane,warning:lanePhase-openLane>=.78};
+  }
+  if(o.kind==="arc")return {yaw:0,active:cycle>=.3&&cycle<.42,warning:cycle<.3};
+  if(o.kind==="barrier")return {yaw:0,active:true,warning:false};
   return {yaw:t*Math.PI*2,active:o.kind==="door"?cycle<.55:true,warning:false};
+}
+/** Moving collision and renderer share the exact authored lateral sweep. */
+export function prObstacleCenter(o:PrObstacle,elapsedMs:number,seed:number):Vec3{
+ if(o.kind!=="barrier")return o.center;
+ const phase=elapsedMs/1000/Math.max(.25,o.period)*Math.PI*2+o.phase+(seed%997)/997*Math.PI*2;
+ return {x:o.center.x+Math.sin(phase)*(o.travel??0),y:o.center.y,z:o.center.z};
 }
 export function prTileState(triggeredAt:number|undefined,elapsedMs:number):"solid"|"triggered"|"breaking"|"gone" {
   if(triggeredAt===undefined)return "solid";

@@ -1,6 +1,9 @@
 import * as THREE from "three";
 import {PG_RELOAD_PROFILES,type PgPresentationWeapon,type PgReloadSample} from "./pg-reload-art";
 
+/** Local weapon scale only; integration must use the resulting scale for sights and wrists. */
+export const PG_WEAPON_PRESENCE:Record<PgPresentationWeapon,number>={pulse:1.15,nova:1.18,photon:1.12,quasar:1.15,rail:1.12,comet:1.14,helix:1.15,arc:1.14,prism:1.14,orbit:1.18};
+
 export interface PgWeaponArtResources {
  box:THREE.BufferGeometry;metal:THREE.Material;composite:THREE.Material;grip:THREE.Material;
  bevel?:THREE.BufferGeometry;
@@ -122,6 +125,26 @@ export function addPgWeaponPresentation(model:THREE.Group,weapon:PgPresentationW
   part(model,r,"receiver-metal-edge",r.metal,side*(receiverSide+.011),-.07,-.45,.012,.018,.26);
  }
  const carriage=part(model,r,`pg-${weapon}-recoil-carriage`,r.metal,receiverSide+.01,-.025,-.30,.035,.075,.18);
+ // Manufacturing detail stays below the sightline and uses the existing shared buffers.
+ const trim=r.ownMaterial(new THREE.MeshStandardMaterial({color:0x718a9c,metalness:.48,roughness:.41}));
+ for(const side of[-1,1]){
+  for(let i=0;i<3;i++){
+   part(model,r,`${weapon}-receiver-vent`,r.grip,side*(receiverSide+.021),.014,-.38-i*.056,.009,.035,.026);
+  }
+  for(const z of[-.55,-.33])part(model,r,`${weapon}-captive-fastener`,trim,side*(receiverSide+.026),-.055,z,.014,.022,.022);
+  part(model,r,`${weapon}-service-serial`,trim,side*(receiverSide+.023),-.025,-.52,.008,.018,.065);
+ }
+ const muzzle=model.userData.muzzle as THREE.Vector3|undefined;
+ if(muzzle){
+  const count=weapon==="prism"?3:weapon==="photon"?4:weapon==="arc"?2:weapon==="helix"?3:2;
+  for(let i=0;i<count;i++){
+   const angle=(i/count)*Math.PI*2,spread=weapon==="photon"?.14:weapon==="prism"?.17:.075;
+   const vane=part(model,r,`${weapon}-emitter-service-vane`,trim,Math.cos(angle)*spread,muzzle.y+Math.sin(angle)*spread,muzzle.z+.16,.035,.035,.18);vane.geometry=r.bevel??r.box;
+  }
+ }
+ // Details on the slide/pump travel with their actual mechanism, not a floating overlay.
+ const moving=model.getObjectByName(weapon==="orbit"?"orbit-light-slide":weapon==="comet"?"comet-slide":"shotgun-pump");
+ if(moving){for(const side of[-1,1]){const inlay=part(model,r,`${weapon}-action-inlay`,trim,side*(receiverSide+.027),.005,-.40,.012,.025,.12);moving.attach(inlay);}}
  const slide=model.getObjectByName(weapon==="orbit"?"orbit-light-slide":weapon==="comet"?"comet-slide":"shotgun-pump");
  const slideZ=slide?.position.z??0,latchZ=latch.position.z;
  return{cell,chamber,latch,update(sample:PgReloadSample,recoil:number){

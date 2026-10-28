@@ -16,7 +16,7 @@ export interface PrPlayerState extends GuestProfile, PrMotion {
 }
 export interface PrConfiguration {targetPlayers:10|20|30;fillBots:boolean;botDifficulty:BotDifficulty;}
 export interface PrPlatform {id:string;center:Vec3;half:Vec3;motion?:{axis:"x"|"z";distance:number;period:number;phase:number};conveyor?:Vec3;gravityScale?:number;}
-export interface PrObstacle {id:string;kind:"rotator"|"door"|"meteor"|"boost";center:Vec3;half:Vec3;period:number;phase:number;strength:number;}
+export interface PrObstacle {id:string;kind:"rotator"|"door"|"meteor"|"boost"|"shutter"|"arc"|"barrier";center:Vec3;half:Vec3;period:number;phase:number;strength:number;lane?:0|1|2;travel?:number;launch?:Vec3;}
 export interface PrCheckpoint {center:Vec3;half:Vec3;spawn:Vec3;}
 export interface PrTile {id:number;deck:number;column:number;row:number;center:Vec3;neighbors:number[];}
 export interface PrRoundDefinition {

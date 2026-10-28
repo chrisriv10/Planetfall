@@ -16,8 +16,6 @@
   --ui-muted: #b5c5de;
   --ui-focus: #ffdc4f;
 }
-.pr-screen { --ui-accent:#a2ffe0; --ui-primary:#b8ffe4; --ui-primary-end:#77d8d4; --ui-primary-shadow:#397d78; }
-.pg-screen { --ui-accent:#83ffe0; --ui-primary:#a8ffe8; --ui-primary-end:#65dacb; --ui-primary-shadow:#327f7a; }
 .screen.mode-lobby {
   padding:clamp(16px,3vw,42px);
   align-items:center;
@@ -148,4 +146,59 @@
   :is(#pg-lobby-screen,#pr-lobby-screen) .mode-panel .mode-fields { padding:10px; }
   :is(#pg-lobby-screen,#pr-lobby-screen) .mode-panel .button { min-height:44px; padding:10px 14px; }
   :is(#pg-lobby-screen,#pr-lobby-screen).mode-lobby .mode-panel select { min-height:44px; padding:8px 10px; }
+}
+/* Shared ready-room frame across all four families. */
+.screen.mode-lobby { justify-content:center; background:radial-gradient(ellipse at 75% 10%,#58469b30,transparent 60%),linear-gradient(120deg,#080c20dd,#0c1732b8); }
+.screen.mode-lobby :is(.lobby-card,.br-lobby-card,.pr-lobby-card,.pg-lobby-card).mode-panel { width:min(680px,100%); box-sizing:border-box; margin-inline:auto; clip-path:none; border-radius:12px 26px 12px 26px; }
+.mode-lobby .lobby-heading { display:flex; justify-content:space-between; }
+.mode-lobby :is(.player-row,.br-member,.pr-player-row,.pg-roster>*) { min-height:45px; box-sizing:border-box; padding:10px 12px; border-radius:7px; background:linear-gradient(100deg,#13213d,#191c3a88); box-shadow:inset 0 1px #ffffff08; }
+.mode-lobby :is(.player-row,.br-member) small { color:#bdcae4; }
+.mode-lobby .mode-room-code { background:#060e26; border-color:#70f5ff42; box-shadow:inset 0 0 22px #70f5ff08; }
+.mode-lobby .mode-room-code :is(span,strong) { font-size:22px; }
+.mode-lobby :is(.lobby-hint,.pr-note,#pg-lobby-note) { color:#aebfdd; line-height:1.5; font-size:12px; }
+.mode-roster-badges { display:flex; gap:5px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
+.mode-roster-badge { font-size:9px; letter-spacing:.07em; padding:3px 5px; border:1px solid #a2b9e238; border-radius:4px; color:#b9c9e5; white-space:nowrap; }
+.mode-roster-badge[data-kind=host] { color:#ffda77; border-color:#ffda7740; }
+.mode-roster-badge[data-kind=ready],.mode-roster-badge[data-kind=you] { color:#70f5ff; border-color:#70f5ff40; }
+@media(max-width:700px) { .screen.mode-lobby :is(.lobby-card,.br-lobby-card,.pr-lobby-card,.pg-lobby-card).mode-panel { max-height:calc(100dvh - 32px); overflow:auto; } }
+/* Explicit screen selectors outrank the original asymmetric Classic/BR shell. */
+:is(#lobby-screen,#br-lobby-screen,#pr-lobby-screen,#pg-lobby-screen).mode-lobby {
+  align-items:center;
+  justify-content:center;
+  padding:clamp(16px,3vw,42px);
+}
+:is(#lobby-screen,#br-lobby-screen,#pr-lobby-screen,#pg-lobby-screen).mode-lobby :is(.lobby-card,.br-lobby-card,.pr-lobby-card,.pg-lobby-card).mode-panel {
+  width:min(680px,100%);
+  min-width:0;
+  max-height:calc(100dvh - clamp(32px,6vw,84px));
+  overflow:auto;
+  margin-inline:auto;
+}
+.mode-lobby .mode-roster-row {
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:8px;
+  min-height:46px;
+  padding:10px 12px;
+  border:1px solid #a2b9e21c;
+  border-left:3px solid var(--player-color,var(--ui-accent));
+  border-radius:7px;
+  background:linear-gradient(100deg,#13213d,#191c3a88);
+}
+.mode-lobby .mode-roster-row[data-local=true] { border-color:#70f5ff40; background:linear-gradient(100deg,#15334c,#20213e); }
+.mode-lobby .mode-roster-swatch { flex:0 0 12px; width:12px; height:12px; border-radius:4px; background:var(--player-color,var(--ui-accent)); box-shadow:inset 0 0 0 1px #ffffff55; }
+.mode-lobby .mode-roster-name { flex:1 1 100px; min-width:0; white-space:normal; overflow-wrap:anywhere; color:#f2f7ff; font:800 13px/1.4 "Trebuchet MS",system-ui,sans-serif; }
+.mode-lobby .mode-roster-badges { margin-left:auto; max-width:100%; }
+.mode-lobby .mode-roster-row .remove-bot { position:static; flex-shrink:0; min-width:32px; min-height:32px; }
+.mode-roster-badge[data-kind=solar] { color:#ffce79; border-color:#ffce7940; }
+.mode-roster-badge[data-kind=void] { color:#d0b2ff; border-color:#d0b2ff40; }
+.mode-roster-badge[data-kind=waiting] { color:#c0cade; background:#ffffff05; }
+@media(max-width:700px) {
+  :is(#lobby-screen,#br-lobby-screen,#pr-lobby-screen,#pg-lobby-screen).mode-lobby { padding:16px; }
+  :is(#lobby-screen,#br-lobby-screen,#pr-lobby-screen,#pg-lobby-screen).mode-lobby :is(.lobby-card,.br-lobby-card,.pr-lobby-card,.pg-lobby-card).mode-panel { max-height:calc(100dvh - 32px); }
+  :is(#lobby-screen,#br-lobby-screen,#pr-lobby-screen,#pg-lobby-screen).mode-lobby :is(button,select,input:not([type=checkbox]):not([type=range])) { min-height:44px; }
+  :is(#lobby-screen,#br-lobby-screen,#pr-lobby-screen,#pg-lobby-screen).mode-lobby button { min-width:44px; }
+  :is(#lobby-screen,#br-lobby-screen,#pr-lobby-screen,#pg-lobby-screen).mode-lobby label:has(input[type=checkbox]) { min-height:44px; display:flex; align-items:center; gap:8px; }
+  .mode-lobby .mode-roster-badges { gap:4px; }
 }

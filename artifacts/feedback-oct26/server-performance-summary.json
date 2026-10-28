@@ -1,0 +1,50 @@
+{
+  "planetGun": [
+    {
+      "mode": "planet-gun",
+      "population": 4,
+      "averageTickMs": 0.3786441666669432,
+      "p95TickMs": 0.7692000000097323,
+      "maxTickMs": 5.773300000000745,
+      "maxSnapshotBytes": 6299,
+      "shotCount": 131,
+      "kills": 15
+    },
+    {
+      "mode": "planet-gun",
+      "population": 8,
+      "averageTickMs": 0.7125839444448745,
+      "p95TickMs": 1.2615999999979977,
+      "maxTickMs": 2.823000000003958,
+      "maxSnapshotBytes": 11477,
+      "shotCount": 273,
+      "kills": 38
+    },
+    {
+      "mode": "planet-gun",
+      "population": 12,
+      "averageTickMs": 1.2233713333337801,
+      "p95TickMs": 2.0843000000168104,
+      "maxTickMs": 6.138200000015786,
+      "maxSnapshotBytes": 16689,
+      "shotCount": 447,
+      "kills": 51
+    }
+  ],
+  "battleRoyale": {
+    "populations": [
+      10,
+      20,
+      40
+    ],
+    "additionalFortyPlayerIdentityCases": [
+      1000,
+      5000
+    ],
+    "averageTickBudgetMs": 16,
+    "p95TickBudgetMs": 45,
+    "worstTickBudgetMs": 150,
+    "maxSnapshotBudgetBytes": 160000,
+    "validation": "passed unchanged as part of 1766-test full suite"
+  }
+}

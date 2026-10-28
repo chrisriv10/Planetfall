@@ -9,10 +9,12 @@ describe('PlanetRun dive and pad feedback',()=>{
   expect(Math.hypot(state.velocity.x,state.velocity.z)).toBe(13);
   expect(prIsBoosting(state,2000)).toBe(false);
  });
- it('identifies a real pad launch only during its active carry',()=>{
-  const state=prSpawn({x:0,y:.6,z:-14});state.grounded=true;
-  prStepMotion(state,input,1/30,2000,prRound('capacitor-causeway'),42);
-  expect(Math.hypot(state.velocity.x,state.velocity.z)).toBe(13);
+ for(const id of ['launch-coil','final-launch-coil'])it(`identifies ${id} only during its real active carry`,()=>{
+  const round=prRound('capacitor-causeway'),pad=round.obstacles.find(o=>o.id===id)!;
+  const state=prSpawn({x:pad.center.x,y:.6,z:pad.center.z});state.grounded=true;
+  prStepMotion(state,input,1/30,2000,round,42);
+  expect(Math.hypot(state.velocity.x,state.velocity.z)).toBe(Math.abs(pad.launch!.z));
+  expect(state.velocity.y).toBe(pad.launch!.y);
   expect(prIsBoosting(state,2000)).toBe(true);
   expect(prIsBoosting(state,state.diveUntil)).toBe(false);
  });

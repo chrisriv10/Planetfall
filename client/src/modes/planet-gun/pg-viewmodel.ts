@@ -1,32 +1,35 @@
+import {createPgModuleArt} from "./pg-module-art";
 import * as THREE from "three";
-import type { BrWeaponId } from "@planetfall/shared";
+import type { BrWeaponId,PgModuleId } from "@planetfall/shared";
 import { BrWeaponModelLibrary } from "../battle-royale/br-weapon-model-library";
 import {createPgReloadSample,samplePgReload,PG_RELOAD_PROFILES,type PgPresentationWeapon} from "./pg-reload-art";
-import {addPgWeaponPresentation,createPgOrbitModel,createPgBeveledHousingGeometry,createPgSculptedHousingGeometry} from "./pg-weapon-presentation";
+import {addPgWeaponPresentation,createPgOrbitModel,createPgBeveledHousingGeometry,createPgSculptedHousingGeometry,PG_WEAPON_PRESENCE} from "./pg-weapon-presentation";
 import {extendPgSleeveElbow,routePgAdsElbow,pgSleeveRadius,createPgSleeveGeometry} from "./pg-viewmodel-arm-art";
 
 export const PG_VIEWMODEL_LAYER=1;
 const WEAPON_MODELS:Record<PgPresentationWeapon,BrWeaponId|null>={pulse:"pulse-rifle",nova:"nova-smg",photon:"photon-shotgun",quasar:"quasar-carbine",rail:"rail-laser",comet:"comet-hand-cannon",helix:"helix-burst-rifle",arc:"arc-blaster",prism:"prism-beam",orbit:null};
 // Camera-space presentation only. Sight heights refer to canonical model space.
-const POSES:Record<PgPresentationWeapon,{scale:number;sight:number;x:number;y:number;z:number;adsZ:number;support:number;grip:number;kick:number;sprint:number}>={
+const BASE_POSES:Record<PgPresentationWeapon,{scale:number;sight:number;x:number;y:number;z:number;adsZ:number;support:number;grip:number;kick:number;sprint:number}>={
   pulse:{scale:.38,sight:.35,x:.22,y:-.23,z:-.43,adsZ:-.46,support:-1.02,grip:-.32,kick:.065,sprint:.28},
   nova:{scale:.38,sight:.30,x:.21,y:-.22,z:-.43,adsZ:-.44,support:-.62,grip:-.24,kick:.05,sprint:.36},
   photon:{scale:.34,sight:.215,x:.22,y:-.24,z:-.46,adsZ:-.49,support:-1.12,grip:-.26,kick:.1,sprint:.22},
   quasar:{scale:.36,sight:.30,x:.22,y:-.23,z:-.46,adsZ:-.49,support:-1.02,grip:-.25,kick:.07,sprint:.26},
-  rail:{scale:.34,sight:.37,x:.24,y:-.25,z:-.49,adsZ:-.50,support:-1.13,grip:-.34,kick:.105,sprint:.18},
+  rail:{scale:.34,sight:.37,x:.24,y:-.25,z:-.49,adsZ:-.56,support:-1.13,grip:-.34,kick:.105,sprint:.18},
   comet:{scale:.42,sight:.265,x:.18,y:-.22,z:-.45,adsZ:-.47,support:-.17,grip:-.12,kick:.12,sprint:.42},
   helix:{scale:.38,sight:.23,x:.22,y:-.23,z:-.44,adsZ:-.46,support:-1.02,grip:-.28,kick:.065,sprint:.28},
   arc:{scale:.37,sight:.35,x:.23,y:-.23,z:-.46,adsZ:-.48,support:-.95,grip:-.23,kick:.075,sprint:.24},
   prism:{scale:.37,sight:.35,x:.23,y:-.23,z:-.46,adsZ:-.48,support:-.80,grip:-.15,kick:.04,sprint:.22},
   orbit:{scale:.46,sight:.22,x:.17,y:-.21,z:-.43,adsZ:-.45,support:-.12,grip:-.10,kick:.055,sprint:.46}
 };
-export interface PgViewmodelState {weapon:PgPresentationWeapon;ads:number;recoil:number;reload:number;speed:number;mode:string;time:number;suitAccent?:number;landing?:number;verticalSpeed?:number;airborne?:boolean;wallSide?:number}
+const POSES=Object.fromEntries(Object.entries(BASE_POSES).map(([id,p])=>[id,{...p,scale:p.scale*PG_WEAPON_PRESENCE[id as PgPresentationWeapon]}])) as typeof BASE_POSES;
+export interface PgViewmodelState {weapon:PgPresentationWeapon;ads:number;recoil:number;reload:number;speed:number;mode:string;time:number;suitAccent?:number;modules?:readonly PgModuleId[];landing?:number;verticalSpeed?:number;airborne?:boolean;wallSide?:number}
 
 /** Camera child; all lighting and geometry use a dedicated layer. No gameplay ownership. */
 export function createPgViewmodel(){
   const root=new THREE.Group();root.name="planet-gun-viewmodel";
   const rig=new THREE.Group();root.add(rig);
   const library=new BrWeaponModelLibrary(),weapons=new Map<PgPresentationWeapon,THREE.Group>();
+  const modules=new Map<PgPresentationWeapon,ReturnType<typeof createPgModuleArt>>();
   const hardware=new Map<PgPresentationWeapon,ReturnType<typeof addPgWeaponPresentation>>();
   const ownedGeometry=new Set<THREE.BufferGeometry>(),ownedMaterials=new Set<THREE.Material>();
   const ownG=<T extends THREE.BufferGeometry>(g:T):T=>{ownedGeometry.add(g);return g;};
@@ -98,14 +101,14 @@ export function createPgViewmodel(){
       for(const side of[-1,1])mesh(model,"local-energy-reflex-post",box,frame,[side*.075,p.sight,-.25],[.025,.13,.055]);
       mesh(model,"local-energy-reflex-bridge",box,frame,[0,p.sight+.075,-.25],[.175,.025,.055]);
     }
-    hardware.set(weapon,addPgWeaponPresentation(model,weapon,artResources));
+    hardware.set(weapon,addPgWeaponPresentation(model,weapon,artResources));modules.set(weapon,createPgModuleArt(model,weapon,artResources));
     model.scale.setScalar(p.scale);model.visible=false;rig.add(model);weapons.set(weapon,model);
   }
   root.traverse(o=>{o.layers.set(PG_VIEWMODEL_LAYER);o.userData.cameraCollision=false;if(o instanceof THREE.Mesh){o.castShadow=false;o.receiveShadow=false;}});
   let current:PgPresentationWeapon|null=null,pending:PgPresentationWeapon|null=null,switchedAt=-1000,raisedAt=-1000,disposed=false,lastTime=0,poseX=.22,poseY=-.23,poseZ=-.43,sprint=0,movementLean=0;
   const reloadSample=createPgReloadSample();
   const clamp=(v:number)=>Math.max(0,Math.min(1,Number.isFinite(v)?v:0));
-  const wrist=new THREE.Vector3(),elbow=new THREE.Vector3(),direction=new THREE.Vector3(),up=new THREE.Vector3(0,1,0);
+  const wrist=new THREE.Vector3(),elbow=new THREE.Vector3(),direction=new THREE.Vector3(),up=new THREE.Vector3(0,1,0),parentOrientation=new THREE.Quaternion();
   return{root,update(state:PgViewmodelState):void{
     if(disposed)return;
     const time=Number.isFinite(state.time)?state.time:lastTime,dt=Math.min(.05,Math.max(0,(time-lastTime)/1000));lastTime=time;
@@ -116,6 +119,7 @@ export function createPgViewmodel(){
     if(pending!==null&&time-switchedAt>=lowerDuration){weapons.get(current)!.visible=false;current=pending;pending=null;weapons.get(current)!.visible=true;raisedAt=switchedAt+lowerDuration;}
     if(state.suitAccent!==undefined){accent.color.setHex(state.suitAccent);accent.emissive.copy(accent.color);}
     const p=POSES[current],profile=PG_RELOAD_PROFILES[current],pistol=current==="comet"||current==="orbit",ads=clamp(state.ads),reload=current===state.weapon?clamp(state.reload):0,kick=current===state.weapon?clamp(state.recoil):0,speed=Math.min(14,Math.max(0,state.speed||0));
+    if(current===state.weapon)modules.get(current)!.setModules(state.modules??[]);
     samplePgReload(current,reload,(pistol?-.028:-.07)/p.scale,-.10,p.support,reloadSample);hardware.get(current)!.update(reloadSample,kick);
     const smooth=1-Math.exp(-24*dt),switchProgress=clamp((time-switchedAt)/lowerDuration),switchDip=pending!==null?switchProgress*switchProgress*(3-2*switchProgress):clamp(1-(time-raisedAt)/(80+profile.weight*20));
     sprint+=((state.mode==="sprint"?1:0)-sprint)*(1-Math.exp(-12*dt));
@@ -142,11 +146,12 @@ export function createPgViewmodel(){
       a.cuff.position.copy(wrist).addScaledVector(direction,-.063);a.cuff.quaternion.copy(a.forearm.quaternion);
       a.hand.position.copy(wrist);a.hand.rotation.set(support?-.22+reloadSample.present*.12:.12,support&&!pistol?-.45+reloadSample.present*.22:side*.2,side*.18+(support?reloadSample.cellRoll:0));
     }
-  },getReloadPhase(){return reloadSample.phase;},getMuzzle(target:THREE.Vector3):boolean{
+  },getReloadPhase(){return reloadSample.phase;},getMuzzle(target:THREE.Vector3,orientation?:THREE.Quaternion):boolean{
     if(disposed||current===null)return false;
     const model=weapons.get(current)!;const anchor=model.userData.muzzle as THREE.Vector3;
     model.updateWorldMatrix(true,false);target.copy(anchor).applyMatrix4(model.matrixWorld);
     if(root.parent)root.parent.worldToLocal(target);
+    if(orientation){model.getWorldQuaternion(orientation);if(root.parent){root.parent.getWorldQuaternion(parentOrientation);orientation.premultiply(parentOrientation.invert());}}
     return Number.isFinite(target.x)&&Number.isFinite(target.y)&&Number.isFinite(target.z);
-  },dispose():void{if(disposed)return;disposed=true;library.dispose();for(const g of ownedGeometry)g.dispose();for(const m of ownedMaterials)m.dispose();root.clear();}};
+  },dispose():void{if(disposed)return;disposed=true;for(const module of modules.values())module.dispose();library.dispose();for(const g of ownedGeometry)g.dispose();for(const m of ownedMaterials)m.dispose();root.clear();}};
 }

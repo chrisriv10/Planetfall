@@ -12,18 +12,47 @@ function context(id:"capacitor-causeway"|"shatterdeck"):PrArtContext {
  return {round,root,platforms,obstacles,surfaces:new Map(),hazardVolumes:new Map()};
 }
 describe("capacitor / final presentation boundaries",()=>{
- it("keeps shutters inside hit boxes and charge lamps tied to the canonical cycle",()=>{
+ it("keeps lane shells in hit boxes, with one open lane and advance next-lane markers",()=>{
   const ctx=context("capacitor-causeway"),art=createPrCapacitorArt(ctx);
-  const doors=ctx.round.obstacles.filter(o=>o.kind==="door");
-  for(const o of doors){const g=ctx.obstacles.get(o.id)!;g.position.set(0,0,0);g.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(g);
-   for(const axis of ["x","y","z"] as const){expect(b.min[axis]).toBeGreaterThanOrEqual(-o.half[axis]-.01);expect(b.max[axis]).toBeLessThanOrEqual(o.half[axis]+.01);}
-   g.position.copy(o.center);
+  const shutters=ctx.round.obstacles.filter(o=>o.kind==="shutter");expect(shutters).toHaveLength(6);
+  for(const o of shutters)for(const state of ["open","next"]){
+   const marker=ctx.root.getObjectByName(`capacitor-${state}-${o.id}`)!;marker.updateWorldMatrix(true,true);
+   marker.traverse(node=>{if(!(node instanceof THREE.InstancedMesh))return;for(const f of node.userData.features){if(f.name==="lane-status")expect(f.placement[1]-f.placement[4]/2).toBeGreaterThan(6);}});
   }
-  for(let ms=0;ms<12000;ms+=100){art.update(ms,173,new Map());doors.forEach((o,i)=>{const s=prObstacleTransform(o,ms,173),phase=((s.yaw/(2*Math.PI))%1+1)%1;
-   expect(ctx.root.getObjectByName(`capacitor-charge-${i}`)!.visible).toBe(s.active||phase>.86);
-   expect(ctx.root.getObjectByName(`capacitor-open-${i}`)!.visible).toBe(!s.active&&phase<=.86);
-  });}
-  art.dispose();
+  for(const o of ctx.round.obstacles.filter(o=>o.kind==="shutter"||o.kind==="barrier"||o.kind==="arc")){const g=ctx.obstacles.get(o.id)!;g.position.set(0,0,0);g.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(g);
+   for(const axis of ["x","y","z"] as const){expect(b.min[axis]).toBeGreaterThanOrEqual(-o.half[axis]-.01);expect(b.max[axis]).toBeLessThanOrEqual(o.half[axis]+.01);}g.position.copy(o.center);
+  }
+  for(const seed of [0,173,996])for(let ms=0;ms<15000;ms+=50){art.update(ms,seed,new Map());
+   for(const z of [-20,-106]){const row=shutters.filter(o=>o.center.z===z);let openCount=0;
+    for(const o of row){const state=prObstacleTransform(o,ms,seed),open=ctx.root.getObjectByName(`capacitor-open-${o.id}`)!;
+     expect(open.visible).toBe(!state.active);if(open.visible)openCount++;
+     expect(ctx.root.getObjectByName(`capacitor-shell-${o.id}`)!.visible).toBe(state.active);
+     const next=ctx.root.getObjectByName(`capacitor-next-${o.id}`)!;
+     if(next.visible){expect(state.warning).toBe(true);expect(state.active).toBe(true);expect(prObstacleTransform(o,ms+o.period*1000/3*.22,seed).active).toBe(false);}
+    }expect(openCount).toBe(1);
+   }
+  }art.dispose();
+ });
+ it("shows flat charge warnings before a bounded discharge and clears them on cooldown",()=>{
+  const ctx=context("capacitor-causeway"),art=createPrCapacitorArt(ctx),arcs=ctx.round.obstacles.filter(o=>o.kind==="arc");expect(arcs).toHaveLength(3);
+  for(const o of arcs){let warningSeen=false,activeSeen=false,coolSeen=false;
+   for(let ms=0;ms<10000;ms+=40){art.update(ms,173,new Map());const state=prObstacleTransform(o,ms,173);
+    expect(ctx.root.getObjectByName(`capacitor-discharge-${o.id}`)!.visible).toBe(state.active);
+    const warning=ctx.root.getObjectByName(`capacitor-warning-${o.id}`)!;expect(warning.visible).toBe(state.warning);
+    if(state.warning){warningSeen=true;ctx.root.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(warning);expect(b.max.y-b.min.y).toBeLessThan(.01);expect(b.max.z-b.min.z).toBeLessThanOrEqual(o.half.z*2+.001);}
+    activeSeen ||=state.active;coolSeen ||= !state.active&&!state.warning;
+   }expect(warningSeen&&activeSeen&&coolSeen).toBe(true);
+  }art.dispose();
+ });
+ it("preserves hazard visibility across quality changes and restores replaced volumes",()=>{
+  const ctx=context("capacitor-causeway"),volumes=new Map<string,THREE.Mesh>();
+  for(const o of ctx.round.obstacles){const mesh=new THREE.Mesh();volumes.set(o.id,mesh);}
+  const art=createPrCapacitorArt({...ctx,hazardVolumes:volumes});art.update(0,0,new Map());
+  for(const q of ["low","medium","high"] as const){art.setQuality(q);
+   for(const o of ctx.round.obstacles){if(o.kind!=="shutter"&&o.kind!=="arc"&&o.kind!=="barrier")continue;expect(volumes.get(o.id)!.visible).toBe(false);
+    if(o.kind==="shutter")expect(ctx.root.getObjectByName(`capacitor-shell-${o.id}`)!.visible).toBe(prObstacleTransform(o,0,0).active);
+   }
+  }art.dispose();for(const mesh of volumes.values())expect(mesh.visible).toBe(true);
  });
  it("keeps final scenery clear of all playable tile footprints and central scenery below kill",()=>{
   const ctx=context("shatterdeck"),art=createPrShatterdeckArt(ctx);
@@ -43,7 +72,7 @@ describe("capacitor / final presentation boundaries",()=>{
  it("bounds batches, retains landmarks on low, and cleans up idempotently",()=>{
   for(const id of ["capacitor-causeway","shatterdeck"] as const){const ctx=context(id),initial=ctx.root.children.length,art=id==="shatterdeck"?createPrShatterdeckArt(ctx):createPrCapacitorArt(ctx);let meshes=0;
    ctx.root.traverse(n=>{if(n instanceof THREE.Mesh)meshes++;});expect(meshes).toBeLessThanOrEqual(70);
-   expect(meshes).toBe(id==="shatterdeck"?27:57);
+   if(id==="shatterdeck")expect(meshes).toBe(27);
    art.setQuality("low");art.update(9000,7,new Map());expect(ctx.root.getObjectByName(id==="shatterdeck"?"shatterdeck-final-containment":"capacitor-bank-pulse-0")!.visible).toBe(true);
    art.dispose();art.dispose();expect(ctx.root.children.length).toBe(initial);
   }

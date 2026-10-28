@@ -1,6 +1,6 @@
 import type { Vec3 } from "../index.js";
 import { PR_BALANCE as B } from "./balance.js";
-import { prInsideTile,prObstacleTransform,prPlatformCenter,type PrTileState } from "./obstacles.js";
+import { prInsideTile,prObstacleTransform,prObstacleCenter,prPlatformCenter,type PrTileState } from "./obstacles.js";
 import type { PrInput,PrMotion,PrRoundDefinition } from "./types.js";
 
 export function prSpawn(position:Vec3):PrMotion {
@@ -78,13 +78,13 @@ export function prStepMotion(state:PrMotion,input:PrInput,dt:number,elapsedMs:nu
   if(supportId!==null){state.position.y=top;state.velocity.y=0;state.grounded=true;state.supportId=supportId;}
   for(const o of round.obstacles){
     const transform=prObstacleTransform(o,elapsedMs,seed);if(!transform.active)continue;
-    const dx=state.position.x-o.center.x,dz=state.position.z-o.center.z;
+    const center=prObstacleCenter(o,elapsedMs,seed),dx=state.position.x-center.x,dz=state.position.z-center.z;
     const angle=o.kind==="rotator"?transform.yaw:0,c=Math.cos(angle),s=Math.sin(angle),x=dx*c+dz*s,z=-dx*s+dz*c;
     const pilotY=state.position.y+B.height/2;
-    if(Math.abs(x)>o.half.x+B.radius||Math.abs(z)>o.half.z+B.radius||Math.abs(pilotY-o.center.y)>o.half.y+B.height/2)continue;
+    if(Math.abs(x)>o.half.x+B.radius||Math.abs(z)>o.half.z+B.radius||Math.abs(pilotY-center.y)>o.half.y+B.height/2)continue;
     if(o.kind==="boost"){
       if(state.diveReadyAt>elapsedMs)continue;
-      state.velocity.z=-o.strength;state.velocity.y=5;state.diveUntil=elapsedMs+400;state.diveReadyAt=elapsedMs+1000;continue;
+      state.velocity.x=o.launch?.x??state.velocity.x;state.velocity.z=o.launch?.z??-o.strength;state.velocity.y=o.launch?.y??5;state.diveUntil=elapsedMs+(o.launch?700:400);state.diveReadyAt=elapsedMs+1000;continue;
     }
     // Resolve to the nearest face; bounded impulse cannot repeatedly accelerate.
     const px=o.half.x+B.radius-Math.abs(x),pz=o.half.z+B.radius-Math.abs(z);
@@ -92,7 +92,7 @@ export function prStepMotion(state:PrMotion,input:PrInput,dt:number,elapsedMs:nu
     const wx=nx*c-nz*s,wz=nx*s+nz*c;
     state.position.x+=wx*depth;state.position.z+=wz*depth;
     state.velocity.x=wx*o.strength;state.velocity.z=wz*o.strength;
-    if(o.kind!=="door")state.velocity.y=Math.max(state.velocity.y,3.5);
+    if(o.kind!=="door"&&o.kind!=="shutter"&&o.kind!=="barrier")state.velocity.y=Math.max(state.velocity.y,3.5);
     state.diveUntil=Math.max(state.diveUntil,elapsedMs+160);
   }
 }

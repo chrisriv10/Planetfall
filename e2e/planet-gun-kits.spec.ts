@@ -21,9 +21,12 @@ test("Combat Kits persist real modules, launch equipped and queue in-game edits 
  await page.locator("#settings-open").click();await page.locator("#graphics-quality").selectOption("low");await page.locator("#settings-close").click();
  await page.locator("#create-room").click();await page.locator("#pg-target").selectOption("4");await page.locator("#pg-edit-kits").click();
  const editor=page.locator(".pg-kit-overlay");await expect(editor).toBeVisible();
- await editor.getByLabel("01 / Kit name",{exact:true}).fill("Burst Patrol");await editor.getByLabel("Primary weapon",{exact:true}).selectOption("helix");await editor.getByLabel("Secondary weapon",{exact:true}).selectOption("orbit");
- await page.locator("#pg-kits-1-primaryModules-precision-lens").check();await page.locator("#pg-kits-1-primaryModules-expanded-cell").check();await page.locator("#pg-kits-1-primaryModules-gyro-stabilizer").check();await page.locator("#pg-kits-1-secondaryModules-reflex-array").check();
- await expect(page.locator("#pg-kits-1-primaryModules-lightweight-frame")).toBeDisabled();await expect(page.locator("#pg-kits-1-primaryModules-rapid-charge-cell")).toBeDisabled();
+ await editor.getByLabel("KIT NAME",{exact:true}).fill("Burst Patrol");await editor.getByLabel("Change weapon",{exact:true}).selectOption("helix");
+ await page.locator("#pg-kits-1-primaryModules-precision-lens").click();await page.locator("#pg-kits-1-socket-energy").click();await page.locator("#pg-kits-1-primaryModules-expanded-cell").click();await page.locator("#pg-kits-1-socket-stability").click();await page.locator("#pg-kits-1-primaryModules-gyro-stabilizer").click();
+ await page.locator("#pg-kits-1-socket-handling").click();await expect(page.locator("#pg-kits-1-primaryModules-lightweight-frame")).toBeDisabled();
+ // Replacing an installed category remains valid at the three-module limit.
+ await page.locator("#pg-kits-1-socket-energy").click();await expect(page.locator("#pg-kits-1-primaryModules-rapid-charge-cell")).toBeEnabled();
+ await editor.getByRole("button",{name:/^02 \/ SECONDARY/}).click();await editor.getByLabel("Change weapon",{exact:true}).selectOption("orbit");await page.locator("#pg-kits-1-socket-optic").click();await page.locator("#pg-kits-1-secondaryModules-reflex-array").click();
  await editor.getByRole("button",{name:"Save Kit & Select",exact:true}).click();await editor.getByRole("button",{name:"Close",exact:true}).click();
  await expect(page.locator("#pg-kit-summary")).toContainText("Burst Patrol");await expect(page.locator("#pg-kit-summary")).toContainText("Orbit");
  await page.locator("#pg-ready").click();await page.locator("#pg-start").click();await expect.poll(async()=>(await state(page))?.phase).toBe("playing");
@@ -33,8 +36,22 @@ test("Combat Kits persist real modules, launch equipped and queue in-game edits 
  await page.keyboard.press("r");await expect.poll(async()=>(await state(page)).local.guns[0].reloadUntil).toBeGreaterThan(0);await page.screenshot({path:info.outputPath("helix-component-reload.png")});
  await expect.poll(async()=>(await state(page)).local.guns[0].reloadUntil).toBe(0);
  await page.keyboard.press("Escape");await page.locator("#pause-kits").click();await expect(editor).toBeVisible();await expect.poll(async()=>(await state(page)).blocked).toBe(true);expect(await page.evaluate(()=>document.pointerLockElement===null)).toBe(true);
- const equipped=(await state(page)).local.guns.map((g:any)=>g.id);await editor.getByLabel("Primary weapon",{exact:true}).selectOption("arc");await editor.getByRole("button",{name:"Save Kit & Select",exact:true}).click();
+ const equipped=(await state(page)).local.guns.map((g:any)=>g.id);await editor.getByRole("button",{name:/^01 \/ PRIMARY/}).click();await editor.getByLabel("Change weapon",{exact:true}).selectOption("arc");await editor.getByRole("button",{name:"Save Kit & Select",exact:true}).click();
  await expect.poll(async()=>(await state(page)).local.queuedLoadout?.primary).toBe("arc");expect((await state(page)).local.guns.map((g:any)=>g.id)).toEqual(equipped);await expect(editor).toContainText("NEXT SPAWN");
  await page.keyboard.press("Escape");await expect(editor).toBeHidden();await expect(page.locator("#pause-overlay")).toBeVisible();await page.locator("#pause-leave").click();await expect(page.locator("#home-screen")).toBeVisible();
- await page.reload();await selectExperimentalFamily(page,"planet-gun");await page.locator("#create-room").click();await expect(page.locator("#pg-loadout")).toHaveValue("arc");await page.locator("#pg-edit-kits").click();await expect(editor.getByLabel("01 / Kit name",{exact:true})).toHaveValue("Burst Patrol");expect(errors).toEqual([]);
+ await page.reload();await selectExperimentalFamily(page,"planet-gun");await page.locator("#create-room").click();await expect(page.locator("#pg-loadout")).toHaveValue("arc");await page.locator("#pg-edit-kits").click();await expect(editor.getByLabel("KIT NAME",{exact:true})).toHaveValue("Burst Patrol");expect(errors).toEqual([]);
+});
+
+test("visual gunsmith keeps five kit cards and one preview context with actual module changes",async({page},info)=>{
+ await page.emulateMedia({reducedMotion:"reduce"});
+ await page.addInitScript(()=>{const contexts=new Set<HTMLCanvasElement>(),original=HTMLCanvasElement.prototype.getContext;(window as any).__KIT_WEBGL_CONTEXTS__=contexts;HTMLCanvasElement.prototype.getContext=function(this:HTMLCanvasElement,type:string,...args:any[]){if(type==="webgl"||type==="webgl2")contexts.add(this);return (original as any).call(this,type,...args);}as any;});
+ await page.setViewportSize({width:1280,height:720});await page.goto("/");await page.getByLabel("Name",{exact:true}).fill("Gunsmith Review");await selectExperimentalFamily(page,"planet-gun");await page.locator("#create-room").click();await expect(page.locator("#pg-lobby-screen")).toBeVisible();await page.locator("#pg-edit-kits").click();const editor=page.locator(".pg-kit-overlay");
+ await expect(editor.getByRole("tab")).toHaveCount(5);await expect(editor.locator("canvas")).toHaveCount(1);
+ for(let i=0;i<5;i++){await page.locator(`#pg-kits-1-tab-${i}`).click();await expect(page.locator(`#pg-kits-1-tab-${i}`)).toHaveAttribute("aria-selected","true");await expect(editor.locator(".pg-kit-thumbnail")).toHaveCount(5);}
+ await page.locator("#pg-kits-1-tab-0").click();
+ const before=await editor.locator("canvas").evaluate((node:HTMLCanvasElement)=>node.toDataURL());await page.locator("#pg-kits-1-primaryModules-reflex-array").click();
+ const after=await editor.locator("canvas").evaluate((node:HTMLCanvasElement)=>node.toDataURL());expect(after).not.toBe(before);await expect(editor.locator(".pg-kit-stats")).toContainText("180 ms");
+ expect(await page.evaluate(()=>(window as any).__KIT_WEBGL_CONTEXTS__.size)).toBe(2);
+ const bounds=await editor.locator("canvas").boundingBox();expect(bounds).not.toBeNull();expect(bounds!.y).toBeGreaterThan(100);expect(bounds!.y+bounds!.height).toBeLessThan(650);expect(bounds!.height).toBeGreaterThan(140);
+ await page.screenshot({path:info.outputPath("visual-gunsmith-720p.png")});await page.keyboard.press("Escape");await expect(editor).toBeHidden();await expect(page.locator("#pg-lobby-screen")).toBeVisible();
 });

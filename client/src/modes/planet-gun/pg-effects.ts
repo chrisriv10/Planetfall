@@ -1,3 +1,4 @@
+import {createPgMuzzleArt} from "./pg-muzzle-art";
 import * as THREE from "three";
 import {PG_MAP,type PgShot,type PgWeaponId} from "@planetfall/shared";
 
@@ -11,9 +12,9 @@ export class PgEffects {
   private readonly lines=new Map<PgWeaponId,THREE.LineBasicMaterial>();
   private readonly sparks=new Map<PgWeaponId,THREE.MeshBasicMaterial>();
   private readonly impactGeometry=new THREE.OctahedronGeometry(1,0);
-  private cursor=0;
-  private readonly localFlash:THREE.Mesh;
-  private muzzleUntil=0;
+  private cursor=0;private predictedMuzzleAt=-Infinity;private predictedMuzzleWeapon:PgWeaponId="pulse";
+  private readonly localMuzzle=createPgMuzzleArt();
+
   private disposed=false;
   constructor(){
     this.root.name="planet-gun-shot-effects";
@@ -21,8 +22,7 @@ export class PgEffects {
       this.lines.set(weapon,new THREE.LineBasicMaterial({color:COLORS[weapon],transparent:true,opacity:.75,depthWrite:false}));
       this.sparks.set(weapon,new THREE.MeshBasicMaterial({color:COLORS[weapon],transparent:true,opacity:.8,depthWrite:false,blending:THREE.AdditiveBlending}));
     }
-    this.muzzleRoot.name="planet-gun-local-muzzle";this.localFlash=new THREE.Mesh(this.impactGeometry,this.sparks.get("pulse"));
-    this.localFlash.position.set(0,0,0);this.localFlash.scale.set(.035,.035,.09);this.localFlash.visible=false;this.localFlash.userData.cameraCollision=false;this.muzzleRoot.add(this.localFlash);
+    this.muzzleRoot.name="planet-gun-local-muzzle";this.muzzleRoot.add(this.localMuzzle.root);
     for(let i=0;i<CAPACITY;i++){
       const positions=new THREE.BufferAttribute(new Float32Array(6),3);positions.setUsage(THREE.DynamicDrawUsage);
       const geometry=new THREE.BufferGeometry();geometry.setAttribute("position",positions);
@@ -32,12 +32,13 @@ export class PgEffects {
       this.slots.push({line,positions,impact,flash,start:0,impactSize:.1,beam:false,active:false});
     }
   }
+  localFire(weapon:PgWeaponId,time:number):void{if(this.disposed)return;this.predictedMuzzleAt=time;this.predictedMuzzleWeapon=weapon;this.localMuzzle.fire(weapon,time);}
   shot(shot:PgShot,local:boolean,time:number):void{
     if(this.disposed||!Number.isFinite(time))return;
     const {origin:a,end:b}=shot;
     if(!Number.isFinite(a.x)||!Number.isFinite(a.y)||!Number.isFinite(a.z)||!Number.isFinite(b.x)||!Number.isFinite(b.y)||!Number.isFinite(b.z)||Math.hypot(b.x-a.x,b.y-a.y,b.z-a.z)>200)return;
     const slot=this.slots[this.cursor];this.cursor=(this.cursor+1)%CAPACITY;
-    if(local){this.localFlash.material=this.sparks.get(shot.weapon)!;this.localFlash.visible=true;this.localFlash.rotation.z=(shot.id%7)*.8;this.muzzleUntil=time+28;}
+    if(local&&(this.predictedMuzzleWeapon!==shot.weapon||time-this.predictedMuzzleAt>350))this.localMuzzle.fire(shot.weapon,time);
     slot.start=time;slot.active=true;slot.beam=shot.weapon==="prism";
     // Truncate the near end so local eye-origin traces never cover the reticle.
     const distance=Math.hypot(b.x-a.x,b.y-a.y,b.z-a.z),fraction=local?Math.min(1,.9/Math.max(.001,distance)):0;
@@ -50,7 +51,7 @@ export class PgEffects {
   stats():{active:number;capacity:number}{let active=0;for(const slot of this.slots)if(slot.active)active++;return {active,capacity:CAPACITY};}
   update(time:number):void{
     if(this.disposed)return;
-    if(time>=this.muzzleUntil)this.localFlash.visible=false;
+    this.localMuzzle.update(time);
     for(const slot of this.slots){
       if(!slot.active)continue;
       const age=Math.max(0,time-slot.start);
@@ -60,5 +61,5 @@ export class PgEffects {
       else if(slot.impact.visible)slot.impact.scale.setScalar(slot.impactSize*(1-age/130));
     }
   }
-  dispose():void{if(this.disposed)return;this.disposed=true;for(const slot of this.slots)slot.line.geometry.dispose();this.impactGeometry.dispose();for(const m of this.lines.values())m.dispose();for(const m of this.sparks.values())m.dispose();this.slots.length=0;this.root.clear();this.root.removeFromParent();this.muzzleRoot.clear();this.muzzleRoot.removeFromParent();}
+  dispose():void{if(this.disposed)return;this.disposed=true;this.localMuzzle.dispose();for(const slot of this.slots)slot.line.geometry.dispose();this.impactGeometry.dispose();for(const m of this.lines.values())m.dispose();for(const m of this.sparks.values())m.dispose();this.slots.length=0;this.root.clear();this.root.removeFromParent();this.muzzleRoot.clear();this.muzzleRoot.removeFromParent();}
 }

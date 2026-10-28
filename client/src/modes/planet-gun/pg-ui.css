@@ -183,3 +183,32 @@
   #pg-result-score { margin-bottom:7px; }
   #pg-results-screen .pg-actions { margin-top:8px; }
 }
+/* A single ready room: the arena showcase belongs on the home screen. */
+#pg-lobby-screen.mode-lobby .pg-lobby-layout { display:block; width:min(680px,100%); margin:auto; }
+#pg-lobby-screen.mode-lobby .pg-lobby-layout>aside { display:none; }
+#pg-lobby-screen.mode-lobby .pg-lobby-card { display:block; max-height:calc(100dvh - 36px); }
+#pg-lobby-screen.mode-lobby .pg-roster { max-height:180px; margin:16px 0; }
+#pg-lobby-screen.mode-lobby #pg-kit-summary { color:#cbd6ed; font-size:13px; }
+#pg-lobby-screen.mode-lobby #pg-edit-kits { margin-top:10px; }
+#pg-lobby-screen.mode-lobby #pg-config { margin-top:16px; }
+.pg-screen { --pg-mint:var(--ui-accent); }
+.pg-panel { background:var(--ui-panel-fill); }
+.pg-actions button:first-child { background:linear-gradient(135deg,var(--ui-primary),var(--ui-primary-end)); border-color:#ffce58; }
+#pg-scoreboard { border-color:#7ecff555; border-top-color:#70f5ff; }
+/* Native HUD sizing preserves the reticle and arena sightlines. */
+.pg-hud-top { width:390px; gap:8px; padding:10px 18px 14px; background:linear-gradient(180deg,#080e25dc,#111b358c 75%,transparent); border-top:2px solid #b7ddf344; border-radius:0 0 24px 24px; }
+#pg-score { grid-template-columns:86px 46px 18px 46px 86px; gap:9px; font-size:13px; letter-spacing:.11em; }
+#pg-score b { font-size:38px; } #pg-timer { font-size:16px; letter-spacing:.12em; }
+.pg-edge-controls { top:24px; } #pg-pause,#pg-scoreboard-toggle { min-height:40px; padding:9px; font-size:11px; background:#0b1538a8; }
+.pg-vitals { width:232px; gap:17px; padding:16px; background:linear-gradient(110deg,#09132bd9,#0e1b3390,transparent); border-left:2px solid #70f5ff88; border-radius:3px 15px 15px 3px; }
+#pg-health-value { font-size:42px; letter-spacing:-.04em; } .pg-vital-heading>span { font-size:13px; }
+.pg-vital-track { height:7px; background:#050a1dcc; } .pg-vital-track i { background:#edfaff; }
+.pg-ion-heading { font-size:13px; margin-bottom:8px; } #pg-ion-value { font-size:17px; } #pg-ion-state { font-size:10px; } #pg-ion .pg-vital-track { height:5px; } #pg-ion-fill { background:linear-gradient(90deg,#9c88ff,#85dbff); }
+#pg-ammo { min-width:200px; padding:14px 16px; background:linear-gradient(250deg,#09132bdd,#0e1b3388,transparent); border-right:2px solid #ffcc7b88; border-radius:15px 3px 3px 15px; }
+#pg-weapon-name { font-size:13px; letter-spacing:.12em; } #pg-magazine { font-size:56px; } .pg-reserve { font-size:21px; }
+#pg-reload { height:14px; font-size:12px; } #pg-queued-kit { display:block; max-width:230px; color:#bdcdef; font-size:11px; line-height:1.5; }
+#pg-feed { top:88px; font-size:13px; gap:5px; } #pg-feed>p { padding:6px 10px; border-right-color:#a2bff066; }
+#pg-elimination { font-size:14px; padding:7px 16px; }
+@media(max-width:700px) { .pg-hud-top { width:280px; top:10px; padding:8px 10px; } #pg-score { grid-template-columns:58px 32px 12px 32px 58px; font-size:10px; gap:5px; } #pg-score b { font-size:28px; } #pg-timer { font-size:13px; } .pg-vitals { width:172px; padding:10px; gap:12px; } #pg-health-value { font-size:32px; } #pg-ammo { min-width:145px; padding:10px; } #pg-magazine { font-size:43px; } .pg-reserve { font-size:17px; } #pg-weapon-name { font-size:11px; } .pg-edge-controls { top:12px; right:8px; } #pg-pause,#pg-scoreboard-toggle { min-height:34px; padding:6px; } #pg-feed { top:100px; font-size:11px; } }
+
+.pg-kit-lobby-actions{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:end}.pg-kit-lobby-actions label{font-size:11px;color:#b5c5de}#pg-lobby-screen.mode-lobby .pg-kit-lobby-actions #pg-edit-kits{margin:0;min-height:44px;grid-area:auto}.pg-selected-kit{margin-top:12px}.pg-selected-kit .panel-kicker{margin:0 0 6px}

@@ -3,6 +3,20 @@ import * as THREE from "three";
 import { createPgOrbitalEnvironment } from "./pg-orbital-environment";
 
 describe("PlanetGun orbital neighborhood",()=>{
+  it("bakes directional depth into hull faces without adding materials or lights",()=>{
+    const environment=createPgOrbitalEnvironment();
+    const mesh=environment.root.getObjectByName("orbital-structural-silhouettes") as THREE.Mesh;
+    const colors=mesh.geometry.getAttribute("color"),normals=mesh.geometry.getAttribute("normal");
+    // First authored gantry box: its upward face receives the key while the
+    // underside receives only fill, despite sharing the same hull material.
+    let upper=0,lower=0;
+    for(let i=0;i<24;i++){
+      if(normals.getY(i)>.9)upper=colors.getY(i);
+      if(normals.getY(i)<-.9)lower=colors.getY(i);
+    }
+    expect(upper).toBeGreaterThan(lower*1.5);
+    environment.dispose();
+  });
   it("bakes finite dimmed geography once and keeps it immutable during updates",()=>{
     const environment=createPgOrbitalEnvironment();
     const planet=environment.root.getObjectByName("neighborhood-planet") as THREE.Mesh<THREE.SphereGeometry,THREE.ShaderMaterial>;

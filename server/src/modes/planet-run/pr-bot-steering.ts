@@ -1,4 +1,5 @@
-import {PR_BALANCE as B,prHash,prInsideTile,prObstacleTransform,prPlatformCenter,type BotDifficulty,type PrInput,type PrPlayerState,type PrRoundDefinition,type PrTileState,type Vec3} from "@planetfall/shared";
+import {prCapacitorTarget} from "./pr-capacitor-steering.js";
+import {PR_BALANCE as B,prHash,prInsideTile,prObstacleTransform,prObstacleCenter,prPlatformCenter,type BotDifficulty,type PrInput,type PrPlayerState,type PrRoundDefinition,type PrTileState,type Vec3} from "@planetfall/shared";
 
 /** All crowd samples are observations, never another pilot's pending input. */
 export type PrCrowdPilot=Pick<PrPlayerState,"id"|"position"|"velocity"|"status">;
@@ -78,9 +79,9 @@ function walkableSupportAt(round:PrRoundDefinition,x:number,z:number,elapsed:num
 function hazardCost(round:PrRoundDefinition,x:number,z:number,y:number,elapsed:number,seed:number,jumpableOnly=false):number {
   let cost=0;
   for(const o of round.obstacles){
-    if(o.kind==="boost"||jumpableOnly&&o.kind==="meteor")continue;
+    if(o.kind==="boost"||jumpableOnly&&["meteor","shutter","barrier"].includes(o.kind))continue;
     const tr=prObstacleTransform(o,elapsed,seed);if(!tr.active&&!tr.warning)continue;
-    const dx=x-o.center.x,dz=z-o.center.z,c=Math.cos(tr.yaw),s=Math.sin(tr.yaw);
+    const center=prObstacleCenter(o,elapsed,seed),angle=o.kind==="rotator"?tr.yaw:0,dx=x-center.x,dz=z-center.z,c=Math.cos(angle),s=Math.sin(angle);
     if(o.kind==="meteor"){
       const clearance=Math.hypot(Math.max(0,Math.abs(dx)-o.half.x-B.radius),Math.max(0,Math.abs(dz)-o.half.z-B.radius));
       // Authored meteor boxes leave narrow but real channels. Overlapping soft
@@ -104,7 +105,7 @@ function survivalPathDanger(p:PrPlayerState,target:Vec3,r:PrRoundDefinition,t:nu
   }
   return danger/3;
 }
-function raceTarget(p:PrPlayerState,r:PrRoundDefinition,t:number,seed:number,m:PrSteeringMemory,person:PrBotPersonality,nearby:readonly PrCrowdPilot[]):Vec3 {
+function raceTarget(p:PrPlayerState,r:PrRoundDefinition,t:number,seed:number,m:PrSteeringMemory,person:PrBotPersonality,nearby:readonly PrCrowdPilot[],difficulty:BotDifficulty):Vec3 {
   m.goal=clamp(m.goal,0,Math.max(0,r.waypoints.length-1));
   // The authored races progress toward negative Z. Use longitudinal progress
   // so a wide route or an impulse past a waypoint never requires a U-turn.
@@ -133,7 +134,8 @@ function raceTarget(p:PrPlayerState,r:PrRoundDefinition,t:number,seed:number,m:P
     else {m.passUntil=t;m.followFactor=.3;lane=p.position.x;}
   }
   if(t<(m.passUntil??0))lane=clamp(m.passX??lane,minX,maxX);
-  return {x:lane,y:wp.y,z:wp.z};
+  const target={x:lane,y:wp.y,z:wp.z};
+  return r.id==="capacitor-causeway"?prCapacitorTarget(p,r,t,seed,person,nearby,target,difficulty):target;
 }
 function survivalTarget(p:PrPlayerState,r:PrRoundDefinition,t:number,seed:number,m:PrSteeringMemory,person:PrBotPersonality,nearby:readonly PrCrowdPilot[]):Vec3 {
   const driftingIntoDanger=hazardCost(r,p.position.x,p.position.z,p.position.y,t+person.reactionLead,seed)<5&&hazardCost(r,p.position.x+p.velocity.x*.25,p.position.z+p.velocity.z*.25,p.position.y,t+person.reactionLead,seed)>=5;
@@ -194,7 +196,7 @@ export function prCrowdBotInput(p:PrPlayerState,r:PrRoundDefinition,tiles:PrTile
   const identity=identityFor(p,m),person=m.personality??(m.personality=prBotPersonality(identity));
   if(t>=m.nextDecision||m.desiredX===undefined){
     const nearby=crowd?.nearby(p,identity)??[];
-    m.target=r.id==="shatterdeck"?shatterTarget(p,r,tiles,t,m,person,nearby):r.category==="race"?raceTarget(p,r,t,seed,m,person,nearby):survivalTarget(p,r,t,seed,m,person,nearby);
+    m.target=r.id==="shatterdeck"?shatterTarget(p,r,tiles,t,m,person,nearby):r.category==="race"?raceTarget(p,r,t,seed,m,person,nearby,difficulty):survivalTarget(p,r,t,seed,m,person,nearby);
     let dx=m.target.x-p.position.x,dz=m.target.z-p.position.z,d=Math.hypot(dx,dz);
     // A survival target is a place to stop. Full-speed arrival plus steering
     // inertia otherwise oscillates back into narrow meteor channels.

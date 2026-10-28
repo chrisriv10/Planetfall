@@ -10,7 +10,9 @@ test('PlanetRun themed thirty-pilot courses and responsive canonical winner stag
  for(const round of ['cargo-cyclone','solar-sweep','meteor-garden','flux-gardens','capacitor-causeway','shatterdeck']){
   await page.locator('#create-room').click();await expect(page.locator('#pr-lobby-screen')).toBeVisible();
   await expect(page.locator('#pr-lobby-screen')).toHaveAttribute('data-pr-visible','true');
-  await expect.poll(()=>page.locator('.pr-showcase-motif').evaluateAll(nodes=>nodes.filter(n=>getComputedStyle(n).visibility!=='hidden'&&Number(getComputedStyle(n).opacity)>.9).length)).toBe(1);
+  await expect(page.locator('#pr-lobby-screen .pr-lobby-card')).toHaveCount(1);
+  await expect(page.locator('#pr-lobby-screen aside, #pr-lobby-screen .pr-showcase-motif')).toHaveCount(0);
+  await expect(page.locator('#pr-host-controls')).toBeVisible();
   await page.locator('#pr-target').selectOption('30');if(await page.locator('#pr-dev-review').getAttribute('open')===null)await page.locator('#pr-dev-review summary').click();
   await page.locator(`[data-round="${round}"]`).click();
   const state=()=>page.locator('#pr-dev-state').textContent().then(v=>JSON.parse(v!));

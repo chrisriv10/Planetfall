@@ -27,9 +27,8 @@
   letter-spacing: .08em;
   opacity: .8;
 }
-.family-selector .family-card.selected { color: #07132a; }
-.family-selector .family-card.br.selected { color: #fff; }
-.family-selector .family-card.pg.selected { color: #071d2b; border-color: #70f5ff; background: linear-gradient(120deg, #70f5ff, #65c6ef); box-shadow: 0 0 24px #70f5ff20; }
+#home-screen .home-card .family-selector .family-card.selected { color:#f4f7ff; border-color:#70f5ff; background:linear-gradient(125deg,#293b72,#24234e); box-shadow:inset 3px 0 #ffce58,0 0 24px #70f5ff15; }
+#home-screen .family-card.selected small { color:#cbdcf3; }
 .family-selector .family-card:enabled:hover { border-color: #b0ecff; }
 .family-selector .family-card:focus-visible { outline: 3px solid #ffdc4f; outline-offset: 3px; }
 @media (max-width: 760px) {

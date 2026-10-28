@@ -1,13 +1,31 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
 import { PG_MAP } from "@planetfall/shared";
-import { buildPgNeighborhoodArchitecture } from "./pg-neighborhood-architecture";
+import { buildPgNeighborhoodArchitecture, PG_AUTHORED_FACADE_IDS } from "./pg-neighborhood-architecture";
 import type { PgArtMaterial, PgArtPlacement, PgArtPrimitive } from "./pg-environment-builder";
 
 type Feature={name:string;primitive:PgArtPrimitive;material:PgArtMaterial;p:PgArtPlacement;r:readonly[number,number,number];detail:boolean};
 function features(){const result:Feature[]=[];buildPgNeighborhoodArchitecture({add(name,primitive,material,p,r=[0,0,0],detail=false){result.push({name,primitive,material,p,r,detail});}});return result;}
 const overlaps=(a:PgArtPlacement,b:PgArtPlacement)=>[0,1,2].every(i=>Math.abs(a[i]-b[i])<(a[i+3]+b[i+3])/2-1e-6);
 describe("collision-backed neighborhood architecture",()=>{
+ it("backs every ceiling panel and light with an existing overhead slab",()=>{
+   for(const f of features().filter(f=>f.name.includes(":ceiling-"))){
+     const s=PG_MAP.solids.find(s=>s.id===f.name.split(":")[0])!;
+     expect(Math.abs(f.p[0]-s.center.x)+f.p[3]/2).toBeLessThan(s.half.x);
+     expect(Math.abs(f.p[2]-s.center.z)+f.p[5]/2).toBeLessThan(s.half.z);
+     expect(s.center.y-s.half.y-(f.p[1]-f.p[4]/2)).toBeLessThan(.03);
+   }
+ });
+ it("keeps authored replacement skins on their backing wall without covering door gaps",()=>{
+   const all=features().filter(f=>f.name.includes(":authored-"));
+   expect(new Set(all.map(f=>f.name.split(":")[0]))).toEqual(PG_AUTHORED_FACADE_IDS);
+   for(const f of all){
+     const s=PG_MAP.solids.find(s=>s.id===f.name.split(":")[0])!;
+     const centers=[s.center.x,s.center.y,s.center.z],halves=[s.half.x,s.half.y,s.half.z];
+     const normal=s.half.x>s.half.z?2:0;
+     for(let axis=0;axis<3;axis++)expect(Math.abs(f.p[axis]-centers[axis])+f.p[axis+3]/2, f.name).toBeLessThanOrEqual(halves[axis]+(axis===normal?.05:.001));
+   }
+ });
  it("uses distinct observation, habitat and service glazing without new batch types",()=>{
    const all=features();
    expect(all.some(f=>f.name==="nova-suite-north:window-reading-light")).toBe(true);

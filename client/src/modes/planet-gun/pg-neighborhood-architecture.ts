@@ -1,12 +1,76 @@
 import { PG_MAP } from "@planetfall/shared";
 import type { PgArtContext, PgArtMaterial } from "./pg-environment-builder";
 
+/** The world renderer omits its generic repeated panes for these authored skins. */
+export const PG_AUTHORED_FACADE_IDS=new Set([
+  "west-habitat-north","west-habitat-south-a","west-habitat-south-b","west-habitat-end-a","west-habitat-end-b",
+  "east-habitat-east-north","east-habitat-east-south","east-habitat-south","east-habitat-west-a","east-habitat-west-b","east-service-wing",
+  "maintenance-west","maintenance-east","maintenance-back-a","maintenance-back-b",
+]);
+
 /** Architecture decorates authored collision volumes. Nothing here creates a
  * doorway, walking surface or freestanding cover. Low retains the silhouette. */
 export function buildPgNeighborhoodArchitecture(ctx: PgArtContext): void {
   const box = (name:string, material:PgArtMaterial, x:number,y:number,z:number,sx:number,sy:number,sz:number,detail=false) =>
     ctx.add(name,"box",material,[x,y,z,sx,sy,sz],undefined,detail);
   const solid = (id:string) => { const s=PG_MAP.solids.find(s=>s.id===id); if(!s)throw new Error(`Missing architecture backing: ${id}`); return s; };
+  // Occupied rooms need a readable ceiling plane, rather than the pitch-black
+  // underside of a gameplay platform. Acoustic panels, recessed seams and
+  // two long luminaires stay within 3cm of the existing slab underside.
+  for(const id of["west-upper-gallery","east-upper-observatory","maintenance-roof","nova-suite-roof","ion-control-roof"]){
+    const s=solid(id),c=s.center,h=s.half,y=c.y-h.y,west=id.startsWith("west")||id.startsWith("nova");
+    const width=h.x*2-.16,depth=h.z*2-.16;
+    box(`${id}:ceiling-reveal`,"frame",c.x,y-.006,c.z,width,.008,depth);
+    const panels=Math.max(2,Math.floor(width/3));
+    const step=width/panels;
+    for(let i=0;i<panels;i++)box(`${id}:ceiling-panel`,"ivory",c.x-width/2+step*(i+.5),y-.014,c.z,step-.07,.008,depth-.16);
+    for(const side of[-1,1]){
+      box(`${id}:ceiling-lamp-recess`,"dark",c.x,y-.021,c.z+side*depth*.31,width*.78,.006,.24);
+      box(`${id}:ceiling-lamp`,west?"amber":"cyan",c.x,y-.026,c.z+side*depth*.31,width*.75,.004,.09);
+    }
+  }
+  // Broad architectural decisions replace the equal-width window kit. Habitat
+  // has occupied warm lounges, Observatory a continuous technical ribbon, and
+  // Maintenance closed acoustic panels. Every relief stays on its real wall.
+  for(const id of PG_AUTHORED_FACADE_IDS){
+    const s=solid(id),c=s.center,h=s.half,wide=h.x>h.z,length=(wide?h.x:h.z)*2;
+    const west=id.startsWith("west"),utility=id.startsWith("maintenance"),accent=west?"amber":"cyan";
+    for(const sign of[-1,1]){
+      const skin=(part:string,m:PgArtMaterial,a:number,y:number,w:number,height:number,depth:number)=>
+        box(`${id}:authored-${part}`,m,wide?c.x+a:c.x+sign*(h.x+depth),y,wide?c.z+sign*(h.z+depth):c.z+a,wide?w:.008,height,wide?.008:w);
+      skin("shadow","dark",0,c.y,length-.06,h.y*2-.08,.012);
+      skin("dado",west?"frame":"ivory",0,.43,length-.08,.72,.025);
+      skin("crown","ivory",0,c.y+h.y-.17,length-.06,.28,.029);
+      skin("wash",accent,0,c.y+h.y-.36,length-.28,.045,.034);
+      const bays=utility?Math.max(1,Math.floor(length/3.8)):Math.max(1,Math.floor(length/5.8));
+      const step=(length-.22)/bays;
+      for(let i=0;i<bays;i++){
+        const a=(i-(bays-1)/2)*step,w=step-.18,cy=c.y+.16,ph=Math.min(1.8,h.y*1.12);
+        skin("glazing",utility?"frame":"glass",a,cy,w,ph,.023);
+        // Asymmetric opaque return and a thin bright sill establish a deep
+        // cassette through contrasting planes, without projecting into routes.
+        skin("return","ivory",a-w*.39,cy,w*.19,ph,.037);
+        skin("sill","ivory",a,cy-ph/2-.045,w,.08,.042);
+        skin("header","frame",a,cy+ph/2-.04,w,.08,.042);
+        if(utility){
+          for(let row=0;row<4;row++)skin("acoustic-slot","dark",a+w*.1,cy-.4+row*.25,w*.65,.11,.034);
+          skin("utility-status",accent,a+w*.32,cy-.65,.08,.15,.043);
+        }else if(west){
+          // Readable room lighting and partial blinds instead of identical panes.
+          skin("blind","frame",a+w*.27,cy+ph*.22,w*.35,ph*.36,.035);
+          skin("room-light","amber",a-w*.01,cy+ph*.35,w*.35,.035,.039);
+          skin("mullion","ivory",a+w*.07,cy,.06,ph,.041);
+        }else{
+          skin("transom","ivory",a,cy-.16,w,.055,.041);
+          skin("console-silhouette","dark",a+w*.13,cy-ph*.35,w*.65,ph*.25,.035);
+          skin("console-trace","cyan",a+w*.13,cy-ph*.28,w*.42,.025,.041);
+        }
+      }
+      // An offset service return breaks the long facade into unequal masses.
+      const edge=-length/2+.1;
+      skin("end-return","ivory",edge,c.y,.14,h.y*2-.08,.04);
+    }
+  }
   // Every cassette fits its own wall segment; the space between segments stays open.
   function facade(id:string, axis:"x"|"z", sign:number, style:"habitat"|"service") {
     const s=solid(id),c=s.center,h=s.half,wide=axis==="z",half=wide?h.x:h.z;
