@@ -1,11 +1,12 @@
 import type {Vec3,GuestProfile,BotDifficulty} from "../index.js";
+import type {PgModeId,PgModeAction,PgModeActionResult,PgModeSnapshot} from "./modes.js";
 export type PgTeam="solar"|"void";
 export type PgPrimaryWeaponId="pulse"|"nova"|"photon"|"quasar"|"rail"|"helix"|"arc"|"prism";
 export type PgSecondaryWeaponId="comet"|"orbit";
 export type PgWeaponId=PgPrimaryWeaponId|PgSecondaryWeaponId;
 export type PgModuleId="reflex-array"|"precision-lens"|"gyro-stabilizer"|"expanded-cell"|"rapid-charge-cell"|"lightweight-frame";
 export type PgPhase="lobby"|"countdown"|"playing"|"overtime"|"results";
-export interface PgInput {sequence:number;moveX:number;moveZ:number;yaw:number;pitch:number;jump:boolean;sprint:boolean;crouch:boolean;ads:boolean;}
+export interface PgInput {sequence:number;moveX:number;moveZ:number;yaw:number;pitch:number;jump:boolean;sprint:boolean;crouch:boolean;ads:boolean;collisionRevision?:number;}
 export interface PgMotion {position:Vec3;velocity:Vec3;yaw:number;pitch:number;grounded:boolean;crouched:boolean;ion:number;launchY:number;jumpHeld:boolean;coyoteUntil:number;jumpBufferUntil:number;lastJumpAt:number;slideUntil:number;slideReadyAt:number;wallId:string|null;wallNormal:Vec3;wallUntil:number;wallReadyAt:number;mantleFrom:Vec3|null;mantleTo:Vec3|null;mantleStart:number;mantleUntil:number;mode:"ground"|"air"|"sprint"|"slide"|"wall-run"|"mantle";}
 export interface PgSolid {id:string;center:Vec3;half:Vec3;kind:"floor"|"habitat"|"planter"|"utility"|"transit"|"wall-run"|"stair"|"rail"|"landscape"|"tree"|"structure";mantle:boolean;wallRunFaces?:readonly ("x-"|"x+"|"z-"|"z+")[];}
 export interface PgSpawn {id:string;team:PgTeam;position:Vec3;yaw:number;}
@@ -14,11 +15,11 @@ export interface PgMap {id:"nova-block";name:string;halfWidth:number;halfDepth:n
 export interface PgLoadout {primary:PgPrimaryWeaponId;secondary:PgSecondaryWeaponId;primaryModules?:PgModuleId[];secondaryModules?:PgModuleId[];kitId?:0|1|2|3|4;name?:string;}
 export interface PgGunState {id:PgWeaponId;modules?:readonly PgModuleId[];magazine:number;reserve:number;reloadUntil:number;nextFireAt:number;shots:number;recoil:number;burstRemaining?:number;heat?:number;heatUpdatedAt?:number;overheatedUntil?:number;}
 export interface PgPlayer extends PgMotion,GuestProfile {id:string;name:string;color:string;isBot:boolean;connected:boolean;ready:boolean;team:PgTeam;hp:number;kills:number;deaths:number;lifeId:number;deadAt:number;respawnAt:number;protectedUntil:number;lastDamageAt:number;lastAttacker:string|null;lastInputSequence:number;loadout:PgLoadout;queuedLoadout?:PgLoadout;slot:0|1;guns:[PgGunState,PgGunState];adsSince:number;fireReadyAt:number;}
-export interface PgConfiguration {targetPlayers:4|8|12;fillBots:boolean;botDifficulty:BotDifficulty;scoreLimit:25|50|75;}
+export interface PgConfiguration {mode?:PgModeId;targetPlayers:1|2|3|4|8|12;fillBots:boolean;botDifficulty:BotDifficulty;scoreLimit:25|50|75;}
 export interface PgKill {id:number;at:number;killerId:string;victimId:string;weapon:PgWeaponId;headshot:boolean;}
 export type PgSnapshotPlayer=Omit<PgPlayer,"fallbucks"|"crowns"|"sessionTotalXp"|"sessionLevel"|"sessionXp"|"ownedCosmetics"|"unlockedPassRewards">;
-export interface PgSnapshot {phase:PgPhase;serverTime:number;phaseEndsAt:number;scores:Record<PgTeam,number>;winner:PgTeam|null;players:PgSnapshotPlayer[];feed:PgKill[];}
-export interface PgRoomView {gameFamily:"planet-gun";code:string;hostId:string;phase:PgPhase;configuration:PgConfiguration;players:PgPlayer[];}
+export interface PgSnapshot {phase:PgPhase;serverTime:number;phaseEndsAt:number;scores:Record<PgTeam,number>;winner:PgTeam|null;players:PgSnapshotPlayer[];feed:PgKill[];mode?:PgModeSnapshot;}
+export interface PgRoomView {gameFamily:"planet-gun";code:string;hostId:string;phase:PgPhase;configuration:PgConfiguration;players:PgPlayer[];selections?:Record<string,string>;lastActionSequence?:number;}
 export type PgJoinResult={ok:true;playerId:string;sessionToken:string;room:PgRoomView}|{ok:false;error:string};
 export interface PgFireRequest {sequence:number;clientTime:number;weapon:PgWeaponId;yaw:number;pitch:number;}
 export interface PgShot {id:number;at:number;shooterId:string;weapon:PgWeaponId;origin:Vec3;end:Vec3;targetId:string|null;damage:number;headshot:boolean;}
@@ -29,6 +30,7 @@ export interface PgClientToServerEvents {
  "pg:room:ready":(p:{ready:boolean})=>void;
  "pg:room:configure":(p:Partial<PgConfiguration>)=>void;
  "pg:loadout":(p:PgLoadout)=>void;
+ "pg:mode:action":(p:PgModeAction,ack?:(r:PgModeActionResult)=>void)=>void;
  "pg:match:start":()=>void;"pg:match:quick-start":()=>void;"pg:match:return":()=>void;
  "pg:player:input":(p:PgInput)=>void;
  "pg:weapon:fire":(p:PgFireRequest)=>void;"pg:weapon:reload":()=>void;"pg:weapon:switch":(p:{slot:0|1})=>void;

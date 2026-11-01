@@ -18,7 +18,7 @@ export function createPgFriendlyNames(solids:readonly PgSolid[]=PG_MAP.solids){
  const projected=new THREE.Vector3(),sightTarget=new THREE.Vector3();let visible=0;
  const remove=(id:string)=>{const item=labels.get(id);if(!item)return;item.sprite.removeFromParent();item.sprite.material.dispose();item.texture.dispose();labels.delete(id);};
  return {root,
-  update(players:readonly Pilot[],me:Pilot,camera:THREE.PerspectiveCamera,time:number,viewportHeight:number,positionFor?:(id:string)=>Vec3|undefined){
+  update(players:readonly Pilot[],me:Pilot,camera:THREE.PerspectiveCamera,time:number,viewportHeight:number,positionFor?:(id:string)=>Vec3|undefined,isVisible?:(from:Vec3,to:Vec3)=>boolean){
    visible=0;
    for(const [id]of labels)if(!players.some(p=>p.id===id&&p.team===me.team&&p.hp>0))remove(id);
    for(const p of players){
@@ -36,7 +36,7 @@ export function createPgFriendlyNames(solids:readonly PgSolid[]=PG_MAP.solids){
     }
     const renderedPosition=positionFor?.(p.id),pos=renderedPosition??p.position;label.sprite.position.set(pos.x,pos.y+(p.crouched?1.95:2.3),pos.z);
     const distance=camera.position.distanceTo(label.sprite.position);
-    if(time>=label.checkAt){sightTarget.set(pos.x,pos.y-(renderedPosition?(p.crouched?.04:.25):0)+(p.crouched?PG_BALANCE.crouchEye:PG_BALANCE.eye),pos.z);label.blocked=pgNameOccluded(camera.position,sightTarget,solids);label.checkAt=time+100;}
+    if(time>=label.checkAt){sightTarget.set(pos.x,pos.y-(renderedPosition?(p.crouched?.04:.25):0)+(p.crouched?PG_BALANCE.crouchEye:PG_BALANCE.eye),pos.z);label.blocked=pgNameOccluded(camera.position,sightTarget,solids)||isVisible!==undefined&&!isVisible(camera.position,sightTarget);label.checkAt=time+100;}
     let opacity=pgFriendlyNameOpacity(p,me,distance,label.blocked);
     projected.copy(label.sprite.position).project(camera);
     // No friendly text over the aiming point or behind the camera.

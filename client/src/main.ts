@@ -1,8 +1,10 @@
+import {pgReadCharacterPreference,pgSaveCharacterPreference} from "./modes/planet-gun/pg-mode-preferences";
+import {createPgModeUi,type PgModeUiAction} from "./modes/planet-gun/pg-mode-ui-art";
 import {createLobbyRosterRow} from "./lobby-roster-art";
 import {createPgUi} from "./modes/planet-gun/pg-ui";
 import {createPgKitEditor} from "./modes/planet-gun/pg-kit-editor";
 import {createDevCanvasRecording} from "./dev-canvas-recording";
-import type {PgRoomView,PgSnapshot} from "@planetfall/shared";
+import {PG_BALANCE,type PgRoomView,type PgSnapshot} from "@planetfall/shared";
 import {MODE_DEVELOPMENT} from "./mode-development";
 import {createModeWarningArt} from "./mode-warning-art";
 import { createPrUi } from "./modes/planet-run/pr-ui";
@@ -32,6 +34,9 @@ const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) 
 const canvas = byId<HTMLCanvasElement>("game-canvas");
 const prUi = createPrUi();
 const pgUi=createPgUi();
+const pgModeUi=createPgModeUi(document);pgUi.lobby.querySelector("#pg-config")!.before(pgModeUi.root);pgUi.hud.append(pgModeUi.hudRoot);let pgActionSequence=0;let pgPreferenceApplied="";let pgPilotReviewSignature="";
+function sendPgModeAction(intent:PgModeUiAction):void{const me=pgRoom?.phase==="lobby"?pgRoom.players.find(p=>p.id===playerId):pendingPgSnapshot?.players.find(p=>p.id===playerId);if(!me)return;const resolved=intent.kind==="ability"&&!intent.targetId&&!intent.position?pgGame?.resolveModeAbility(intent.slot)??intent:intent;socket.emit("pg:mode:action",{...resolved,sequence:++pgActionSequence,lifeId:me.lifeId},r=>{if(!r.ok&&r.error)toast(r.error);else if(r.ok&&resolved.kind==="select"){const mode=pgRoom?.configuration.mode??"deathmatch",side=pendingPgSnapshot?.mode?.pilots[playerId]?.side??(me.team==="solar"?"attack":"defend");pgSaveCharacterPreference(localStorage,mode,side,{characterId:resolved.characterId,...(resolved.loadout?{loadout:resolved.loadout}:{})});}});}
+pgModeUi.onAction=sendPgModeAction;pgModeUi.onConfigure=mode=>{localStorage.setItem("planetfall:pg-mode:v1",mode);socket.emit("pg:room:configure",{mode});};pgModeUi.onMenuChange=open=>{captureUi(open||Boolean(activeOverlay()));};
 const modeWarning=createModeWarningArt();modeWarning.root.classList.add("overlay");if(!modeWarning.root.isConnected)document.body.append(modeWarning.root);
 let pendingFamily:GameFamily|null=null;let familyFocus:HTMLElement|null=null;
 const screens = {
@@ -416,6 +421,7 @@ byId("pass-results").addEventListener("click", openPass);
 byId("pass-close").addEventListener("click", closePass);
 byId("settings-lobby").addEventListener("click", () => openSettings("screen"));
 addEventListener("keydown", (event) => {
+  if((event.key==="Escape"||event.code==="KeyB")&&pgModeUi.menuOpen){event.preventDefault();pgModeUi.setMenuOpen(false);return;}
   if(event.key==="Escape"&&!pgKits.root.hidden){event.preventDefault();pgKits.close();return;}
   if(event.key==="Escape"&&!modeWarning.root.hidden){event.preventDefault();closeModeWarning(false);return;}
   if(event.key==="Escape"&&(currentFamily==="planet-run"&&currentScreen==="prHud"||currentFamily==="planet-gun"&&currentScreen==="pgHud")){
@@ -596,7 +602,7 @@ function joinOrCreate(kind: "create" | "join" | "solo", family = selectedFamily)
       joining=false;createButton.disabled=false;soloButton.disabled=false;joinButton.disabled=false;
       if(!result.ok)return toast(result.error);
       currentFamily="planet-gun";playerId=result.playerId;currentCode=result.room.code;
-      sessionStorage.setItem(`planetfall:pg:${currentCode}`,result.sessionToken);applyPgRoom(result.room);
+      sessionStorage.setItem(`planetfall:pg:${currentCode}`,result.sessionToken);applyPgRoom(result.room);if(kind!=="join"){const mode=localStorage.getItem("planetfall:pg-mode:v1");if(mode&&["deathmatch","planetstrike","planetwatch","planetsiege","planetzombies"].includes(mode))socket.emit("pg:room:configure",{mode:mode as import("@planetfall/shared").PgModeId});}
       // A live rejoin preserves the server's current/queued equipment. Sending
       // the saved kit here would queue it again just because the page rejoined.
       if(result.room.phase==="lobby")socket.emit("pg:loadout",pgKits.selected());
@@ -1437,7 +1443,7 @@ function focusFirst(root: HTMLElement): void {
 }
 
 function focusableElements(root:HTMLElement):HTMLElement[]{return [...root.querySelectorAll<HTMLElement>("button:not([disabled]):not([hidden]), input:not([disabled]):not([hidden]), select:not([disabled]):not([hidden]), [tabindex]:not([tabindex='-1'])")].filter(element=>element.offsetParent!==null);}
-function activeOverlay():HTMLElement|null{return !pgKits.root.hidden?pgKits.root:pgUi.scoreboardVisible?byId("pg-scoreboard"):!modeWarning.root.hidden?modeWarning.root:!brQuickPlay.hidden?brQuickPlay:!brInventoryOverlay.hidden?brInventoryOverlay:!brMapOverlay.hidden?brMapOverlay:!shopOverlay.hidden?shopOverlay:!passOverlay.hidden?passOverlay:!settingsOverlay.hidden?settingsOverlay:!pauseOverlay.hidden?pauseOverlay:null;}
+function activeOverlay():HTMLElement|null{return pgModeUi.menuOpen?pgModeUi.hudRoot.querySelector<HTMLElement>(".pg-mode-menu"):!pgKits.root.hidden?pgKits.root:pgUi.scoreboardVisible?byId("pg-scoreboard"):!modeWarning.root.hidden?modeWarning.root:!brQuickPlay.hidden?brQuickPlay:!brInventoryOverlay.hidden?brInventoryOverlay:!brMapOverlay.hidden?brMapOverlay:!shopOverlay.hidden?shopOverlay:!passOverlay.hidden?passOverlay:!settingsOverlay.hidden?settingsOverlay:!pauseOverlay.hidden?pauseOverlay:null;}
 
 function setGameMode(mode: GameMode): void {
   if (!room || room.hostId !== playerId || room.phase !== "lobby" || room.gameMode === mode) return;
@@ -1596,15 +1602,16 @@ if(import.meta.env.DEV){
 
 function setPgScoreboard(show:boolean):void{pgUi.showScoreboard(show);captureUi(show||Boolean(activeOverlay()));if(show)byId("pg-scoreboard-close").focus();}
 function applyPgRoom(next:PgRoomView):void {
- if(currentFamily!=="planet-gun"||next.code!==currentCode)return;pgRoom=next;pgUi.render(next,playerId);
- if(next.phase==="lobby"){pgGame?.deactivate();game.setActive(true);game.setMode("home");game.setHomeFamily("planet-gun");showScreen("pgLobby");}
+ if(currentFamily!=="planet-gun"||next.code!==currentCode)return;pgRoom=next;pgActionSequence=Math.max(pgActionSequence,next.lastActionSequence??0);pgUi.render(next,playerId);pgModeUi.render(next,playerId,next.phase==="lobby"?null:pendingPgSnapshot?.mode);
+ if(next.phase==="lobby"){const me=next.players.find(p=>p.id===playerId),mode=next.configuration.mode??"deathmatch",side=me?.team==="void"?"defend":"attack",signature=`${next.code}:${mode}:${side}`;if(pgPreferenceApplied!==signature){pgPreferenceApplied=signature;const preference=pgReadCharacterPreference(localStorage,mode,side);if(preference&&!next.selections?.[playerId])sendPgModeAction({kind:"select",...preference});}pgModeUi.setSnapshot(null,playerId);pgGame?.deactivate();game.setActive(true);game.setMode("home");game.setHomeFamily("planet-gun");showScreen("pgLobby");}
  else {game.setActive(false);brGame?.deactivate();prGame?.deactivate();
-  if(!pgGame&&!pgLoading)pgLoading=import("./modes/planet-gun/pg-game").then(({PlanetGunGame})=>{pgGame=new PlanetGunGame(game.renderer,canvas,socket,s=>pgUi.renderSnapshot(s,playerId),(n,head)=>pgUi.hit(n,head),game.audio);pgGame.onAim=(weapon,ads,spread,optic)=>pgUi.updateAim(weapon,ads,spread,optic);pgGame.onMenuNavigate=navigateUi;pgGame.onPause=()=>togglePause();pgGame.onScoreboard=()=>setPgScoreboard(!pgUi.scoreboardVisible);pgGame.setSettings(runtimeSettings());if(currentFamily==="planet-gun"&&pgRoom?.phase!=="lobby"){pgGame.activate(playerId);if(pendingPgSnapshot)pgGame.applySnapshot(pendingPgSnapshot);}}).finally(()=>pgLoading=null);
+  if(!pgGame&&!pgLoading)pgLoading=import("./modes/planet-gun/pg-game").then(({PlanetGunGame})=>{pgGame=new PlanetGunGame(game.renderer,canvas,socket,s=>{pgUi.renderSnapshot(s,playerId);const observer=s.players.find(p=>p.id===playerId);pgModeUi.setViewPosition(observer?{...observer.position,y:observer.position.y+(observer.crouched?PG_BALANCE.crouchEye:PG_BALANCE.eye)}:null);pgModeUi.setSnapshot(s.mode??null,playerId,s.serverTime);},(n,head)=>pgUi.hit(n,head),game.audio);pgGame.onModeAction=sendPgModeAction;pgGame.onModeMenu=()=>pgModeUi.setMenuOpen(!pgModeUi.menuOpen);pgGame.onAim=(weapon,ads,spread,optic)=>pgUi.updateAim(weapon,ads,spread,optic);pgGame.onMenuNavigate=navigateUi;pgGame.onPause=()=>togglePause();pgGame.onScoreboard=()=>setPgScoreboard(!pgUi.scoreboardVisible);pgGame.setSettings(runtimeSettings());if(currentFamily==="planet-gun"&&pgRoom?.phase!=="lobby"){pgGame.activate(playerId);if(pendingPgSnapshot)pgGame.applySnapshot(pendingPgSnapshot);}}).finally(()=>pgLoading=null);
   else pgGame?.activate(playerId);showScreen(next.phase==="results"?"pgResults":"pgHud");
  }
 }
 socket.on("pg:room:state",applyPgRoom);
-socket.on("pg:match:snapshot",s=>{if(currentFamily!=="planet-gun")return;pendingPgSnapshot=s;pgGame?.applySnapshot(s);if(s.phase==="results"&&currentScreen!=="pgResults")showScreen("pgResults");});
+socket.on("pg:match:snapshot",s=>{if(currentFamily!=="planet-gun")return;if(pgRoom)for(const state of s.players){const existing=pgRoom.players.find(p=>p.id===state.id);if(existing)Object.assign(existing,state);}pgActionSequence=Math.max(pgActionSequence,s.mode?.controls?.[playerId]?.lastActionSequence??0);pendingPgSnapshot=s;if(import.meta.env.DEV&&s.mode){let pilots=byId("pg-dev-pilots");if(!pilots){pilots=document.createElement("div");pilots.id="pg-dev-pilots";byId("pg-dev-review").append(pilots);}const signature=s.players.map(p=>p.id+":"+s.mode?.pilots[p.id]?.characterId).join("|");if(signature!==pgPilotReviewSignature){pgPilotReviewSignature=signature;pilots.replaceChildren(...s.players.filter(p=>s.mode?.pilots[p.id]?.characterId).map(p=>{const b=document.createElement("button");b.dataset.pgPilot=p.id;b.textContent=s.mode!.pilots[p.id].characterId??p.name;b.addEventListener("click",()=>pgGame?.setReviewPilot(p.id));return b;}));}}
+ pendingPgSnapshot=s;if(s.phase==="results")pgModeUi.setMenuOpen(false);pgGame?.applySnapshot(s);if(s.phase==="results"&&currentScreen!=="pgResults")showScreen("pgResults");});
 socket.on("pg:combat:shot",s=>{if(currentFamily==="planet-gun")pgGame?.applyShot(s);});
 socket.on("pg:error",p=>toast(p.message));
 byId("pg-ready").addEventListener("click",()=>socket.emit("pg:room:ready",{ready:!pgRoom?.players.find(p=>p.id===playerId)?.ready}));

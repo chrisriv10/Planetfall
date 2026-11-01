@@ -31,5 +31,5 @@ export class PgMatch {
     }
     return true;
   }
-  private finish(team:PgTeam):void{this.winner=team;this.phase="results";this.phaseEndsAt=0;}
+  finish(team:PgTeam|null):void{this.winner=team;this.phase="results";this.phaseEndsAt=0;}
 }

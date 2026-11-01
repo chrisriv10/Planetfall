@@ -4,8 +4,14 @@ import {writeFile} from "node:fs/promises";
 // Read live, read-only DEV diagnostics: the DOM output refreshes only every
 // 500ms, which can steer corrective key pulses from an obsolete position.
 const state=(page:Page)=>page.evaluate(()=>(window as unknown as {__PLANETFALL_PG_DEBUG__?:()=>any}).__PLANETFALL_PG_DEBUG__?.());
+const traffic=new WeakMap<Page,unknown[]>();
+test.afterEach(async({page},info)=>{
+ if(info.status===info.expectedStatus)return;
+ await writeFile(info.outputPath("failure-state.json"),JSON.stringify({state:await state(page).catch(()=>null),traffic:traffic.get(page)},null,2));
+});
 
 test("PlanetGun warning, lobby, FPS movement, combat controls and clean exit",async({page},info)=>{
+ const events:unknown[]=[];traffic.set(page,events);page.on("websocket",socket=>{socket.on("framesent",event=>{const text=String(event.payload);if(!text.startsWith('42["pg:'))return;const packet=JSON.parse(text.slice(2));if(packet[0]==="pg:player:input"&&!packet[1].jump&&!packet[1].sprint)return;events.push({at:Date.now(),packet});if(events.length>80)events.shift();});});
  const errors:string[]=[];page.on("pageerror",e=>errors.push(e.message));
  await page.goto("/");await page.getByLabel("Name",{exact:true}).fill("Nova Pilot");await selectExperimentalFamily(page,"planet-gun");
  await page.locator("#create-room").click();await expect(page.locator("#pg-lobby-screen")).toBeVisible();

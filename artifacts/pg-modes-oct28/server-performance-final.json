@@ -1,0 +1,2497 @@
+{
+  "scenario": "Final complete 1954-test run on DESKTOP-JL99F36, November 1 2026; authoritative CPU timing, not GPU or WAN",
+  "newModes": [
+    {
+      "mode": "planetsiege",
+      "scenario": "ordinary autonomous full roster, 60 simulated seconds, first 5 seconds warmup",
+      "dt": 0.03333333333333333,
+      "averageTickMs": 2.613816787878873,
+      "p50TickMs": 2.0271000000066124,
+      "p95TickMs": 7.775499999988824,
+      "maxTickMs": 16.454899999996996,
+      "population": 12,
+      "maxSnapshotBytes": 24428,
+      "shots": 160,
+      "snapshots": 902,
+      "moving": true
+    },
+    {
+      "mode": "planetstrike",
+      "scenario": "ordinary autonomous full roster, 60 simulated seconds, first 5 seconds warmup",
+      "dt": 0.03333333333333333,
+      "averageTickMs": 3.3864157575757816,
+      "p50TickMs": 2.6798999999882653,
+      "p95TickMs": 8.989600000000792,
+      "maxTickMs": 13.14649999998801,
+      "population": 12,
+      "maxSnapshotBytes": 20255,
+      "shots": 452,
+      "snapshots": 902,
+      "moving": true
+    },
+    {
+      "mode": "planetwatch",
+      "scenario": "ordinary autonomous full roster, 60 simulated seconds, first 5 seconds warmup",
+      "dt": 0.03333333333333333,
+      "averageTickMs": 2.9101510909091326,
+      "p50TickMs": 2.642699999996694,
+      "p95TickMs": 5.501000000003842,
+      "maxTickMs": 13.101899999994203,
+      "population": 12,
+      "maxSnapshotBytes": 23501,
+      "shots": 1044,
+      "snapshots": 902,
+      "moving": true
+    },
+    {
+      "mode": "planetzombies",
+      "scenario": "ordinary autonomous full roster, 60 simulated seconds, first 5 seconds warmup",
+      "dt": 0.03333333333333333,
+      "averageTickMs": 2.2872184242420674,
+      "p50TickMs": 1.6163000000087777,
+      "p95TickMs": 3.1380000000062864,
+      "maxTickMs": 93.3689000000013,
+      "population": 4,
+      "maxSnapshotBytes": 11932,
+      "shots": 161,
+      "snapshots": 902,
+      "moving": true
+    }
+  ],
+  "existingDeathmatch": [
+    {
+      "mode": "planet-gun",
+      "population": 12,
+      "averageTickMs": 1.268527888888849,
+      "p95TickMs": 2.517200000002049,
+      "maxTickMs": 4.6916999999957625,
+      "maxSnapshotBytes": 16526,
+      "shotCount": 503,
+      "kills": 65
+    },
+    {
+      "mode": "planet-gun",
+      "population": 4,
+      "averageTickMs": 0.3938802777776436,
+      "p95TickMs": 0.8000999999931082,
+      "maxTickMs": 4.010699999984354,
+      "maxSnapshotBytes": 6319,
+      "shotCount": 100,
+      "kills": 17
+    },
+    {
+      "mode": "planet-gun",
+      "population": 8,
+      "averageTickMs": 0.6926702777779429,
+      "p95TickMs": 1.1975999999849591,
+      "maxTickMs": 3.2810999999928754,
+      "maxSnapshotBytes": 11420,
+      "shotCount": 270,
+      "kills": 45
+    }
+  ],
+  "latencyModel": [
+    {
+      "mode": "planetwatch",
+      "scenario": "simulated delayed inputs and snapshots; walking in an authored protected spawn; no browser/network transport",
+      "rttMs": 0,
+      "jitterMs": 7,
+      "delivered": 600,
+      "lastAcceptedSequence": 600,
+      "displacement": 1.480878262390922,
+      "maxSpawnDistance": 3.556410597417393,
+      "meanInputDelayMs": 0,
+      "averageTickMs": 2.5448268333329422,
+      "p50TickMs": 2.200200000006589,
+      "p95TickMs": 5.244200000001001,
+      "maxTickMs": 10.492400000002817,
+      "population": 12,
+      "maxSnapshotBytes": 22136,
+      "shots": 299,
+      "snapshots": 302
+    },
+    {
+      "mode": "planetwatch",
+      "scenario": "simulated delayed inputs and snapshots; walking in an authored protected spawn; no browser/network transport",
+      "rttMs": 120,
+      "jitterMs": 7,
+      "delivered": 598,
+      "lastAcceptedSequence": 598,
+      "displacement": 1.4698531752179196,
+      "maxSpawnDistance": 3.7183274225904612,
+      "meanInputDelayMs": 60.0120481259359,
+      "averageTickMs": 2.3515434999999707,
+      "p50TickMs": 2.1459999999933643,
+      "p95TickMs": 4.650500000003376,
+      "maxTickMs": 8.310200000007171,
+      "population": 12,
+      "maxSnapshotBytes": 22220,
+      "shots": 304,
+      "snapshots": 302
+    },
+    {
+      "mode": "planetwatch",
+      "scenario": "simulated delayed inputs and snapshots; walking in an authored protected spawn; no browser/network transport",
+      "rttMs": 40,
+      "jitterMs": 7,
+      "delivered": 599,
+      "lastAcceptedSequence": 599,
+      "displacement": 1.4665488945604284,
+      "maxSpawnDistance": 3.5526127555629583,
+      "meanInputDelayMs": 20.012048125935898,
+      "averageTickMs": 2.6814668333332037,
+      "p50TickMs": 2.4579999999987194,
+      "p95TickMs": 5.207399999999325,
+      "maxTickMs": 9.942999999999302,
+      "population": 12,
+      "maxSnapshotBytes": 22307,
+      "shots": 392,
+      "snapshots": 302
+    },
+    {
+      "mode": "planetwatch",
+      "scenario": "simulated delayed inputs and snapshots; walking in an authored protected spawn; no browser/network transport",
+      "rttMs": 80,
+      "jitterMs": 7,
+      "delivered": 598,
+      "lastAcceptedSequence": 598,
+      "displacement": 1.6645836097253164,
+      "maxSpawnDistance": 3.716176574955502,
+      "meanInputDelayMs": 40.01204812593587,
+      "averageTickMs": 2.3642895000000137,
+      "p50TickMs": 2.1067000000039116,
+      "p95TickMs": 4.777800000010757,
+      "maxTickMs": 9.438299999994342,
+      "population": 12,
+      "maxSnapshotBytes": 21805,
+      "shots": 309,
+      "snapshots": 302
+    }
+  ],
+  "syntheticCap": {
+    "mode": "planetzombies",
+    "scenario": "synthetic wave 25, four stationary invulnerable survivors; real navigation and enemy simulation",
+    "active": 32,
+    "queued": 114,
+    "archetypes": [
+      "bulwark",
+      "drifter",
+      "skitter"
+    ],
+    "samplesAtCap": 1526,
+    "averageTickMs": 0.6305864351243681,
+    "p50TickMs": 0.6009999999951106,
+    "p95TickMs": 0.9262999999918975,
+    "maxTickMs": 1.7903999999980442,
+    "maxSnapshotBytes": 9265
+  },
+  "competitiveSeries": [
+    {
+      "scenario": "ordinary four autonomous pilots, no forced damage/positions/resources/deadlines",
+      "dt": 0.03333333333333333,
+      "seconds": 210.53333333333333,
+      "rounds": [
+        {
+          "atSeconds": 1,
+          "round": 1,
+          "scores": {
+            "solar": 0,
+            "void": 0
+          }
+        },
+        {
+          "atSeconds": 37,
+          "round": 2,
+          "scores": {
+            "solar": 0,
+            "void": 1
+          }
+        },
+        {
+          "atSeconds": 101,
+          "round": 3,
+          "scores": {
+            "solar": 0,
+            "void": 2
+          }
+        },
+        {
+          "atSeconds": 143,
+          "round": 4,
+          "scores": {
+            "solar": 0,
+            "void": 3
+          }
+        }
+      ],
+      "final": {
+        "phase": "results",
+        "serverTime": 214533.33333333334,
+        "phaseEndsAt": 0,
+        "scores": {
+          "solar": 0,
+          "void": 4
+        },
+        "winner": "void",
+        "feed": [
+          {
+            "id": 1,
+            "at": 40150,
+            "killerId": "pg-f55fa7bc-a6e",
+            "victimId": "pg-1db7a184-f1f",
+            "weapon": "nova",
+            "headshot": false
+          },
+          {
+            "id": 2,
+            "at": 40250,
+            "killerId": "pg-63947edd-131",
+            "victimId": "pg-b3711ba0-34d",
+            "weapon": "pulse",
+            "headshot": false
+          },
+          {
+            "id": 3,
+            "at": 40683.333333333336,
+            "killerId": "pg-f55fa7bc-a6e",
+            "victimId": "pg-63947edd-131",
+            "weapon": "nova",
+            "headshot": false
+          },
+          {
+            "id": 4,
+            "at": 100800,
+            "killerId": "pg-f55fa7bc-a6e",
+            "victimId": "pg-1db7a184-f1f",
+            "weapon": "nova",
+            "headshot": false
+          },
+          {
+            "id": 5,
+            "at": 104800,
+            "killerId": "pg-f55fa7bc-a6e",
+            "victimId": "pg-63947edd-131",
+            "weapon": "nova",
+            "headshot": false
+          },
+          {
+            "id": 6,
+            "at": 145950,
+            "killerId": "pg-f55fa7bc-a6e",
+            "victimId": "pg-1db7a184-f1f",
+            "weapon": "nova",
+            "headshot": false
+          },
+          {
+            "id": 7,
+            "at": 145983.33333333334,
+            "killerId": "pg-63947edd-131",
+            "victimId": "pg-b3711ba0-34d",
+            "weapon": "pulse",
+            "headshot": false
+          },
+          {
+            "id": 8,
+            "at": 146566.66666666666,
+            "killerId": "pg-f55fa7bc-a6e",
+            "victimId": "pg-63947edd-131",
+            "weapon": "nova",
+            "headshot": false
+          }
+        ],
+        "players": [
+          {
+            "position": {
+              "x": 34.42,
+              "y": 0,
+              "z": 11.42
+            },
+            "velocity": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "yaw": 0.9359458090668177,
+            "pitch": 0,
+            "grounded": true,
+            "crouched": true,
+            "ion": 100,
+            "launchY": 0,
+            "jumpHeld": true,
+            "coyoteUntil": 214573.33333333334,
+            "jumpBufferUntil": 186883.33333333334,
+            "lastJumpAt": 186700,
+            "slideUntil": 0,
+            "slideReadyAt": 0,
+            "wallId": null,
+            "wallNormal": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "wallUntil": 0,
+            "wallReadyAt": 0,
+            "mantleFrom": null,
+            "mantleTo": null,
+            "mantleStart": 0,
+            "mantleUntil": 0,
+            "mode": "ground",
+            "id": "pg-63947edd-131",
+            "name": "Series Host",
+            "color": "#ffba62",
+            "team": "solar",
+            "isBot": true,
+            "connected": true,
+            "ready": true,
+            "hp": 100,
+            "kills": 2,
+            "deaths": 3,
+            "lifeId": 5,
+            "deadAt": 0,
+            "respawnAt": 0,
+            "protectedUntil": 0,
+            "lastDamageAt": 151566.66666666666,
+            "lastAttacker": null,
+            "lastInputSequence": 3775,
+            "loadout": {
+              "primary": "pulse",
+              "secondary": "orbit"
+            },
+            "slot": 0,
+            "guns": [
+              {
+                "id": "pulse",
+                "modules": [],
+                "magazine": 0,
+                "reserve": 0,
+                "reloadUntil": 0,
+                "nextFireAt": 0,
+                "shots": 0,
+                "recoil": 0
+              },
+              {
+                "id": "orbit",
+                "modules": [],
+                "magazine": 0,
+                "reserve": 0,
+                "reloadUntil": 0,
+                "nextFireAt": 0,
+                "shots": 0,
+                "recoil": 0
+              }
+            ],
+            "adsSince": 0,
+            "fireReadyAt": 214663.33333333334,
+            "equippedCosmetics": {
+              "suit": "default",
+              "trail": "default",
+              "victory": "default",
+              "planet": "default"
+            }
+          },
+          {
+            "position": {
+              "x": 28.000000001573547,
+              "y": 0,
+              "z": 13.800000001501106
+            },
+            "velocity": {
+              "x": -9.441279757993469e-09,
+              "y": 0,
+              "z": -9.00663010838798e-09
+            },
+            "yaw": 0.8089547208844526,
+            "pitch": 0,
+            "grounded": true,
+            "crouched": false,
+            "ion": 100,
+            "launchY": 0,
+            "jumpHeld": false,
+            "coyoteUntil": 214573.33333333334,
+            "jumpBufferUntil": 198983.33333333334,
+            "lastJumpAt": 198166.66666666666,
+            "slideUntil": 0,
+            "slideReadyAt": 0,
+            "wallId": null,
+            "wallNormal": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "wallUntil": 0,
+            "wallReadyAt": 0,
+            "mantleFrom": null,
+            "mantleTo": null,
+            "mantleStart": 0,
+            "mantleUntil": 0,
+            "mode": "sprint",
+            "id": "pg-b3711ba0-34d",
+            "name": "Nova 2",
+            "color": "#80dfff",
+            "team": "void",
+            "isBot": true,
+            "connected": false,
+            "ready": true,
+            "hp": 100,
+            "kills": 0,
+            "deaths": 2,
+            "lifeId": 5,
+            "deadAt": 0,
+            "respawnAt": 0,
+            "protectedUntil": 186566.66666666666,
+            "lastDamageAt": 151566.66666666666,
+            "lastAttacker": null,
+            "lastInputSequence": 3775,
+            "loadout": {
+              "primary": "pulse",
+              "secondary": "orbit"
+            },
+            "slot": 0,
+            "guns": [
+              {
+                "id": "pulse",
+                "modules": [],
+                "magazine": 0,
+                "reserve": 0,
+                "reloadUntil": 0,
+                "nextFireAt": 0,
+                "shots": 0,
+                "recoil": 0
+              },
+              {
+                "id": "orbit",
+                "modules": [],
+                "magazine": 0,
+                "reserve": 0,
+                "reloadUntil": 0,
+                "nextFireAt": 0,
+                "shots": 0,
+                "recoil": 0
+              }
+            ],
+            "adsSince": 0,
+            "fireReadyAt": 200210,
+            "equippedCosmetics": {
+              "suit": "default",
+              "trail": "default",
+              "victory": "default",
+              "planet": "default"
+            }
+          },
+          {
+            "position": {
+              "x": 34.42,
+              "y": 0,
+              "z": 11.42
+            },
+            "velocity": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "yaw": 0.9359458090668177,
+            "pitch": 0,
+            "grounded": true,
+            "crouched": true,
+            "ion": 100,
+            "launchY": 0,
+            "jumpHeld": true,
+            "coyoteUntil": 214573.33333333334,
+            "jumpBufferUntil": 186883.33333333334,
+            "lastJumpAt": 186700,
+            "slideUntil": 0,
+            "slideReadyAt": 0,
+            "wallId": null,
+            "wallNormal": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "wallUntil": 0,
+            "wallReadyAt": 0,
+            "mantleFrom": null,
+            "mantleTo": null,
+            "mantleStart": 0,
+            "mantleUntil": 0,
+            "mode": "ground",
+            "id": "pg-1db7a184-f1f",
+            "name": "Nova 3",
+            "color": "#ffba62",
+            "team": "solar",
+            "isBot": true,
+            "connected": false,
+            "ready": true,
+            "hp": 100,
+            "kills": 0,
+            "deaths": 3,
+            "lifeId": 5,
+            "deadAt": 0,
+            "respawnAt": 0,
+            "protectedUntil": 0,
+            "lastDamageAt": 151566.66666666666,
+            "lastAttacker": null,
+            "lastInputSequence": 3775,
+            "loadout": {
+              "primary": "pulse",
+              "secondary": "orbit"
+            },
+            "slot": 0,
+            "guns": [
+              {
+                "id": "pulse",
+                "modules": [],
+                "magazine": 0,
+                "reserve": 0,
+                "reloadUntil": 0,
+                "nextFireAt": 0,
+                "shots": 0,
+                "recoil": 0
+              },
+              {
+                "id": "orbit",
+                "modules": [],
+                "magazine": 0,
+                "reserve": 0,
+                "reloadUntil": 0,
+                "nextFireAt": 0,
+                "shots": 0,
+                "recoil": 0
+              }
+            ],
+            "adsSince": 0,
+            "fireReadyAt": 214593.33333333334,
+            "equippedCosmetics": {
+              "suit": "default",
+              "trail": "default",
+              "victory": "default",
+              "planet": "default"
+            }
+          },
+          {
+            "position": {
+              "x": 32.0000000035869,
+              "y": 0,
+              "z": 16.62
+            },
+            "velocity": {
+              "x": -9.69431862112951e-09,
+              "y": 0,
+              "z": 0
+            },
+            "yaw": 1.6157197701882515e-09,
+            "pitch": 0,
+            "grounded": true,
+            "crouched": false,
+            "ion": 100,
+            "launchY": 0,
+            "jumpHeld": true,
+            "coyoteUntil": 214573.33333333334,
+            "jumpBufferUntil": 198433.33333333334,
+            "lastJumpAt": 198216.6666666667,
+            "slideUntil": 0,
+            "slideReadyAt": 0,
+            "wallId": null,
+            "wallNormal": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "wallUntil": 0,
+            "wallReadyAt": 0,
+            "mantleFrom": null,
+            "mantleTo": null,
+            "mantleStart": 0,
+            "mantleUntil": 0,
+            "mode": "sprint",
+            "id": "pg-f55fa7bc-a6e",
+            "name": "Nova 4",
+            "color": "#80dfff",
+            "team": "void",
+            "isBot": true,
+            "connected": false,
+            "ready": true,
+            "hp": 100,
+            "kills": 6,
+            "deaths": 0,
+            "lifeId": 5,
+            "deadAt": 0,
+            "respawnAt": 0,
+            "protectedUntil": 0,
+            "lastDamageAt": 151566.66666666666,
+            "lastAttacker": null,
+            "lastInputSequence": 3775,
+            "loadout": {
+              "primary": "pulse",
+              "secondary": "orbit"
+            },
+            "slot": 0,
+            "guns": [
+              {
+                "id": "pulse",
+                "modules": [],
+                "magazine": 0,
+                "reserve": 0,
+                "reloadUntil": 0,
+                "nextFireAt": 0,
+                "shots": 0,
+                "recoil": 0
+              },
+              {
+                "id": "orbit",
+                "modules": [],
+                "magazine": 0,
+                "reserve": 0,
+                "reloadUntil": 0,
+                "nextFireAt": 0,
+                "shots": 0,
+                "recoil": 0
+              }
+            ],
+            "adsSince": 0,
+            "fireReadyAt": 196290,
+            "equippedCosmetics": {
+              "suit": "default",
+              "trail": "default",
+              "victory": "default",
+              "planet": "default"
+            }
+          }
+        ],
+        "mode": {
+          "id": "planetsiege",
+          "collision": {
+            "revision": 14,
+            "topologyRevision": 11,
+            "panels": [
+              {
+                "id": "east-east",
+                "solid": {
+                  "id": "panel-east-east",
+                  "kind": "structure",
+                  "center": {
+                    "x": 35,
+                    "y": 1.4,
+                    "z": 15
+                  },
+                  "half": {
+                    "x": 0.06,
+                    "y": 1.4,
+                    "z": 4
+                  },
+                  "mantle": false
+                },
+                "hp": 0,
+                "maxHp": 550,
+                "active": false,
+                "reinforced": false,
+                "revision": 14
+              }
+            ]
+          },
+          "effects": [],
+          "pilots": {
+            "pg-63947edd-131": {
+              "life": "alive",
+              "maxHp": 100,
+              "shield": 0,
+              "characterId": null,
+              "side": "defend",
+              "credits": 0,
+              "armor": 0,
+              "cooldowns": [
+                214583.33333333334,
+                0
+              ],
+              "charges": [
+                0,
+                0
+              ],
+              "ultimate": 0,
+              "contribution": 0,
+              "interaction": null,
+              "droneId": null,
+              "cameraId": null,
+              "reinforcements": 0,
+              "controllingDrone": false
+            },
+            "pg-b3711ba0-34d": {
+              "life": "alive",
+              "maxHp": 100,
+              "shield": 0,
+              "characterId": null,
+              "side": "attack",
+              "credits": 0,
+              "armor": 0,
+              "cooldowns": [
+                214583.33333333334,
+                0
+              ],
+              "charges": [
+                0,
+                0
+              ],
+              "ultimate": 0,
+              "contribution": 75.01666666666581,
+              "interaction": null,
+              "droneId": null,
+              "cameraId": null,
+              "reinforcements": 0,
+              "controllingDrone": false
+            },
+            "pg-1db7a184-f1f": {
+              "life": "alive",
+              "maxHp": 100,
+              "shield": 0,
+              "characterId": null,
+              "side": "defend",
+              "credits": 0,
+              "armor": 0,
+              "cooldowns": [
+                214583.33333333334,
+                0
+              ],
+              "charges": [
+                0,
+                0
+              ],
+              "ultimate": 0,
+              "contribution": 0,
+              "interaction": null,
+              "droneId": null,
+              "cameraId": null,
+              "reinforcements": 0,
+              "controllingDrone": false
+            },
+            "pg-f55fa7bc-a6e": {
+              "life": "alive",
+              "maxHp": 100,
+              "shield": 0,
+              "characterId": null,
+              "side": "attack",
+              "credits": 0,
+              "armor": 0,
+              "cooldowns": [
+                214583.33333333334,
+                0
+              ],
+              "charges": [
+                0,
+                0
+              ],
+              "ultimate": 0,
+              "contribution": 44.933333333332484,
+              "interaction": null,
+              "droneId": null,
+              "cameraId": null,
+              "reinforcements": 0,
+              "controllingDrone": false
+            }
+          },
+          "round": 4,
+          "subphase": "complete",
+          "deadline": 0,
+          "attackTeam": "void",
+          "roundScores": {
+            "solar": 0,
+            "void": 4
+          },
+          "capture": 1,
+          "site": 1,
+          "drones": [],
+          "intel": [],
+          "controls": {
+            "pg-63947edd-131": {
+              "lastActionSequence": -1,
+              "movement": {
+                "thrust": false,
+                "wallRun": false,
+                "slide": false,
+                "mantle": true,
+                "jump": true,
+                "sprint": true,
+                "forceCrouch": false,
+                "walkSpeed": 4.5,
+                "crouchSpeed": 2.5,
+                "sprintSpeed": 6,
+                "maxSpeed": 6
+              },
+              "canMove": false,
+              "canFire": false,
+              "combat": {},
+              "viewOrigin": {
+                "x": 34.42,
+                "y": 1.3,
+                "z": 11.42
+              }
+            },
+            "pg-b3711ba0-34d": {
+              "lastActionSequence": -1,
+              "movement": {
+                "thrust": false,
+                "wallRun": false,
+                "slide": false,
+                "mantle": true,
+                "jump": true,
+                "sprint": true,
+                "forceCrouch": false,
+                "walkSpeed": 4.5,
+                "crouchSpeed": 2.5,
+                "sprintSpeed": 6,
+                "maxSpeed": 6
+              },
+              "canMove": false,
+              "canFire": false,
+              "combat": {},
+              "viewOrigin": {
+                "x": 28.000000001573547,
+                "y": 1.3,
+                "z": 13.800000001501106
+              }
+            },
+            "pg-1db7a184-f1f": {
+              "lastActionSequence": -1,
+              "movement": {
+                "thrust": false,
+                "wallRun": false,
+                "slide": false,
+                "mantle": true,
+                "jump": true,
+                "sprint": true,
+                "forceCrouch": false,
+                "walkSpeed": 4.5,
+                "crouchSpeed": 2.5,
+                "sprintSpeed": 6,
+                "maxSpeed": 6
+              },
+              "canMove": false,
+              "canFire": false,
+              "combat": {},
+              "viewOrigin": {
+                "x": 34.42,
+                "y": 1.3,
+                "z": 11.42
+              }
+            },
+            "pg-f55fa7bc-a6e": {
+              "lastActionSequence": -1,
+              "movement": {
+                "thrust": false,
+                "wallRun": false,
+                "slide": false,
+                "mantle": true,
+                "jump": true,
+                "sprint": true,
+                "forceCrouch": false,
+                "walkSpeed": 4.5,
+                "crouchSpeed": 2.5,
+                "sprintSpeed": 6,
+                "maxSpeed": 6
+              },
+              "canMove": false,
+              "canFire": false,
+              "combat": {},
+              "viewOrigin": {
+                "x": 32.0000000035869,
+                "y": 1.3,
+                "z": 16.62
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "scenario": "ordinary four autonomous pilots, no forced damage/positions/resources/deadlines",
+      "dt": 0.03333333333333333,
+      "seconds": 828.2333333333333,
+      "rounds": [
+        {
+          "atSeconds": 1,
+          "round": 1,
+          "scores": {
+            "solar": 0,
+            "void": 0
+          }
+        },
+        {
+          "atSeconds": 51,
+          "round": 2,
+          "scores": {
+            "solar": 1,
+            "void": 0
+          }
+        },
+        {
+          "atSeconds": 115,
+          "round": 3,
+          "scores": {
+            "solar": 1,
+            "void": 1
+          }
+        },
+        {
+          "atSeconds": 178,
+          "round": 4,
+          "scores": {
+            "solar": 1,
+            "void": 2
+          }
+        },
+        {
+          "atSeconds": 232,
+          "round": 5,
+          "scores": {
+            "solar": 2,
+            "void": 2
+          }
+        },
+        {
+          "atSeconds": 269,
+          "round": 6,
+          "scores": {
+            "solar": 2,
+            "void": 3
+          }
+        },
+        {
+          "atSeconds": 332,
+          "round": 7,
+          "scores": {
+            "solar": 2,
+            "void": 4
+          }
+        },
+        {
+          "atSeconds": 369,
+          "round": 8,
+          "scores": {
+            "solar": 2,
+            "void": 5
+          }
+        },
+        {
+          "atSeconds": 413,
+          "round": 9,
+          "scores": {
+            "solar": 3,
+            "void": 5
+          }
+        },
+        {
+          "atSeconds": 457,
+          "round": 10,
+          "scores": {
+            "solar": 4,
+            "void": 5
+          }
+        },
+        {
+          "atSeconds": 502,
+          "round": 11,
+          "scores": {
+            "solar": 5,
+            "void": 5
+          }
+        },
+        {
+          "atSeconds": 539,
+          "round": 12,
+          "scores": {
+            "solar": 5,
+            "void": 6
+          }
+        },
+        {
+          "atSeconds": 584,
+          "round": 13,
+          "scores": {
+            "solar": 6,
+            "void": 6
+          }
+        },
+        {
+          "atSeconds": 621,
+          "round": 14,
+          "scores": {
+            "solar": 6,
+            "void": 7
+          }
+        },
+        {
+          "atSeconds": 665,
+          "round": 15,
+          "scores": {
+            "solar": 7,
+            "void": 7
+          }
+        },
+        {
+          "atSeconds": 702,
+          "round": 16,
+          "scores": {
+            "solar": 7,
+            "void": 8
+          }
+        },
+        {
+          "atSeconds": 747,
+          "round": 17,
+          "scores": {
+            "solar": 8,
+            "void": 8
+          }
+        },
+        {
+          "atSeconds": 784,
+          "round": 18,
+          "scores": {
+            "solar": 8,
+            "void": 9
+          }
+        }
+      ],
+      "final": {
+        "phase": "results",
+        "serverTime": 832233.3333333334,
+        "phaseEndsAt": 832200,
+        "scores": {
+          "solar": 9,
+          "void": 9
+        },
+        "winner": null,
+        "feed": [
+          {
+            "id": 41,
+            "at": 742333.3333333334,
+            "killerId": "pg-edba3896-45d",
+            "victimId": "pg-1f3885e9-fb6",
+            "weapon": "pulse",
+            "headshot": false
+          },
+          {
+            "id": 42,
+            "at": 742766.6666666666,
+            "killerId": "pg-12bf5896-7df",
+            "victimId": "pg-edba3896-45d",
+            "weapon": "pulse",
+            "headshot": false
+          },
+          {
+            "id": 43,
+            "at": 750700,
+            "killerId": "pg-12bf5896-7df",
+            "victimId": "pg-e4da71d0-c0f",
+            "weapon": "pulse",
+            "headshot": false
+          },
+          {
+            "id": 44,
+            "at": 785683.3333333334,
+            "killerId": "pg-e4da71d0-c0f",
+            "victimId": "pg-1f3885e9-fb6",
+            "weapon": "pulse",
+            "headshot": false
+          },
+          {
+            "id": 45,
+            "at": 787683.3333333334,
+            "killerId": "pg-edba3896-45d",
+            "victimId": "pg-12bf5896-7df",
+            "weapon": "pulse",
+            "headshot": false
+          },
+          {
+            "id": 46,
+            "at": 824250,
+            "killerId": "pg-edba3896-45d",
+            "victimId": "pg-1f3885e9-fb6",
+            "weapon": "pulse",
+            "headshot": false
+          },
+          {
+            "id": 47,
+            "at": 824450,
+            "killerId": "pg-12bf5896-7df",
+            "victimId": "pg-edba3896-45d",
+            "weapon": "pulse",
+            "headshot": false
+          },
+          {
+            "id": 48,
+            "at": 832200,
+            "killerId": "pg-12bf5896-7df",
+            "victimId": "pg-e4da71d0-c0f",
+            "weapon": "pulse",
+            "headshot": false
+          }
+        ],
+        "players": [
+          {
+            "position": {
+              "x": -27.999999998357954,
+              "y": 0,
+              "z": -8.999999998487809
+            },
+            "velocity": {
+              "x": -5.172446471135572e-09,
+              "y": 0,
+              "z": -4.763402472462985e-09
+            },
+            "yaw": -1.9940495462778665,
+            "pitch": -0.013311357195110134,
+            "grounded": true,
+            "crouched": false,
+            "ion": 100,
+            "launchY": 0,
+            "jumpHeld": false,
+            "coyoteUntil": 832290,
+            "jumpBufferUntil": 0,
+            "lastJumpAt": 822166.6666666666,
+            "slideUntil": 0,
+            "slideReadyAt": 0,
+            "wallId": null,
+            "wallNormal": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "wallUntil": 0,
+            "wallReadyAt": 0,
+            "mantleFrom": null,
+            "mantleTo": null,
+            "mantleStart": 0,
+            "mantleUntil": 0,
+            "mode": "ground",
+            "id": "pg-12bf5896-7df",
+            "name": "Series Host",
+            "color": "#ffba62",
+            "team": "solar",
+            "isBot": true,
+            "connected": true,
+            "ready": true,
+            "hp": 100,
+            "kills": 18,
+            "deaths": 9,
+            "lifeId": 19,
+            "deadAt": 0,
+            "respawnAt": 0,
+            "protectedUntil": 0,
+            "lastDamageAt": 792683.3333333334,
+            "lastAttacker": null,
+            "lastInputSequence": 2371,
+            "loadout": {
+              "primary": "pulse",
+              "secondary": "orbit",
+              "primaryModules": [],
+              "secondaryModules": []
+            },
+            "slot": 0,
+            "guns": [
+              {
+                "id": "pulse",
+                "modules": [],
+                "magazine": 22,
+                "reserve": 120,
+                "reloadUntil": 0,
+                "nextFireAt": 832315,
+                "shots": 8,
+                "recoil": 0.01800000000000001
+              },
+              {
+                "id": "orbit",
+                "modules": [],
+                "magazine": 15,
+                "reserve": 90,
+                "reloadUntil": 0,
+                "nextFireAt": 0,
+                "shots": 0,
+                "recoil": 0
+              }
+            ],
+            "adsSince": 831550,
+            "fireReadyAt": 831710,
+            "equippedCosmetics": {
+              "suit": "default",
+              "trail": "default",
+              "victory": "default",
+              "planet": "default"
+            }
+          },
+          {
+            "position": {
+              "x": -17.003764778230657,
+              "y": 0,
+              "z": -9.864794950803349
+            },
+            "velocity": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "yaw": 2.331849925338101,
+            "pitch": -0.026683209023199927,
+            "grounded": true,
+            "crouched": false,
+            "ion": 100,
+            "launchY": 0,
+            "jumpHeld": false,
+            "coyoteUntil": 824540,
+            "jumpBufferUntil": 0,
+            "lastJumpAt": 812766.6666666666,
+            "slideUntil": 0,
+            "slideReadyAt": 0,
+            "wallId": null,
+            "wallNormal": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "wallUntil": 0,
+            "wallReadyAt": 0,
+            "mantleFrom": null,
+            "mantleTo": null,
+            "mantleStart": 0,
+            "mantleUntil": 0,
+            "mode": "ground",
+            "id": "pg-edba3896-45d",
+            "name": "Nova 2",
+            "color": "#80dfff",
+            "team": "void",
+            "isBot": true,
+            "connected": false,
+            "ready": true,
+            "hp": 0,
+            "kills": 13,
+            "deaths": 12,
+            "lifeId": 19,
+            "deadAt": 824450,
+            "respawnAt": 9007199254740991,
+            "protectedUntil": 0,
+            "lastDamageAt": 824450,
+            "lastAttacker": "pg-12bf5896-7df",
+            "lastInputSequence": 1906,
+            "loadout": {
+              "primary": "pulse",
+              "secondary": "orbit",
+              "primaryModules": [],
+              "secondaryModules": []
+            },
+            "slot": 1,
+            "guns": [
+              {
+                "id": "pulse",
+                "modules": [],
+                "magazine": 0,
+                "reserve": 0,
+                "reloadUntil": 0,
+                "nextFireAt": 824365,
+                "shots": 2,
+                "recoil": 0
+              },
+              {
+                "id": "orbit",
+                "modules": [],
+                "magazine": 0,
+                "reserve": 0,
+                "reloadUntil": 0,
+                "nextFireAt": 0,
+                "shots": 0,
+                "recoil": 0
+              }
+            ],
+            "adsSince": 823966.6666666666,
+            "fireReadyAt": 824126.6666666666,
+            "equippedCosmetics": {
+              "suit": "default",
+              "trail": "default",
+              "victory": "default",
+              "planet": "default"
+            }
+          },
+          {
+            "position": {
+              "x": -25.633490553737577,
+              "y": 0,
+              "z": -0.04090284570387421
+            },
+            "velocity": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "yaw": -0.7744732744070968,
+            "pitch": -0.026654101880642888,
+            "grounded": true,
+            "crouched": false,
+            "ion": 100,
+            "launchY": 0,
+            "jumpHeld": false,
+            "coyoteUntil": 824340,
+            "jumpBufferUntil": 0,
+            "lastJumpAt": 822133.3333333334,
+            "slideUntil": 0,
+            "slideReadyAt": 0,
+            "wallId": null,
+            "wallNormal": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "wallUntil": 0,
+            "wallReadyAt": 0,
+            "mantleFrom": null,
+            "mantleTo": null,
+            "mantleStart": 0,
+            "mantleUntil": 0,
+            "mode": "ground",
+            "id": "pg-1f3885e9-fb6",
+            "name": "Nova 3",
+            "color": "#ffba62",
+            "team": "solar",
+            "isBot": true,
+            "connected": false,
+            "ready": true,
+            "hp": 0,
+            "kills": 3,
+            "deaths": 18,
+            "lifeId": 19,
+            "deadAt": 824250,
+            "respawnAt": 9007199254740991,
+            "protectedUntil": 0,
+            "lastDamageAt": 824250,
+            "lastAttacker": "pg-edba3896-45d",
+            "lastInputSequence": 1894,
+            "loadout": {
+              "primary": "pulse",
+              "secondary": "orbit",
+              "primaryModules": [],
+              "secondaryModules": []
+            },
+            "slot": 1,
+            "guns": [
+              {
+                "id": "pulse",
+                "modules": [],
+                "magazine": 0,
+                "reserve": 0,
+                "reloadUntil": 0,
+                "nextFireAt": 824348.3333333334,
+                "shots": 2,
+                "recoil": 0.012000000000000002
+              },
+              {
+                "id": "orbit",
+                "modules": [],
+                "magazine": 0,
+                "reserve": 0,
+                "reloadUntil": 0,
+                "nextFireAt": 0,
+                "shots": 0,
+                "recoil": 0
+              }
+            ],
+            "adsSince": 823950,
+            "fireReadyAt": 824110,
+            "equippedCosmetics": {
+              "suit": "default",
+              "trail": "default",
+              "victory": "default",
+              "planet": "default"
+            }
+          },
+          {
+            "position": {
+              "x": -4.046403934225091,
+              "y": 0,
+              "z": 1.5942269336687225
+            },
+            "velocity": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "yaw": 1.1475431073119269,
+            "pitch": -0.013311357195110134,
+            "grounded": true,
+            "crouched": false,
+            "ion": 100,
+            "launchY": 0,
+            "jumpHeld": false,
+            "coyoteUntil": 832290,
+            "jumpBufferUntil": 0,
+            "lastJumpAt": 812766.6666666666,
+            "slideUntil": 0,
+            "slideReadyAt": 0,
+            "wallId": null,
+            "wallNormal": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "wallUntil": 0,
+            "wallReadyAt": 0,
+            "mantleFrom": null,
+            "mantleTo": null,
+            "mantleStart": 0,
+            "mantleUntil": 0,
+            "mode": "sprint",
+            "id": "pg-e4da71d0-c0f",
+            "name": "Nova 4",
+            "color": "#80dfff",
+            "team": "void",
+            "isBot": true,
+            "connected": false,
+            "ready": true,
+            "hp": 0,
+            "kills": 14,
+            "deaths": 9,
+            "lifeId": 19,
+            "deadAt": 832200,
+            "respawnAt": 9007199254740991,
+            "protectedUntil": 0,
+            "lastDamageAt": 832200,
+            "lastAttacker": "pg-12bf5896-7df",
+            "lastInputSequence": 2371,
+            "loadout": {
+              "primary": "pulse",
+              "secondary": "orbit",
+              "primaryModules": [],
+              "secondaryModules": []
+            },
+            "slot": 1,
+            "guns": [
+              {
+                "id": "pulse",
+                "modules": [],
+                "magazine": 0,
+                "reserve": 0,
+                "reloadUntil": 0,
+                "nextFireAt": 822781.6666666666,
+                "shots": 6,
+                "recoil": 0
+              },
+              {
+                "id": "orbit",
+                "modules": [],
+                "magazine": 0,
+                "reserve": 0,
+                "reloadUntil": 0,
+                "nextFireAt": 0,
+                "shots": 0,
+                "recoil": 0
+              }
+            ],
+            "adsSince": 0,
+            "fireReadyAt": 822293.3333333334,
+            "equippedCosmetics": {
+              "suit": "default",
+              "trail": "default",
+              "victory": "default",
+              "planet": "default"
+            }
+          }
+        ],
+        "mode": {
+          "id": "planetstrike",
+          "collision": {
+            "revision": 19,
+            "topologyRevision": 19,
+            "panels": []
+          },
+          "effects": [],
+          "pilots": {
+            "pg-12bf5896-7df": {
+              "life": "alive",
+              "maxHp": 100,
+              "shield": 0,
+              "characterId": null,
+              "side": "defend",
+              "credits": 6250,
+              "armor": 50,
+              "cooldowns": [
+                0,
+                0
+              ],
+              "charges": [
+                1,
+                0
+              ],
+              "ultimate": 0,
+              "contribution": 33,
+              "interaction": null,
+              "carrying": false,
+              "primaryUnlocked": true,
+              "utilities": [
+                1,
+                0,
+                0
+              ]
+            },
+            "pg-edba3896-45d": {
+              "life": "eliminated",
+              "maxHp": 100,
+              "shield": 0,
+              "characterId": null,
+              "side": "attack",
+              "credits": 4850,
+              "armor": 0,
+              "cooldowns": [
+                0,
+                0
+              ],
+              "charges": [
+                0,
+                0
+              ],
+              "ultimate": 0,
+              "contribution": 13,
+              "interaction": null,
+              "carrying": false,
+              "primaryUnlocked": false,
+              "utilities": [
+                0,
+                0,
+                0
+              ]
+            },
+            "pg-1f3885e9-fb6": {
+              "life": "eliminated",
+              "maxHp": 100,
+              "shield": 0,
+              "characterId": null,
+              "side": "defend",
+              "credits": 5650,
+              "armor": 0,
+              "cooldowns": [
+                0,
+                0
+              ],
+              "charges": [
+                0,
+                0
+              ],
+              "ultimate": 0,
+              "contribution": 3,
+              "interaction": null,
+              "carrying": false,
+              "primaryUnlocked": false,
+              "utilities": [
+                0,
+                0,
+                0
+              ]
+            },
+            "pg-e4da71d0-c0f": {
+              "life": "eliminated",
+              "maxHp": 100,
+              "shield": 0,
+              "characterId": null,
+              "side": "attack",
+              "credits": 4550,
+              "armor": 0,
+              "cooldowns": [
+                0,
+                0
+              ],
+              "charges": [
+                0,
+                0
+              ],
+              "ultimate": 0,
+              "contribution": 23,
+              "interaction": null,
+              "carrying": false,
+              "primaryUnlocked": false,
+              "utilities": [
+                0,
+                0,
+                0
+              ]
+            }
+          },
+          "round": 18,
+          "subphase": "finished",
+          "deadline": 832200,
+          "attackTeam": "void",
+          "roundScores": {
+            "solar": 9,
+            "void": 9
+          },
+          "charge": {
+            "carrierId": null,
+            "position": null,
+            "site": null,
+            "detonatesAt": 0
+          },
+          "drops": [
+            {
+              "id": "weapon-88",
+              "kind": "weapon",
+              "weapon": "pulse",
+              "position": {
+                "x": -25.633490553737577,
+                "y": 0,
+                "z": -0.04090284570387421
+              },
+              "magazine": 28,
+              "reserve": 120
+            },
+            {
+              "id": "weapon-89",
+              "kind": "weapon",
+              "weapon": "orbit",
+              "position": {
+                "x": -25.633490553737577,
+                "y": 0,
+                "z": -0.04090284570387421
+              },
+              "magazine": 15,
+              "reserve": 90
+            },
+            {
+              "id": "weapon-90",
+              "kind": "weapon",
+              "weapon": "pulse",
+              "position": {
+                "x": -17.003764778230657,
+                "y": 0,
+                "z": -9.864794950803349
+              },
+              "magazine": 28,
+              "reserve": 120
+            },
+            {
+              "id": "weapon-91",
+              "kind": "weapon",
+              "weapon": "orbit",
+              "position": {
+                "x": -17.003764778230657,
+                "y": 0,
+                "z": -9.864794950803349
+              },
+              "magazine": 15,
+              "reserve": 90
+            },
+            {
+              "id": "weapon-92",
+              "kind": "weapon",
+              "weapon": "pulse",
+              "position": {
+                "x": -4.046403934225091,
+                "y": 0,
+                "z": 1.5942269336687225
+              },
+              "magazine": 24,
+              "reserve": 120
+            },
+            {
+              "id": "weapon-93",
+              "kind": "weapon",
+              "weapon": "orbit",
+              "position": {
+                "x": -4.046403934225091,
+                "y": 0,
+                "z": 1.5942269336687225
+              },
+              "magazine": 15,
+              "reserve": 90
+            }
+          ],
+          "controls": {
+            "pg-12bf5896-7df": {
+              "lastActionSequence": -1,
+              "movement": {
+                "thrust": false,
+                "wallRun": false,
+                "slide": false,
+                "mantle": true,
+                "jump": true,
+                "sprint": true,
+                "forceCrouch": false,
+                "walkSpeed": 4.5,
+                "crouchSpeed": 2.5,
+                "sprintSpeed": 6,
+                "maxSpeed": 6
+              },
+              "canMove": false,
+              "canFire": false,
+              "combat": {}
+            },
+            "pg-edba3896-45d": {
+              "lastActionSequence": -1,
+              "movement": {
+                "thrust": false,
+                "wallRun": false,
+                "slide": false,
+                "mantle": true,
+                "jump": true,
+                "sprint": true,
+                "forceCrouch": false,
+                "walkSpeed": 4.5,
+                "crouchSpeed": 2.5,
+                "sprintSpeed": 6,
+                "maxSpeed": 6
+              },
+              "canMove": false,
+              "canFire": false,
+              "combat": {}
+            },
+            "pg-1f3885e9-fb6": {
+              "lastActionSequence": -1,
+              "movement": {
+                "thrust": false,
+                "wallRun": false,
+                "slide": false,
+                "mantle": true,
+                "jump": true,
+                "sprint": true,
+                "forceCrouch": false,
+                "walkSpeed": 4.5,
+                "crouchSpeed": 2.5,
+                "sprintSpeed": 6,
+                "maxSpeed": 6
+              },
+              "canMove": false,
+              "canFire": false,
+              "combat": {}
+            },
+            "pg-e4da71d0-c0f": {
+              "lastActionSequence": -1,
+              "movement": {
+                "thrust": false,
+                "wallRun": false,
+                "slide": false,
+                "mantle": true,
+                "jump": true,
+                "sprint": true,
+                "forceCrouch": false,
+                "walkSpeed": 4.5,
+                "crouchSpeed": 2.5,
+                "sprintSpeed": 6,
+                "maxSpeed": 6
+              },
+              "canMove": false,
+              "canFire": false,
+              "combat": {}
+            }
+          }
+        }
+      }
+    },
+    {
+      "scenario": "ordinary four autonomous pilots, no forced damage/positions/resources/deadlines",
+      "dt": 0.03333333333333333,
+      "seconds": 316.4,
+      "rounds": [
+        {
+          "atSeconds": 1,
+          "round": 1,
+          "scores": {
+            "solar": 0,
+            "void": 0
+          }
+        },
+        {
+          "atSeconds": 126,
+          "round": 2,
+          "scores": {
+            "solar": 0,
+            "void": 1
+          }
+        },
+        {
+          "atSeconds": 211,
+          "round": 3,
+          "scores": {
+            "solar": 1,
+            "void": 1
+          }
+        }
+      ],
+      "final": {
+        "phase": "results",
+        "serverTime": 320400,
+        "phaseEndsAt": 0,
+        "scores": {
+          "solar": 1,
+          "void": 2
+        },
+        "winner": "void",
+        "feed": [
+          {
+            "id": 39,
+            "at": 227500,
+            "killerId": "pg-ebbc4cc5-192",
+            "victimId": "pg-0016f4fd-697",
+            "weapon": "arc",
+            "headshot": false
+          },
+          {
+            "id": 40,
+            "at": 237000,
+            "killerId": "pg-0016f4fd-697",
+            "victimId": "pg-ebbc4cc5-192",
+            "weapon": "arc",
+            "headshot": false
+          },
+          {
+            "id": 41,
+            "at": 251450,
+            "killerId": "pg-ebbc4cc5-192",
+            "victimId": "pg-0016f4fd-697",
+            "weapon": "arc",
+            "headshot": false
+          },
+          {
+            "id": 42,
+            "at": 259766.66666666666,
+            "killerId": "pg-0016f4fd-697",
+            "victimId": "pg-ebbc4cc5-192",
+            "weapon": "arc",
+            "headshot": false
+          },
+          {
+            "id": 43,
+            "at": 275616.6666666666,
+            "killerId": "pg-ebbc4cc5-192",
+            "victimId": "pg-0016f4fd-697",
+            "weapon": "arc",
+            "headshot": false
+          },
+          {
+            "id": 44,
+            "at": 284100,
+            "killerId": "pg-0016f4fd-697",
+            "victimId": "pg-ebbc4cc5-192",
+            "weapon": "arc",
+            "headshot": false
+          },
+          {
+            "id": 45,
+            "at": 299450,
+            "killerId": "pg-ebbc4cc5-192",
+            "victimId": "pg-0016f4fd-697",
+            "weapon": "arc",
+            "headshot": false
+          },
+          {
+            "id": 46,
+            "at": 308716.6666666666,
+            "killerId": "pg-0016f4fd-697",
+            "victimId": "pg-ebbc4cc5-192",
+            "weapon": "arc",
+            "headshot": false
+          }
+        ],
+        "players": [
+          {
+            "position": {
+              "x": -21.763333333333332,
+              "y": 1.3033333333333321,
+              "z": -21.813333333333333
+            },
+            "velocity": {
+              "x": 0.26666666666666666,
+              "y": -1.0000000000000038,
+              "z": 0.26666666666666666
+            },
+            "yaw": -2.1871863941645513,
+            "pitch": 0,
+            "grounded": false,
+            "crouched": false,
+            "ion": 100,
+            "launchY": 0,
+            "jumpHeld": false,
+            "coyoteUntil": 0,
+            "jumpBufferUntil": 0,
+            "lastJumpAt": 320000,
+            "slideUntil": 0,
+            "slideReadyAt": 0,
+            "wallId": null,
+            "wallNormal": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "wallUntil": 0,
+            "wallReadyAt": 0,
+            "mantleFrom": null,
+            "mantleTo": null,
+            "mantleStart": 0,
+            "mantleUntil": 0,
+            "mode": "air",
+            "id": "pg-cf8695e2-71f",
+            "name": "Series Host",
+            "color": "#ffba62",
+            "team": "solar",
+            "isBot": true,
+            "connected": true,
+            "ready": true,
+            "hp": 325,
+            "kills": 5,
+            "deaths": 10,
+            "lifeId": 14,
+            "deadAt": 0,
+            "respawnAt": 0,
+            "protectedUntil": 232416.6666666667,
+            "lastDamageAt": 230416.6666666667,
+            "lastAttacker": null,
+            "lastInputSequence": 5397,
+            "loadout": {
+              "primary": "photon",
+              "secondary": "comet",
+              "primaryModules": [],
+              "secondaryModules": []
+            },
+            "slot": 0,
+            "guns": [
+              {
+                "id": "photon",
+                "modules": [],
+                "magazine": 7,
+                "reserve": 35,
+                "reloadUntil": 0,
+                "nextFireAt": 0,
+                "shots": 0,
+                "recoil": 0
+              },
+              {
+                "id": "comet",
+                "modules": [],
+                "magazine": 9,
+                "reserve": 54,
+                "reloadUntil": 0,
+                "nextFireAt": 0,
+                "shots": 0,
+                "recoil": 0
+              }
+            ],
+            "adsSince": 0,
+            "fireReadyAt": 320180,
+            "equippedCosmetics": {
+              "suit": "default",
+              "trail": "default",
+              "victory": "default",
+              "planet": "default"
+            }
+          },
+          {
+            "position": {
+              "x": 30.20000001834623,
+              "y": 0.36999999999999794,
+              "z": -3.817777777777778
+            },
+            "velocity": {
+              "x": -9.943228387307155e-09,
+              "y": -6.600000000000006,
+              "z": 0.13333333333333333
+            },
+            "yaw": 3.141592652614967,
+            "pitch": 0,
+            "grounded": false,
+            "crouched": false,
+            "ion": 100,
+            "launchY": 0,
+            "jumpHeld": false,
+            "coyoteUntil": 0,
+            "jumpBufferUntil": 0,
+            "lastJumpAt": 319766.6666666667,
+            "slideUntil": 0,
+            "slideReadyAt": 0,
+            "wallId": null,
+            "wallNormal": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "wallUntil": 0,
+            "wallReadyAt": 0,
+            "mantleFrom": null,
+            "mantleTo": null,
+            "mantleStart": 0,
+            "mantleUntil": 0,
+            "mode": "air",
+            "id": "pg-2ee2b723-746",
+            "name": "Nova 2",
+            "color": "#80dfff",
+            "team": "void",
+            "isBot": true,
+            "connected": false,
+            "ready": true,
+            "hp": 325,
+            "kills": 7,
+            "deaths": 10,
+            "lifeId": 14,
+            "deadAt": 0,
+            "respawnAt": 0,
+            "protectedUntil": 216416.6666666667,
+            "lastDamageAt": 214416.6666666667,
+            "lastAttacker": null,
+            "lastInputSequence": 6357,
+            "loadout": {
+              "primary": "photon",
+              "secondary": "comet",
+              "primaryModules": [],
+              "secondaryModules": []
+            },
+            "slot": 0,
+            "guns": [
+              {
+                "id": "photon",
+                "modules": [],
+                "magazine": 7,
+                "reserve": 35,
+                "reloadUntil": 0,
+                "nextFireAt": 0,
+                "shots": 0,
+                "recoil": 0
+              },
+              {
+                "id": "comet",
+                "modules": [],
+                "magazine": 9,
+                "reserve": 54,
+                "reloadUntil": 0,
+                "nextFireAt": 0,
+                "shots": 0,
+                "recoil": 0
+              }
+            ],
+            "adsSince": 0,
+            "fireReadyAt": 319946.6666666667,
+            "equippedCosmetics": {
+              "suit": "default",
+              "trail": "default",
+              "victory": "default",
+              "planet": "default"
+            }
+          },
+          {
+            "position": {
+              "x": 2.0326880080387664,
+              "y": 0,
+              "z": 14.320575915887535
+            },
+            "velocity": {
+              "x": 9.81856017156456,
+              "y": 0,
+              "z": 2.763308914574356
+            },
+            "yaw": -1.845137325601066,
+            "pitch": 0,
+            "grounded": true,
+            "crouched": false,
+            "ion": 100,
+            "launchY": 0,
+            "jumpHeld": false,
+            "coyoteUntil": 320456.6666666667,
+            "jumpBufferUntil": 0,
+            "lastJumpAt": 315500,
+            "slideUntil": 318850,
+            "slideReadyAt": 319100,
+            "wallId": null,
+            "wallNormal": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "wallUntil": 0,
+            "wallReadyAt": 0,
+            "mantleFrom": null,
+            "mantleTo": null,
+            "mantleStart": 0,
+            "mantleUntil": 0,
+            "mode": "sprint",
+            "id": "pg-ebbc4cc5-192",
+            "name": "Nova 3",
+            "color": "#ffba62",
+            "team": "solar",
+            "isBot": true,
+            "connected": false,
+            "ready": true,
+            "hp": 300,
+            "kills": 18,
+            "deaths": 13,
+            "lifeId": 16,
+            "deadAt": 0,
+            "respawnAt": 0,
+            "protectedUntil": 312433.3333333333,
+            "lastDamageAt": 310433.3333333333,
+            "lastAttacker": null,
+            "lastInputSequence": 596,
+            "loadout": {
+              "primary": "arc",
+              "secondary": "orbit",
+              "primaryModules": [],
+              "secondaryModules": []
+            },
+            "slot": 0,
+            "guns": [
+              {
+                "id": "arc",
+                "modules": [],
+                "magazine": 20,
+                "reserve": 100,
+                "reloadUntil": 0,
+                "nextFireAt": 0,
+                "shots": 0,
+                "recoil": 0
+              },
+              {
+                "id": "orbit",
+                "modules": [],
+                "magazine": 15,
+                "reserve": 90,
+                "reloadUntil": 0,
+                "nextFireAt": 0,
+                "shots": 0,
+                "recoil": 0
+              }
+            ],
+            "adsSince": 0,
+            "fireReadyAt": 318315,
+            "equippedCosmetics": {
+              "suit": "default",
+              "trail": "default",
+              "victory": "default",
+              "planet": "default"
+            }
+          },
+          {
+            "position": {
+              "x": 29.09999999915995,
+              "y": 0,
+              "z": 16.905255889232304
+            },
+            "velocity": {
+              "x": 8.56850803643283e-09,
+              "y": 0,
+              "z": -9.246696208720094e-09
+            },
+            "yaw": -0.7473485937942589,
+            "pitch": 0,
+            "grounded": true,
+            "crouched": false,
+            "ion": 100,
+            "launchY": 0,
+            "jumpHeld": false,
+            "coyoteUntil": 320456.6666666667,
+            "jumpBufferUntil": 309200,
+            "lastJumpAt": 308900,
+            "slideUntil": 0,
+            "slideReadyAt": 304450,
+            "wallId": null,
+            "wallNormal": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "wallUntil": 0,
+            "wallReadyAt": 0,
+            "mantleFrom": null,
+            "mantleTo": null,
+            "mantleStart": 0,
+            "mantleUntil": 0,
+            "mode": "sprint",
+            "id": "pg-0016f4fd-697",
+            "name": "Nova 4",
+            "color": "#80dfff",
+            "team": "void",
+            "isBot": true,
+            "connected": false,
+            "ready": true,
+            "hp": 66.39999999999998,
+            "kills": 16,
+            "deaths": 13,
+            "lifeId": 17,
+            "deadAt": 0,
+            "respawnAt": 0,
+            "protectedUntil": 0,
+            "lastDamageAt": 308550,
+            "lastAttacker": "pg-ebbc4cc5-192",
+            "lastInputSequence": 1076,
+            "loadout": {
+              "primary": "arc",
+              "secondary": "orbit",
+              "primaryModules": [],
+              "secondaryModules": []
+            },
+            "slot": 0,
+            "guns": [
+              {
+                "id": "arc",
+                "modules": [],
+                "magazine": 6,
+                "reserve": 100,
+                "reloadUntil": 0,
+                "nextFireAt": 316246.6666666667,
+                "shots": 14,
+                "recoil": 0
+              },
+              {
+                "id": "orbit",
+                "modules": [],
+                "magazine": 15,
+                "reserve": 90,
+                "reloadUntil": 0,
+                "nextFireAt": 0,
+                "shots": 0,
+                "recoil": 0
+              }
+            ],
+            "adsSince": 0,
+            "fireReadyAt": 315631.6666666666,
+            "equippedCosmetics": {
+              "suit": "default",
+              "trail": "default",
+              "victory": "default",
+              "planet": "default"
+            }
+          }
+        ],
+        "mode": {
+          "id": "planetwatch",
+          "collision": {
+            "revision": 54,
+            "topologyRevision": 50,
+            "panels": [
+              {
+                "id": "watch-panel-101",
+                "solid": {
+                  "id": "watch-panel-101",
+                  "kind": "structure",
+                  "center": {
+                    "x": 19.91951414066138,
+                    "y": 1,
+                    "z": 16.30770986695426
+                  },
+                  "half": {
+                    "x": 0.15,
+                    "y": 1,
+                    "z": 1.5
+                  },
+                  "mantle": false
+                },
+                "hp": 0,
+                "maxHp": 450,
+                "reinforced": false,
+                "active": false,
+                "revision": 54
+              }
+            ]
+          },
+          "effects": [],
+          "pilots": {
+            "pg-cf8695e2-71f": {
+              "life": "alive",
+              "maxHp": 325,
+              "shield": 0,
+              "characterId": "cairn",
+              "side": "attack",
+              "credits": 0,
+              "armor": 0,
+              "cooldowns": [
+                239416.6666666667,
+                0
+              ],
+              "charges": [
+                1,
+                1
+              ],
+              "ultimate": 10.68888888888889,
+              "contribution": 45.76666666666535,
+              "interaction": null
+            },
+            "pg-2ee2b723-746": {
+              "life": "alive",
+              "maxHp": 325,
+              "shield": 0,
+              "characterId": "cairn",
+              "side": "defend",
+              "credits": 0,
+              "armor": 0,
+              "cooldowns": [
+                0,
+                0
+              ],
+              "charges": [
+                1,
+                1
+              ],
+              "ultimate": 0,
+              "contribution": 66.18333333333086,
+              "interaction": null
+            },
+            "pg-ebbc4cc5-192": {
+              "life": "alive",
+              "maxHp": 300,
+              "shield": 60,
+              "characterId": "kepler",
+              "side": "attack",
+              "credits": 0,
+              "armor": 0,
+              "cooldowns": [
+                312250,
+                308850
+              ],
+              "charges": [
+                1,
+                1
+              ],
+              "ultimate": 11.58947368421051,
+              "contribution": 113.91666666666148,
+              "interaction": null
+            },
+            "pg-0016f4fd-697": {
+              "life": "alive",
+              "maxHp": 300,
+              "shield": 0,
+              "characterId": "kepler",
+              "side": "defend",
+              "credits": 0,
+              "armor": 0,
+              "cooldowns": [
+                312083.3333333333,
+                309383.3333333333
+              ],
+              "charges": [
+                1,
+                1
+              ],
+              "ultimate": 40.63157894736951,
+              "contribution": 129.96666666666223,
+              "interaction": null
+            }
+          },
+          "round": 3,
+          "subphase": "results",
+          "deadline": 0,
+          "control": {
+            "owner": "void",
+            "capture": {
+              "solar": 0,
+              "void": 100
+            },
+            "progress": {
+              "solar": 33.00000000000069,
+              "void": 100
+            },
+            "contested": false,
+            "point": 2
+          },
+          "roundScores": {
+            "solar": 1,
+            "void": 2
+          },
+          "intel": [],
+          "controls": {
+            "pg-cf8695e2-71f": {
+              "lastActionSequence": -1,
+              "movement": {
+                "thrust": true,
+                "wallRun": true,
+                "slide": true,
+                "mantle": true,
+                "jump": true,
+                "sprint": true,
+                "forceCrouch": false,
+                "walkSpeed": 7.2,
+                "crouchSpeed": 3.4,
+                "sprintSpeed": 10.2,
+                "maxSpeed": 12.6
+              },
+              "canMove": false,
+              "canFire": false,
+              "combat": {
+                "reloadMultiplier": 1,
+                "fireIntervalMultiplier": 1,
+                "adsTimeMultiplier": 1,
+                "precisionDamageMultiplier": 1,
+                "recoilMultiplier": 1,
+                "coolingMultiplier": 1
+              }
+            },
+            "pg-2ee2b723-746": {
+              "lastActionSequence": -1,
+              "movement": {
+                "thrust": true,
+                "wallRun": true,
+                "slide": true,
+                "mantle": true,
+                "jump": true,
+                "sprint": true,
+                "forceCrouch": false,
+                "walkSpeed": 7.2,
+                "crouchSpeed": 3.4,
+                "sprintSpeed": 10.2,
+                "maxSpeed": 12.6
+              },
+              "canMove": false,
+              "canFire": false,
+              "combat": {
+                "reloadMultiplier": 1,
+                "fireIntervalMultiplier": 1,
+                "adsTimeMultiplier": 1,
+                "precisionDamageMultiplier": 1,
+                "recoilMultiplier": 1,
+                "coolingMultiplier": 1
+              }
+            },
+            "pg-ebbc4cc5-192": {
+              "lastActionSequence": -1,
+              "movement": {
+                "thrust": true,
+                "wallRun": true,
+                "slide": true,
+                "mantle": true,
+                "jump": true,
+                "sprint": true,
+                "forceCrouch": false,
+                "walkSpeed": 7.2,
+                "crouchSpeed": 3.4,
+                "sprintSpeed": 10.2,
+                "maxSpeed": 12.6
+              },
+              "canMove": false,
+              "canFire": false,
+              "combat": {
+                "reloadMultiplier": 1,
+                "fireIntervalMultiplier": 1,
+                "adsTimeMultiplier": 1,
+                "precisionDamageMultiplier": 1,
+                "recoilMultiplier": 1,
+                "coolingMultiplier": 1
+              }
+            },
+            "pg-0016f4fd-697": {
+              "lastActionSequence": -1,
+              "movement": {
+                "thrust": true,
+                "wallRun": true,
+                "slide": true,
+                "mantle": true,
+                "jump": true,
+                "sprint": true,
+                "forceCrouch": false,
+                "walkSpeed": 7.2,
+                "crouchSpeed": 3.4,
+                "sprintSpeed": 10.2,
+                "maxSpeed": 12.6
+              },
+              "canMove": false,
+              "canFire": false,
+              "combat": {
+                "reloadMultiplier": 1,
+                "fireIntervalMultiplier": 1,
+                "adsTimeMultiplier": 1,
+                "precisionDamageMultiplier": 1,
+                "recoilMultiplier": 1,
+                "coolingMultiplier": 1
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

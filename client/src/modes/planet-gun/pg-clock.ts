@@ -22,15 +22,22 @@ export function pgClock(socket:GameSocket):PgClock{
  clock=new PgClock();clocks.set(socket,clock);
  let generation=0,interval:ReturnType<typeof setInterval>|undefined;
  const pending=new Set<ReturnType<typeof setTimeout>>();
- const stop=()=>{generation++;clock.reset();if(interval!==undefined)clearInterval(interval);for(const timer of pending)clearTimeout(timer);pending.clear();};
+ const stop=()=>{generation++;clock.reset();if(interval!==undefined)clearInterval(interval);interval=undefined;for(const timer of pending)clearTimeout(timer);pending.clear();};
  const probe=()=>{
   if(!socket.connected)return;
   const sent=performance.now(),epoch=generation;
   socket.timeout(1000).emit("pg:clock",(error:Error|null,serverTime:number)=>{
-   if(!error&&socket.connected&&epoch===generation)clock.sample(sent,performance.now(),serverTime);
+   if(error||!socket.connected||epoch!==generation)return;
+   const calibrated=clock.measurements().calibrated;
+   if(clock.sample(sent,performance.now(),serverTime)&&!calibrated){
+    if(interval!==undefined)clearInterval(interval);
+    interval=setInterval(probe,30_000);
+   }
   });
  };
- const start=()=>{stop();probe();for(const delay of [250,750]){const timer=setTimeout(()=>{pending.delete(timer);probe();},delay);pending.add(timer);}interval=setInterval(probe,30_000);};
+ // Renderer stalls may spoil every startup sample. Retry lightly until the
+ // first safe sample, then keep one normal 30-second maintenance interval.
+ const start=()=>{stop();interval=setInterval(probe,1000);probe();for(const delay of [250,750]){const timer=setTimeout(()=>{pending.delete(timer);probe();},delay);pending.add(timer);}};
  socket.on("connect",start);socket.on("disconnect",stop);if(socket.connected)start();
  return clock;
 }

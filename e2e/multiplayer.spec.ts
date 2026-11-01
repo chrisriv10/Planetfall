@@ -339,9 +339,16 @@ test("Battle Royale creates an isolated room and enters the Starliner drop", asy
   // rendering can also skip over the brief visual apex. Persistently verify
   // that the quick press was consumed as a grounded jump and acknowledged by
   // authority; deterministic client/server physics tests cover apex height.
+  // Closing the map releases mouse-look. Resume through the real canvas
+  // gesture before asserting the next grounded gameplay jump.
+  await takeControl(page);
+  expect(await page.evaluate(() => document.activeElement?.tagName)).not.toBe("BUTTON");
   const jumpBefore = await jumpInputSequence();
   await page.keyboard.press("Space");
-  await expect.poll(jumpInputSequence).toBeGreaterThan(jumpBefore);
+  await expect.poll(jumpInputSequence).toBeGreaterThan(jumpBefore).catch(async(error)=>{
+    console.log("BR grounded jump failure",await page.evaluate(()=>{const s=(window as unknown as {__PLANETFALL_BR_DEBUG__:()=>{localPlayer:unknown;input:unknown;renderer:unknown}}).__PLANETFALL_BR_DEBUG__();return {player:s.localPlayer,input:s.input,renderer:s.renderer,pointerLock:document.pointerLockElement?.id,focus:document.activeElement?.tagName};}));
+    throw error;
+  });
   const jumpSequence = await jumpInputSequence();
   await expect.poll(async () => (await pilot()).lastInputSequence).toBeGreaterThanOrEqual(jumpSequence);
   expect(browserErrors).toEqual([]);
@@ -680,7 +687,17 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
     const presentation = await guest.evaluate(() => (window as Window & { __planetfallShoveMotion?: { peak: number; frames: number } }).__planetfallShoveMotion);
     throw new Error(`shove validation failed: accepted=${successful}; presentation=${JSON.stringify(presentation)}; ${denials.join(" | ") || "no server reason"}; predicted=${pointDistance(state.localPosition, target.position).toFixed(2)} authoritative=${pointDistance(attacker.position, target.position).toFixed(2)} surfaces=${attacker.surfacePlanetId}/${target.surfacePlanetId}`, { cause: error });
   }
+  // Facing an in-range defender takes priority over structure interaction.
+  // Move Nova back to her cannon through normal input before testing repair
+  // sabotage, so a defender beside the station cannot retain shove priority.
+  await moveTo(guest, (state) => state.cannons.find((cannon) => cannon.planetId === guestPlanetId)!.position, 3.7);
   await moveTo(host, (state) => state.repairs.find((repair) => repair.planetId === guestPlanetId)!.position, 2.5);
+  await expect.poll(async () => {
+    const state = await debugState(host);
+    const attacker = state.players.find((player) => player.id === hostPlayer.id)!;
+    const defender = state.players.find((player) => player.id === guestPlayer.id)!;
+    return Math.min(pointDistance(state.localPosition, defender.position), pointDistance(attacker.position, defender.position));
+  }).toBeGreaterThan(BALANCE.shove.range + BALANCE.shove.networkRangeTolerance);
   // Proximity can already be satisfied after the shove. Explicitly turn to
   // the station, rather than retaining combat intent toward the defender.
   await aimAt(host, (state) => state.repairs.find((repair) => repair.planetId === guestPlanetId)!.position, "player");

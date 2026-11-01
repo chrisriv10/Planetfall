@@ -1,0 +1,17 @@
+{
+  "scenario": "Actual keyboard/mouse co-op case in complete passing 62-case suite; no forced positions/HP/resources",
+  "observed": {
+    "bought": true,
+    "powered": true,
+    "upgraded": true,
+    "sawDowned": true,
+    "sawRevived": true,
+    "sawCombat": true
+  },
+  "finalWave": 5,
+  "hp": 50,
+  "playerWeaponDamage": 674,
+  "weaponTier": 1,
+  "points": 213,
+  "purchases": 2
+}

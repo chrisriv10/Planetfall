@@ -1,0 +1,806 @@
+{
+  "source": "Final complete passing 62-case suite, November 1 2026. Native rendering and delayed-WebSocket cases.",
+  "fullRoster": [
+    {
+      "mode": "planetwatch",
+      "quality": "high",
+      "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 (0x00002487) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "players": 12,
+      "reviewPilot": null,
+      "pilotDetail": {
+        "near": 3,
+        "mid": 8,
+        "far": 0
+      },
+      "resolvedQuality": "high",
+      "p50FrameMs": 16.69999999999891,
+      "p95FrameMs": 16.80000000000109,
+      "drawCalls": 344,
+      "triangles": 93876,
+      "instances": 3945,
+      "materials": 218,
+      "geometries": 367,
+      "textures": 24,
+      "profile": {
+        "frameCpuMs": {
+          "count": 240,
+          "mean": 10.166249999403954,
+          "median": 9.899999976158142,
+          "p95": 13.800000071525574,
+          "p99": 14.899999976158142
+        },
+        "inputCpuMs": {
+          "count": 240,
+          "mean": 0.23916666309038798,
+          "median": 0.2999999523162842,
+          "p95": 0.40000009536743164,
+          "p99": 0.5
+        },
+        "viewmodelCpuMs": {
+          "count": 240,
+          "mean": 0.15083333651224773,
+          "median": 0.10000002384185791,
+          "p95": 0.2999999523162842,
+          "p99": 0.30000007152557373
+        },
+        "pilotsCpuMs": {
+          "count": 240,
+          "mean": 1.3087499971191088,
+          "median": 1.2999999523162842,
+          "p95": 2,
+          "p99": 2.299999952316284
+        },
+        "worldCpuMs": {
+          "count": 240,
+          "mean": 0.08208333601554235,
+          "median": 0.10000002384185791,
+          "p95": 0.20000004768371582,
+          "p99": 0.2999999523162842
+        },
+        "renderSubmitCpuMs": {
+          "count": 240,
+          "mean": 8.385416666666666,
+          "median": 8.100000023841858,
+          "p95": 11.5,
+          "p99": 12.5
+        },
+        "snapshotCpuMs": {
+          "count": 153,
+          "mean": 0.4941176448772156,
+          "median": 0.3999999761581421,
+          "p95": 0.7999999523162842,
+          "p99": 7.800000071525574
+        },
+        "hudCpuMs": {
+          "count": 153,
+          "mean": 0.3117647077523026,
+          "median": 0.20000004768371582,
+          "p95": 0.40000009536743164,
+          "p99": 6.399999976158142
+        }
+      }
+    },
+    {
+      "mode": "planetwatch",
+      "quality": "medium",
+      "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 (0x00002487) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "players": 12,
+      "reviewPilot": null,
+      "pilotDetail": {
+        "near": 2,
+        "mid": 9,
+        "far": 0
+      },
+      "resolvedQuality": "medium",
+      "p50FrameMs": 16.69999999999709,
+      "p95FrameMs": 16.799999999999272,
+      "drawCalls": 323,
+      "triangles": 87340,
+      "instances": 3928,
+      "materials": 218,
+      "geometries": 367,
+      "textures": 24,
+      "profile": {
+        "frameCpuMs": {
+          "count": 240,
+          "mean": 8.864166670044263,
+          "median": 8.600000023841858,
+          "p95": 12,
+          "p99": 13
+        },
+        "inputCpuMs": {
+          "count": 240,
+          "mean": 0.23541666915019352,
+          "median": 0.2999999523162842,
+          "p95": 0.3999999761581421,
+          "p99": 0.5
+        },
+        "viewmodelCpuMs": {
+          "count": 240,
+          "mean": 0.11916666676600775,
+          "median": 0.10000002384185791,
+          "p95": 0.20000004768371582,
+          "p99": 0.20000004768371582
+        },
+        "pilotsCpuMs": {
+          "count": 240,
+          "mean": 1.2037499989072482,
+          "median": 1.1999999284744263,
+          "p95": 1.7999999523162842,
+          "p99": 2
+        },
+        "worldCpuMs": {
+          "count": 240,
+          "mean": 0.0716666653752327,
+          "median": 0.10000002384185791,
+          "p95": 0.20000004768371582,
+          "p99": 0.2999999523162842
+        },
+        "renderSubmitCpuMs": {
+          "count": 240,
+          "mean": 7.234166669845581,
+          "median": 7.099999904632568,
+          "p95": 9.799999952316284,
+          "p99": 10.800000071525574
+        },
+        "snapshotCpuMs": {
+          "count": 220,
+          "mean": 0.44909090779044414,
+          "median": 0.3999999761581421,
+          "p95": 0.7000000476837158,
+          "p99": 1
+        },
+        "hudCpuMs": {
+          "count": 220,
+          "mean": 0.27999999739907006,
+          "median": 0.20000004768371582,
+          "p95": 0.3999999761581421,
+          "p99": 0.6000000238418579
+        }
+      }
+    },
+    {
+      "mode": "planetwatch",
+      "quality": "low",
+      "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 (0x00002487) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "players": 12,
+      "reviewPilot": null,
+      "pilotDetail": {
+        "near": 2,
+        "mid": 9,
+        "far": 0
+      },
+      "resolvedQuality": "low",
+      "p50FrameMs": 16.69999999999709,
+      "p95FrameMs": 16.799999999999272,
+      "drawCalls": 312,
+      "triangles": 78352,
+      "instances": 3307,
+      "materials": 217,
+      "geometries": 367,
+      "textures": 24,
+      "profile": {
+        "frameCpuMs": {
+          "count": 240,
+          "mean": 8.67541666875283,
+          "median": 8.5,
+          "p95": 10.600000023841858,
+          "p99": 12.800000071525574
+        },
+        "inputCpuMs": {
+          "count": 240,
+          "mean": 0.2499999985098839,
+          "median": 0.2999999523162842,
+          "p95": 0.3999999761581421,
+          "p99": 0.40000009536743164
+        },
+        "viewmodelCpuMs": {
+          "count": 240,
+          "mean": 0.11041666666666666,
+          "median": 0.10000002384185791,
+          "p95": 0.20000004768371582,
+          "p99": 0.20000004768371582
+        },
+        "pilotsCpuMs": {
+          "count": 240,
+          "mean": 1.1541666651765505,
+          "median": 1.100000023841858,
+          "p95": 1.8000000715255737,
+          "p99": 2
+        },
+        "worldCpuMs": {
+          "count": 240,
+          "mean": 0.06916666825612386,
+          "median": 0.10000002384185791,
+          "p95": 0.20000004768371582,
+          "p99": 0.20000004768371582
+        },
+        "renderSubmitCpuMs": {
+          "count": 240,
+          "mean": 7.091666670143605,
+          "median": 6.899999976158142,
+          "p95": 8.899999976158142,
+          "p99": 10.800000071525574
+        },
+        "snapshotCpuMs": {
+          "count": 240,
+          "mean": 0.37166666487852734,
+          "median": 0.3999999761581421,
+          "p95": 0.6000000238418579,
+          "p99": 0.8000000715255737
+        },
+        "hudCpuMs": {
+          "count": 240,
+          "mean": 0.21666666517655056,
+          "median": 0.20000004768371582,
+          "p95": 0.3999999761581421,
+          "p99": 0.40000009536743164
+        }
+      }
+    },
+    {
+      "mode": "planetwatch",
+      "quality": "auto",
+      "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 (0x00002487) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "players": 12,
+      "reviewPilot": null,
+      "pilotDetail": {
+        "near": 2,
+        "mid": 9,
+        "far": 0
+      },
+      "resolvedQuality": "medium",
+      "p50FrameMs": 16.700000000000728,
+      "p95FrameMs": 16.799999999999272,
+      "drawCalls": 323,
+      "triangles": 87340,
+      "instances": 3928,
+      "materials": 218,
+      "geometries": 367,
+      "textures": 24,
+      "profile": {
+        "frameCpuMs": {
+          "count": 240,
+          "mean": 9.072083329657714,
+          "median": 8.600000023841858,
+          "p95": 12.699999928474426,
+          "p99": 14.799999952316284
+        },
+        "inputCpuMs": {
+          "count": 240,
+          "mean": 0.2533333266774813,
+          "median": 0.20000004768371582,
+          "p95": 0.3999999761581421,
+          "p99": 0.40000009536743164
+        },
+        "viewmodelCpuMs": {
+          "count": 240,
+          "mean": 0.1233333354194959,
+          "median": 0.10000002384185791,
+          "p95": 0.20000004768371582,
+          "p99": 0.2999999523162842
+        },
+        "pilotsCpuMs": {
+          "count": 240,
+          "mean": 1.1787499954303107,
+          "median": 1.100000023841858,
+          "p95": 1.7999999523162842,
+          "p99": 2.100000023841858
+        },
+        "worldCpuMs": {
+          "count": 240,
+          "mean": 0.07291667113701503,
+          "median": 0.10000002384185791,
+          "p95": 0.20000004768371582,
+          "p99": 0.20000004768371582
+        },
+        "renderSubmitCpuMs": {
+          "count": 240,
+          "mean": 7.44375000099341,
+          "median": 7,
+          "p95": 10.599999904632568,
+          "p99": 12.5
+        },
+        "snapshotCpuMs": {
+          "count": 240,
+          "mean": 0.34083333015441897,
+          "median": 0.30000007152557373,
+          "p95": 0.5,
+          "p99": 0.7999999523162842
+        },
+        "hudCpuMs": {
+          "count": 240,
+          "mean": 0.2020833323399226,
+          "median": 0.20000004768371582,
+          "p95": 0.30000007152557373,
+          "p99": 0.3999999761581421
+        }
+      }
+    },
+    {
+      "mode": "planetsiege",
+      "quality": "high",
+      "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 (0x00002487) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "players": 12,
+      "reviewPilot": null,
+      "pilotDetail": {
+        "near": 11,
+        "mid": 0,
+        "far": 0
+      },
+      "resolvedQuality": "high",
+      "p50FrameMs": 16.69999999999709,
+      "p95FrameMs": 16.799999999999272,
+      "drawCalls": 334,
+      "triangles": 98528,
+      "instances": 4063,
+      "materials": 194,
+      "geometries": 337,
+      "textures": 27,
+      "profile": {
+        "frameCpuMs": {
+          "count": 240,
+          "mean": 9.88666666696469,
+          "median": 9.5,
+          "p95": 13.799999952316284,
+          "p99": 14.700000047683716
+        },
+        "inputCpuMs": {
+          "count": 240,
+          "mean": 0.24541666905085247,
+          "median": 0.20000004768371582,
+          "p95": 0.3999999761581421,
+          "p99": 0.40000009536743164
+        },
+        "viewmodelCpuMs": {
+          "count": 240,
+          "mean": 0.143333334227403,
+          "median": 0.10000002384185791,
+          "p95": 0.20000004768371582,
+          "p99": 0.30000007152557373
+        },
+        "pilotsCpuMs": {
+          "count": 240,
+          "mean": 1.5816666613022485,
+          "median": 1.5999999046325684,
+          "p95": 2.100000023841858,
+          "p99": 2.6999999284744263
+        },
+        "worldCpuMs": {
+          "count": 240,
+          "mean": 0.10416667213042577,
+          "median": 0.10000002384185791,
+          "p95": 0.2999999523162842,
+          "p99": 0.3999999761581421
+        },
+        "renderSubmitCpuMs": {
+          "count": 240,
+          "mean": 7.81208333025376,
+          "median": 7.399999976158142,
+          "p95": 10.899999976158142,
+          "p99": 12.399999976158142
+        },
+        "snapshotCpuMs": {
+          "count": 189,
+          "mean": 0.4941798972074317,
+          "median": 0.3999999761581421,
+          "p95": 0.8000000715255737,
+          "p99": 5.400000095367432
+        },
+        "hudCpuMs": {
+          "count": 189,
+          "mean": 0.2941798930445676,
+          "median": 0.20000004768371582,
+          "p95": 0.5,
+          "p99": 4.300000071525574
+        }
+      }
+    },
+    {
+      "mode": "planetsiege",
+      "quality": "medium",
+      "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 (0x00002487) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "players": 12,
+      "reviewPilot": null,
+      "pilotDetail": {
+        "near": 10,
+        "mid": 1,
+        "far": 0
+      },
+      "resolvedQuality": "medium",
+      "p50FrameMs": 16.69999999999709,
+      "p95FrameMs": 16.799999999999272,
+      "drawCalls": 313,
+      "triangles": 91992,
+      "instances": 4046,
+      "materials": 194,
+      "geometries": 337,
+      "textures": 27,
+      "profile": {
+        "frameCpuMs": {
+          "count": 240,
+          "mean": 8.514583337306977,
+          "median": 8.200000047683716,
+          "p95": 11.200000047683716,
+          "p99": 13.600000023841858
+        },
+        "inputCpuMs": {
+          "count": 240,
+          "mean": 0.2249999985098839,
+          "median": 0.20000004768371582,
+          "p95": 0.30000007152557373,
+          "p99": 0.40000009536743164
+        },
+        "viewmodelCpuMs": {
+          "count": 240,
+          "mean": 0.12708333830038707,
+          "median": 0.10000002384185791,
+          "p95": 0.20000004768371582,
+          "p99": 0.2999999523162842
+        },
+        "pilotsCpuMs": {
+          "count": 240,
+          "mean": 1.3433333282669386,
+          "median": 1.2999999523162842,
+          "p95": 2,
+          "p99": 2.200000047683716
+        },
+        "worldCpuMs": {
+          "count": 240,
+          "mean": 0.08958333681027095,
+          "median": 0.10000002384185791,
+          "p95": 0.20000004768371582,
+          "p99": 0.30000007152557373
+        },
+        "renderSubmitCpuMs": {
+          "count": 240,
+          "mean": 6.729583335419496,
+          "median": 6.5,
+          "p95": 9,
+          "p99": 10.899999976158142
+        },
+        "snapshotCpuMs": {
+          "count": 240,
+          "mean": 0.4320833370089531,
+          "median": 0.3999999761581421,
+          "p95": 0.7999999523162842,
+          "p99": 1.3000000715255737
+        },
+        "hudCpuMs": {
+          "count": 240,
+          "mean": 0.25374999940395354,
+          "median": 0.20000004768371582,
+          "p95": 0.40000009536743164,
+          "p99": 0.8000000715255737
+        }
+      }
+    },
+    {
+      "mode": "planetsiege",
+      "quality": "low",
+      "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 (0x00002487) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "players": 12,
+      "reviewPilot": null,
+      "pilotDetail": {
+        "near": 5,
+        "mid": 6,
+        "far": 0
+      },
+      "resolvedQuality": "low",
+      "p50FrameMs": 16.700000000000728,
+      "p95FrameMs": 16.799999999999272,
+      "drawCalls": 294,
+      "triangles": 79694,
+      "instances": 3340,
+      "materials": 193,
+      "geometries": 337,
+      "textures": 27,
+      "profile": {
+        "frameCpuMs": {
+          "count": 240,
+          "mean": 8.398333333432674,
+          "median": 8.200000047683716,
+          "p95": 10.700000047683716,
+          "p99": 11.899999976158142
+        },
+        "inputCpuMs": {
+          "count": 240,
+          "mean": 0.21916666676600774,
+          "median": 0.20000004768371582,
+          "p95": 0.30000007152557373,
+          "p99": 0.3999999761581421
+        },
+        "viewmodelCpuMs": {
+          "count": 240,
+          "mean": 0.12375000069538752,
+          "median": 0.10000002384185791,
+          "p95": 0.20000004768371582,
+          "p99": 0.20000004768371582
+        },
+        "pilotsCpuMs": {
+          "count": 240,
+          "mean": 1.3020833333333333,
+          "median": 1.2999999523162842,
+          "p95": 1.7999999523162842,
+          "p99": 2.100000023841858
+        },
+        "worldCpuMs": {
+          "count": 240,
+          "mean": 0.10208333333333333,
+          "median": 0.10000002384185791,
+          "p95": 0.2999999523162842,
+          "p99": 0.40000009536743164
+        },
+        "renderSubmitCpuMs": {
+          "count": 240,
+          "mean": 6.651249999304612,
+          "median": 6.5,
+          "p95": 8.600000023841858,
+          "p99": 9.799999952316284
+        },
+        "snapshotCpuMs": {
+          "count": 240,
+          "mean": 0.36208332926034925,
+          "median": 0.30000007152557373,
+          "p95": 0.6000000238418579,
+          "p99": 1.0999999046325684
+        },
+        "hudCpuMs": {
+          "count": 240,
+          "mean": 0.21624999195337297,
+          "median": 0.20000004768371582,
+          "p95": 0.3999999761581421,
+          "p99": 0.6000000238418579
+        }
+      }
+    },
+    {
+      "mode": "planetsiege",
+      "quality": "auto",
+      "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 (0x00002487) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "players": 12,
+      "reviewPilot": null,
+      "pilotDetail": {
+        "near": 5,
+        "mid": 6,
+        "far": 0
+      },
+      "resolvedQuality": "medium",
+      "p50FrameMs": 16.69999999999709,
+      "p95FrameMs": 16.799999999999272,
+      "drawCalls": 305,
+      "triangles": 88682,
+      "instances": 3961,
+      "materials": 194,
+      "geometries": 337,
+      "textures": 27,
+      "profile": {
+        "frameCpuMs": {
+          "count": 240,
+          "mean": 8.742500004172324,
+          "median": 8.199999928474426,
+          "p95": 12.199999928474426,
+          "p99": 13.100000023841858
+        },
+        "inputCpuMs": {
+          "count": 240,
+          "mean": 0.18416666537523269,
+          "median": 0.19999992847442627,
+          "p95": 0.30000007152557373,
+          "p99": 0.3999999761581421
+        },
+        "viewmodelCpuMs": {
+          "count": 240,
+          "mean": 0.12041666607062022,
+          "median": 0.10000002384185791,
+          "p95": 0.20000004768371582,
+          "p99": 0.2999999523162842
+        },
+        "pilotsCpuMs": {
+          "count": 240,
+          "mean": 1.2754166692495346,
+          "median": 1.2000000476837158,
+          "p95": 1.899999976158142,
+          "p99": 2.0999999046325684
+        },
+        "worldCpuMs": {
+          "count": 240,
+          "mean": 0.09291666646798452,
+          "median": 0.10000002384185791,
+          "p95": 0.2999999523162842,
+          "p99": 0.30000007152557373
+        },
+        "renderSubmitCpuMs": {
+          "count": 240,
+          "mean": 7.069583337008953,
+          "median": 6.699999928474426,
+          "p95": 9.799999952316284,
+          "p99": 10.799999952316284
+        },
+        "snapshotCpuMs": {
+          "count": 240,
+          "mean": 0.3304166634877523,
+          "median": 0.2999999523162842,
+          "p95": 0.6000000238418579,
+          "p99": 0.8000000715255737
+        },
+        "hudCpuMs": {
+          "count": 240,
+          "mean": 0.20124999731779097,
+          "median": 0.20000004768371582,
+          "p95": 0.3999999761581421,
+          "p99": 0.6000000238418579
+        }
+      }
+    }
+  ],
+  "syntheticCap": [
+    {
+      "fixture": "synthetic 32-infected rendering only",
+      "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 (0x00002487) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "quality": "high",
+      "resolvedQuality": "high",
+      "samples": 240,
+      "p50FrameMs": 16.699999999999818,
+      "p95FrameMs": 16.800000000000182,
+      "maxFrameMs": 17.90000000000009,
+      "p50CpuMs": 1.600000023841858,
+      "p95CpuMs": 2.399999976158142,
+      "calls": 98,
+      "triangles": 112748,
+      "instances": 3685,
+      "materials": 39,
+      "geometries": 23,
+      "textures": 3
+    },
+    {
+      "fixture": "synthetic 32-infected rendering only",
+      "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 (0x00002487) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "quality": "medium",
+      "resolvedQuality": "medium",
+      "samples": 167,
+      "p50FrameMs": 16.699999999999818,
+      "p95FrameMs": 16.800000000000182,
+      "maxFrameMs": 100.10000000000036,
+      "p50CpuMs": 1.2999999523162842,
+      "p95CpuMs": 2.100000023841858,
+      "calls": 89,
+      "triangles": 111164,
+      "instances": 3685,
+      "materials": 39,
+      "geometries": 23,
+      "textures": 3
+    },
+    {
+      "fixture": "synthetic 32-infected rendering only",
+      "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 (0x00002487) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "quality": "low",
+      "resolvedQuality": "low",
+      "samples": 183,
+      "p50FrameMs": 16.69999999999891,
+      "p95FrameMs": 16.799999999999272,
+      "maxFrameMs": 16.899999999999636,
+      "p50CpuMs": 1.3000000715255737,
+      "p95CpuMs": 2.399999976158142,
+      "calls": 81,
+      "triangles": 105512,
+      "instances": 3064,
+      "materials": 38,
+      "geometries": 23,
+      "textures": 3
+    },
+    {
+      "fixture": "synthetic 32-infected rendering only",
+      "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 (0x00002487) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "quality": "auto",
+      "resolvedQuality": "medium",
+      "samples": 172,
+      "p50FrameMs": 16.69999999999891,
+      "p95FrameMs": 16.80000000000109,
+      "maxFrameMs": 17.100000000000364,
+      "p50CpuMs": 1.0999999046325684,
+      "p95CpuMs": 1.5999999046325684,
+      "calls": 89,
+      "triangles": 111164,
+      "instances": 3685,
+      "materials": 39,
+      "geometries": 23,
+      "textures": 3
+    }
+  ],
+  "nativeLatency": [
+    {
+      "scenario": "real WebSocket loopback with ordered half-RTT delay and \u00b17ms jitter",
+      "rtt": 0,
+      "jitterMs": 0,
+      "traffic": 242,
+      "network": {
+        "rttMs": 7.400000095367432,
+        "bestAcceptedRttMs": 7.400000095367432,
+        "calibrated": true
+      },
+      "immediateDisplacement": 0.125,
+      "pending": 1,
+      "renderCorrection": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "p50FrameMs": 16.699999999999818,
+      "p95FrameMs": 16.800000000000182,
+      "calls": 309,
+      "triangles": 77436,
+      "players": 12
+    },
+    {
+      "scenario": "real WebSocket loopback with ordered half-RTT delay and \u00b17ms jitter",
+      "rtt": 40,
+      "jitterMs": 7,
+      "traffic": 288,
+      "network": {
+        "rttMs": 62,
+        "bestAcceptedRttMs": 59.199999928474426,
+        "calibrated": true
+      },
+      "immediateDisplacement": 0.07500000000000284,
+      "pending": 8,
+      "renderCorrection": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "p50FrameMs": 16.699999999999818,
+      "p95FrameMs": 16.800000000000182,
+      "calls": 310,
+      "triangles": 77604,
+      "players": 12
+    },
+    {
+      "scenario": "real WebSocket loopback with ordered half-RTT delay and \u00b17ms jitter",
+      "rtt": 80,
+      "jitterMs": 7,
+      "traffic": 294,
+      "network": {
+        "rttMs": 353,
+        "bestAcceptedRttMs": 98.20000004768372,
+        "calibrated": true
+      },
+      "immediateDisplacement": 0.07500000000000284,
+      "pending": 10,
+      "renderCorrection": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "p50FrameMs": 16.699999999999818,
+      "p95FrameMs": 16.800000000000182,
+      "calls": 310,
+      "triangles": 77604,
+      "players": 12
+    },
+    {
+      "scenario": "real WebSocket loopback with ordered half-RTT delay and \u00b17ms jitter",
+      "rtt": 120,
+      "jitterMs": 7,
+      "traffic": 306,
+      "network": {
+        "rttMs": 148.79999995231628,
+        "bestAcceptedRttMs": null,
+        "calibrated": false
+      },
+      "immediateDisplacement": 0.125,
+      "pending": 10,
+      "renderCorrection": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "p50FrameMs": 16.699999999999818,
+      "p95FrameMs": 16.800000000000182,
+      "calls": 310,
+      "triangles": 77604,
+      "players": 12
+    }
+  ],
+  "limits": "Native RTX 3060, 60Hz cadence; automated brief samples, not human balance acceptance, integrated-GPU or WAN proof."
+}
