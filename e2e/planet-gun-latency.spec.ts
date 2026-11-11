@@ -1,6 +1,6 @@
 import {test,expect} from "@playwright/test";
 import {writeFile} from "node:fs/promises";
-import {selectExperimentalFamily} from "./select-family";
+import {selectExperimentalFamily,openLobbyConfiguration} from "./select-family";
 test.use({channel:"chromium"});
 
 for(const rtt of [0,40,80,120])test(`Watch local input and reconciliation with ${rtt}ms delayed WebSocket round trip`,async({page},info)=>{
@@ -21,7 +21,7 @@ for(const rtt of [0,40,80,120])test(`Watch local input and reconciliation with $
  try{
   await page.setViewportSize({width:960,height:540});await page.goto("/");await page.getByLabel("Name",{exact:true}).fill(`Latency ${rtt}`);await selectExperimentalFamily(page,"planet-gun");
   await page.locator("#settings-open").click();await page.locator("#graphics-quality").selectOption("low");await page.locator("#settings-close").click();
-  await page.locator("#create-room").click();await page.getByLabel("PlanetGun submode").selectOption("planetwatch");await page.locator("#pg-target").selectOption("12");await page.locator("#pg-ready").click();await page.locator("#pg-start").click();
+  await page.locator("#create-room").click();await page.getByLabel("PlanetGun submode").selectOption("planetwatch");await openLobbyConfiguration(page);await page.locator("#pg-target").selectOption("12");await page.locator("#pg-ready").click();await page.locator("#pg-start").click();
   const state=()=>page.evaluate(()=>(window as unknown as {__PLANETFALL_PG_DEBUG__:()=>any}).__PLANETFALL_PG_DEBUG__?.());
   await expect.poll(async()=>(await state())?.phase).toBe("playing");const before=await state();
   await page.keyboard.down("w");await page.waitForTimeout(50);const immediate=await state();await page.waitForTimeout(450);await page.keyboard.up("w");await page.waitForTimeout(1800);const settled=await state();

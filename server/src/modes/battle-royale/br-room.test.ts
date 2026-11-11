@@ -700,14 +700,19 @@ describe("Battle Royale room", () => {
     room.returnToLobby(guestPlayer.id); expect(room.phase).toBe("lobby"); expect([...room.players.values()].every((player) => !player.isBot)).toBe(true); expect(room.players.size).toBe(2); expect({ crowns: host.crowns, fallbucks: host.fallbucks, xp: host.sessionTotalXp }).toEqual(hostSession);
   });
 
-  it("rejects Classic-only planet cosmetics in the Battle Royale shop", async () => {
+  it("permits global planet purchases while rejecting incompatible Battle Royale equipment", async () => {
     const { server, url } = await setup(); const host = await client(url); const joined = await createRoom(host, "Cosmetic guard");
     if (!joined.ok) throw new Error(joined.error);
     const room = server.manager.rooms.get(joined.room.code) as BattleRoyaleRoom;
     const player = room.players.get(joined.playerId)!; player.fallbucks = 500;
-    expect(room.buyShopItem(player.id, "verity")).toEqual({ ok: false, error: "Planet cosmetics are only available in Planetfall." });
-    expect(player.fallbucks).toBe(500);
-    expect(player.ownedCosmetics).not.toContain("verity");
+    expect(room.buyShopItem(player.id, "verity")).toEqual({ ok: true });
+    expect(player.fallbucks).toBe(200);
+    expect(player.ownedCosmetics).toContain("verity");
+    expect(room.buyShopItem(player.id, "verity").ok).toBe(false);
+    expect(room.equipShopItem(player.id, "verity").ok).toBe(false);
+    expect(player.equippedCosmetics.planet).toBe("default");
+    expect(player.fallbucks).toBe(200);
+    expect(player.ownedCosmetics.filter(id=>id==="verity")).toHaveLength(1);
   });
 
   it("gives stalled bots a bounded physical recovery steer",async()=>{

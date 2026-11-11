@@ -37,8 +37,10 @@ describe("PlanetGun local rear housing refinement",()=>{
   expect(model.getObjectByName("stock-recoil-pad")).toBeDefined();expect(model.getObjectByName("stock-cheek-inlay")).toBeDefined();
   expect((core.material as THREE.MeshStandardMaterial).color.getHex()).not.toBe(0xa4b6c6);vm.dispose();
  });
- it("shares one bevel resource across local weapons and disposes it once",()=>{
+ it("shares stock and receiver resources across local weapons and disposes each once",()=>{
   const vm=createPgViewmodel(),helix=vm.root.getObjectByName("pg-helix-stock-core")as THREE.Mesh,arc=vm.root.getObjectByName("pg-arc-stock-core")as THREE.Mesh,prism=vm.root.getObjectByName("pg-prism-stock-core")as THREE.Mesh,orbit=vm.root.getObjectByName("orbit-light-slide")as THREE.Mesh;
-  expect(arc.geometry).toBe(helix.geometry);expect(prism.geometry).toBe(helix.geometry);expect(orbit.geometry).toBe(helix.geometry);const dispose=vi.spyOn(helix.geometry,"dispose");vm.dispose();vm.dispose();expect(dispose).toHaveBeenCalledTimes(1);
+  expect(arc.geometry).toBe(helix.geometry);expect(prism.geometry).toBe(helix.geometry);expect(orbit.geometry).not.toBe(helix.geometry);
+  let receivers=0;vm.root.traverse(o=>{if(o instanceof THREE.Mesh&&o.geometry===orbit.geometry)receivers++;});expect(receivers).toBe(10);
+  const stockDispose=vi.spyOn(helix.geometry,"dispose"),receiverDispose=vi.spyOn(orbit.geometry,"dispose");vm.dispose();vm.dispose();expect(stockDispose).toHaveBeenCalledTimes(1);expect(receiverDispose).toHaveBeenCalledTimes(1);
  });
 });

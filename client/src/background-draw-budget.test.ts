@@ -1,8 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach,describe, expect, it, vi } from "vitest";
 import { BackgroundDrawBudget } from "./background-draw-budget";
 import { PlanetfallGame } from "./game";
 
 describe("BR overview draw budget", () => {
+  afterEach(()=>vi.unstubAllGlobals());
   it("leaves frequent UI updates between slow software-rendered frames", () => {
     const budget = new BackgroundDrawBudget();
     expect(budget.drawDue(0, true)).toBe(true);
@@ -30,8 +31,11 @@ describe("BR overview draw budget", () => {
   });
 
   it("the actual frame loop still services input, scenery updates and physics when a draw is skipped", () => {
+    vi.stubGlobal("matchMedia",()=>({matches:false}));
     const game = Object.assign(Object.create(PlanetfallGame.prototype), {
-      lastFrame: 0, demoTime: 0, mode: "home", homeFamily: "battle-royale",
+      active:true,lastFrame: 0, demoTime: 0, mode: "home", homeFamily: "battle-royale",
+      characterShowcaseLayer:{render:vi.fn()},
+      settings:{graphicsQuality:"low"},
       input: { sample: vi.fn(() => ({})) }, processControls: vi.fn(),
       starLayers: [], updateDemo: vi.fn(), updateEffects: vi.fn(),
       physics: { step: vi.fn() }, renderer: { render: vi.fn() },
@@ -44,5 +48,6 @@ describe("BR overview draw budget", () => {
       expect(update).toHaveBeenCalledTimes(4);
     }
     expect(game.performanceFrames).toBe(2);
+    expect(game.characterShowcaseLayer.render).toHaveBeenCalledTimes(2);
   });
 });

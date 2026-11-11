@@ -1,0 +1,20 @@
+import {it,expect} from "vitest";
+import type {PgModeSnapshot} from "@planetfall/shared";
+import {PgZombieDangerFeedback} from "./pg-zombie-danger-feedback";
+const mode=(hitCount:number,hitCapacity=3,life="alive")=>({id:"planetzombies",pilots:{p:{hitCount,hitCapacity,life}}}) as unknown as PgModeSnapshot;
+it("warns once at the actual final hit, respects vitality and rearms after recovery",()=>{
+ const cue=new PgZombieDangerFeedback();
+ expect(cue.update(mode(0),"p",1,0)).toBe(false);
+ expect(cue.update(mode(1),"p",1,100)).toBe(false);
+ expect(cue.update(mode(2),"p",1,1000)).toBe(true);
+ expect(cue.update(mode(2),"p",1,1100)).toBe(false);
+ expect(cue.update(mode(3,3,"downed"),"p",1,1200)).toBe(false);
+ expect(cue.update(mode(0,5),"p",2,3000)).toBe(false);
+ expect(cue.update(mode(3,5),"p",2,3100)).toBe(false);
+ expect(cue.update(mode(4,5),"p",2,3200)).toBe(true);
+ expect(cue.update(mode(0,5),"p",2,3300)).toBe(false);
+ expect(cue.update(mode(4,5),"p",2,3400)).toBe(false);
+ cue.update(mode(0,5),"p",2,6000);
+ expect(cue.update(mode(4,5),"p",2,6100)).toBe(true);
+ expect(cue.update(undefined,"p",2,6200)).toBe(false);
+});

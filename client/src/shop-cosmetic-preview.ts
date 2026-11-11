@@ -1,9 +1,13 @@
 import * as THREE from "three";
-import { SHOP_CATALOG, type ShopItem } from "@planetfall/shared";
+import { SHOP_CATALOG,weaponFinishForId, type ShopItem } from "@planetfall/shared";
 import { createAstronautVisual } from "./astronaut";
 import { createVerityPlanetVisual, updateVerityPlanetVisual } from "./planet-cosmetics";
 import { createCosmeticFlightTrail, updateCosmeticFlightTrail } from "./cosmetic-flight-trail";
 import { applyCosmeticEmotePose, applyCosmeticVictoryPose } from "./cosmetic-pose";
+import {callingCardSvg,emblemSvg} from "./identity-cosmetic-art";
+import {createPlanetCosmeticVariant} from "./planet-cosmetic-variants";
+import {applyAstronautSuitFinish} from "./astronaut-suit-finish";
+import {createPgPreviewModels} from "./modes/planet-gun/pg-kit-preview";
 
 export interface ShopCosmeticPreviewPlan {
   className: string; markup: string; kind: ShopItem["category"];
@@ -16,7 +20,7 @@ const items = new WeakMap<HTMLElement, Readonly<ShopItem>>();
 export function shopCosmeticPreviewPlan(item: Readonly<ShopItem>): ShopCosmeticPreviewPlan {
   return {
     className: `shop-cosmetic-preview cosmetic-kind-${item.category} cosmetic-item-${safeId(item.id)}`,
-    markup: '<canvas class="cosmetic-preview-image" aria-hidden="true"></canvas>',
+    markup: (item.category==="calling-card"?callingCardSvg(item.id):item.category==="emblem"?emblemSvg(item.id):null)??'<canvas class="cosmetic-preview-image" aria-hidden="true"></canvas>',
     kind: item.category, motion: item.category === "trail" || item.category === "emote" || item.category === "victory" ? item.category : "idle",
     color: previewColor(item)
   };
@@ -41,9 +45,18 @@ export function createCosmeticPreviewScene(item: Readonly<ShopItem>) {
   const key = new THREE.DirectionalLight(0xffffff, 3.1); key.position.set(-3, 5, 6); scene.add(key);
   const rim = new THREE.DirectionalLight(0x78ceff, 2); rim.position.set(4, 2, -3); scene.add(rim);
   const camera = new THREE.PerspectiveCamera(32, 1, .1, 40);
-  const planet = item.category === "planet" ? createVerityPlanetVisual(1) : null;
-  const astronaut = planet ? null : createAstronautVisual({ identityColor: "#70f5ff", suitAccent: item.category === "suit" ? previewColor(item) : "#70f5ff", isBot: false });
+  const variant=item.category==="planet"&&item.planetStyle?createPlanetCosmeticVariant(item.planetStyle,1):null;
+  const planet = item.category === "planet"&&!variant ? createVerityPlanetVisual(1) : null;
+  const models=item.category==="weapon-skin"?createPgPreviewModels():null,weapon=models?.get("pulse")??null;
+  const finish=weapon?.finish??null;finish?.setFinish(weaponFinishForId(item.id));
+  const astronaut = item.category==="planet"||item.category==="weapon-skin"||item.category==="calling-card"||item.category==="emblem" ? null : createAstronautVisual({ identityColor: "#70f5ff", suitAccent: item.category === "suit" ? previewColor(item) : "#70f5ff", isBot: false });
+  if(astronaut)applyAstronautSuitFinish(astronaut,item.suitStyle??null);
   if (planet) root.add(planet.group);
+  if(variant)root.add(variant.group);
+  if(weapon){
+    const turntable=new THREE.Group();root.add(turntable);turntable.add(weapon.root);weapon.root.updateMatrixWorld(true);
+    const center=new THREE.Box3().setFromObject(weapon.root).getCenter(new THREE.Vector3());weapon.root.position.sub(center);turntable.rotation.y=1.15;
+  }
   if (astronaut) root.add(astronaut.group);
   const trail = item.category === "trail" ? createCosmeticFlightTrail(previewColor(item),item.id) : null;
   const points = Array.from({ length: 12 }, () => new THREE.Vector3());
@@ -54,7 +67,7 @@ export function createCosmeticPreviewScene(item: Readonly<ShopItem>) {
     root.rotation.set(0, 0, 0); root.position.set(0, 0, 0);
     if (astronaut) {
       astronaut.group.rotation.set(0, -.28, 0); astronaut.group.position.set(0, 0, 0); astronaut.group.scale.setScalar(1);
-      astronaut.torso.rotation.set(0, 0, 0); astronaut.torso.position.y = .72;
+      astronaut.torso.rotation.set(0, 0, 0); astronaut.torso.position.set(0,.72,0);
       for (const [index, limb] of [astronaut.leftArm, astronaut.rightArm, astronaut.leftLeg, astronaut.rightLeg].entries()) limb.rotation.set(0, 0, index < 2 ? (index ? -.17 : .17) : 0);
       if (item.emote) applyCosmeticEmotePose(astronaut, item.emote, seconds * 1000);
       if (item.category === "victory") astronaut.group.rotation.y += applyCosmeticVictoryPose(astronaut, item.id, seconds);
@@ -66,11 +79,12 @@ export function createCosmeticPreviewScene(item: Readonly<ShopItem>) {
     }
     // Fixed camera envelope prevents animated limbs changing the framing.
     // Fit the full canonical model width as well as height on narrow Pass tiers.
-    const height = planet ? 3.9 : trail ? 2.25 : 3.3;
-    const width = planet ? 3.9 : trail ? 5.6 : 2.7;
+    const isPlanet=!!(planet||variant),widePose=item.category==="emote"||item.category==="victory",height = variant?4.6:planet?3.9:weapon?1.8:trail ? 2.25 : widePose?3.6:3.3;
+    const width = variant?4.6:planet?3.9:weapon?2.5:trail ? 5.6 : widePose?3.6:2.7;
     const distance = Math.max(height, width / Math.max(.25, aspect)) / (2 * Math.tan(THREE.MathUtils.degToRad(16)));
-    camera.aspect = aspect; camera.position.set(0, planet ? .2 : .9, distance);
-    camera.lookAt(0, planet ? 0 : .8, 0); camera.updateProjectionMatrix();
+    camera.aspect = aspect; camera.position.set(0, isPlanet ? .2 : weapon? .25:.9, distance);
+    camera.lookAt(0, isPlanet||weapon ? 0 : .8, 0); camera.updateProjectionMatrix();
+    if(variant){variant.group.rotation.y=seconds*.16;variant.update(seconds,camera,reducedMotion);}
     if (planet) {
       updateVerityPlanetVisual(planet, camera);
       // Rotate the canonical spherical ink with its shell rather than keeping
@@ -80,6 +94,7 @@ export function createCosmeticPreviewScene(item: Readonly<ShopItem>) {
   };
   const dispose = () => {
     if (disposed) return; disposed = true;
+    models?.dispose();variant?.dispose();
     const geometries = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>();
     root.traverse(object => {
       const mesh = object as THREE.Mesh;
@@ -89,7 +104,7 @@ export function createCosmeticPreviewScene(item: Readonly<ShopItem>) {
     geometries.forEach(geometry => geometry.dispose()); materials.forEach(material => material.dispose()); scene.clear();
   };
   update(850);
-  return { scene, camera, root, astronaut, planet, trail, update, dispose };
+  return { scene, camera, root, astronaut, planet, variant,weapon, trail, update, dispose };
 }
 
 type PreviewScene = ReturnType<typeof createCosmeticPreviewScene>;
@@ -185,7 +200,7 @@ class PreviewService {
  * children/closing the surface. Repeated mounts of a root replace its old one. */
 export function mountShopCosmeticPreviews(root: HTMLElement): () => void {
   mounts.get(root)?.();
-  const elements = [...root.querySelectorAll<HTMLElement>(".shop-cosmetic-preview")];
+  const elements = [...root.querySelectorAll<HTMLElement>(".shop-cosmetic-preview")].filter(element=>element.querySelector("canvas"));
   let service = services.get(root.ownerDocument);
   if (!service && elements.length) { service = new PreviewService(root.ownerDocument); services.set(root.ownerDocument, service); }
   for (const element of elements) {

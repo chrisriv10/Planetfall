@@ -899,6 +899,7 @@ describe("planet raids", () => {
   it("grants Planet Pass levels and rewards exactly once at match end", async () => {
     const { room, host } = await duel();
     host.sessionLevel = 2; host.sessionXp = 90; host.sessionTotalXp = 190;
+    host.unlockedPassRewards.push("bucks-50");
     (room as unknown as { resetMatchStats: () => void }).resetMatchStats();
     const stats = room.matchStats.get(host.id)!;
     stats.damageDealt = 70; stats.planetKills = 8;

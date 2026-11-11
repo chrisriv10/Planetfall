@@ -17,7 +17,7 @@ describe("canonical cosmetic previews", () => {
       const plan = shopCosmeticPreviewPlan(item);
       expect(plan.kind).toBe(item.category);
       expect(plan.className).toContain(`cosmetic-kind-${item.category}`);
-      expect(plan.markup).toBe('<canvas class="cosmetic-preview-image" aria-hidden="true"></canvas>');
+      if(item.category==="calling-card"||item.category==="emblem")expect(plan.markup).toContain("<svg");else expect(plan.markup).toBe('<canvas class="cosmetic-preview-image" aria-hidden="true"></canvas>');
       expect(plan.markup).not.toContain(`cosmetic-kind-${item.category}`);
     }
     const plan = shopCosmeticPreviewPlan({ ...SHOP_CATALOG[0], id: 'bad" onclick="bad', color: "red; background:url(bad)" });
@@ -49,7 +49,7 @@ describe("canonical cosmetic previews", () => {
     visual.dispose();
   });
   it("frames every animated cosmetic fully at Shop and narrow Pass aspect ratios", () => {
-    for (const item of SHOP_CATALOG) {
+    for (const item of SHOP_CATALOG.filter(item=>item.category!=="calling-card"&&item.category!=="emblem")) {
       const visual = createCosmeticPreviewScene(item);
       for (const aspect of [.6, 1, 1.8]) for (const time of [0, 850, 1900, 3400]) {
         visual.update(time, aspect); visual.scene.updateMatrixWorld(true); visual.camera.updateMatrixWorld(true);
@@ -66,7 +66,7 @@ describe("canonical cosmetic previews", () => {
   it("uses actual production colored line trails with bounded storage", () => {
     for (const item of SHOP_CATALOG.filter(item => item.category === "trail")) {
       const visual = createCosmeticPreviewScene(item);
-      expect(visual.trail!.material.opacity).toBe(.72);
+      expect(visual.trail!.material.opacity).toBe(item.id==="void-wake"?0:item.id==="plasma-helix"?.18:.72);
       expect(visual.trail!.material.color.getHexString()).toBe(item.color!.slice(1));
       expect(visual.trail!.geometry.drawRange.count).toBe(12);
       visual.dispose();

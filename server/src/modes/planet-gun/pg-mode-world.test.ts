@@ -6,6 +6,21 @@ const make=(id="test-panel",position:Vec3={x:0,y:1,z:-16}):PgDynamicPanel=>({id,
 const rayHits=(solids:ReturnType<PgModeWorld["shotSolids"]>,solidId:string,origin:Vec3={x:0,y:1,z:-14})=>solids.some(s=>s.id===solidId&&pgRayBox(origin,{x:0,y:0,z:-1},s)!==null);
 
 describe("room-local dynamic collision and bounded shot history",()=>{
+ it("returns fresh isolated single-panel reads across health changes without a topology revision",()=>{
+  const world=new PgModeWorld();world.reset([make(),make("other",{x:4,y:1,z:-16})],0);
+  const topology=world.revision,map=world.map,firstRead=world.panel("test-panel")!;
+  firstRead.hp=0;firstRead.active=false;firstRead.solid.center.x=99;firstRead.solid.half.x=99;
+  expect(world.panel("test-panel")).toMatchObject({hp:100,active:true,solid:{center:{x:0},half:{x:1}}});
+  expect(world.panel("missing")).toBeNull();
+  expect(world.damage("test-panel",30,10)).toBe(30);
+  expect(world.panel("test-panel")!.hp).toBe(70);expect(world.revision).toBe(topology);expect(world.map).toBe(map);
+  expect(world.repair("test-panel",20,20)).toBe(20);
+  expect(world.panel("test-panel")!.hp).toBe(90);expect(world.revision).toBe(topology);
+  const snapshot=world.snapshot();snapshot.panels[0].hp=1;
+  expect(world.panel("test-panel")!.hp).toBe(90);expect(world.panel("other")!.hp).toBe(100);
+  world.damage("test-panel",100,30);expect(world.panel("test-panel")).toMatchObject({hp:0,active:false});
+  world.rebuild("test-panel",40);expect(world.panel("test-panel")).toMatchObject({hp:100,active:true});
+ });
  it("keeps snapshot inputs, room state, and canonical map independent",()=>{
   const canonical=structuredClone(PG_MAP),a=new PgModeWorld(),b=new PgModeWorld(),panel=make();a.reset([panel],0);
   panel.hp=1;panel.solid.center.x=40;const exported=a.snapshot();exported.panels[0].solid.center.x=-40;exported.panels[0].hp=0;

@@ -39,13 +39,17 @@ describe("new PlanetGun server simulation measurements",()=>{
   try{
    for(let frame=1;frame<=600;frame++){
     now=f.start+frame*1000/30;for(let i=incoming.length-1;i>=0;i--)if(incoming[i].at<=now){revision=Math.max(revision,incoming[i].revision);incoming.splice(i,1);}
-    const delay=Math.max(0,rtt/2+jitter(frame));outgoing.push({at:now+delay,input:{sequence:frame,moveX:Math.cos(frame*.03)*.22,moveZ:-Math.sin(frame*.03)*.22,yaw:0,pitch:0,jump:false,sprint:false,crouch:false,ads:false,collisionRevision:revision}});delays.push(delay);
+    // Keep the actual walking lane within the existing protected radius. The
+    // old perimeter-started circle reached3.6m despite protection ending at3m.
+    const dx=f.host.position.x-anchor.position.x,dz=f.host.position.z-anchor.position.z,radius=Math.hypot(dx,dz),returning=radius>PG_BALANCE.watchSpawnSafeRadius-.7;
+    const moveX=returning?-dx/radius*.22:Math.cos(frame*.03)*.22,moveZ=returning?-dz/radius*.22:-Math.sin(frame*.03)*.22;
+    const delay=Math.max(0,rtt/2+jitter(frame));outgoing.push({at:now+delay,input:{sequence:frame,moveX,moveZ,yaw:0,pitch:0,jump:false,sprint:false,crouch:false,ads:false,collisionRevision:revision}});delays.push(delay);
     // Sort by delivery deadline to model jitter reordering; sequence validation remains authoritative.
     outgoing.sort((a,b)=>a.at-b.at);while(outgoing.length&&outgoing[0].at<=now){f.room.setInput(f.host.id,outgoing.shift()!.input);delivered++;}
     const started=performance.now();f.room.update(1/30,now);times.push(performance.now()-started);maxSpawnDistance=Math.max(maxSpawnDistance,Math.hypot(f.host.position.x-origin.x,f.host.position.z-origin.z));
    }
    const metrics={mode:"planetwatch",scenario:"simulated delayed inputs and snapshots; walking in an authored protected spawn; no browser/network transport",rttMs:rtt,jitterMs:7,delivered,lastAcceptedSequence:f.host.lastInputSequence,displacement:Math.hypot(f.host.position.x-origin.x,f.host.position.z-origin.z),maxSpawnDistance,meanInputDelayMs:delays.reduce((a,b)=>a+b,0)/delays.length,...distribution(times),...f.metrics()};record(`modes-input-rtt-${rtt}`,metrics);
-   expect(f.host.hp).toBeGreaterThan(0);expect(maxSpawnDistance).toBeLessThan(5);
+   expect(f.host.hp).toBeGreaterThan(0);expect(maxSpawnDistance).toBeLessThan(PG_BALANCE.watchSpawnSafeRadius);
    expect(delivered).toBeGreaterThan(550);expect(f.host.lastInputSequence).toBeGreaterThan(550);expect(metrics.displacement).toBeGreaterThan(1);expect(Object.values(f.host.position).every(Number.isFinite)).toBe(true);expect(metrics.p95TickMs).toBeLessThan(16);
   }finally{f.room.dispose();}
  },60000);

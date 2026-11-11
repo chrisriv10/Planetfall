@@ -1,10 +1,15 @@
+import {createPgReceiverCastingGeometry} from "./pg-receiver-casting";
 import {createPgModuleArt} from "./pg-module-art";
 import * as THREE from "three";
-import type { BrWeaponId,PgModuleId } from "@planetfall/shared";
+import {weaponFinishForId,type BrWeaponId,type PgModuleId} from "@planetfall/shared";
 import { BrWeaponModelLibrary } from "../battle-royale/br-weapon-model-library";
 import {createPgReloadSample,samplePgReload,PG_RELOAD_PROFILES,type PgPresentationWeapon} from "./pg-reload-art";
 import {addPgWeaponPresentation,createPgOrbitModel,createPgBeveledHousingGeometry,createPgSculptedHousingGeometry,PG_WEAPON_PRESENCE} from "./pg-weapon-presentation";
 import {extendPgSleeveElbow,routePgAdsElbow,pgSleeveRadius,createPgSleeveGeometry} from "./pg-viewmodel-arm-art";
+
+import {createPgWeaponResponse} from "./pg-weapon-response";
+import {createPgOverchargeFinish} from "./pg-overcharge-finish";
+import {createPgWeaponFinishArt} from "./pg-weapon-finish-art";
 
 export const PG_VIEWMODEL_LAYER=1;
 const WEAPON_MODELS:Record<PgPresentationWeapon,BrWeaponId|null>={pulse:"pulse-rifle",nova:"nova-smg",photon:"photon-shotgun",quasar:"quasar-carbine",rail:"rail-laser",comet:"comet-hand-cannon",helix:"helix-burst-rifle",arc:"arc-blaster",prism:"prism-beam",orbit:null};
@@ -22,7 +27,7 @@ const BASE_POSES:Record<PgPresentationWeapon,{scale:number;sight:number;x:number
   orbit:{scale:.46,sight:.22,x:.17,y:-.21,z:-.43,adsZ:-.45,support:-.12,grip:-.10,kick:.055,sprint:.46}
 };
 const POSES=Object.fromEntries(Object.entries(BASE_POSES).map(([id,p])=>[id,{...p,scale:p.scale*PG_WEAPON_PRESENCE[id as PgPresentationWeapon]}])) as typeof BASE_POSES;
-export interface PgViewmodelState {weapon:PgPresentationWeapon;ads:number;recoil:number;reload:number;speed:number;mode:string;time:number;suitAccent?:number;modules?:readonly PgModuleId[];landing?:number;verticalSpeed?:number;airborne?:boolean;wallSide?:number}
+export interface PgViewmodelState {weapon:PgPresentationWeapon;ads:number;recoil:number;reload:number;speed:number;mode:string;time:number;suitAccent?:number;modules?:readonly PgModuleId[];finishId?:string;upgradeTier?:0|1|2|3;landing?:number;verticalSpeed?:number;airborne?:boolean;wallSide?:number}
 
 /** Camera child; all lighting and geometry use a dedicated layer. No gameplay ownership. */
 export function createPgViewmodel(){
@@ -31,17 +36,19 @@ export function createPgViewmodel(){
   const library=new BrWeaponModelLibrary(),weapons=new Map<PgPresentationWeapon,THREE.Group>();
   const modules=new Map<PgPresentationWeapon,ReturnType<typeof createPgModuleArt>>();
   const hardware=new Map<PgPresentationWeapon,ReturnType<typeof addPgWeaponPresentation>>();
+  const finishes=new Map<PgPresentationWeapon,ReturnType<typeof createPgOverchargeFinish>>();
+  const skins=new Map<PgPresentationWeapon,ReturnType<typeof createPgWeaponFinishArt>>();
   const ownedGeometry=new Set<THREE.BufferGeometry>(),ownedMaterials=new Set<THREE.Material>();
   const ownG=<T extends THREE.BufferGeometry>(g:T):T=>{ownedGeometry.add(g);return g;};
   const ownM=<T extends THREE.Material>(m:T):T=>{ownedMaterials.add(m);return m;};
   const frame=ownM(new THREE.MeshStandardMaterial({color:0xa4b6c6,roughness:.38,metalness:.38}));
   const dark=ownM(new THREE.MeshStandardMaterial({color:0x273749,roughness:.46,metalness:.3}));
   const glove=ownM(new THREE.MeshStandardMaterial({color:0x263b4d,roughness:.86}));
-  const sleeve=ownM(new THREE.MeshStandardMaterial({color:0x6c8191,roughness:.86,metalness:.03}));
+  const sleeve=ownM(new THREE.MeshStandardMaterial({color:0x6c8191,roughness:.86,metalness:.03,vertexColors:true}));
   const accent=ownM(new THREE.MeshStandardMaterial({color:0x64e5d2,emissive:0x64e5d2,emissiveIntensity:.12,roughness:.45}));
   const lensMaterial=ownM(new THREE.MeshBasicMaterial({color:0x75d9f0,transparent:true,opacity:.045,depthWrite:false,side:THREE.DoubleSide}));
   const box=ownG(new THREE.BoxGeometry(1,1,1)),handGeo=ownG(new THREE.SphereGeometry(1,10,8)),armGeo=ownG(new THREE.CylinderGeometry(1,1,1,12)),sleeveGeo=ownG(createPgSleeveGeometry());
-  const artResources={box,bevel:ownG(createPgBeveledHousingGeometry()),sculpted:ownG(createPgSculptedHousingGeometry()),metal:frame,composite:dark,grip:glove,ownMaterial:ownM};
+  const artResources={box,bevel:ownG(createPgBeveledHousingGeometry()),sculpted:ownG(createPgSculptedHousingGeometry()),receiver:ownG(createPgReceiverCastingGeometry()),metal:frame,composite:dark,grip:glove,ownMaterial:ownM};
   const mesh=(parent:THREE.Object3D,name:string,g:THREE.BufferGeometry,m:THREE.Material,at:number[],scale:number[])=>{const o=new THREE.Mesh(g,m);o.name=name;o.position.set(at[0],at[1],at[2]);o.scale.set(scale[0],scale[1],scale[2]);parent.add(o);return o;};
   // Broad camera-relative fill keeps metal legible without emissive receivers or world lights.
   const fill=new THREE.HemisphereLight(0xd9edff,0x56657a,1.65);fill.name="pg-viewmodel-fill";root.add(fill);
@@ -102,16 +109,18 @@ export function createPgViewmodel(){
       mesh(model,"local-energy-reflex-bridge",box,frame,[0,p.sight+.075,-.25],[.175,.025,.055]);
     }
     hardware.set(weapon,addPgWeaponPresentation(model,weapon,artResources));modules.set(weapon,createPgModuleArt(model,weapon,artResources));
+    finishes.set(weapon,createPgOverchargeFinish(model,weapon));
+    skins.set(weapon,createPgWeaponFinishArt(model));
     model.scale.setScalar(p.scale);model.visible=false;rig.add(model);weapons.set(weapon,model);
   }
   root.traverse(o=>{o.layers.set(PG_VIEWMODEL_LAYER);o.userData.cameraCollision=false;if(o instanceof THREE.Mesh){o.castShadow=false;o.receiveShadow=false;}});
   let current:PgPresentationWeapon|null=null,pending:PgPresentationWeapon|null=null,switchedAt=-1000,raisedAt=-1000,disposed=false,lastTime=0,poseX=.22,poseY=-.23,poseZ=-.43,sprint=0,movementLean=0;
-  const reloadSample=createPgReloadSample();
+  const reloadSample=createPgReloadSample(),weaponResponse=createPgWeaponResponse();
   const clamp=(v:number)=>Math.max(0,Math.min(1,Number.isFinite(v)?v:0));
   const wrist=new THREE.Vector3(),elbow=new THREE.Vector3(),direction=new THREE.Vector3(),up=new THREE.Vector3(0,1,0),parentOrientation=new THREE.Quaternion();
   return{root,update(state:PgViewmodelState):void{
     if(disposed)return;
-    const time=Number.isFinite(state.time)?state.time:lastTime,dt=Math.min(.05,Math.max(0,(time-lastTime)/1000));lastTime=time;
+    const time=Number.isFinite(state.time)?state.time:lastTime,responseDt=(time-lastTime)/1000,dt=Math.min(.05,Math.max(0,responseDt));lastTime=time;
     if(current===null){current=state.weapon;weapons.get(current)!.visible=true;}
     else if(state.weapon!==current&&pending!==state.weapon){pending=state.weapon;switchedAt=time;}
     else if(state.weapon===current&&pending!==null){pending=null;raisedAt=-1000;}
@@ -119,7 +128,8 @@ export function createPgViewmodel(){
     if(pending!==null&&time-switchedAt>=lowerDuration){weapons.get(current)!.visible=false;current=pending;pending=null;weapons.get(current)!.visible=true;raisedAt=switchedAt+lowerDuration;}
     if(state.suitAccent!==undefined){accent.color.setHex(state.suitAccent);accent.emissive.copy(accent.color);}
     const p=POSES[current],profile=PG_RELOAD_PROFILES[current],pistol=current==="comet"||current==="orbit",ads=clamp(state.ads),reload=current===state.weapon?clamp(state.reload):0,kick=current===state.weapon?clamp(state.recoil):0,speed=Math.min(14,Math.max(0,state.speed||0));
-    if(current===state.weapon)modules.get(current)!.setModules(state.modules??[]);
+    const response=weaponResponse.update(state.weapon,state.recoil,responseDt,ads),respond=current===state.weapon?1:0;
+    if(current===state.weapon){modules.get(current)!.setModules(state.modules??[]);skins.get(current)!.setFinish(weaponFinishForId(state.finishId));finishes.get(current)!.setTier(state.upgradeTier??0);}
     samplePgReload(current,reload,(pistol?-.028:-.07)/p.scale,-.10,p.support,reloadSample);hardware.get(current)!.update(reloadSample,kick);
     const smooth=1-Math.exp(-24*dt),switchProgress=clamp((time-switchedAt)/lowerDuration),switchDip=pending!==null?switchProgress*switchProgress*(3-2*switchProgress):clamp(1-(time-raisedAt)/(80+profile.weight*20));
     sprint+=((state.mode==="sprint"?1:0)-sprint)*(1-Math.exp(-12*dt));
@@ -128,8 +138,8 @@ export function createPgViewmodel(){
     const targetLean=state.mode==="wall-run"?-.07*(state.wallSide===-1?-1:1):state.mode==="slide"?.1:state.mode==="mantle"?.18:0;
     movementLean+=(targetLean-movementLean)*(1-Math.exp(-14*dt));
     poseX+=(p.x*(1-ads)-poseX)*smooth;poseY+=(-p.sight*p.scale*ads+p.y*(1-ads)-poseY)*smooth;poseZ+=(p.z*(1-ads)+p.adsZ*ads-poseZ)*smooth;
-    rig.position.set(poseX+bob*.5,poseY+bob+reloadSample.present*.035-switchDip*.23-sprint*.035*(1-ads)-landing*.025+airLift*(1-ads),poseZ+kick*.04);
-    rig.rotation.set(kick*p.kick+reloadSample.present*.045+sprint*.08*(1-ads)+landing*.025,sprint*p.sprint*(1-ads),((movementLean-sprint*.14)*(1-ads))+reloadSample.present*(pistol?.20:.12));
+    rig.position.set(poseX+bob*.5,poseY+bob+reloadSample.present*.035-switchDip*.23-sprint*.035*(1-ads)-landing*.025+airLift*(1-ads),poseZ+response.back*respond);
+    rig.rotation.set(response.pitch*respond+reloadSample.present*.045+sprint*.08*(1-ads)+landing*.025,sprint*p.sprint*(1-ads)+response.yaw*respond,((movementLean-sprint*.14)*(1-ads))+reloadSample.present*(pistol?.20:.12)+response.roll*respond);
     rig.updateMatrix();
     for(let i=0;i<arms.length;i++){
       const a=arms[i],support=i===0,side=support?-1:1;
@@ -153,5 +163,5 @@ export function createPgViewmodel(){
     if(root.parent)root.parent.worldToLocal(target);
     if(orientation){model.getWorldQuaternion(orientation);if(root.parent){root.parent.getWorldQuaternion(parentOrientation);orientation.premultiply(parentOrientation.invert());}}
     return Number.isFinite(target.x)&&Number.isFinite(target.y)&&Number.isFinite(target.z);
-  },dispose():void{if(disposed)return;disposed=true;for(const module of modules.values())module.dispose();library.dispose();for(const g of ownedGeometry)g.dispose();for(const m of ownedMaterials)m.dispose();root.clear();}};
+  },dispose():void{if(disposed)return;disposed=true;for(const finish of finishes.values())finish.dispose();for(const skin of skins.values())skin.dispose();for(const module of modules.values())module.dispose();library.dispose();for(const g of ownedGeometry)g.dispose();for(const m of ownedMaterials)m.dispose();root.clear();}};
 }

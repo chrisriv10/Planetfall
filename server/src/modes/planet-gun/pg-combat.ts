@@ -1,4 +1,4 @@
-import {pgCoolModeGun,pgHeatModeGun,type PgCombatModifiers,PG_BALANCE as B,PG_MAP,pgGunProfile,pgUpdateGunHeat,pgDamage,pgFinishReload,pgPilotHit,pgRayBox,pgShotAim,pgSpread,type PgFireRequest,type PgPlayer,type PgShot,type PgSolid} from "@planetfall/shared";
+import {pgLeanEye,pgCoolModeGun,pgHeatModeGun,type PgCombatModifiers,PG_BALANCE as B,PG_MAP,pgGunProfile,pgUpdateGunHeat,pgDamage,pgFinishReload,pgPilotHit,pgRayBox,pgShotAim,pgSpread,type PgFireRequest,type PgPlayer,type PgShot,type PgSolid} from "@planetfall/shared";
 import {PgHistory} from "./pg-history.js";
 import type {PgModeTarget} from "./pg-mode-runtime.js";
 export interface PgCombatEnvironment {
@@ -24,7 +24,7 @@ export class PgCombat {
     gun.magazine--;gun.nextFireAt=now+w.intervalMs*(modifiers?.interval??modifiers?.fireIntervalMultiplier??1);gun.shots++;gun.recoil+=w.recoil*(modifiers?.recoilMultiplier??1);shooter.protectedUntil=0;if(modifiers)pgHeatModeGun(gun,modifiers,now);
     if(w.burstShots){gun.burstRemaining=(gun.burstRemaining||w.burstShots)-1;if(!gun.burstRemaining)gun.nextFireAt=now+(w.burstRecoveryMs??w.intervalMs);}
     if(w.heatPerShot){gun.heat=Math.min(1,(gun.heat??0)+w.heatPerShot);gun.heatUpdatedAt=now;if(gun.heat>=1-1e-9){gun.heat=1;gun.overheatedUntil=now+(w.overheatMs??900);}}
-    const origin={...shooter.position,y:shooter.position.y+(shooter.crouched?B.crouchEye:B.eye)};
+    const origin=pgLeanEye(shooter);
     const ads=shooter.adsSince>0?Math.min(1,(now-shooter.adsSince)/(w.adsMs*(modifiers?.adsTimeMultiplier??1))):0;
     const spread=pgSpread(gun.id,ads,Math.hypot(shooter.velocity.x,shooter.velocity.z)>1,!shooter.grounded,gun.modules);
     const all=[...players],shots:PgShot[]=[];
@@ -37,7 +37,7 @@ export class PgCombat {
         const historical=this.history.sample(p.id,p.lifeId,Math.min(now,raw.clientTime));
         // New lives cannot be targeted at an older timestamp using their current pose.
         if(!historical)continue;
-        const hit=pgPilotHit(origin,direction,historical.position,historical.crouched);
+        const hit=pgPilotHit(origin,direction,historical.position,historical.crouched,historical.lean);
         if(hit&&hit.distance<nearest){nearest=hit.distance;target=p;entity=null;headshot=hit.headshot;}
       }
       for(const e of environment?.targets??[]){

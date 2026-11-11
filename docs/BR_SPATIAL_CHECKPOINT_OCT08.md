@@ -640,5 +640,5 @@ Typecheck/build pass; the final integrated focused run passes 121 tests across
 six baseline secondary/route views. No fresh full-suite/E2E or human gameplay
 acceptance is claimed. The larger spatial/art pass remains unfinished.
 Complete transfer notes, measured costs, resolved draft failures and next steps
-are in `BR_DESKTOP_HANDOFF_OCT09.md`, with evidence in
+remain in the historical `d64d771` transfer checkpoint; evidence is in
 `artifacts/br-secondary-recovery-oct09/`.

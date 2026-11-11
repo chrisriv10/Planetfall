@@ -17,7 +17,7 @@
           <p id="home-intro" class="intro">Last planet standing wins.</p>
           <div class="family-selector" aria-label="Game family">
             <button id="family-planetfall" class="family-card selected" type="button" disabled><b>PLANETFALL</b><small>Tiny planets. Big chaos.</small></button>
-            <button id="family-br" data-experimental="true" class="family-card br" type="button" disabled><b>BATTLE ROYALE</b><small>Drop. Loot. Survive.</small></button>
+            <button id="family-br" data-experimental="true" class="family-card br" type="button" disabled><b>PLANETROYALE</b><small>Drop. Loot. Survive.</small></button>
             <button id="family-pg" class="family-card pg" data-experimental="true" type="button" disabled><b>PLANETGUN</b><small>First-person arena · 6v6</small></button>
             <button id="family-pr" data-experimental="true" class="family-card pr" type="button" disabled><b>PLANETRUN</b><small>Race. Survive. Qualify.</small></button>
           </div>
@@ -41,7 +41,7 @@
 
       <section id="br-quick-play" class="overlay" role="dialog" aria-modal="true" aria-labelledby="br-quick-title" hidden>
         <div class="overlay-card br-quick-card glass">
-          <div class="panel-kicker">BATTLE ROYALE · PRIVATE BOT MATCH</div>
+          <div class="panel-kicker">PLANETROYALE · PRIVATE BOT MATCH</div>
           <h2 id="br-quick-title">Deploy to Orbital Isle?</h2>
           <p class="br-quick-copy">Confirm your solo deployment before the Starliner launches.</p>
           <div class="br-quick-summary">
@@ -54,7 +54,7 @@
         </div>
       </section>
 
-      <section id="lobby-screen" class="screen mode-lobby" aria-labelledby="lobby-title">
+      <section id="lobby-screen" class="screen mode-lobby" inert aria-labelledby="lobby-title">
         <div class="lobby-card glass mode-panel">
           <div class="lobby-heading">
             <div><div class="panel-kicker">ORBITAL READY ROOM</div><h2 id="lobby-title">Crew</h2></div>
@@ -88,10 +88,10 @@
         </div>
       </section>
 
-      <section id="br-lobby-screen" class="screen mode-lobby" aria-labelledby="br-lobby-title">
+      <section id="br-lobby-screen" class="screen mode-lobby" inert aria-labelledby="br-lobby-title">
         <div class="lobby-card br-lobby-card glass mode-panel">
           <div class="lobby-heading">
-            <div><div class="panel-kicker">ORBITAL ISLE READY ROOM</div><h2 id="br-lobby-title">Battle Royale</h2></div>
+            <div><div class="panel-kicker">ORBITAL ISLE READY ROOM</div><h2 id="br-lobby-title">PlanetRoyale</h2></div>
             <button id="br-copy-code" class="room-code mode-room-code" title="Copy room code"><span id="br-lobby-code">------</span><small>copy</small></button>
           </div>
           <nav class="lobby-hub-nav" aria-label="Session hub">
@@ -113,7 +113,7 @@
         </div>
       </section>
 
-      <section id="br-hud" class="screen br-hud" aria-label="Battle Royale HUD">
+      <section id="br-hud" class="screen br-hud" inert aria-label="PlanetRoyale HUD">
         <div class="br-status"><b id="br-players-remaining">40 PLAYERS</b><span id="br-teams-remaining">40 TEAMS</span><span id="br-elims">0 ELIMS</span></div>
         <div class="br-storm"><span id="br-storm-copy">VOID STORM</span><b id="br-storm-timer">02:00</b></div>
         <div id="br-event-banner" class="br-event-banner" hidden aria-live="polite"></div>
@@ -149,11 +149,11 @@
         <div class="overlay-card br-inventory-card glass"><div class="panel-kicker">PILOT LOADOUT</div><h2 id="br-inventory-title">INVENTORY</h2><p>Select a slot to equip it, or drop it onto the island.</p><div id="br-inventory-panel-slots" class="br-inventory-panel-slots"></div><button id="br-inventory-close" class="button button-secondary" type="button">Close · I</button></div>
       </section>
 
-      <section id="br-results-screen" class="screen" aria-labelledby="br-results-title">
-        <div class="results-card br-results-card glass"><div class="result-burst">★</div><div class="panel-kicker">BATTLE ROYALE</div><h2 id="br-results-title">LAST CREW STANDING</h2><p id="br-placement">1ST PLACE</p><div id="br-results-stats" class="br-results-stats"></div><div class="result-actions"><button id="br-return-lobby" class="button button-primary">Return to Lobby</button><button id="br-shop-results" class="button button-secondary">Shop</button><button id="br-leave" class="button button-secondary">Quit</button></div></div>
+      <section id="br-results-screen" class="screen" inert aria-labelledby="br-results-title">
+        <div class="results-card br-results-card glass"><div class="result-burst">★</div><div class="panel-kicker">PLANETROYALE</div><h2 id="br-results-title">LAST CREW STANDING</h2><p id="br-placement">1ST PLACE</p><div id="br-results-stats" class="br-results-stats"></div><div class="result-actions"><button id="br-return-lobby" class="button button-primary">Return to Lobby</button><button id="br-shop-results" class="button button-secondary">Shop</button><button id="br-leave" class="button button-secondary">Quit</button></div></div>
       </section>
 
-      <section id="hud" class="screen hud" aria-label="Match HUD">
+      <section id="hud" class="screen hud" inert aria-label="Match HUD">
         <div class="hud-top">
           <div class="stat-block health-block"><span>INTEGRITY</span><div class="meter"><i id="health-meter"></i></div><b id="health-value">100</b></div>
           <div id="timer" class="timer">07:00</div>
@@ -223,7 +223,7 @@
         </div>
       </section>
 
-      <section id="results-screen" class="screen" aria-labelledby="results-title">
+      <section id="results-screen" class="screen" inert aria-labelledby="results-title">
         <div class="results-card glass">
           <div class="result-burst" aria-hidden="true">★</div>
           <h2 id="results-title">You win!</h2>

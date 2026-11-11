@@ -12,6 +12,7 @@ function fixture(active: boolean) {
   const camera = { aspect: 0, updateProjectionMatrix: vi.fn() };
   const classic = Object.assign(Object.create(PlanetfallGame.prototype), {
     active, renderer, camera, quality: QUALITY_PRESETS.high,
+    readyRoomStage:{root:{visible:false}},characterShowcaseLayer:{active:false},mode:"home",
     audio: { setVolumes: vi.fn() }
   });
   const br = Object.assign(Object.create(BattleRoyaleGame.prototype), {
@@ -55,6 +56,7 @@ describe("shared renderer mode ownership", () => {
   it("restores the current viewport when Classic takes the renderer back", () => {
     const { classic, renderer } = fixture(false);
     classic.setActive(true);
+    expect(classic.readyRoomStage.root.visible).toBe(false);
     expect(renderer.setSize).toHaveBeenCalledExactlyOnceWith(1440, 900);
     expect(renderer.setPixelRatio).toHaveBeenCalledExactlyOnceWith(1.8);
     expect(renderer.setAnimationLoop).toHaveBeenCalledOnce();

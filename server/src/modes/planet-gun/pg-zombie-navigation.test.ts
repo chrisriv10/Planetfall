@@ -5,6 +5,15 @@ import {PgZombieNavigation} from "./pg-zombie-navigation.js";
 function quarantine(){const world=new PgModeWorld();world.reset([...PG_ZOMBIE_DOORS.map(d=>({id:d.id,solid:d.solid})),...PG_ZOMBIE_QUARANTINE_WINGS.map(solid=>({id:solid.id,solid}))].map(p=>({...p,hp:1000000,maxHp:1000000,active:true,reinforced:true,revision:0})),0);return world;}
 function follow(from:Vec3,to:Vec3,map=PG_MAP){const nav=new PgZombieNavigation(map),motion=pgSpawnMotion(from);let destination:Vec3|null=null;for(let tick=0;tick<60*60;tick++){if(tick%21===0)destination=nav.destination(motion.position,to);if(!destination)break;const dx=destination.x-motion.position.x,dz=destination.z-motion.position.z,n=Math.hypot(dx,dz);pgStepMovement(motion,{sequence:tick,moveX:0,moveZ:-Math.min(1,n/.4),yaw:Math.atan2(-dx,-dz),pitch:0,jump:false,crouch:false,sprint:false,ads:false},1/60,tick*1000/60,map,{...PG_TACTICAL_MOVEMENT_RULES,jump:false,mantle:false,walkSpeed:2.3,maxSpeed:2.3});if(Math.hypot(motion.position.x-to.x,motion.position.y-to.y,motion.position.z-to.z)<.6)return motion.position;}return motion.position;}
 describe("infected physical navigation",()=>{
+ it("keeps tactical ground connectors outside stair treads while retaining the real ground detour",()=>{
+  const nav=new PgZombieNavigation(PG_MAP,{groundLevelOnly:true}),from={x:-33.8,y:0,z:-1.9},corner={x:-27.8,y:0,z:-1.9},to={x:-25,y:0,z:-3};
+  expect(nav.connects(from,to)).toBe(false);
+  expect(nav.connects(from,corner)).toBe(true);
+  expect(nav.connects(corner,to)).toBe(true);
+  expect(nav.reachable(from,to)).toBe(true);
+  // Stair climbing remains available through actual different-height treads.
+  expect(nav.connects({x:-31,y:0,z:-1.9},{x:-31,y:.4,z:-3})).toBe(true);
+ });
  it("sweeps the entire standing footprint on a flat support",()=>{
   const floor={id:"floor",kind:"floor" as const,center:{x:0,y:-.5,z:0},half:{x:8,y:.5,z:8},mantle:false};
   const obstacle={id:"low-blocker",kind:"structure" as const,center:{x:0,y:.3,z:0},half:{x:.01,y:.3,z:.01},mantle:false};

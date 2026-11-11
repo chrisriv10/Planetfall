@@ -2,6 +2,7 @@ import type {Vec3} from "../index.js";
 import {PG_BALANCE as B} from "./balance.js";
 import {PG_MAP} from "./map.js";
 import {pgRayBox} from "./math.js";
+import {pgAddGroundPanelBypasses} from "./ground-panel-navigation.js";
 import type {PgMap,PgSolid} from "./types.js";
 
 export interface PgDynamicPanel {id:string;solid:PgSolid;hp:number;maxHp:number;reinforced:boolean;active:boolean;revision:number;}
@@ -36,13 +37,15 @@ export function pgHasLineOfSight(from:Vec3,to:Vec3,map:PgMap=PG_MAP):boolean {
  return !map.solids.some(s=>{const hit=pgRayBox(from,direction,s);return hit!==null&&hit<distance-1e-6;});
 }
 /** Merges additive panel geometry, never replacing or mutating a base-map solid. */
-export function pgCollisionMap(snapshot:PgCollisionSnapshot,base:PgMap=PG_MAP):PgMap {
+export function pgCollisionMap(snapshot:PgCollisionSnapshot,base:PgMap=PG_MAP,options:{navigation?:boolean}={}):PgMap {
  const ids=new Set(base.solids.map(s=>s.id));
  const panels=snapshot.panels.filter(p=>p.active).map(p=>{
   if(ids.has(p.solid.id))throw new Error(`Duplicate PlanetGun collision solid: ${p.solid.id}`);
   ids.add(p.solid.id);return copySolid(p.solid);
  });
  const map:PgMap={...base,solids:[...base.solids,...panels]};
+ // Prediction/camera collision consumes solids, not the server bot graph.
+ if(options.navigation===false)return map;
  // Prune only obstructed walk links; opening a panel restores the base graph.
  const padded={...map,solids:panels.map(s=>({...s,half:{x:s.half.x+B.radius,y:s.half.y,z:s.half.z+B.radius}}))};
  const nodes=new Map(base.navigation.map(node=>[node.id,node]));
@@ -50,6 +53,7 @@ export function pgCollisionMap(snapshot:PgCollisionSnapshot,base:PgMap=PG_MAP):P
   const target=nodes.get(link.to);
   return link.kind!=="walk"||!target||pgHasLineOfSight({...node.position,y:node.position.y+1},{...target.position,y:target.position.y+1},padded);
  })}));
+ map.navigation=pgAddGroundPanelBypasses(map,map.solids,snapshot.panels);
  return map;
 }
 

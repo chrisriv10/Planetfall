@@ -1,7 +1,7 @@
 import {test,expect} from "@playwright/test";
 import {PG_BALANCE,PG_WEAPONS} from "@planetfall/shared";
 import {writeFile} from "node:fs/promises";
-import {selectExperimentalFamily} from "./select-family";
+import {selectExperimentalFamily,capturePgMouse,openLobbyConfiguration} from "./select-family";
 
 test.use({channel:"chromium"});
 test("a single Photon trigger survives a stalled render frame without an extra shot",async({page},info)=>{
@@ -15,17 +15,17 @@ test("a single Photon trigger survives a stalled render frame without an extra s
  await page.addInitScript(()=>{
   const raf=window.requestAnimationFrame.bind(window);let pending=false,used=false;
   const diagnostic={frames:0,lagMs:0};Object.assign(window,{__PG_HITCH_REVIEW__:diagnostic});
-  addEventListener("mousedown",e=>{if(e.button===0&&e.target instanceof HTMLCanvasElement)pending=true;},true);
+  addEventListener("mousedown",e=>{if(e.button===0&&e.target instanceof HTMLCanvasElement&&document.pointerLockElement===e.target)pending=true;},true);
   window.requestAnimationFrame=callback=>raf(timestamp=>{
    if(pending&&!used){used=true;const until=performance.now()+350;while(performance.now()<until){}diagnostic.frames++;diagnostic.lagMs=performance.now()-timestamp;}
    callback(timestamp);
   });
  });
- await page.goto("/");await page.getByLabel("Name",{exact:true}).fill("Hitch Pilot");await selectExperimentalFamily(page,"planet-gun");await page.locator("#create-room").click();await page.locator("#pg-fill").uncheck();const code=await page.locator("#pg-code").innerText();
+ await page.goto("/");await page.getByLabel("Name",{exact:true}).fill("Hitch Pilot");await selectExperimentalFamily(page,"planet-gun");await page.locator("#create-room").click();await openLobbyConfiguration(page);await page.locator("#pg-fill").uncheck();const code=await page.locator("#pg-code").innerText();
  const observer=await page.context().newPage();await observer.goto("/");await observer.getByLabel("Name",{exact:true}).fill("Hitch Observer");await selectExperimentalFamily(observer,"planet-gun");await observer.locator("#room-code").fill(code);await observer.locator("#join-room").click();await expect(observer.locator("#pg-lobby-screen")).toBeVisible();await observer.locator("#pg-ready").click();
  await page.locator("#pg-loadout").selectOption("photon");await page.locator("#pg-ready").click();await page.locator("#pg-start").click();await page.bringToFront();
  const state=()=>page.evaluate(()=>(window as unknown as {__PLANETFALL_PG_DEBUG__:()=>any}).__PLANETFALL_PG_DEBUG__());
- await expect.poll(async()=>(await state())?.phase).toBe("playing");await page.mouse.move(640,360);await page.mouse.down({button:"right"});await expect.poll(async()=>(await state()).ads).toBeGreaterThan(.99);
+ await expect.poll(async()=>(await state())?.phase).toBe("playing");await capturePgMouse(page);await page.mouse.move(640,360);await page.mouse.down({button:"right"});await expect.poll(async()=>(await state()).ads).toBeGreaterThan(.99);
  const before=(await state()).local.guns[0];
  try{
   await page.mouse.down();await expect.poll(async()=>(await state()).local.guns[0].magazine).toBe(before.magazine-1);
@@ -50,10 +50,10 @@ test("Photon firing keeps a fresh server clock when gameplay snapshots are delay
   });
  });
  page.on("websocket",socket=>socket.on("framesent",event=>{const text=String(event.payload);if(text.startsWith('42["pg:weapon:fire"')){const [,shot]=JSON.parse(text.slice(2));shots.push({clientTime:shot.clientTime,observedAgeMs:Date.now()-shot.clientTime});}}));
- await page.goto("/");await page.getByLabel("Name",{exact:true}).fill("Delayed Pilot");await selectExperimentalFamily(page,"planet-gun");await page.locator("#create-room").click();await page.locator("#pg-fill").uncheck();const code=await page.locator("#pg-code").innerText();
+ await page.goto("/");await page.getByLabel("Name",{exact:true}).fill("Delayed Pilot");await selectExperimentalFamily(page,"planet-gun");await page.locator("#create-room").click();await openLobbyConfiguration(page);await page.locator("#pg-fill").uncheck();const code=await page.locator("#pg-code").innerText();
  const observer=await page.context().newPage();await observer.goto("/");await observer.getByLabel("Name",{exact:true}).fill("Clock Observer");await selectExperimentalFamily(observer,"planet-gun");await observer.locator("#room-code").fill(code);await observer.locator("#join-room").click();await expect(observer.locator("#pg-lobby-screen")).toBeVisible();await observer.locator("#pg-ready").click();
  await page.locator("#pg-loadout").selectOption("photon");await page.locator("#pg-ready").click();await page.locator("#pg-start").click();await page.bringToFront();
  const state=()=>page.evaluate(()=>(window as unknown as {__PLANETFALL_PG_DEBUG__:()=>any}).__PLANETFALL_PG_DEBUG__());
- try{await expect.poll(async()=>(await state())?.phase).toBe("playing");await page.mouse.move(640,360);await page.mouse.down();await expect.poll(async()=>(await state()).local.guns[0].magazine).toBe(6);expect((await state()).local.guns[0].shots).toBe(1);expect(delayed).toBeGreaterThan(10);}
+ try{await expect.poll(async()=>(await state())?.phase).toBe("playing");await capturePgMouse(page);await page.mouse.move(640,360);await page.mouse.down();await expect.poll(async()=>(await state()).local.guns[0].magazine).toBe(6);expect((await state()).local.guns[0].shots).toBe(1);expect(delayed).toBeGreaterThan(10);}
  finally{await page.mouse.up();await writeFile(info.outputPath("delayed-snapshot-clock.json"),JSON.stringify({delayedSnapshots:delayed,shots,gun:(await state()).local.guns[0]},null,2));stopping=true;for(const timer of timers)clearTimeout(timer);await observer.close();}
 });

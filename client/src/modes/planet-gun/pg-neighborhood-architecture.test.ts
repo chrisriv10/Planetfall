@@ -3,11 +3,31 @@ import * as THREE from "three";
 import { PG_MAP } from "@planetfall/shared";
 import { buildPgNeighborhoodArchitecture, PG_AUTHORED_FACADE_IDS } from "./pg-neighborhood-architecture";
 import type { PgArtMaterial, PgArtPlacement, PgArtPrimitive } from "./pg-environment-builder";
+import {PG_SURFACE_TINT as paint} from "./pg-district-palette";
 
-type Feature={name:string;primitive:PgArtPrimitive;material:PgArtMaterial;p:PgArtPlacement;r:readonly[number,number,number];detail:boolean};
-function features(){const result:Feature[]=[];buildPgNeighborhoodArchitecture({add(name,primitive,material,p,r=[0,0,0],detail=false){result.push({name,primitive,material,p,r,detail});}});return result;}
+type Feature={name:string;primitive:PgArtPrimitive;material:PgArtMaterial;p:PgArtPlacement;r:readonly[number,number,number];detail:boolean;tint?:number};
+function features(){const result:Feature[]=[];buildPgNeighborhoodArchitecture({add(name,primitive,material,p,r=[0,0,0],detail=false,tint){result.push({name,primitive,material,p,r,detail,tint});}});return result;}
 const overlaps=(a:PgArtPlacement,b:PgArtPlacement)=>[0,1,2].every(i=>Math.abs(a[i]-b[i])<(a[i+3]+b[i+3])/2-1e-6);
 describe("collision-backed neighborhood architecture",()=>{
+ it("carries district colors on broad structural faces at Low while preserving signal hues",()=>{
+   const all=features();
+   for(const [name,tint] of [
+     ["west-upper-gallery:ceiling-panel",paint.habitatCream],["west-habitat-north:authored-dado",paint.habitatCoral],
+     ["west-habitat-north:authored-glazing",paint.habitatGlass],["ion-run-shutter-leaf",paint.ionSteel],
+     ["ion-run-shutter-border",paint.ionBrass],
+   ] as const){
+     const matches=all.filter(f=>f.name===name);
+     expect(matches.length,name).toBeGreaterThan(0);
+     for(const f of matches){expect(f.tint).toBe(tint);expect(f.detail).toBe(false);}
+   }
+   for(const f of all.filter(f=>["cyan","amber","violet"].includes(f.material)))expect(f.tint).toBeUndefined();
+ });
+ it("retains distinct intake, inspection and manifold faces plus markers on the two real rear jambs on Low",()=>{
+   const featuresOnLow=new Set(features().filter(f=>!f.detail).map(f=>f.name));
+   for(const name of ["maintenance-west:authored-intake-well","maintenance-east:authored-manifold-feed",
+     "maintenance-west:authored-inspection-cover","maintenance-back-a:authored-threshold-jamb","maintenance-back-b:authored-threshold-jamb"])
+     expect(featuresOnLow.has(name),name).toBe(true);
+ });
  it("backs every ceiling panel and light with an existing overhead slab",()=>{
    for(const f of features().filter(f=>f.name.includes(":ceiling-"))){
      const s=PG_MAP.solids.find(s=>s.id===f.name.split(":")[0])!;

@@ -17,15 +17,16 @@ function intersectsFootprint(a:Vec3,b:Vec3,s:PgSolid):boolean {
 export class PgZombieNavigation {
  private revision=-1;
  private fields=new Map<number,Map<number,number>>();
+ private fieldDistances=new Map<number,Map<number,number>>();
  private nearestCache=new Map<string,number|null>();
  private supportedCache=new Map<string,boolean>();
  private blockers:PgSolid[]=[];
  private walkCache=new Map<string,boolean>();
  private incoming=new Map<number,number[]>();
  private flatLevels=new Map<number,FlatLevel>();
- constructor(private map:PgMap){this.rebuild();}
+ constructor(private map:PgMap,private options:{groundLevelOnly?:boolean}={}){this.rebuild();}
  private rebuild():void{
-  this.blockers=this.map.solids.map(s=>({...s,half:{x:s.half.x+.43,y:s.half.y,z:s.half.z+.43}}));this.fields.clear();this.nearestCache.clear();this.supportedCache.clear();this.walkCache.clear();
+  this.blockers=this.map.solids.map(s=>({...s,half:{x:s.half.x+.43,y:s.half.y,z:s.half.z+.43}}));this.fields.clear();this.fieldDistances.clear();this.nearestCache.clear();this.supportedCache.clear();this.walkCache.clear();
   this.incoming.clear();
   this.flatLevels.clear();
   for(const solid of this.map.solids){
@@ -64,6 +65,9 @@ export class PgZombieNavigation {
   const level=a.y===b.y?this.flatLevels.get(a.y):undefined;
   if(level&&level.supports.some(s=>Math.abs(a.x-s.center.x)<=s.half.x&&Math.abs(a.z-s.center.z)<=s.half.z&&Math.abs(b.x-s.center.x)<=s.half.x&&Math.abs(b.z-s.center.z)<=s.half.z)){
    if(!level.obstacles.some(s=>intersectsFootprint(a,b,s)))return true;
+   // Tactical ground routes go around stair flights. A same-height shortcut
+   // must not silently climb a tread and drop off its rounded corner.
+   if(this.options.groundLevelOnly&&a.y===0)return false;
    // Without a first climbable riser there is no way to gain height before
    // the blocking solid. Only actual step routes need the sampled fallback.
    if(!level.steps.some(s=>intersectsFootprint(a,b,s)))return false;
@@ -75,7 +79,8 @@ export class PgZombieNavigation {
    const t=i/Math.max(1,n),p={x:a.x+(b.x-a.x)*t,y,z:a.z+(b.z-a.z)*t};let support=-Infinity;
    for(const s of solids){
     const radius=s.kind==="stair"?PG_BALANCE.radius-.01:PG_BALANCE.radius*.65;
-    if(Math.hypot(Math.max(0,Math.abs(p.x-s.center.x)-s.half.x),Math.max(0,Math.abs(p.z-s.center.z)-s.half.z))>radius)continue;
+    const dx=Math.max(0,Math.abs(p.x-s.center.x)-s.half.x),dz=Math.max(0,Math.abs(p.z-s.center.z)-s.half.z);
+    if(dx*dx+dz*dz>radius*radius)continue;
     const top=s.center.y+s.half.y;if(top<=y+.400001&&top>support)support=top;
    }
    if(!Number.isFinite(support)||support<y-.65)return false;
@@ -83,6 +88,8 @@ export class PgZombieNavigation {
   }
   return Math.abs(y-b.y)<.25;
  }
+ /** Physical connector check, including the selected route policy. */
+ connects(a:Vec3,b:Vec3):boolean {return this.walkable(a,b);}
  nearest(position:Vec3):number|null {
   const key=`${position.x},${position.y},${position.z}`;
   if(this.nearestCache.has(key))return this.nearestCache.get(key)!;
@@ -97,19 +104,23 @@ export class PgZombieNavigation {
  }
  field(goal:number):Map<number,number> {
   const cached=this.fields.get(goal);if(cached)return cached;
-  const field=new Map<number,number>([[goal,goal]]),queue=[goal];
-  for(let i=0;i<queue.length;i++)for(const previous of this.incoming.get(queue[i])??[]){if(field.has(previous))continue;field.set(previous,queue[i]);queue.push(previous);}
-  if(this.fields.size>12)this.fields.clear();this.fields.set(goal,field);return field;
+  const field=new Map<number,number>([[goal,goal]]),distances=new Map<number,number>([[goal,0]]),queue=[goal];
+  for(let i=0;i<queue.length;i++)for(const previous of this.incoming.get(queue[i])??[]){if(field.has(previous))continue;field.set(previous,queue[i]);distances.set(previous,distances.get(queue[i])!+distance(this.map.navigation[previous].position,this.map.navigation[queue[i]].position));queue.push(previous);}
+  if(this.fields.size>12){this.fields.clear();this.fieldDistances.clear();}this.fields.set(goal,field);this.fieldDistances.set(goal,distances);return field;
  }
  reachable(from:Vec3,to:Vec3):boolean {if(this.walkable(from,to))return true;const a=this.nearest(from),b=this.nearest(to);return a!==null&&b!==null&&this.walkable(this.map.navigation[b].position,to)&&this.field(b).has(a);}
  destination(from:Vec3,to:Vec3):Vec3|null {
   if(this.walkable(from,to))return to;
-  const start=this.nearest(from),goal=this.nearest(to);if(start===null||goal===null)return null;
-  const next=this.field(goal).get(start);if(next===undefined)return null;
-  const near=this.map.navigation[start].position,target=this.map.navigation[next].position;
-  // Keep advancing while the next corridor is walkable. Returning to the
-  // nearest anchor after leaving its radius causes permanent edge oscillation.
-  return this.walkable(from,target)?target:near;
+  const goal=this.nearest(to);if(goal===null)return null;
+  this.field(goal);
+  // Compare the complete remaining route, rather than snapping back to the
+  // nearest anchor as its Voronoi boundary changes mid-edge. A previously
+  // selected corridor stays a candidate while we walk it, with decreasing
+  // remaining length. Fields and their costs are shared; no actor route state
+  // can leak between infected, survivors, goals, or topology revisions.
+  const candidates=[...this.fieldDistances.get(goal)!].map(([id,remaining])=>({id,remaining,cost:distance(from,this.map.navigation[id].position)+remaining})).sort((a,b)=>a.cost-b.cost||a.remaining-b.remaining);
+  for(const {id} of candidates){const target=this.map.navigation[id].position;if(this.walkable(from,target))return target;}
+  return null;
  }
  supported(position:Vec3):boolean {
   const key=`${position.x},${position.y},${position.z}`,cached=this.supportedCache.get(key);if(cached!==undefined)return cached;

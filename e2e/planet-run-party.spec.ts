@@ -1,5 +1,5 @@
 import {expect,test} from '@playwright/test';
-import {selectExperimentalFamily} from './select-family';
+import {selectExperimentalFamily,openLobbyConfiguration} from './select-family';
 
 test('PlanetRun themed thirty-pilot courses and responsive canonical winner stage',async({page},info)=>{
  test.setTimeout(180000);
@@ -12,8 +12,10 @@ test('PlanetRun themed thirty-pilot courses and responsive canonical winner stag
   await expect(page.locator('#pr-lobby-screen')).toHaveAttribute('data-pr-visible','true');
   await expect(page.locator('#pr-lobby-screen .pr-lobby-card')).toHaveCount(1);
   await expect(page.locator('#pr-lobby-screen aside, #pr-lobby-screen .pr-showcase-motif')).toHaveCount(0);
-  await expect(page.locator('#pr-host-controls')).toBeVisible();
-  await page.locator('#pr-target').selectOption('30');if(await page.locator('#pr-dev-review').getAttribute('open')===null)await page.locator('#pr-dev-review summary').click();
+  const configuration=page.locator('#pr-lobby-screen .lobby-configuration');
+  if(await configuration.evaluate(node=>(node as HTMLDetailsElement).open))await configuration.locator(':scope > summary').click();
+  await expect(page.locator('#pr-host-controls')).toBeHidden();await openLobbyConfiguration(page);await expect(page.locator('#pr-host-controls')).toBeVisible();
+  await openLobbyConfiguration(page);await page.locator('#pr-target').selectOption('30');if(await page.locator('#pr-dev-review').getAttribute('open')===null)await page.locator('#pr-dev-review summary').click();
   await page.locator(`[data-round="${round}"]`).click();
   const state=()=>page.locator('#pr-dev-state').textContent().then(v=>JSON.parse(v!));
   await expect.poll(async()=>(await state()).phase).toBe('running');

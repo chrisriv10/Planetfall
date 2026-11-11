@@ -1,12 +1,13 @@
 import { randomBytes } from "node:crypto";
 import type { Server as SocketServer, Socket } from "socket.io";
 import RAPIER from "@dimforge/rapier3d-compat";
+import {reconcilePassRewards} from "./pass-reconciliation.js";
+import {buyCosmetic,equipCosmetic} from "./cosmetic-shop.js";
 import {
   BALANCE,
   DEFAULT_COSMETICS,
   FREE_EMOTES,
   PLAYER_COLORS,
-  SESSION_PROGRESSION,
   SHOP_CATALOG,
   add,
   applyBurstVelocity,
@@ -37,13 +38,11 @@ import {
   length,
   limitSpeed,
   normalize,
-  planetPassRewardsBetween,
   projectOnPlane,
   repairPosition,
   sanitizeName,
   sessionLevelForXp,
   sessionMatchXp,
-  sessionXpInLevel,
   selectChaosModifier,
   selectGravityPlanetId,
   selectMatchAwards,
@@ -665,28 +664,16 @@ export class GameRoom {
   }
 
   buyShopItem(playerId: string, itemId: unknown): { ok: true } | { ok: false; error: string } {
-    const player = this.players.get(playerId);
-    if (!player || player.isBot || (this.phase !== "lobby" && this.phase !== "results")) return { ok: false, error: "Shop unavailable." };
-    const item = typeof itemId === "string" ? SHOP_CATALOG.find((entry) => entry.id === itemId) : undefined;
-    if (!item) return { ok: false, error: "Item not found." };
-    if (item.passLevel) return { ok: false, error: "Planet Pass reward only." };
-    if (player.ownedCosmetics.includes(item.id)) return { ok: false, error: "Already owned." };
-    if (player.fallbucks < item.price) return { ok: false, error: "Not enough Fallbucks." };
-    player.fallbucks -= item.price;
-    player.ownedCosmetics.push(item.id);
-    this.emitRoom();
-    return { ok: true };
+    const result=buyCosmetic(this.players.get(playerId),this.phase,itemId);
+    if(result.ok)this.emitRoom();
+    return result;
   }
 
   equipShopItem(playerId: string, itemId: unknown): { ok: true } | { ok: false; error: string } {
-    const player = this.players.get(playerId);
-    if (!player || player.isBot || (this.phase !== "lobby" && this.phase !== "results")) return { ok: false, error: "Shop unavailable." };
-    const item = typeof itemId === "string" ? SHOP_CATALOG.find((entry) => entry.id === itemId) : undefined;
-    if (!item || !player.ownedCosmetics.includes(item.id)) return { ok: false, error: "Item not owned." };
-    if (item.category === "emote") return { ok: true };
-    player.equippedCosmetics[item.category] = item.id;
-    this.emitRoom();
-    return { ok: true };
+    const result=equipCosmetic(this.players.get(playerId),this.phase,itemId,"planetfall");
+    if(!result.ok)return result;
+    if(result.changed)this.emitRoom();
+    return {ok:true};
   }
 
   voteRematch(playerId: string): void {
@@ -1425,28 +1412,24 @@ export class GameRoom {
         stat.planetKills
       );
       const previousLevel = player.sessionLevel;
-      const maximumXp = (SESSION_PROGRESSION.maxLevel - 1) * SESSION_PROGRESSION.xpPerLevel;
-      const nextTotalXp = Math.min(maximumXp, player.sessionTotalXp + requestedXp);
+      const nextTotalXp = player.sessionTotalXp + requestedXp;
       const xpEarned = nextTotalXp - player.sessionTotalXp;
       const level = sessionLevelForXp(nextTotalXp);
-      const rewards = planetPassRewardsBetween(previousLevel, level)
-        .filter((reward) => !player.unlockedPassRewards.includes(reward.id));
-      let passFallbucks = 0;
-      for (const reward of rewards) {
-        player.unlockedPassRewards.push(reward.id);
-        if (reward.fallbucks) { player.fallbucks += reward.fallbucks; passFallbucks += reward.fallbucks; }
-        if (reward.cosmeticId && !player.ownedCosmetics.includes(reward.cosmeticId)) player.ownedCosmetics.push(reward.cosmeticId);
-        if (reward.badge) player.lobbyBadge = reward.badge;
-      }
       player.sessionTotalXp = nextTotalXp;
-      player.sessionLevel = level;
-      player.sessionXp = sessionXpInLevel(nextTotalXp);
+      const rewards=reconcilePassRewards(player);
       return [{
         playerId: player.id, xpEarned, previousLevel, level, xp: player.sessionXp, totalXp: nextTotalXp,
         unlockedLevels: Array.from({ length: Math.max(0, level - previousLevel) }, (_, index) => previousLevel + index + 1),
-        rewards: rewards.map((reward) => ({ ...reward })), fallbucksGranted: passFallbucks
+        rewards: rewards.map((reward) => ({ ...reward })), fallbucksGranted: rewards.reduce((sum,reward)=>sum+(reward.fallbucks??0),0)
       }];
     });
+    const canonical=this.onProgress?.(this.players.values());
+    for(const entry of progression){
+      const player=this.players.get(entry.playerId)!;
+      if(canonical instanceof Map&&canonical.has(player)){entry.rewards=(canonical.get(player)??[]).map(reward=>({...reward}));entry.fallbucksGranted=entry.rewards.reduce((sum,reward)=>sum+(reward.fallbucks??0),0);}
+      entry.level=player.sessionLevel;entry.xp=player.sessionXp;entry.totalXp=player.sessionTotalXp;
+      entry.unlockedLevels=Array.from({length:Math.max(0,entry.level-entry.previousLevel)},(_,index)=>entry.previousLevel+index+1);
+    }
     const fallbucks = [...placementFallbucks].map(([playerId, reward]) => ({
       playerId, reward, balance: this.players.get(playerId)?.fallbucks ?? 0
     }));
@@ -1529,7 +1512,7 @@ export class GameRoom {
     this.io.to(this.code).emit("match:stat", { ...this.stat(playerId) });
   }
 
-  onProgress?: (players:Iterable<import("./player-profiles.js").PlayerProgress>)=>void;
+  onProgress?:import("./player-profiles.js").ProgressHandler;
   private emitRoom(): void { this.onProgress?.(this.players.values());this.io.to(this.code).emit("room:state", this.view()); }
   private error(playerId: string, message: string): void {
     const socketId = this.players.get(playerId)?.socketId;

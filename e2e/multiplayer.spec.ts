@@ -1,4 +1,4 @@
-import {selectExperimentalFamily} from "./select-family";
+import {selectExperimentalFamily,openLobbyConfiguration} from "./select-family";
 import { expect, test, type Page } from "@playwright/test";
 import { BALANCE, isInsideBrIslandInterior } from "@planetfall/shared";
 import { MUSIC_TRACKS } from "../client/src/audio-catalog";
@@ -183,6 +183,9 @@ async function fireCannon(page: Page): Promise<void> {
 test("settings persist across reloads", async ({ page }) => {
   const browserErrors = collectBrowserErrors(page);
   await page.goto("/");
+  // Wait for app bootstrap and the initial discrete hiding transition.
+  await expect(page.locator("#settings-open")).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Settings" })).toHaveCount(1);
   await page.getByRole("button", { name: "Settings" }).click();
   await page.getByLabel("Mouse Sensitivity").fill("1.4");
   await page.getByLabel("Controller Sensitivity").fill("1.3");
@@ -193,6 +196,9 @@ test("settings persist across reloads", async ({ page }) => {
   await page.getByLabel("Quality").selectOption("medium");
   await page.getByRole("button", { name: "Done" }).click();
   await page.reload();
+  // Wait for app bootstrap and the initial discrete hiding transition.
+  await expect(page.locator("#settings-open")).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Settings" })).toHaveCount(1);
   await page.getByRole("button", { name: "Settings" }).click();
   await expect(page.getByLabel("Mouse Sensitivity")).toHaveValue("1.4");
   await expect(page.getByLabel("Controller Sensitivity")).toHaveValue("1.3");
@@ -238,14 +244,14 @@ test("Battle Royale lobby stays usable while its renderer module loads", async (
     await page.goto("/");
     await page.getByLabel("Name").fill("Loading Pilot");
     await selectExperimentalFamily(page,"battle-royale");
-    await page.getByRole("button", { name: "Create BR Room" }).click();
+    await page.getByRole("button", { name: "Create PlanetRoyale Room" }).click();
     await expect(page.locator("#br-lobby-screen")).toBeVisible();
     await expect.poll(() => moduleRequested).toBe(true);
     // Deliberately keep the renderer unavailable until these real room/UI
     // assertions succeed. This reproduces the blank-roster loading failure.
     await expect(page.locator("#br-team-list")).toContainText("Loading Pilot");
     await expect(page.locator("#br-lobby-code")).toHaveText(/[A-Z0-9]{6}/);
-    await page.locator("#br-player-target").selectOption("10");
+    await openLobbyConfiguration(page);await page.locator("#br-player-target").selectOption("10");
     await expect(page.locator("#br-lobby-hint")).toContainText("1 / 10 joined");
     await page.locator("#br-ready-button").click();
     await expect(page.locator("#br-team-list")).toContainText("READY");
@@ -265,13 +271,13 @@ test("Battle Royale creates an isolated room and enters the Starliner drop", asy
   await page.reload();
   await page.getByLabel("Name").fill("Star Pilot");
   await selectExperimentalFamily(page,"battle-royale");
-  await page.getByRole("button", { name: "Create BR Room" }).click();
+  await page.getByRole("button", { name: "Create PlanetRoyale Room" }).click();
   await expect(page.locator("#br-lobby-screen")).toBeVisible();
   await expect(page.locator("#br-team-list")).toContainText("Star Pilot");
   await expect(page.locator("#br-player-target")).toHaveValue("40");
   // Keep this lifecycle/camera smoke test lightweight; dedicated scale tests
   // exercise the full forty-participant server and quick-start path.
-  await page.locator("#br-player-target").selectOption("10");
+  await openLobbyConfiguration(page);await page.locator("#br-player-target").selectOption("10");
   await page.locator("#br-ready-button").click();
   await page.locator("#br-start-button").click();
   await expect(page.locator("#br-hud")).toBeVisible();
@@ -467,10 +473,10 @@ test("two players can create, join, ready, and start", async ({ browser }) => {
   await expect.poll(async () => (await debugState(host)).lobbyAvatarCount).toBe(1);
   await host.getByRole("button", { name: /PLANET PASS/ }).click();
   await expect(host.getByRole("heading", { name: "Planet Pass" })).toBeVisible();
-  await expect(host.locator("#pass-track .pass-tier")).toHaveCount(10);
+  await expect(host.locator("#pass-track .pass-tier")).toHaveCount(50);
   await host.locator("#pass-close").click();
   await expect(host.locator("#mode-classic")).toHaveClass(/selected/);
-  await host.locator("#bot-hard").click();
+  await openLobbyConfiguration(host);await host.locator("#bot-hard").click();
   await expect(host.locator("#bot-hard")).toHaveClass(/selected/);
   const code = (await host.locator("#lobby-code").textContent())!;
 

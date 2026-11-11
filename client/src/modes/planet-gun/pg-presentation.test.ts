@@ -8,18 +8,29 @@ import {createAstronautVisual} from "../../astronaut";
 import {PgHomePreview} from "./pg-home-preview";
 
 describe("PlanetGun presentation",()=>{
-  it("renders every authoritative solid at its exact position and dimensions",()=>{
-    const world=new PgWorldRenderer(),actual:number[][]=[],matrix=new THREE.Matrix4(),position=new THREE.Vector3(),scale=new THREE.Vector3(),rotation=new THREE.Quaternion();
-    world.root.traverse(o=>{if(o instanceof THREE.InstancedMesh&&o.name.startsWith("body-"))for(let i=0;i<o.count;i++){o.getMatrixAt(i,matrix);matrix.decompose(position,rotation,scale);actual.push([...position.toArray(),...scale.toArray()]);}});
-    expect(actual).toHaveLength(PG_MAP.solids.length);
-    for(const s of PG_MAP.solids){const expected=[s.center.x,s.center.y,s.center.z,s.half.x*2,s.half.y*2,s.half.z*2];expect(actual.some(a=>a.every((v,i)=>Math.abs(v-expected[i])<.00001))).toBe(true);}
+  it("renders exact authoritative volumes, including non-overlapping rail body/cap partitions",()=>{
+    const world=new PgWorldRenderer(),actual:number[][]=[],caps:number[][]=[],matrix=new THREE.Matrix4(),position=new THREE.Vector3(),scale=new THREE.Vector3(),rotation=new THREE.Quaternion();
+    world.root.traverse(o=>{if(o instanceof THREE.InstancedMesh&&(o.name.startsWith("body-")||o.name.startsWith("barrier-coping:")))for(let i=0;i<o.count;i++){o.getMatrixAt(i,matrix);matrix.decompose(position,rotation,scale);(o.name.startsWith("body-")?actual:caps).push([...position.toArray(),...scale.toArray()]);}});
+    expect(actual).toHaveLength(PG_MAP.solids.length);expect(caps).toHaveLength(PG_MAP.solids.filter(s=>s.kind==="rail").length);
+    const close=(a:number,b:number)=>Math.abs(a-b)<.00001;
+    for(const s of PG_MAP.solids){
+      const expected=[s.center.x,s.center.y,s.center.z,s.half.x*2,s.half.y*2,s.half.z*2];
+      if(s.kind!=="rail"){expect(actual.some(a=>a.every((v,i)=>close(v,expected[i]))),s.id).toBe(true);continue;}
+      const footprint=(a:number[])=>[0,2,3,5].every(i=>close(a[i],expected[i])),body=actual.find(footprint),cap=caps.find(footprint);
+      expect(body,s.id).toBeDefined();expect(cap,s.id).toBeDefined();
+      expect(body![1]-body![4]/2).toBeCloseTo(s.center.y-s.half.y,5);
+      expect(cap![1]+cap![4]/2).toBeCloseTo(s.center.y+s.half.y,5);
+      expect(body![1]+body![4]/2).toBeCloseTo(cap![1]-cap![4]/2,5);
+      expect(body![4]+cap![4]).toBeCloseTo(s.half.y*2,5);
+      expect(body![4]).toBeGreaterThan(0);expect(cap![4]).toBeGreaterThan(0);
+    }
     world.dispose();
   });
   it("quality removes detail without changing core surfaces, and resource disposal is repeatable",()=>{
     const world=new PgWorldRenderer();
     const count=()=>{let n=0;world.root.traverseVisible(o=>{if(o instanceof THREE.Mesh)n++;});return n;};
     world.setQuality("high");const high=count();world.setQuality("low");expect(count()).toBeLessThan(high);
-    world.root.traverse(o=>{if(o.name.startsWith("body-"))expect(o.visible).toBe(true);});
+    world.root.traverse(o=>{if(o.name.startsWith("body-")||o.name.startsWith("barrier-coping:"))expect(o.visible).toBe(true);});
     world.update(1000);world.dispose();world.dispose();expect(world.root.children).toHaveLength(0);
   });
   it("switches canonical weapons and centers settled ADS without touching shot state",()=>{
@@ -55,6 +66,9 @@ describe("PlanetGun presentation",()=>{
     for(const astronaut of[rig,other])astronaut.group.traverse(o=>{if(o instanceof THREE.Mesh){o.geometry.dispose();for(const m of Array.isArray(o.material)?o.material:[o.material])m.dispose();}});
   });
   it("home arena stays finite through aspect changes and disposes",()=>{
-    const preview=new PgHomePreview();for(const aspect of[.6,1,1.78,2.4]){preview.update(2,aspect);expect(preview.root.position.toArray().every(Number.isFinite)).toBe(true);expect(preview.root.scale.x).toBeGreaterThan(0);}preview.dispose();expect(preview.root.children).toHaveLength(0);
+    const preview=new PgHomePreview();for(const aspect of[.6,1,1.78,2.4]){
+      const camera=new THREE.PerspectiveCamera(58,aspect,.1,500);camera.position.set(20,10,32);camera.lookAt(0,0,-4);camera.updateMatrixWorld(true);
+      preview.update(2,camera,{viewportWidth:768*aspect,viewportHeight:768,left:0,top:0,width:768*aspect,height:768});expect(preview.root.position.toArray().every(Number.isFinite)).toBe(true);expect(preview.root.scale.x).toBeGreaterThan(0);
+    }preview.dispose();expect(preview.root.children).toHaveLength(0);
   });
 });

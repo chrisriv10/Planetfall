@@ -1,7 +1,8 @@
 import {test,expect,type Page} from "@playwright/test";
 import {writeFile} from "node:fs/promises";
 import {PG_BALANCE,type PgModeSnapshot,type PgSnapshotPlayer} from "@planetfall/shared";
-import {selectExperimentalFamily} from "./select-family";
+import {selectExperimentalFamily,openLobbyConfiguration,selectPgCharacter} from "./select-family";
+import {go as walk,lookAt} from "./pg-world-route";
 
 test.use({channel:"chromium"});
 interface DebugState {local:PgSnapshotPlayer;mode:PgModeSnapshot;collisionRevision:number;players:number;}
@@ -18,10 +19,10 @@ async function prepare(page:Page,name:string){
 }
 async function start(a:Page,b:Page,id:"planetwatch"|"planetsiege"){
  await prepare(a,"Ability Attacker");await prepare(b,"Ability Defender");
- await a.locator("#create-room").click();await a.getByLabel("PlanetGun submode").selectOption(id);await a.locator("#pg-fill").uncheck();
+ await a.locator("#create-room").click();await a.getByLabel("PlanetGun submode").selectOption(id);await openLobbyConfiguration(a);await a.locator("#pg-fill").uncheck();
  await b.locator("#room-code").fill(await a.locator("#pg-code").innerText());await b.locator("#join-room").click();
- await a.locator("#pg-lobby-screen .pg-character-card").filter({has:a.locator("strong",{hasText:id==="planetwatch"?"Cairn":"Rivet"})}).click();
- if(id==="planetwatch")await b.locator("#pg-lobby-screen .pg-character-card").filter({has:b.locator("strong",{hasText:"Cinder"})}).click();
+ await selectPgCharacter(a,id==="planetwatch"?"cairn":"rivet");
+ if(id==="planetwatch")await selectPgCharacter(b,"cinder");
  await b.locator("#pg-ready").click();await a.locator("#pg-ready").click();await a.locator("#pg-start").click();
  for(const page of[a,b])await expect.poll(async()=>(await state(page))?.mode?.id).toBe(id);
  await expect.poll(async()=>(await state(a)).players).toBe(2);
@@ -30,19 +31,7 @@ function movementKey(yaw:number,dx:number,dz:number){
  const c=Math.cos(yaw),s=Math.sin(yaw),mx=dx*c-dz*s,mz=dx*s+dz*c;
  return Math.abs(mx)>Math.abs(mz)?{key:mx>0?"d":"a",delta:mx}:{key:mz>0?"s":"w",delta:mz};
 }
-async function go(page:Page,x:number,z:number){
- await page.bringToFront();
- try{for(let i=0;i<100;i++){
-  const p=(await state(page)).local,dx=x-p.position.x,dz=z-p.position.z,distance=Math.hypot(dx,dz);
-  if(distance<.35&&Math.hypot(p.velocity.x,p.velocity.z)<.2)return;
-  const {key,delta}=movementKey(p.yaw,dx,dz),near=distance<2;
-  if(near)await page.keyboard.down("Control");else await page.keyboard.up("Control");
-  await page.keyboard.down(key);
-  try{await page.waitForTimeout(near?Math.max(90,Math.min(250,Math.abs(delta)/2.5*650)):Math.min(600,Math.abs(delta)/4.5*650));}finally{await page.keyboard.up(key);}
-  await page.waitForTimeout(120);
- }}finally{await page.keyboard.up("Control");}
- throw Error(`Keyboard route failed ${(JSON.stringify((await state(page)).local.position))} -> ${x},${z}`);
-}
+const go=(page:Page,x:number,z:number)=>walk(page,x,z);
 async function pushToward(page:Page,dx:number,dz:number,ms:number){
  await page.bringToFront();const {key}=movementKey((await state(page)).local.yaw,dx,dz);await page.keyboard.down(key);
  try{await page.waitForTimeout(ms);}finally{await page.keyboard.up(key);}await page.waitForTimeout(250);
@@ -59,6 +48,8 @@ test("PlanetWatch Cairn barrier stops walking and takes enemy shots; Brace Pulse
   expect((await state(a)).local.team).not.toBe((await state(b)).local.team);
   expect((await mode(a,"planetwatch")).pilots[(await state(a)).local.id].characterId).toBe("cairn");
   expect((await mode(b,"planetwatch")).pilots[(await state(b)).local.id].characterId).toBe("cinder");
+  await a.bringToFront();await lookAt(a,{x:-21.5,y:PG_BALANCE.eye,z:-34});
+  await b.bringToFront();await lookAt(b,{x:-30,y:PG_BALANCE.eye,z:-34});
   const before=await state(a);await a.bringToFront();await a.keyboard.press("q");
   await expect.poll(async()=>(await mode(a,"planetwatch")).collision.panels.filter(p=>p.active).length,{timeout:3000}).toBe(1);
   const deployed=(await mode(a,"planetwatch")).collision.panels.find(p=>p.active)!;
@@ -67,13 +58,13 @@ test("PlanetWatch Cairn barrier stops walking and takes enemy shots; Brace Pulse
   await pushToward(a,1,0,1300);
   const blocked=(await state(a)).local;expect(blocked.position.x).toBeGreaterThan(-27);expect(blocked.position.x).toBeLessThan(-25.45);
   await a.screenshot({path:info.outputPath("watch-rampart-blocks-walking.png")});
-  await b.bringToFront();await b.locator("#game-canvas").click({button:"left",position:{x:480,y:270}});
+  await b.bringToFront();await lookAt(b,deployed.solid.center);await b.mouse.click(480,270);
   await expect.poll(async()=>(await mode(b,"planetwatch")).collision.panels.find(p=>p.id===deployed.id)?.hp,{timeout:2500}).toBeLessThan(450);
   const damaged=(await mode(b,"planetwatch")).collision.panels.find(p=>p.id===deployed.id)!;
   expect(damaged.active).toBe(true);expect(damaged.hp).toBeGreaterThan(0);expect((await state(a)).local.hp).toBe(before.local.hp);
   await b.screenshot({path:info.outputPath("watch-enemy-shot-damages-rampart.png")});
   await expect.poll(async()=>(await mode(a,"planetwatch")).collision.panels.find(p=>p.id===deployed.id)?.active,{timeout:10000}).not.toBe(true);
-  await go(a,-24.5,-34);const victim=await state(b);await a.bringToFront();await a.keyboard.press("f");
+  await go(a,-24.5,-34);const victim=await state(b);await a.bringToFront();await lookAt(a,{...victim.local.position,y:victim.local.position.y+PG_BALANCE.eye});await a.keyboard.press("f");
   await expect.poll(async()=>(await state(b)).local.hp,{timeout:3000}).toBe(victim.local.hp-25);
   await expect.poll(async()=>(await state(b)).local.position.x,{timeout:3000}).toBeGreaterThan(victim.local.position.x+.1);
   await writeFile(info.outputPath("watch-ability-result.json"),JSON.stringify({deployed,damaged,attacker:await state(a),defender:await state(b)},null,2));

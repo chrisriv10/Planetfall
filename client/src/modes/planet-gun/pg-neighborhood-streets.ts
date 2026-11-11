@@ -1,4 +1,5 @@
 import {PG_MAP} from "@planetfall/shared";
+import { PG_SURFACE_TINT as paint } from "./pg-district-palette";
 import type {PgArtContext, PgArtMaterial} from "./pg-environment-builder";
 
 type Rect=readonly [number,number,number,number];
@@ -22,19 +23,19 @@ function clearRect(rect:Rect):Rect[]{
 
 /** Static street network and garden silhouettes, backed by the shared map. */
 export function buildPgNeighborhoodStreets(ctx:PgArtContext):void{
-  const surface=(name:string,rect:Rect,material:PgArtMaterial="paving",y=.009)=>{
-    clearRect(rect).forEach(([x0,z0,x1,z1],i)=>ctx.add(`${name}-${i}`,"box",material,[(x0+x1)/2,y,(z0+z1)/2,x1-x0,.008,z1-z0]));
+  const surface=(name:string,rect:Rect,material:PgArtMaterial="paving",y=.009,tint?:number)=>{
+    clearRect(rect).forEach(([x0,z0,x1,z1],i)=>ctx.add(`${name}-${i}`,"box",material,[(x0+x1)/2,y,(z0+z1)/2,x1-x0,.008,z1-z0],undefined,false,tint));
   };
   // Continuous primary spine; the east widening carries pedestrians around the
   // transit pier and along the planted ticket-bank edge.
-  surface("street-spine",[8,-20,12,35]);
-  surface("street-pier-bypass",[10.9,.8,13.1,4.2]);
-  surface("street-habitat",[-34,3,8,7]);
-  surface("street-garden",[-12,-20,8,-16]);
-  surface("street-engineering",[12,-9,39,-5]);
+  surface("street-spine",[8,-20,12,35],"paving",.009,paint.transitNavy);
+  surface("street-pier-bypass",[10.9,.8,13.1,4.2],"paving",.009,paint.transitNavy);
+  surface("street-habitat",[-34,3,8,7],"paving",.009,paint.habitatCoral);
+  surface("street-garden",[-12,-20,8,-16],"paving",.009,paint.hydroTeal);
+  surface("street-engineering",[12,-9,39,-5],"paving",.009,paint.ionSteel);
   surface("street-relay-approach",[-10,-11,8,-3]);
   surface("street-west-link",[-12,-16,-9,3]);
-  surface("street-garden-step-approach",[-14,-30,-10,-28.4]);
+  surface("street-garden-step-approach",[-14,-30,-10,-28.4],"paving",.009,paint.hydroTeal);
   // Broad sidewalk bands and long restrained inlays are infrastructure, rather
   // than a field of isolated plates. Their entire height stays under 3cm.
   for(const [name,rect]of [
@@ -82,38 +83,42 @@ export function buildPgNeighborhoodStreets(ctx:PgArtContext):void{
   const terrace=PG_MAP.solids.find(s=>s.id==="habitat-garden-terrace");
   if(terrace){
     const {center:c,half:h}=terrace,top=c.y+h.y;
-    ctx.add("garden-terrace-paving","box","paving",[c.x,top+.008,c.z,h.x*2-.08,.016,h.z*2-.08]);
+    ctx.add("garden-terrace-paving","box","paving",[c.x,top+.008,c.z,h.x*2-.08,.016,h.z*2-.08],undefined,false,paint.hydroTeal);
     // Lift cap tops and offset outer faces from the opaque retaining body.
     // The maximum silhouette extension is 30mm, not a new obstacle.
-    for(const z of [c.z-h.z+.048,c.z+h.z-.048])ctx.add(`garden-terrace-cap-${z}`,"box","ivory",[c.x,top-.005,z,h.x*2+.024,.07,.12]);
+    for(const z of [c.z-h.z+.048,c.z+h.z-.048])ctx.add(`garden-terrace-cap-${z}`,"box","ivory",[c.x,top-.005,z,h.x*2+.024,.07,.12],undefined,false,paint.hydroPorcelain);
     for(let i=0;i<8;i++)ctx.add(`garden-retaining-course-${i}`,"box","frame",[c.x-h.x+.65+i*1.25,.6,c.z+h.z+.012,.035,1.1,.024]);
     for(const step of PG_MAP.solids.filter(s=>s.id.startsWith("habitat-garden-step-")))ctx.add(`${step.id}-nosing`,"box","ivory",[step.center.x,step.center.y+step.half.y+.009,step.center.z-step.half.z+.06,step.half.x*2,.018,.12]);
   }
   for(const bed of PG_MAP.solids.filter(s=>s.id.startsWith("garden-bed-")||s.id==="transit-ticket-bank")){
     const {center:c,half:h}=bed,top=c.y+h.y;
+    const transit=bed.id==="transit-ticket-bank", rimTint=transit?paint.transitOrange:paint.hydroPorcelain;
     ctx.add(`${bed.id}-soil`,"box","soil",[c.x,top+.006,c.z,h.x*2-.22,.012,h.z*2-.22]);
     // Butt-jointed rims avoid both coincident body faces and intersecting
     // corner rails. Soil sits 18mm below their top with a 12mm inset gap.
-    for(const x of [c.x-h.x+.043,c.x+h.x-.043])ctx.add(`${bed.id}-rim-${x}`,"box","ivory",[x,top+.005,c.z,.11,.05,h.z*2+.024]);
-    for(const z of [c.z-h.z+.043,c.z+h.z-.043])ctx.add(`${bed.id}-rim-${z}`,"box","ivory",[c.x,top+.005,z,h.x*2-.196,.05,.11]);
-    const count=bed.id==="transit-ticket-bank"?7:3;
+    for(const x of [c.x-h.x+.043,c.x+h.x-.043])ctx.add(`${bed.id}-rim-${x}`,"box","ivory",[x,top+.005,c.z,.11,.05,h.z*2+.024],undefined,false,rimTint);
+    for(const z of [c.z-h.z+.043,c.z+h.z-.043])ctx.add(`${bed.id}-rim-${z}`,"box","ivory",[c.x,top+.005,z,h.x*2-.196,.05,.11],undefined,false,rimTint);
+    const count=transit?7:3;
     for(let i=0;i<count;i++){
       const z=c.z-h.z+.55+i*(h.z*2-1.1)/Math.max(1,count-1),x=c.x+(i%2?-.45:.4);
-      ctx.add(`${bed.id}-shrub-${i}`,"sphere","leaf",[x,top+.22,z,.65,.35,.58]);
+      ctx.add(`${bed.id}-shrub-${i}`,"leafFan","leaf",[x,top+.22,z,.65,.35,.58],[0,i*.78,0]);
     }
     ctx.add(`${bed.id}-irrigation`,"box","frame",[c.x-h.x+.25,top+.023,c.z,.035,.035,h.z*2-.5],undefined,true);
     // Low paired crop rows leave a visible soil channel and read as maintained
     // hydroponics. Everything remains inside an existing raised planter.
     if(bed.id!=="transit-ticket-bank")for(const side of[-1,1]){
       const x=c.x+side*Math.min(.65,h.x*.48);
-      ctx.add(`${bed.id}-crop-row-${side}`,"sphere","leaf",[x,top+.12,c.z,.22,.14,Math.max(.3,h.z-.38)]);
+      const seedlings=Math.max(2,Math.floor((h.z*2-.6)/.52));
+      for(let i=0;i<seedlings;i++){
+        const z=c.z+(2*i/(seedlings-1)-1)*(h.z-.46);
+        ctx.add(`${bed.id}-crop-row-${side}-${i}`,"leafFan","leaf",[x,top+.12,z,.22,.14,.24],[0,i*.71,0]);
+      }
       ctx.add(`${bed.id}-feed-rail-${side}`,"box","ivory",[x,top+.027,c.z,.035,.025,h.z*2-.55],undefined,true);
     }
     // Maintenance badges and irrigation controls sit flush against real beds.
     // The transit bank carries a route diagram; planted beds use a water gauge.
     const face=c.z+h.z+.013;
     ctx.add(`${bed.id}-maintenance-label`,"box","frame",[c.x,top-.23,face,Math.min(1.1,h.x),.24,.016]);
-    const transit=bed.id==="transit-ticket-bank";
     ctx.add(`${bed.id}-maintenance-readout`,"box","cyan",[c.x,top-.23,face+.012,transit?.8:.38,.025,.006]);
     for(let i=0;i<(transit?3:2);i++)ctx.add(`${bed.id}-maintenance-stop-${i}`,"box","ivory",[c.x+(i-(transit?1:.5))*.28,top-.23,face+.018,.045,.08,.004]);
   }
@@ -125,6 +130,15 @@ export function buildPgNeighborhoodStreets(ctx:PgArtContext):void{
       [0,0,-.55,0,2.1,1.45,1.85],[1,-1.35,-1.1,.3,1.55,1.1,1.45],
       [2,1.25,-.85,-.15,1.55,1.3,1.45],[3,.15,.45,.15,1.65,1.25,1.55],
       [4,-.25,-.75,1.15,1.55,1.1,1.35],
-    ])ctx.add(`${trunk.id}-canopy-${i}`,"sphere","leaf",[c.x+dx,top+dy,c.z+dz,sx,sy,sz]);
+    ]){
+      ctx.add(`${trunk.id}-canopy-${i}`,"leafFan","leaf",[c.x+dx,top+dy,c.z+dz,sx,sy,sz],[0,i*.63,0]);
+      if(Math.abs(dx)<=h.x && Math.abs(dz)<=h.z)continue;
+      // The fan's folded blades meet at local y=-.85. Carry their heel on
+      // a short rising limb of the same square section and finish as the trunk.
+      const heelY=top+dy-.85*sy,rise=.65,length=Math.hypot(dx,rise,dz);
+      const pitch=Math.atan2(dz,rise),roll=-Math.asin(dx/length);
+      ctx.add(`${trunk.id}-branch-${i}`,"box","soil",
+        [c.x+dx/2,heelY-rise/2,c.z+dz/2,.19,length,.19],[pitch,0,roll]);
+    }
   }
 }

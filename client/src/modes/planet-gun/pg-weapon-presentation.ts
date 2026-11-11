@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import {finishPgRearAssembly,fitPgReceiverCasting} from "./pg-receiver-casting";
 import {PG_RELOAD_PROFILES,type PgPresentationWeapon,type PgReloadSample} from "./pg-reload-art";
 
 /** Local weapon scale only; integration must use the resulting scale for sights and wrists. */
@@ -8,6 +9,7 @@ export interface PgWeaponArtResources {
  box:THREE.BufferGeometry;metal:THREE.Material;composite:THREE.Material;grip:THREE.Material;
  bevel?:THREE.BufferGeometry;
  sculpted?:THREE.BufferGeometry;
+ receiver?:THREE.BufferGeometry;
  ownMaterial<T extends THREE.Material>(material:T):T;
 }
 /** Shared unit housing: clipped corners and tapered end shoulders, 60 triangles. */
@@ -104,6 +106,10 @@ function refineLocalRearHousing(model:THREE.Group,weapon:PgPresentationWeapon,r:
 export function addPgWeaponPresentation(model:THREE.Group,weapon:PgPresentationWeapon,r:PgWeaponArtResources){
  const p=PG_RELOAD_PROFILES[weapon];
  refineLocalRearHousing(model,weapon,r);
+ if(r.receiver){
+  fitPgReceiverCasting(model,weapon,r.receiver,r.ownMaterial);
+  finishPgRearAssembly(model,weapon,r);
+ }
  const energy=r.ownMaterial(new THREE.MeshStandardMaterial({color:p.accent,emissive:p.accent,emissiveIntensity:.16,roughness:.30,metalness:.25}));
  // Replace the old local power-cell silhouette, including its floating rarity ring.
  const old=weapon==="pulse"?[.16,-.04,-.48]:weapon==="nova"?[.2,.02,-.3]:weapon==="rail"?[0,-.04,-.72]:null;

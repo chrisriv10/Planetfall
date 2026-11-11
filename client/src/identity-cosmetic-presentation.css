@@ -1,0 +1,41 @@
+.pf-identity-surface {
+  position: relative;
+  isolation: isolate;
+}
+.pf-identity-surface > .pf-identity-card-art {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  border-radius: inherit;
+  background: #142035;
+  pointer-events: none;
+}
+.pf-identity-card-art > svg {
+  display: block;
+  width: auto;
+  height: clamp(100%, 5vw, 72px);
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  opacity: .86;
+  mask-image: linear-gradient(90deg,transparent,#000 26%);
+}
+.pf-identity-badge {
+  display: inline-flex;
+  width: 1.35em;
+  height: 1.35em;
+  min-width: 16px;
+  min-height: 16px;
+  max-width: 26px;
+  max-height: 26px;
+  margin-inline-end: .4em;
+  vertical-align: middle;
+  pointer-events: none;
+}
+.pf-identity-badge > svg { display: block; width: 100%; height: 100%; }
+.pf-identity-surface.pf-identity-emblem-gutter { padding-inline-start: max(32px, 2.6em); }
+.pf-identity-emblem-gutter > .pf-identity-badge {
+  position: absolute; left: .5em; top: 50%; transform: translateY(-50%); margin: 0;
+}

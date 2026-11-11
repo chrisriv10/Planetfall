@@ -7,6 +7,7 @@ import {
 } from "@planetfall/shared";
 import {pgModeDistance,pgModeError,pgModeOk,pgModePilot} from "./pg-mode-base.js";
 import type {PgModeContext,PgModeRuntime,PgModeTarget} from "./pg-mode-runtime.js";
+import {PgZombieNavigation} from "./pg-zombie-navigation.js";
 
 interface WatchPilot {
  public:PgModePilot;
@@ -34,7 +35,7 @@ const clamp=(n:number,min:number,max:number)=>Math.max(min,Math.min(max,n));
 const eye=(p:Vec3):Vec3=>({x:p.x,y:p.y+1.3,z:p.z});
 const finitePosition=(p:Vec3|undefined):p is Vec3=>!!p&&[p.x,p.y,p.z].every(Number.isFinite);
 const allies=(a:PgPlayer,b:PgPlayer)=>a.team===b.team;
-const WAVE_MS=8000,SPAWN_SAFE_RADIUS=3,SWAP_RADIUS=8,CAPTURE_MS=4000,PROGRESS_PER_SECOND=2;
+const WAVE_MS=8000,SWAP_RADIUS=8,CAPTURE_MS=4000,PROGRESS_PER_SECOND=2;
 
 /** PlanetWatch owns only its round, hero and effect state. Player bodies remain room-owned. */
 export class PgWatch implements PgModeRuntime {
@@ -55,6 +56,8 @@ export class PgWatch implements PgModeRuntime {
  private now=0;
  private serial=0;
  private finished=false;
+ private botNavigation?:PgZombieNavigation;
+ private botGoals=new Map<string,{revision:number;round:number;hero:PgHeroId;reconsiderAt:number;goal:Vec3|null}>();
  constructor(private ctx:PgModeContext) {this.assignRoster();}
 
  start(now:number):void {
@@ -76,6 +79,7 @@ export class PgWatch implements PgModeRuntime {
  private hero(p:PgPlayer):PgHeroDefinition {return pgResolveHero(this.pilots.get(p.id)?.public.characterId)??PG_HEROES.cairn;}
  private state(p:PgPlayer):WatchPilot {let state=this.pilots.get(p.id);if(!state){this.assignRoster();state=this.pilots.get(p.id);}if(!state)throw new Error("PlanetWatch roster exceeds six players per team");return state;}
  private beginRound(now:number):void {
+  this.botGoals.clear();
   this.clearEffects(now);this.ctx.world.reset([],now);this.capture={solar:0,void:0};this.progress={solar:0,void:0};
   this.owner=null;this.contested=false;this.subphase="control";this.deadline=0;this.nextWave=now+WAVE_MS;
   this.intel={solar:new Map(),void:new Map()};this.contributors.clear();
@@ -90,7 +94,7 @@ export class PgWatch implements PgModeRuntime {
   s.public.life="alive";s.public.maxHp=hero.maxHp;s.public.interaction=null;s.personalShield=hero.id==="kepler"?PG_PASSIVES.shielded.initialPersonalShield:0;
   s.guard=0;s.guardUntil=0;s.resourceEarned=0;s.stationarySince=now;s.ultimateUntil=0;p.respawnAt=0;this.syncShield(p);
  }
- private inSpawn(p:PgPlayer,radius=SPAWN_SAFE_RADIUS):boolean {
+ private inSpawn(p:PgPlayer,radius:number=PG_BALANCE.watchSpawnSafeRadius):boolean {
   return PG_MAP.spawns.some(spawn=>spawn.team===p.team&&pgModeDistance(spawn.position,p.position)<=radius);
  }
  private protected(p:PgPlayer):boolean {return this.now<p.protectedUntil||this.inSpawn(p);}
@@ -385,15 +389,38 @@ export class PgWatch implements PgModeRuntime {
   const pilots:Record<string,PgModePilot>={};for(const [id,s] of this.pilots)pilots[id]=structuredClone(s.public);
   return {id:this.id,collision:this.ctx.world.snapshot(),effects,pilots,round:this.round,subphase:this.subphase,deadline:this.deadline,control:{owner:this.owner,capture:{...this.capture},progress:{...this.progress},contested:this.contested,point:(this.round-1)%3},roundScores:{...this.scores},intel:viewer?[...this.intel[viewer.team].values()].map(i=>({...i,position:{...i.position}})):[]};
  }
- botGoal(p:PgPlayer,_now:number):Vec3|null {
+ botCombatArea(p:PgPlayer){const point=PG_OBJECTIVES.relay[(this.round-1)%PG_OBJECTIVES.relay.length];return pgModeDistance(p.position,point.position)<=point.radius?point:null;}
+ botGoal(p:PgPlayer,now:number):Vec3|null {
   if(!this.canMove(p))return null;
-  const point=PG_OBJECTIVES.relay[(this.round-1)%3].position,hero=this.hero(p);
+  const hero=this.hero(p),revision=this.ctx.world.revision,cached=this.botGoals.get(p.id);
+  if(cached&&cached.revision===revision&&cached.round===this.round&&cached.hero===hero.id&&now<cached.reconsiderAt)return cached.goal?{...cached.goal}:null;
+  const remember=(goal:Vec3|null):Vec3|null=>{
+   // Physical queries use exact feet coordinates. Bound those moving-origin
+   // decisions to the fastest bot reaction interval, with immediate topology invalidation.
+   this.botGoals.set(p.id,{revision,round:this.round,hero:hero.id,reconsiderAt:now+170,goal:goal?{...goal}:null});
+   return goal;
+  };
+  const navigation=this.botNavigation??=new PgZombieNavigation(this.ctx.world.map);
+  navigation.update(this.ctx.world.map,this.ctx.world.revision);
+  const reachable=(position:Vec3)=>this.validGround(position)&&navigation.reachable(p.position,position);
+  const point=PG_OBJECTIVES.relay[(this.round-1)%3].position;
   if(hero.role==="support"){
    const wounded=[...this.ctx.players.values()].filter(other=>other.id!==p.id&&other.team===p.team&&this.living(other)&&other.hp<this.maxHp(other)*.65&&pgModeDistance(other.position,point)<20).sort((a,b)=>a.hp/this.maxHp(a)-b.hp/this.maxHp(b))[0];
-   if(wounded&&pgModeDistance(p.position,wounded.position)>7)return {...wounded.position};
+   if(wounded&&pgModeDistance(p.position,wounded.position)>7&&reachable(wounded.position))return remember({...wounded.position});
   }
   const index=PG_HERO_IDS.indexOf(hero.id),angle=index/6*Math.PI*2;
-  return {x:point.x+Math.cos(angle)*2.2,y:point.y,z:point.z+Math.sin(angle)*2.2};
+  const preferred={x:point.x+Math.cos(angle)*2.2,y:point.y,z:point.z+Math.sin(angle)*2.2};
+  if(reachable(preferred))return remember(preferred);
+  // The role ring intersects authored stairs at the west/east relay and can
+  // acquire a new barrier mid-round. Keep the role's nearby capture position,
+  // but only select supported ground connected by full standing-body corridors.
+  const candidates:Vec3[]=[{...point}];
+  for(const radius of [1.1,2.2,3.3,4.4])for(let step=0;step<24;step++){
+   const turn=angle+step/24*Math.PI*2;
+   candidates.push({x:point.x+Math.cos(turn)*radius,y:point.y,z:point.z+Math.sin(turn)*radius});
+  }
+  candidates.sort((a,b)=>pgModeDistance(a,preferred)-pgModeDistance(b,preferred));
+  return remember(candidates.find(reachable)??null);
  }
  botAction(p:PgPlayer,now:number):void {
   this.now=now;const s=this.state(p);if(!this.canFire(p)||now<s.nextBotAt)return;s.nextBotAt=now+700;
@@ -423,6 +450,7 @@ export class PgWatch implements PgModeRuntime {
   }}));
  }
  leave(id:string,now:number):void {
+  this.botGoals.delete(id);
   for(const e of [...this.effects.values()])if(e.ownerId===id||e.targetId===id)this.removeEffect(e,now);
   this.pilots.delete(id);this.contributors.delete(id);for(const team of ["solar","void"] as const)this.intel[team].delete(id);
  }

@@ -1,5 +1,5 @@
 import {describe,it,expect,vi} from "vitest";
-import {PG_MAP,PG_OBJECTIVES,pgCreateGun,pgSpawnMotion,type PgLoadout,type PgModeAction,type PgPlayer,type PgTeam} from "@planetfall/shared";
+import {PG_MAP,PG_OBJECTIVES,pgCreateGun,pgSpawnMotion,DEFAULT_COSMETICS,type PgLoadout,type PgModeAction,type PgPlayer,type PgTeam} from "@planetfall/shared";
 import {PgStrike} from "./pg-strike.js";
 import {PgModeWorld} from "./pg-mode-world.js";
 import type {PgModeContext} from "./pg-mode-runtime.js";
@@ -90,8 +90,9 @@ describe("PlanetStrike authority",()=>{
  it("preserves weapon ammunition through one atomic pickup and blocks pickup through walls",()=>{
   const game=setup(),{mode,a,b}=game;mode.update(.01,20000);kill(game,b,20100);mode.update(.1,20100);mode.update(5,25100);
   expect(mode.action(a,{kind:"buy",sequence:0,lifeId:a.lifeId,itemId:"pulse"},25200).ok).toBe(true);mode.update(20,45100);
-  a.position={x:-35.9,y:0,z:-17};b.position={x:-34.1,y:0,z:-17};a.guns[0].magazine=7;a.guns[0].reserve=12;
+  a.position={x:-35.9,y:0,z:-17};b.position={x:-34.1,y:0,z:-17};a.guns[0].magazine=7;a.guns[0].reserve=12;a.equippedCosmetics={...DEFAULT_COSMETICS,"weapon-skin":"finish-copper-circuit"};
   mode.action(a,{kind:"pickup",sequence:0,lifeId:a.lifeId,entityId:"drop-weapon"},45200);const drop=mode.snapshot().drops.find(d=>d.kind==="weapon")!;
+  expect(drop.finishId).toBe("finish-copper-circuit");a.equippedCosmetics["weapon-skin"]="finish-ion-frost";expect(mode.snapshot().drops.find(d=>d.id===drop.id)?.finishId).toBe("finish-copper-circuit");
   expect(mode.allowSlot(a,0)).toBe(false);expect(mode.action(b,{kind:"pickup",sequence:0,lifeId:b.lifeId,entityId:drop.id},45300).ok).toBe(false);
   b.position={...a.position};expect(mode.action(b,{kind:"pickup",sequence:0,lifeId:b.lifeId,entityId:drop.id},45400).ok).toBe(true);expect(b.guns[0].magazine).toBe(7);expect(b.guns[0].reserve).toBe(12);expect(mode.allowSlot(b,0)).toBe(true);
   expect(mode.action(a,{kind:"pickup",sequence:0,lifeId:a.lifeId,entityId:drop.id},45500).ok).toBe(false);

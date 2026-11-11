@@ -1,3 +1,5 @@
+import {applyAstronautSuitFinish} from "./astronaut-suit-finish";
+import {createPlanetCosmeticVariant,type PlanetCosmeticStyle} from "./planet-cosmetic-variants";
 import * as THREE from "three";
 import { frameDeltaSeconds } from "./frame-time";
 import { BackgroundDrawBudget } from "./background-draw-budget";
@@ -59,7 +61,10 @@ import { createAstronautVisual } from "./astronaut";
 import { createAstronautMotion } from "./astronaut-motion";
 import { createCosmeticFlightTrail, configureCosmeticFlightTrail, updateCosmeticFlightTrail } from "./cosmetic-flight-trail";
 import { applyCosmeticEmotePose } from "./cosmetic-pose";
-import { homeIslandLayout } from "./home-island-layout";
+import {createHomePreviewFramer,type HomePreviewRegion} from "./home-preview-framing";
+import {homePreviewRegion} from "./home-preview-region";
+import {createLobbyAvatarStage,type LobbyAvatarMember} from "./lobby-avatar-stage";
+import {PgCharacterShowcaseLayer,type PgShowcaseLayerView} from "./modes/planet-gun/pg-character-showcase-layer";
 import { classicSpectatorCycleDirection, classicSpectatorPrompt } from "./classic-spectator";
 import { createVerityPlanetVisual, updateVerityPlanetVisual, type VerityPlanetVisual } from "./planet-cosmetics";
 import { GameInput, inputLabel, type InputAction, type InputFrame, type InputMethod } from "./input";
@@ -70,6 +75,8 @@ type PlanetVisual = {
   group: THREE.Group;
   shell: THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
   verity: VerityPlanetVisual;
+  variant:ReturnType<typeof createPlanetCosmeticVariant>|null;
+  variantStyle:PlanetCosmeticStyle|null;
   atmosphere: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>;
   surfacePatches: THREE.Group;
   cracks: THREE.Group;
@@ -105,6 +112,7 @@ type PlanetVisual = {
   body?: RAPIER.RigidBody;
 };
 type PlayerVisual = {
+  astronaut:ReturnType<typeof createAstronautVisual>;
   motion: ReturnType<typeof createAstronautMotion>;
   motionQuaternion: THREE.Quaternion;
   motionPosition: THREE.Vector3;
@@ -313,9 +321,19 @@ export class PlanetfallGame {
   private prHomeLoading=false;
   private brHomeWorld: import("./modes/battle-royale/br-world").BrWorldRenderer | null = null;
   private brHomeWorldPromise: Promise<void> | null = null;
+  private brHomeBounds:THREE.Box3|null=null;
+  private prHomeBounds:THREE.Box3|null=null;
+  private readonly menuFramer=createHomePreviewFramer();
+  private previewRegion:HomePreviewRegion|null=null;
   private readonly brHomeCamera = new THREE.PerspectiveCamera();
   private lobbyStage = new THREE.Group();
   private lobbyPlayers = new Map<string, LobbyPlayerVisual>();
+  private readonly readyRoomStage=createLobbyAvatarStage();
+  private readyRoomPanel:HTMLElement|null=null;
+  private readyRoomFooter:HTMLElement|null=null;
+  private readyRoomEmotes:{ownedCosmetics:readonly string[]}|null=null;
+  private readonly characterShowcaseLayer=new PgCharacterShowcaseLayer();
+  private get menuWorldVisible(){return this.mode==="home"||this.mode==="lobby";}
   private demoTime = 0;
   private rope: THREE.Line;
   private ropeAnchor: THREE.Mesh;
@@ -380,6 +398,7 @@ export class PlanetfallGame {
     this.scene.add(this.trajectory, this.trajectoryMarker);
 
     this.setupScene();
+    this.readyRoomStage.root.visible=false;this.scene.add(this.readyRoomStage.root);
     this.bindControls();
     addEventListener("resize", () => this.resize());
   }
@@ -396,6 +415,7 @@ export class PlanetfallGame {
   setActive(active: boolean): void {
     if (this.active === active) return;
     this.active = active;
+    this.readyRoomStage.root.visible=active&&this.mode==="lobby"&&!this.characterShowcaseLayer.active;
     if (active) {
       this.resize();
       this.lastFrame = performance.now();
@@ -406,11 +426,13 @@ export class PlanetfallGame {
   getInputController(): GameInput { return this.input; }
 
   clearRoom(): void {
+    this.characterShowcaseLayer.reset();
     this.setUiCaptured(true);
     this.setMode("home");
     this.resetVisualEffects();
     this.syncPlanets([]); this.syncPlayers([]); this.syncScraps([]); this.syncLobbyPlayers([]);
     this.room = null;
+    this.readyRoomStage.setMembers([],"");this.readyRoomPanel=null;this.readyRoomFooter=null;this.readyRoomEmotes=null;
     this.setLocalId("");
     this.localVelocity.set(0, 0, 0);
     this.correction.set(0, 0, 0);
@@ -419,11 +441,12 @@ export class PlanetfallGame {
 
   setMode(mode: "home" | "lobby" | "match" | "results"): void {
     this.mode = mode;
-    if(this.pgHomePreview)this.pgHomePreview.root.visible=mode==="home"&&this.homeFamily==="planet-gun";
-    this.demo.visible = mode === "home" && this.homeFamily === "planetfall";
-    if(this.prHomePreview)this.prHomePreview.root.visible=mode==="home"&&this.homeFamily==="planet-run";
-    if (this.brHomeWorld) this.brHomeWorld.root.visible = mode === "home" && this.homeFamily === "battle-royale";
-    this.lobbyStage.visible = mode === "lobby";
+    if(this.pgHomePreview)this.pgHomePreview.root.visible=this.menuWorldVisible&&this.homeFamily==="planet-gun";
+    this.demo.visible = this.menuWorldVisible && this.homeFamily === "planetfall";
+    if(this.prHomePreview)this.prHomePreview.root.visible=this.menuWorldVisible&&this.homeFamily==="planet-run";
+    if (this.brHomeWorld) this.brHomeWorld.root.visible = this.menuWorldVisible && this.homeFamily === "battle-royale";
+    this.lobbyStage.visible = false;
+    this.readyRoomStage.root.visible=mode==="lobby"&&this.active&&!this.characterShowcaseLayer.active;
     for (const planet of this.planets.values()) planet.group.visible = mode === "match" || mode === "results";
     for (const player of this.players.values()) player.group.visible = mode === "match" || mode === "results";
     if (mode !== "match") {
@@ -446,18 +469,19 @@ export class PlanetfallGame {
 
   setHomeFamily(family: GameFamily): void {
     this.homeFamily = family;
-    if(this.pgHomePreview)this.pgHomePreview.root.visible=this.mode==="home"&&family==="planet-gun";
-    if(family==="planet-gun"&&!this.pgHomePreview&&!this.pgHomeLoading){this.pgHomeLoading=true;void import("./modes/planet-gun/pg-home-preview").then(({PgHomePreview})=>{this.pgHomePreview=new PgHomePreview();this.scene.add(this.pgHomePreview.root);this.pgHomePreview.root.visible=this.mode==="home"&&this.homeFamily==="planet-gun";}).finally(()=>this.pgHomeLoading=false);}
-    if(this.prHomePreview)this.prHomePreview.root.visible=this.mode==="home"&&family==="planet-run";
-    if(family==="planet-run"&&!this.prHomePreview&&!this.prHomeLoading){this.prHomeLoading=true;void import("./modes/planet-run/pr-home-preview").then(({PrHomePreview})=>{this.prHomePreview=new PrHomePreview();this.scene.add(this.prHomePreview.root);this.prHomePreview.root.visible=this.mode==="home"&&this.homeFamily==="planet-run";}).finally(()=>{this.prHomeLoading=false;});}
-    this.demo.visible = this.mode === "home" && family === "planetfall";
-    if (this.brHomeWorld) this.brHomeWorld.root.visible = this.mode === "home" && family === "battle-royale";
+    if(this.pgHomePreview)this.pgHomePreview.root.visible=this.menuWorldVisible&&family==="planet-gun";
+    if(family==="planet-gun"&&!this.pgHomePreview&&!this.pgHomeLoading){this.pgHomeLoading=true;void import("./modes/planet-gun/pg-home-preview").then(({PgHomePreview})=>{this.pgHomePreview=new PgHomePreview();this.scene.add(this.pgHomePreview.root);this.pgHomePreview.root.visible=this.menuWorldVisible&&this.homeFamily==="planet-gun";}).finally(()=>this.pgHomeLoading=false);}
+    if(this.prHomePreview)this.prHomePreview.root.visible=this.menuWorldVisible&&family==="planet-run";
+    if(family==="planet-run"&&!this.prHomePreview&&!this.prHomeLoading){this.prHomeLoading=true;void import("./modes/planet-run/pr-home-preview").then(({PrHomePreview})=>{this.prHomePreview=new PrHomePreview();this.prHomeBounds=new THREE.Box3().setFromObject(this.prHomePreview.root);this.scene.add(this.prHomePreview.root);this.prHomePreview.root.visible=this.menuWorldVisible&&this.homeFamily==="planet-run";}).finally(()=>{this.prHomeLoading=false;});}
+    this.demo.visible = this.menuWorldVisible && family === "planetfall";
+    if (this.brHomeWorld) this.brHomeWorld.root.visible = this.menuWorldVisible && family === "battle-royale";
     if (family !== "battle-royale" || this.brHomeWorld || this.brHomeWorldPromise) return;
     this.brHomeWorldPromise = import("./modes/battle-royale/br-world").then(({ BrWorldRenderer }) => {
       const world = new BrWorldRenderer("low", false, true);
+      world.root.updateMatrixWorld(true);this.brHomeBounds=new THREE.Box3().setFromObject(world.root);
       world.root.name = "home-orbital-isle-preview";
       world.root.rotation.set(.25, -.32, .06);
-      world.root.visible = this.mode === "home" && this.homeFamily === "battle-royale";
+      world.root.visible = this.menuWorldVisible && this.homeFamily === "battle-royale";
       this.scene.add(world.root);
       this.brHomeWorld = world;
     }).finally(() => { this.brHomeWorldPromise = null; });
@@ -475,6 +499,15 @@ export class PlanetfallGame {
     this.grappleTargetPlayerId = null;
     this.lastSnapshotServerTime = Number.NEGATIVE_INFINITY;
     this.reconciliationTracker.reset();
+  }
+
+  setLobbyMembers(members:readonly (LobbyAvatarMember&{ownedCosmetics:readonly string[]})[],localId:string,panel:HTMLElement):void{
+    this.readyRoomPanel=panel;this.readyRoomFooter=panel.parentElement?.querySelector<HTMLElement>(".lobby-footer")??null;this.readyRoomStage.setMembers(members,localId);
+    const local=members.find(member=>member.id===localId);this.readyRoomEmotes=local&&(this.homeFamily==="planetfall"||this.homeFamily==="battle-royale")?{ownedCosmetics:[...local.ownedCosmetics]}:null;
+  }
+
+  setCharacterShowcase(view:PgShowcaseLayerView|null,stage:HTMLElement|null):void{
+    this.characterShowcaseLayer.set(view,stage);this.readyRoomStage.root.visible=!view&&this.mode==="lobby"&&this.active;
   }
 
   setSettings(settings: UserSettings): void {
@@ -502,6 +535,8 @@ export class PlanetfallGame {
     }
   }
 
+  consumeUiCancel(): void { this.input.consumeKeyboardAction("cancel"); }
+
   getInputMethod(): InputMethod { return this.input.method; }
 
   setRoom(room: RoomView): void {
@@ -510,7 +545,8 @@ export class PlanetfallGame {
     this.syncPlanets(room.planets);
     this.syncPlayers(room.players);
     this.syncScraps(room.scraps);
-    this.syncLobbyPlayers(room.players);
+    // The shared presentation receives a small display contract independently
+    // of Classic player physics/state through setLobbyMembers().
   }
 
   debugState(): {
@@ -550,7 +586,7 @@ export class PlanetfallGame {
       cannons: this.room?.planets.map((planet) => ({ planetId: planet.id, position: cannonPosition(planet) })) ?? [],
       repairs: this.room?.planets.map((planet) => ({ planetId: planet.id, position: repairPosition(planet) })) ?? [],
       trajectoryMarkerVisible: this.trajectoryMarker.visible,
-      lobbyAvatarCount: this.lobbyPlayers.size,
+      lobbyAvatarCount: this.readyRoomStage.root.children[0]?.children.filter(child=>child.visible).length??0,
       homeFamily: this.homeFamily,
       homePreview: this.homeFamily === "planetfall" ? "planetfall" : this.homeFamily==="planet-gun"&&this.pgHomePreview ? "planet-gun" : this.homeFamily==="planet-run"&&this.prHomePreview ? "planet-run" : this.brHomeWorld?.root.visible ? "battle-royale" : "loading",
       performance: {
@@ -787,6 +823,7 @@ export class PlanetfallGame {
   }
 
   playEmote(payload: { playerId: string; emote: EmoteType; direction: Vec3; startedAt: number }): void {
+    this.readyRoomStage.playEmote(payload.playerId,payload.emote,this.demoTime);
     const visual = this.players.get(payload.playerId) ?? this.lobbyPlayers.get(payload.playerId)?.player;
     if (!visual) return;
     visual.emote = payload.emote;
@@ -877,6 +914,7 @@ export class PlanetfallGame {
     visual.cracks.add(crater);
     visual.shell.material.emissive.setHex(0xff5738);
     setTimeout(() => visual.shell.material.emissive.setHex(0x000000), 130);
+    if(visual.variant?.group.visible){const material=visual.variant.shell.material;material.emissive.setHex(0xff5738);setTimeout(()=>material.emissive.setHex(0x000000),130);}
     if (visual.verity.group.visible) {
       visual.verity.shell.material.emissive.setHex(0xff7a20);
       visual.verity.shell.material.emissiveIntensity = .8;
@@ -909,6 +947,7 @@ export class PlanetfallGame {
     this.particles.push({ mesh: flashShell, velocity: new THREE.Vector3(), life: .48, maxLife: .48, growth: 1.2, spin: 1.8 });
     visual.shell.visible = false;
     visual.verity.group.visible = false;
+    if(visual.variant)visual.variant.group.visible=false;
     visual.cannon.visible = false;
     visual.repair.visible = false;
     visual.launchPad.visible = false;
@@ -1078,7 +1117,7 @@ export class PlanetfallGame {
         this.lobbyPlayers.set(state.id, visual);
       }
       visual.player.state = state;
-      visual.player.suitMaterial.color.set(cosmeticColor(state.equippedCosmetics.suit, state.color));
+      visual.player.suitMaterial.color.set(cosmeticColor(state.equippedCosmetics.suit, state.color));applyAstronautSuitFinish(visual.player.astronaut,SHOP_CATALOG.find(item=>item.id===state.equippedCosmetics.suit)?.suitStyle??null);
       updateWorldLabel(visual.player.nameLabel, `${state.name.toUpperCase()}${state.isBot ? "  BOT" : ""}`, state.color);
       const readyCopy = state.ready ? "READY" : "STANDBY";
       updateWorldLabel(visual.readyLabel, readyCopy, state.ready ? "#70f5ff" : "#7180a8");
@@ -1401,7 +1440,7 @@ export class PlanetfallGame {
       fragment.visible = false; fragment.userData.damageLevel = 1 + i % 3; damageDebris.add(fragment);
     }
     return {
-      group, shell, verity, atmosphere, surfacePatches, cracks, props, damageDebris, cannon, barrel: barrelRig, muzzle, cannonAccent,
+      group, shell, verity, variant:null,variantStyle:null,atmosphere, surfacePatches, cracks, props, damageDebris, cannon, barrel: barrelRig, muzzle, cannonAccent,
       repair, repairCore: core, repairRings, launchPad, launchRing, launchArms, launchHighlight, cannonJam, repairJam,
       structureLabels: { cannon: cannonLabel, repair: repairLabel, launch: launchLabel },
       label, labelCanvas, labelContext, labelTexture, labelKey: "",
@@ -1428,7 +1467,7 @@ export class PlanetfallGame {
     const flightTrail = createCosmeticFlightTrail(cosmeticColor(state.equippedCosmetics.trail, state.color),state.equippedCosmetics.trail);
     flightTrail.visible = false;
     return {
-      motion:createAstronautMotion(astronaut), motionQuaternion:group.quaternion.clone(), motionPosition:group.position.clone(),
+      astronaut,motion:createAstronautMotion(astronaut), motionQuaternion:group.quaternion.clone(), motionPosition:group.position.clone(),
       group, target: group.position.clone(), state, leftArm, rightArm, leftLeg, rightLeg, torso, helmet, visor, backpack,
       flightTrail, flightTrailPoints: [], intruderMarker, intruderDiamond: markerDiamond, nameLabel: label, localMarker,
       suitMaterial: suit, emote: null, emoteUntil: 0, shoveUntil: 0, hitPulse: 0, landingPulse: 0,
@@ -1536,6 +1575,7 @@ export class PlanetfallGame {
       if (states.some((state) => state.id === id)) continue;
       this.scene.remove(visual.group);
       if (visual.body && this.physics) this.physics.removeRigidBody(visual.body);
+      visual.variant?.dispose();
       this.disposeObject(visual.group);
       this.planets.delete(id);
     }
@@ -1546,13 +1586,17 @@ export class PlanetfallGame {
   }
 
   private applyPlanetCosmetic(visual: PlanetVisual): void {
+    const equipped=this.room?.players.find(player=>player.id===visual.state.ownerId)?.equippedCosmetics.planet;
+    const item=SHOP_CATALOG.find(item=>item.category==="planet"&&item.id===equipped),style=item?.planetStyle??null;
+    if(style!==visual.variantStyle){visual.variant?.dispose();visual.variant=style?createPlanetCosmeticVariant(style,BALANCE.planetRadius):null;visual.variantStyle=style;if(visual.variant)visual.group.add(visual.variant.group);}
+    if(visual.variant){visual.variant.group.visible=visual.state.alive;visual.variant.shell.material.color.setHex(0xffffff).lerp(damagedPlanetColor,visual.state.damageStage*.08);}
     const active = visual.state.alive && this.planetUsesVerity(visual);
     visual.verity.group.visible = active;
-    visual.shell.visible = visual.state.alive && !active;
-    visual.props.visible = visual.state.alive && !active;
-    visual.surfacePatches.visible = visual.state.alive && !active;
+    visual.shell.visible = visual.state.alive && !active&&!visual.variant;
+    visual.props.visible = visual.state.alive && !active&&!visual.variant;
+    visual.surfacePatches.visible = visual.state.alive && !active&&!visual.variant;
     const atmosphereColor = visual.atmosphere.material.uniforms.glowColor.value as THREE.Color;
-    atmosphereColor.set(active ? 0xffc928 : PLANET_PALETTES[visual.state.palette % PLANET_PALETTES.length].accent);
+    atmosphereColor.set(active ? 0xffc928 : item?.color??PLANET_PALETTES[visual.state.palette % PLANET_PALETTES.length].accent);
   }
 
   private syncPlayers(states: PlayerState[]): void {
@@ -1561,7 +1605,7 @@ export class PlanetfallGame {
       if (!visual) { visual = this.makePlayer(state); this.players.set(state.id, visual); this.scene.add(visual.group, visual.flightTrail); }
       visual.state = state;
       updateWorldLabel(visual.nameLabel, `${state.name.toUpperCase()}${state.isBot ? "  BOT" : ""}`, state.color);
-      visual.suitMaterial.color.set(cosmeticColor(state.equippedCosmetics.suit, state.color));
+      visual.suitMaterial.color.set(cosmeticColor(state.equippedCosmetics.suit, state.color));applyAstronautSuitFinish(visual.astronaut,SHOP_CATALOG.find(item=>item.id===state.equippedCosmetics.suit)?.suitStyle??null);
       configureCosmeticFlightTrail(visual.flightTrail,cosmeticColor(state.equippedCosmetics.trail, state.color),state.equippedCosmetics.trail);
       visual.target.copy(vec(state.position));
       visual.group.visible = state.alive && (this.mode === "match" || this.mode === "results");
@@ -1656,20 +1700,28 @@ export class PlanetfallGame {
     const dt = frameDeltaSeconds(now, this.lastFrame);
     this.lastFrame = now;
     this.inputFrame = this.input.sample();
-    this.processControls(this.inputFrame, dt);
+    if(this.active)this.processControls(this.inputFrame, dt);
     this.demoTime += dt;
     this.starLayers.forEach((layer, index) => {
       layer.rotation.y += dt * layer.userData.speed;
       layer.rotation.x = Math.sin(this.demoTime * .04 + index) * .018;
     });
     if (this.mode === "home") this.updateDemo(dt);
-    else if (this.mode === "lobby") this.updateLobby(dt);
+    else if (this.mode === "lobby") {
+      if(!this.readyRoomPanel)this.updateLobby(dt);
+      this.updateDemo(dt);
+      const panel=this.readyRoomPanel?.getBoundingClientRect();
+      this.readyRoomStage.update(this.camera,{width:innerWidth,height:innerHeight,panelLeft:panel?.left??innerWidth*.64,panelTop:panel?.top??innerHeight*.36,footerTop:this.readyRoomFooter?.getBoundingClientRect().top},this.demoTime,this.settings.graphicsQuality,matchMedia("(prefers-reduced-motion: reduce)").matches);
+    }
     else if (this.mode === "results") this.updateResults(dt);
     else this.updateMatch(dt, now);
     this.updateEffects(dt);
     if (this.physics) this.physics.step();
-    const drawDue = this.backgroundDrawBudget.drawDue(now, this.mode === "home" && this.homeFamily === "battle-royale");
-    if (drawDue) this.renderer.render(this.scene, this.camera);
+    const drawDue = this.backgroundDrawBudget.drawDue(now, this.menuWorldVisible && this.homeFamily === "battle-royale");
+    if (drawDue) {
+      this.renderer.render(this.scene,this.camera);
+      this.characterShowcaseLayer.render(this.renderer,this.camera,this.demoTime,this.settings.graphicsQuality,matchMedia("(prefers-reduced-motion: reduce)").matches);
+    }
     // Report rendered frames rather than the faster UI/update RAF frequency.
     if (drawDue) this.performanceFrames += 1;
     if (now - this.performanceSampleAt >= 1000) {
@@ -1687,8 +1739,7 @@ export class PlanetfallGame {
 
     if (this.mode !== "match") {
       if (this.mode === "lobby" && !this.uiCaptured) {
-        const local = this.lobbyPlayers.get(this.localId)?.player;
-        if (local) this.processEmoteSelection(frame, local.state);
+        if (this.readyRoomEmotes) this.processEmoteSelection(frame,this.readyRoomEmotes);
       }
       if (frame.cancel.pressed || frame.method === "gamepad" && frame.burst.pressed) this.onMenuNavigate?.("back");
       return;
@@ -1802,7 +1853,6 @@ export class PlanetfallGame {
   }
 
   private updateDemo(dt: number): void {
-    if(this.pgHomePreview&&this.mode==="home"&&this.homeFamily==="planet-gun")this.pgHomePreview.update(this.demoTime,this.camera.aspect);
     if (this.homeFamily === "planetfall") {
       this.demo.rotation.y += dt * 0.055;
       for (const child of this.demo.children) child.rotation.y += dt * 0.08;
@@ -1817,35 +1867,28 @@ export class PlanetfallGame {
         ? new THREE.Vector3(0, 0, -4)
         : new THREE.Vector3(10, 1, -4);
     const cameraPosition = compact ? new THREE.Vector3(0, 8, 36) : new THREE.Vector3(20, 10, 32);
-    this.camera.position.lerp(cameraPosition, 0.025);
-    this.camera.lookAt(target);
-    if(this.prHomePreview&&this.mode==="home"&&this.homeFamily==="planet-run"){
-      this.prHomePreview.update(this.demoTime);this.camera.updateMatrixWorld();
-      const card=document.querySelector<HTMLElement>("#home-screen .home-card")?.getBoundingClientRect();
-      const layout=homeIslandLayout(innerWidth,innerHeight,card?.right??innerWidth*.46);
-      const distance=38,height=2*distance*Math.tan(THREE.MathUtils.degToRad(this.camera.fov/2)),width=height*this.camera.aspect;
-      const forward=new THREE.Vector3(),right=new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld,0),up=new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld,1);this.camera.getWorldDirection(forward);
-      this.prHomePreview.root.position.copy(this.camera.position).addScaledVector(forward,distance).addScaledVector(right,layout.centerX*width/2).addScaledVector(up,layout.centerY*height/2);
-      this.prHomePreview.root.scale.setScalar(width*layout.radiusFraction/6);
-      this.prHomePreview.root.visible=innerWidth>=760||this.mode!=="home";
+    const menuAlpha=1-Math.exp(-dt*5);
+    this.camera.position.lerp(cameraPosition,menuAlpha);
+    this.camera.lookAt(target);this.camera.fov+=(58-this.camera.fov)*menuAlpha;this.camera.updateProjectionMatrix();this.camera.updateMatrixWorld(true);
+    const panel=this.mode==="lobby"?this.readyRoomPanel?.getBoundingClientRect():document.querySelector<HTMLElement>("#home-screen .home-card")?.getBoundingClientRect();
+    this.previewRegion=panel&&!this.characterShowcaseLayer.active?homePreviewRegion(innerWidth,innerHeight,panel,this.mode==="lobby",this.mode==="lobby"?this.readyRoomFooter?.getBoundingClientRect().top??innerHeight:innerHeight):null;
+    if(this.pgHomePreview&&this.homeFamily==="planet-gun"){this.pgHomePreview.root.visible=!!this.previewRegion;if(this.previewRegion)this.pgHomePreview.update(this.demoTime,this.camera,this.previewRegion);}
+    if(this.prHomePreview&&this.homeFamily==="planet-run"){
+      this.prHomePreview.root.visible=!!this.previewRegion;
+      if(this.previewRegion&&this.prHomeBounds){this.prHomePreview.update(this.demoTime);this.menuFramer.fit(this.prHomePreview.root,this.prHomeBounds,this.camera,this.previewRegion);}
     }
-    if (this.brHomeWorld?.root.visible) {
-      this.camera.updateMatrixWorld();
-      const card=document.querySelector<HTMLElement>("#home-screen .home-card")?.getBoundingClientRect();
-      const layout=homeIslandLayout(innerWidth,innerHeight,card?.right??innerWidth*.46);
-      const distance=42,worldHeight=2*distance*Math.tan(THREE.MathUtils.degToRad(this.camera.fov/2)),worldWidth=worldHeight*this.camera.aspect;
-      const forward=new THREE.Vector3(),right=new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld,0),up=new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld,1);
-      this.camera.getWorldDirection(forward);
-      this.brHomeWorld.root.position.copy(this.camera.position).addScaledVector(forward,distance).addScaledVector(right,layout.centerX*worldWidth/2).addScaledVector(up,layout.centerY*worldHeight/2);
-      this.brHomeWorld.root.scale.setScalar(worldWidth*layout.radiusFraction/520);
-      this.brHomeWorld.root.updateMatrixWorld(true);
-      this.brHomeCamera.position.copy(this.camera.position);
-      this.brHomeWorld.root.worldToLocal(this.brHomeCamera.position);
-      this.brHomeWorld.update(this.brHomeCamera, this.demoTime * 1000);
+    if(this.brHomeWorld&&this.homeFamily==="battle-royale"){
+      this.brHomeWorld.root.visible=!!this.previewRegion;
+      if(this.previewRegion&&this.brHomeBounds){
+        this.menuFramer.fit(this.brHomeWorld.root,this.brHomeBounds,this.camera,this.previewRegion,42);
+        this.brHomeWorld.root.updateMatrixWorld(true);
+        this.brHomeCamera.position.copy(this.camera.position);this.brHomeWorld.root.worldToLocal(this.brHomeCamera.position);
+        this.brHomeWorld.update(this.brHomeCamera,this.demoTime*1000);
+      }
     }
   }
 
-  private processEmoteSelection(frame: InputFrame, state: PlayerState): void {
+  private processEmoteSelection(frame: InputFrame, state: {ownedCosmetics:readonly string[]}): void {
     if (frame.emote.pressed) {
       this.emoteSelecting = true;
       this.emoteSelection = this.availableEmotes(state)[0] ?? "wave";
@@ -2514,6 +2557,7 @@ export class PlanetfallGame {
     for (const visual of this.planets.values()) {
       this.updatePlanetLabel(visual);
       if (visual.verity.group.visible) updateVerityPlanetVisual(visual.verity, this.camera);
+      if(visual.variant?.group.visible)visual.variant.update(animationNow/1000,this.camera,this.settings?.cameraShake==="off");
       const cameraDistance = this.camera.position.distanceTo(visual.group.position);
       visual.label.visible = visual.state.alive && this.mode === "match" && cameraDistance > 16;
       visual.structureLabels.cannon.visible = this.shouldShowStructureLabel(visual, visual.structureLabels.cannon);
@@ -2975,7 +3019,7 @@ export class PlanetfallGame {
     this.audio.click(); this.onWeaponChange?.(this.weapon);
   }
 
-  private availableEmotes(player: PlayerState): EmoteType[] {
+  private availableEmotes(player: {ownedCosmetics:readonly string[]}): EmoteType[] {
     const unlocked = SHOP_CATALOG
       .filter((item) => item.category === "emote" && item.emote && player.ownedCosmetics.includes(item.id))
       .map((item) => item.emote!);
@@ -2983,7 +3027,7 @@ export class PlanetfallGame {
   }
 
   private label(action: InputAction): string {
-    return inputLabel(action as Parameters<typeof inputLabel>[0], this.input.method);
+    return inputLabel(action as Parameters<typeof inputLabel>[0], this.input.method, this.input.getBindingContext());
   }
 
   private isSpectating(): boolean { return Boolean(this.players.get(this.localId) && !this.players.get(this.localId)!.state.alive); }

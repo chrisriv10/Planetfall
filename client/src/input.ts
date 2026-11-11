@@ -1,3 +1,7 @@
+import { BindingState } from "./binding-state";
+import { bindingTokenLabel, getBindingTokens, textInputOwnsBindings, type BindingAction, type BindingContext, type BindingSettings } from "./input-bindings";
+import { bindingSettings, type BindingSettingsStore } from "./binding-settings";
+
 export type InputMethod = "keyboard" | "gamepad";
 export type InputAction = "jump" | "burst" | "crouch" | "interact" | "switchWeapon" | "repair" | "fire" | "grapple" | "emote" | "leaderboard" | "map" | "inventory" | "ping" | "cancel" | "nextTarget" | "previousTarget" | "pause" | "confirm";
 
@@ -53,6 +57,8 @@ export function curveStick(x: number, y: number, exponent = 1.55): { x: number; 
 export class EdgeTracker<T extends string> {
   private previous = new Set<T>();
 
+  forget(action: T): void { this.previous.delete(action); }
+
   update(active: Iterable<T>): { held: Set<T>; pressed: Set<T>; released: Set<T> } {
     const held = new Set(active);
     const pressed = new Set([...held].filter((action) => !this.previous.has(action)));
@@ -62,23 +68,11 @@ export class EdgeTracker<T extends string> {
   }
 }
 
-const keyboardMap: Record<string, InputAction> = {
-  Space: "jump",
-  ShiftLeft: "burst",
-  ShiftRight: "burst",
-  ControlLeft: "crouch",
-  ControlRight: "crouch",
-  KeyE: "interact",
-  KeyQ: "switchWeapon",
-  KeyR: "repair",
-  KeyV: "emote",
-  KeyM: "map",
-  KeyI: "inventory",
-  Tab: "leaderboard",
-  Escape: "cancel",
-  ArrowRight: "nextTarget",
-  ArrowLeft: "previousTarget",
-  Enter: "confirm"
+const bindingToInput: Partial<Record<BindingAction, InputAction>> = {
+  jump: "jump", sprint: "burst", crouch: "crouch", interact: "interact", switchWeapon: "switchWeapon", repair: "repair", reload: "repair", fire: "fire", aim: "grapple", emote: "emote", scoreboard: "leaderboard", map: "map", inventory: "inventory", ping: "ping", pause: "cancel", nextTarget: "nextTarget", previousTarget: "previousTarget"
+};
+const inputToBinding: Partial<Record<InputAction, BindingAction>> = {
+  jump: "jump", burst: "sprint", crouch: "crouch", interact: "interact", switchWeapon: "switchWeapon", repair: "repair", fire: "fire", grapple: "aim", emote: "emote", leaderboard: "scoreboard", map: "map", inventory: "inventory", ping: "ping", cancel: "pause", pause: "pause", nextTarget: "nextTarget", previousTarget: "previousTarget"
 };
 
 const gamepadButtonMap: Partial<Record<number, InputAction>> = {
@@ -110,14 +104,15 @@ export class GameInput {
   onMethodChange?: (method: InputMethod) => void;
   private methodListeners = new Set<(method: InputMethod) => void>();
   private keys = new Set<string>();
-  private mouseButtons = new Set<number>();
-  private wheelDirection: -1 | 0 | 1 = 0;
+  private readonly bindings: BindingState;
+  private gameplayBlocked = false;
   private mouseLookX = 0;
   private mouseLookY = 0;
   private keyboardEdges = new EdgeTracker<InputAction>();
   private gamepadEdges = new EdgeTracker<InputAction>();
   private pendingPressed = new Set<InputAction>();
   private pendingReleased = new Set<InputAction>();
+  private consumedKeyboardActions = new Set<InputAction>();
   private lastMethodChange = 0;
   private previousMenuX = 0;
   private previousMenuY = 0;
@@ -125,23 +120,35 @@ export class GameInput {
   private triggerGrappleHeld = false;
   private pendingDirectSlot: number | null = null;
 
-  constructor(private readonly canvas: HTMLCanvasElement) {
+  constructor(private readonly canvas: HTMLCanvasElement, store: BindingSettingsStore = bindingSettings) {
+    this.bindings = new BindingState("planetfall", store.get());
+    store.subscribe(settings => this.setBindingSettings(settings));
     addEventListener("keydown", (event) => {
-      const nativeControlOwnsKey = nativeControlOwnsKeyboardCode(event.code, event.target);
-      if (!nativeControlOwnsKey) this.keys.add(event.code);
-      const action = keyboardMap[event.code];
-      if (!nativeControlOwnsKey && !event.repeat && action) this.pendingPressed.add(action);
-      if (!event.repeat && /^Digit[1-5]$/.test(event.code)) this.pendingDirectSlot = Number(event.code.slice(-1)) - 1;
+      if (event.defaultPrevented || event.isComposing || textInputOwnsBindings(event.target) || nativeControlOwnsKeyboardCode(event.code, event.target)) return;
+      if (event.altKey || event.metaKey || event.code === "Tab" && (event.ctrlKey || event.shiftKey)) return;
+      const policy = { capturedGameplay: !this.gameplayBlocked && typeof document !== "undefined" && document.pointerLockElement === this.canvas };
+      if (!event.ctrlKey && ["Escape", "Enter", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.code)) {
+        this.keys.add(event.code);
+        const action = event.code === "Escape" ? "cancel" : event.code === "Enter" ? "confirm" : null;
+        if (action && !event.repeat) this.pendingPressed.add(action);
+        if (event.code.startsWith("Arrow")&&!this.gameplayBlocked) event.preventDefault();
+      }
+      if (this.bindings.ownsKeyboardEvent(event, policy)) event.preventDefault();
+      this.bindings.keyDown(event, policy);
       if (!event.repeat) this.markMethod("keyboard");
-      if (event.code === "Space" || event.code.startsWith("Arrow")) event.preventDefault();
     });
     addEventListener("keyup", (event) => {
       this.keys.delete(event.code);
-      const action = keyboardMap[event.code];
-      if (action) this.pendingReleased.add(action);
+      this.bindings.keyUp(event);
+      const action = event.code === "Escape" ? "cancel" : event.code === "Enter" ? "confirm" : null;
+      if (action && this.consumedKeyboardActions.delete(action)) {
+        this.pendingPressed.delete(action);
+        this.pendingReleased.delete(action);
+        this.keyboardEdges.forget(action);
+      } else if (action) this.pendingReleased.add(action);
     });
     addEventListener("mousemove", (event) => {
-      if (document.pointerLockElement !== this.canvas) {
+      if (this.gameplayBlocked || document.pointerLockElement !== this.canvas) {
         if (Math.abs(event.movementX) + Math.abs(event.movementY) > 4) this.markMethod("keyboard");
         return;
       }
@@ -150,25 +157,25 @@ export class GameInput {
       if (Math.abs(event.movementX) + Math.abs(event.movementY) > 2) this.markMethod("keyboard");
     });
     this.canvas.addEventListener("mousedown", (event) => {
-      if (document.pointerLockElement === this.canvas) {
-        this.mouseButtons.add(event.button);
-        if (event.button === 0) this.pendingPressed.add("fire");
-        if (event.button === 2) this.pendingPressed.add("grapple");
-        if (event.button === 1) this.pendingPressed.add("ping");
+      if (!event.defaultPrevented && !event.altKey && !event.metaKey && !this.gameplayBlocked && document.pointerLockElement === this.canvas) {
+        if (this.bindings.mouseDown(event.button).length) event.preventDefault();
       }
       this.markMethod("keyboard");
     });
     addEventListener("mouseup", (event) => {
-      this.mouseButtons.delete(event.button);
-      if (event.button === 0) this.pendingReleased.add("fire");
-      if (event.button === 2) this.pendingReleased.add("grapple");
-      if (event.button === 1) this.pendingReleased.add("ping");
+      this.bindings.mouseUp(event.button);
     });
     this.canvas.addEventListener("wheel", (event) => {
-      this.wheelDirection = event.deltaY >= 0 ? 1 : -1;
-      this.pendingPressed.add(this.wheelDirection > 0 ? "nextTarget" : "previousTarget");
+      if (event.defaultPrevented || event.ctrlKey || event.altKey || event.metaKey || this.gameplayBlocked || document.pointerLockElement !== this.canvas) return;
+      if (this.bindings.wheel(event.deltaY).length) event.preventDefault();
       this.markMethod("keyboard");
-    }, { passive: true });
+    }, { passive: false });
+    addEventListener("blur", () => this.clearHeldInputs());
+    if (typeof document !== "undefined") {
+      document.addEventListener("pointerlockchange", () => this.clearHeldInputs());
+      document.addEventListener("compositionstart", () => this.clearHeldInputs());
+      document.addEventListener("focusin", event => { if (textInputOwnsBindings(event.target)) this.clearHeldInputs(); });
+    }
     addEventListener("gamepaddisconnected", () => {
       this.triggerFireHeld = false;
       this.triggerGrappleHeld = false;
@@ -176,33 +183,55 @@ export class GameInput {
     });
   }
 
+  /** A synchronous UI handler already owns this press; suppress it through release. */
+  consumeKeyboardAction(action: InputAction): void {
+    const binding = action === "repair" && this.bindings.getContext() === "battle-royale" ? "reload" : inputToBinding[action];
+    if (binding) this.bindings.consume(binding);
+    this.consumedKeyboardActions.add(action);
+    this.pendingPressed.delete(action);
+    this.pendingReleased.delete(action);
+  }
+
+  setBindingContext(context: BindingContext): void { if (context !== this.bindings.getContext()) { this.bindings.setContext(context); this.clearHeldInputs(); } }
+  getBindingContext(): BindingContext { return this.bindings.getContext(); }
+  setBindingSettings(settings: BindingSettings): void { this.bindings.setSettings(settings); }
+  /** Gameplay capture gate; fixed menu Escape/arrows/Enter remain accessible. */
+  setGameplayBlocked(blocked: boolean): void { if (blocked !== this.gameplayBlocked) { this.gameplayBlocked = blocked; this.bindings.setBlocked(blocked); this.clearHeldInputs(); } }
+  clearHeldInputs(): void {
+    this.bindings.clear(); this.keys.clear(); this.pendingPressed.clear(); this.pendingReleased.clear(); this.consumedKeyboardActions.clear();
+    this.mouseLookX = 0; this.mouseLookY = 0; this.pendingDirectSlot = null; this.previousMenuX = 0; this.previousMenuY = 0;
+  }
+
   sample(): InputFrame {
     const keyboardActive = new Set<InputAction>();
     for (const code of this.keys) {
-      const action = keyboardMap[code];
+      const action = code === "Escape" ? "cancel" : code === "Enter" ? "confirm" : null;
       if (action) keyboardActive.add(action);
     }
-    if (this.mouseButtons.has(0)) keyboardActive.add("fire");
-    if (this.mouseButtons.has(2)) keyboardActive.add("grapple");
-    if (this.mouseButtons.has(1)) keyboardActive.add("ping");
-    if (this.wheelDirection > 0) keyboardActive.add("nextTarget");
-    if (this.wheelDirection < 0) keyboardActive.add("previousTarget");
     const keyboard = this.keyboardEdges.update(keyboardActive);
+    const bound = this.bindings.sample();
+    for (const kind of ["held", "pressed", "released"] as const) for (const action of bound[kind]) {
+      const mapped = bindingToInput[action];
+      if (mapped) keyboard[kind].add(mapped);
+      if (kind === "pressed" && /^slot[1-5]$/.test(action)) this.pendingDirectSlot = Number(action.slice(-1)) - 1;
+    }
 
     const gamepad = this.pollGamepad();
+    if (this.gameplayBlocked) gamepad.actions = new Set([...gamepad.actions].filter(action => ["cancel", "confirm", "pause"].includes(action)));
     const padEdges = this.gamepadEdges.update(gamepad.actions);
     const held = new Set<InputAction>([...keyboard.held, ...padEdges.held]);
     const pressed = new Set<InputAction>([...keyboard.pressed, ...padEdges.pressed, ...this.pendingPressed]);
     const released = new Set<InputAction>([...keyboard.released, ...padEdges.released, ...this.pendingReleased].filter((action) => !held.has(action)));
-    if (this.wheelDirection !== 0) {
-      const action = this.wheelDirection > 0 ? "nextTarget" : "previousTarget";
-      pressed.add(action);
-      held.add(action);
+    for (const action of this.consumedKeyboardActions) {
+      // Keep independent controller input intact while consuming the keyboard edge.
+      if (!padEdges.held.has(action)) held.delete(action);
+      if (!padEdges.pressed.has(action)) pressed.delete(action);
+      if (!padEdges.released.has(action)) released.delete(action);
+      if (!keyboardActive.has(action)) this.consumedKeyboardActions.delete(action);
     }
-
-    const keyboardMoveX = Number(this.keys.has("KeyD")) - Number(this.keys.has("KeyA"));
-    const keyboardMoveY = Number(this.keys.has("KeyW")) - Number(this.keys.has("KeyS"));
-    const usePadMove = this.method === "gamepad" && gamepad.move.magnitude > 0;
+    const keyboardMoveX = Number(bound.held.has("moveRight")) - Number(bound.held.has("moveLeft"));
+    const keyboardMoveY = Number(bound.held.has("moveForward")) - Number(bound.held.has("moveBackward"));
+    const usePadMove = !this.gameplayBlocked && this.method === "gamepad" && gamepad.move.magnitude > 0;
     const button = (action: InputAction): ButtonState => ({ held: held.has(action), pressed: pressed.has(action), released: released.has(action) });
     const menuXRaw = gamepad.menuX || Number(this.keys.has("ArrowRight")) - Number(this.keys.has("ArrowLeft"));
     const menuYRaw = gamepad.menuY || Number(this.keys.has("ArrowDown")) - Number(this.keys.has("ArrowUp"));
@@ -215,8 +244,8 @@ export class GameInput {
       method: this.method,
       moveX: usePadMove ? gamepad.move.x : keyboardMoveX,
       moveY: usePadMove ? -gamepad.move.y : keyboardMoveY,
-      lookX: this.mouseLookX + gamepad.look.x,
-      lookY: this.mouseLookY + gamepad.look.y,
+      lookX: this.mouseLookX + (this.gameplayBlocked ? 0 : gamepad.look.x),
+      lookY: this.mouseLookY + (this.gameplayBlocked ? 0 : gamepad.look.y),
       jump: button("jump"), burst: button("burst"), crouch: button("crouch"), interact: button("interact"), switchWeapon: button("switchWeapon"),
       repair: button("repair"), fire: button("fire"), grapple: button("grapple"), emote: button("emote"), leaderboard: button("leaderboard"), cancel: button("cancel"),
       map: button("map"), inventory:button("inventory"), ping: button("ping"),
@@ -226,7 +255,6 @@ export class GameInput {
     };
     this.mouseLookX = 0;
     this.mouseLookY = 0;
-    this.wheelDirection = 0;
     this.pendingPressed.clear();
     this.pendingReleased.clear();
     this.pendingDirectSlot = null;
@@ -294,12 +322,16 @@ export class GameInput {
   }
 }
 
-export function inputLabel(action: "move" | "jump" | "burst" | "interact" | "switchWeapon" | "repair" | "fire" | "grapple" | "emote" | "cancel" | "nextTarget" | "previousTarget", method: InputMethod): string {
+export function inputLabel(action: "move" | "jump" | "burst" | "interact" | "switchWeapon" | "repair" | "fire" | "grapple" | "emote" | "cancel" | "nextTarget" | "previousTarget", method: InputMethod, context: BindingContext = "planetfall", settings: BindingSettings = bindingSettings.get()): string {
   const gamepad: Record<string, string> = {
     move: "LS", jump: "A", burst: "B", interact: "X", switchWeapon: "Y", repair: "RB", fire: "RT", grapple: "LT", emote: "D↑", cancel: "B", nextTarget: "RB", previousTarget: "LB"
   };
-  const keyboard: Record<string, string> = {
-    move: "WASD", jump: "SPACE", burst: "SHIFT", interact: "E", switchWeapon: "Q", repair: "R", fire: "LMB", grapple: "RMB", emote: "V", cancel: "ESC", nextTarget: "WHEEL", previousTarget: "WHEEL"
-  };
-  return (method === "gamepad" ? gamepad : keyboard)[action];
+  if (method === "gamepad") return gamepad[action];
+  if (action === "move") {
+    const tokens = (["moveForward", "moveLeft", "moveBackward", "moveRight"] as const).map(direction => getBindingTokens(settings, context, direction)[0]);
+    return tokens.join("") === "KeyWKeyAKeySKeyD" ? "WASD" : tokens.map(token => token ? bindingTokenLabel(token) : "—").join(" ");
+  }
+  const binding = action === "repair" && context === "battle-royale" ? "reload" : inputToBinding[action];
+  const token = binding && getBindingTokens(settings, context, binding)[0];
+  return token ? bindingTokenLabel(token) : "UNBOUND";
 }

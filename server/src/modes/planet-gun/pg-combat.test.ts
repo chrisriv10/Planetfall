@@ -1,5 +1,5 @@
 import {describe,it,expect} from "vitest";
-import {pgCreateGun,type PgPlayer,type PgFireRequest} from "@planetfall/shared";
+import {pgCreateGun,pgLeanEye,type PgPlayer,type PgFireRequest} from "@planetfall/shared";
 import {PgCombat} from "./pg-combat.js";
 
 function pilot(id:string,x:number,team:"solar"|"void"):PgPlayer {
@@ -8,6 +8,18 @@ function pilot(id:string,x:number,team:"solar"|"void"):PgPlayer {
 }
 const request=(sequence=1,time=1000):PgFireRequest=>({sequence,clientTime:time,weapon:"pulse",yaw:-Math.PI/2,pitch:0});
 describe("PlanetGun authoritative fire validation",()=>{
+  it("fires from the authoritative lean eye and preserves wall occlusion",()=>{
+    const c=new PgCombat(),a=pilot("a",-40,"solar"),b=pilot("b",-30,"void");a.position.z=b.position.z=-18;a.lean=1;
+    c.history.record([a,b],1000);const shot=c.fire(a,request(),[a,b],1000)[0];
+    expect(shot.origin).toEqual(pgLeanEye(a));expect(shot.origin.z).toBeCloseTo(-17.68);expect(shot.damage).toBe(0);expect(b.hp).toBe(100);
+  });
+  it("records and interpolates actual exposed head offsets without crossing a respawn",()=>{
+    const c=new PgCombat(),a=pilot("a",-10,"solar");a.yaw=0;a.lean=-1;c.history.record([a],1000);a.lean=1;c.history.record([a],1100);
+    expect(c.history.sample(a.id,a.lifeId,1000)?.lean.x).toBeCloseTo(-.32);
+    expect(c.history.sample(a.id,a.lifeId,1050)?.lean.x).toBeCloseTo(0);
+    expect(c.history.sample(a.id,a.lifeId,1100)?.lean.x).toBeCloseTo(.32);
+    a.lifeId++;a.lean=0;c.history.record([a],1200);expect(c.history.sample(a.id,a.lifeId,1100)).toBeNull();
+  });
   it("damages a visible enemy from the authoritative eye origin",()=>{
     const c=new PgCombat(),a=pilot("a",-10,"solar"),b=pilot("b",0,"void");
     c.history.record([a,b],1000);const shots=c.fire(a,request(),[a,b],1000);

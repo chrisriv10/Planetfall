@@ -1,6 +1,6 @@
 import {test,expect} from "@playwright/test";
 import {writeFile} from "node:fs/promises";
-import {selectExperimentalFamily} from "./select-family";
+import {selectExperimentalFamily,openLobbyConfiguration} from "./select-family";
 
 for(const rtt of [0,40,80,120])test(`PlanetGun prediction remains responsive at ${rtt}ms RTT with ordered jitter`,async({page},info)=>{
  const timers=new Set<ReturnType<typeof setTimeout>>();let sequence=0;
@@ -16,7 +16,7 @@ for(const rtt of [0,40,80,120])test(`PlanetGun prediction remains responsive at 
  });
  const state=()=>page.evaluate(()=>(window as unknown as {__PLANETFALL_PG_DEBUG__?:()=>any}).__PLANETFALL_PG_DEBUG__?.());
  try{
-  await page.goto("/");await page.getByLabel("Name",{exact:true}).fill(`Motion ${rtt}`);await selectExperimentalFamily(page,"planet-gun");await page.locator("#create-room").click();await expect(page.locator("#pg-lobby-screen")).toBeVisible();await page.locator("#pg-target").selectOption("4");await page.locator("#pg-difficulty").selectOption("easy");await page.locator("#pg-ready").click();await page.locator("#pg-start").click();
+  await page.goto("/");await page.getByLabel("Name",{exact:true}).fill(`Motion ${rtt}`);await selectExperimentalFamily(page,"planet-gun");await page.locator("#create-room").click();await expect(page.locator("#pg-lobby-screen")).toBeVisible();await openLobbyConfiguration(page);await page.locator("#pg-target").selectOption("4");await openLobbyConfiguration(page);await page.locator("#pg-difficulty").selectOption("easy");await page.locator("#pg-ready").click();await page.locator("#pg-start").click();
   await expect.poll(async()=>(await state())?.phase).toBe("playing");
   const samples=[];
   for(const [label,keys,ms]of [["walk",["w"],900],["sprint",["w","Shift"],900],["slide",["w","Shift","Control"],400],["jump",["w","Space"],100],["air",["w"],350],["thrust",["w","Space"],700],["settle",[],900]]as const){

@@ -1,5 +1,5 @@
 import {describe,it,expect,vi} from "vitest";
-import {PG_MAP,PG_OBJECTIVES,PG_PANEL_SOCKETS,PG_OPERATORS,PG_SIEGE_CAMERAS,pgCreateGun,pgSpawnMotion,pgCapsuleClear,type PgOperatorId,type PgPlayer,type PgTeam,type PgModeAction,type PgModeSnapshot,type Vec3} from "@planetfall/shared";
+import {PG_MAP,PG_OBJECTIVES,PG_PANEL_SOCKETS,PG_OPERATORS,PG_SIEGE_CAMERAS,pgLeanEye,pgCreateGun,pgSpawnMotion,pgCapsuleClear,type PgOperatorId,type PgPlayer,type PgTeam,type PgModeAction,type PgModeSnapshot,type Vec3} from "@planetfall/shared";
 import {PgSiege} from "./pg-siege.js";
 import {PgModeWorld} from "./pg-mode-world.js";
 import type {PgModeContext} from "./pg-mode-runtime.js";
@@ -18,6 +18,49 @@ function deploy(game:ReturnType<typeof setup>,p:PgPlayer,position:Vec3,now=35100
 function panel(game:ReturnType<typeof setup>,index=0,now=100){const socket=PG_PANEL_SOCKETS[index];game.b.position={...socket.approaches[0]};expect(act(game.mode,game.b,{kind:"ability",slot:1,targetId:socket.id},now).ok).toBe(true);return socket;}
 
 describe("PlanetSiege authority",()=>{
+ it("uses destroyable enemy camera hardware and never restores a destroyed feed by selecting it again",()=>{
+  const g=setup();start(g);const camera=PG_SIEGE_CAMERAS[0];
+  expect(g.mode.action(g.b,{kind:"camera",cameraId:camera.id,sequence:1,lifeId:g.b.lifeId},35100).ok).toBe(true);
+  expect(g.mode.targets(g.b).some(target=>target.id===camera.id)).toBe(false);
+  const target=g.mode.targets(g.a).find(target=>target.id===camera.id)!;expect(target).toBeDefined();
+  expect(target.damage(Number.NaN,g.a,35200)).toBe(0);expect(target.damage(-10,g.a,35200)).toBe(0);
+  expect(target.damage(15,g.a,35200)).toBe(15);expect(snap(g.mode,"b").cameras.find(state=>state.id===camera.id)?.hp).toBe(20);
+  expect(g.mode.viewOrigin(g.b)).toEqual(camera.position);
+  expect(target.damage(50,g.a,35300)).toBe(20);expect(target.damage(50,g.a,35301)).toBe(0);
+  expect(g.mode.targets(g.a).some(target=>target.id===camera.id)).toBe(false);expect(g.mode.viewOrigin(g.b)).toBeNull();
+  expect(g.mode.action(g.b,{kind:"camera",cameraId:camera.id,sequence:2,lifeId:g.b.lifeId},35400).ok).toBe(false);
+  expect(snap(g.mode,"b").cameras.find(state=>state.id===camera.id)).toMatchObject({hp:0,maxHp:35,disabled:true});
+  expect(g.mode.action(g.b,{kind:"camera",cameraId:null,sequence:3,lifeId:g.b.lifeId},35500).ok).toBe(true);
+  expect(g.mode.viewOrigin(g.b)).toEqual(pgLeanEye(g.b));
+ });
+ it("gives six defenders separate clear preparation positions across both entrances",()=>{
+  const extra:[string,PgTeam,boolean][]=[];for(let i=0;i<5;i++)extra.push([`s${i}`,"solar",true],[`v${i}`,"void",true]);
+  const g=setup({},extra),defenders=[...g.ctx.players.values()].filter(p=>p.team==="void"),goals=defenders.map(p=>g.mode.botGoal(p,100)!);
+  expect(new Set(goals.map(p=>`${p.x}:${p.y}:${p.z}`)).size).toBe(6);
+  expect(goals.filter(p=>p.x===-33.8)).toHaveLength(3);expect(goals.filter(p=>p.z===-2.2)).toHaveLength(3);
+  for(const goal of goals)expect(pgCapsuleClear(goal,1.95,g.ctx.world.map)).toBe(true);
+  for(let a=0;a<goals.length;a++)for(let b=a+1;b<goals.length;b++)expect(Math.hypot(goals[a].x-goals[b].x,goals[a].z-goals[b].z)).toBeGreaterThanOrEqual(1);
+ });
+ it("keeps attack goals stable near deployed cover that is not a doorway",()=>{
+  const g=setup();start(g);g.a.position={x:-40,y:0,z:-22};const before=g.mode.botGoal(g.a,35001);
+  g.ctx.world.add({id:"cover-regression",solid:{id:"cover-regression-solid",kind:"utility",center:{x:-40,y:1,z:-25},half:{x:.5,y:1,z:.3},mantle:false},hp:100,maxHp:100,reinforced:false,active:true,revision:1},35002);
+  expect(g.mode.botGoal(g.a,35003)).toEqual(before);
+  g.a.position.z=-20;expect(g.mode.botGoal(g.a,35004)).toEqual(before);
+ });
+ it("distributes six attacker goals inside the objective without placing a pilot in a stair",()=>{
+  const extra:[string,PgTeam,boolean][]=[];for(let i=0;i<5;i++)extra.push([`s${i}`,"solar",true],[`v${i}`,"void",true]);
+  const g=setup({},extra);start(g);
+  for(const team of ["solar"]as const){
+   const goals=[...g.ctx.players.values()].filter(p=>p.team===team).map(p=>g.mode.botGoal(p,35001)!);
+   expect(new Set(goals.map(p=>`${p.x}:${p.y}:${p.z}`)).size).toBe(6);
+   for(const goal of goals){expect(pgCapsuleClear(goal,1.95,g.ctx.world.map)).toBe(true);expect(Math.hypot(goal.x+28,goal.z+9)).toBeLessThanOrEqual(PG_OBJECTIVES.uplink[0].radius);}
+  }
+ });
+ it("rechecks capture slots when newly deployed physical cover blocks one",()=>{
+  const g=setup();start(g);const old=g.mode.botGoal(g.a,35001)!;
+  g.ctx.world.add({id:"objective-cover",solid:{id:"objective-cover-solid",kind:"utility",center:{...old,y:1},half:{x:.5,y:1,z:.5},mantle:false},hp:100,maxHp:100,reinforced:false,active:true,revision:1},35002);
+  const next=g.mode.botGoal(g.a,35003)!;expect(next).not.toEqual(old);expect(pgCapsuleClear(next,1.95,g.ctx.world.map)).toBe(true);
+ });
  it("hides identifying health until an operator is visible without changing trusted health",()=>{
   const g=setup({a:"null",b:"brace"});start(g);
   expect(g.mode.maxHp(g.a)).toBe(105);expect(g.mode.maxHp(g.b)).toBe(125);

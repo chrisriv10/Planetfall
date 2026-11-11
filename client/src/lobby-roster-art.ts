@@ -1,4 +1,6 @@
 /** Plain presentation input; room state and roster actions remain with the caller. */
+import type {EquippedCosmetics} from "@planetfall/shared";
+import {applyIdentityCosmeticPresentation} from "./identity-cosmetic-presentation";
 export interface LobbyRosterPresentation {
   id: string;
   name: string;
@@ -8,6 +10,7 @@ export interface LobbyRosterPresentation {
   localId: string | null;
   hostId: string | null;
   team?: "solar" | "void";
+  equippedCosmetics?:EquippedCosmetics;
 }
 
 /** Compact shared identity row. Callers may append their existing action controls. */
@@ -28,6 +31,7 @@ export function createLobbyRosterRow(document: Document, input: LobbyRosterPrese
   const name = document.createElement("strong");
   name.className = "mode-roster-name";
   name.textContent = input.name;
+  name.dataset.identityName="";
   const badges = document.createElement("span");
   badges.className = "mode-roster-badges";
   const badge = (kind: string, label: string) => {
@@ -43,5 +47,6 @@ export function createLobbyRosterRow(document: Document, input: LobbyRosterPrese
   if (input.team) badge(input.team, input.team.toUpperCase());
   badge(input.ready ? "ready" : "waiting", input.ready ? "READY" : "NOT READY");
   row.append(swatch, name, badges);
+  applyIdentityCosmeticPresentation(row,input.equippedCosmetics);
   return row;
 }

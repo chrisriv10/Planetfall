@@ -1,4 +1,5 @@
 import { PG_MAP } from "@planetfall/shared";
+import { PG_SURFACE_TINT as paint } from "./pg-district-palette";
 import type { PgArtContext, PgArtMaterial } from "./pg-environment-builder";
 
 /** The world renderer omits its generic repeated panes for these authored skins. */
@@ -11,8 +12,8 @@ export const PG_AUTHORED_FACADE_IDS=new Set([
 /** Architecture decorates authored collision volumes. Nothing here creates a
  * doorway, walking surface or freestanding cover. Low retains the silhouette. */
 export function buildPgNeighborhoodArchitecture(ctx: PgArtContext): void {
-  const box = (name:string, material:PgArtMaterial, x:number,y:number,z:number,sx:number,sy:number,sz:number,detail=false) =>
-    ctx.add(name,"box",material,[x,y,z,sx,sy,sz],undefined,detail);
+  const box = (name:string, material:PgArtMaterial, x:number,y:number,z:number,sx:number,sy:number,sz:number,detail=false,tint?:number) =>
+    ctx.add(name,"box",material,[x,y,z,sx,sy,sz],undefined,detail,tint);
   const solid = (id:string) => { const s=PG_MAP.solids.find(s=>s.id===id); if(!s)throw new Error(`Missing architecture backing: ${id}`); return s; };
   // Occupied rooms need a readable ceiling plane, rather than the pitch-black
   // underside of a gameplay platform. Acoustic panels, recessed seams and
@@ -23,7 +24,7 @@ export function buildPgNeighborhoodArchitecture(ctx: PgArtContext): void {
     box(`${id}:ceiling-reveal`,"frame",c.x,y-.006,c.z,width,.008,depth);
     const panels=Math.max(2,Math.floor(width/3));
     const step=width/panels;
-    for(let i=0;i<panels;i++)box(`${id}:ceiling-panel`,"ivory",c.x-width/2+step*(i+.5),y-.014,c.z,step-.07,.008,depth-.16);
+    for(let i=0;i<panels;i++)box(`${id}:ceiling-panel`,"ivory",c.x-width/2+step*(i+.5),y-.014,c.z,step-.07,.008,depth-.16,false,west?paint.habitatCream:paint.ionSteel);
     for(const side of[-1,1]){
       box(`${id}:ceiling-lamp-recess`,"dark",c.x,y-.021,c.z+side*depth*.31,width*.78,.006,.24);
       box(`${id}:ceiling-lamp`,west?"amber":"cyan",c.x,y-.026,c.z+side*depth*.31,width*.75,.004,.09);
@@ -36,25 +37,47 @@ export function buildPgNeighborhoodArchitecture(ctx: PgArtContext): void {
     const s=solid(id),c=s.center,h=s.half,wide=h.x>h.z,length=(wide?h.x:h.z)*2;
     const west=id.startsWith("west"),utility=id.startsWith("maintenance"),accent=west?"amber":"cyan";
     for(const sign of[-1,1]){
-      const skin=(part:string,m:PgArtMaterial,a:number,y:number,w:number,height:number,depth:number)=>
-        box(`${id}:authored-${part}`,m,wide?c.x+a:c.x+sign*(h.x+depth),y,wide?c.z+sign*(h.z+depth):c.z+a,wide?w:.008,height,wide?.008:w);
+      const skin=(part:string,m:PgArtMaterial,a:number,y:number,w:number,height:number,depth:number,tint?:number)=>
+        box(`${id}:authored-${part}`,m,wide?c.x+a:c.x+sign*(h.x+depth),y,wide?c.z+sign*(h.z+depth):c.z+a,wide?w:.008,height,wide?.008:w,false,tint);
       skin("shadow","dark",0,c.y,length-.06,h.y*2-.08,.012);
-      skin("dado",west?"frame":"ivory",0,.43,length-.08,.72,.025);
-      skin("crown","ivory",0,c.y+h.y-.17,length-.06,.28,.029);
+      skin("dado",west?"frame":"ivory",0,.43,length-.08,.72,.025,west?paint.habitatCoral:paint.ionSteel);
+      skin("crown","ivory",0,c.y+h.y-.17,length-.06,.28,.029,west?paint.habitatCream:undefined);
       skin("wash",accent,0,c.y+h.y-.36,length-.28,.045,.034);
       const bays=utility?Math.max(1,Math.floor(length/3.8)):Math.max(1,Math.floor(length/5.8));
       const step=(length-.22)/bays;
       for(let i=0;i<bays;i++){
         const a=(i-(bays-1)/2)*step,w=step-.18,cy=c.y+.16,ph=Math.min(1.8,h.y*1.12);
-        skin("glazing",utility?"frame":"glass",a,cy,w,ph,.023);
+        skin("glazing",utility?"frame":"glass",a,cy,w,ph,.023,west?paint.habitatGlass:utility?paint.ionSteel:undefined);
         // Asymmetric opaque return and a thin bright sill establish a deep
         // cassette through contrasting planes, without projecting into routes.
-        skin("return","ivory",a-w*.39,cy,w*.19,ph,.037);
+        skin("return","ivory",a-w*.39,cy,w*.19,ph,.037,west?paint.habitatCream:undefined);
         skin("sill","ivory",a,cy-ph/2-.045,w,.08,.042);
         skin("header","frame",a,cy+ph/2-.04,w,.08,.042);
         if(utility){
-          for(let row=0;row<4;row++)skin("acoustic-slot","dark",a+w*.1,cy-.4+row*.25,w*.65,.11,.034);
-          skin("utility-status",accent,a+w*.32,cy-.65,.08,.15,.043);
+          if(id.startsWith("maintenance-back")){
+            // The short rear segments flank the real door. Their folded jambs
+            // and low wear plates turn toward that opening on both faces.
+            const side=id.endsWith("-a")?1:-1;
+            skin("threshold-jamb","ivory",a+side*w*.43,cy,w*.09,ph,.038);
+            skin("threshold-wear","dark",a,cy-ph*.31,w*.66,ph*.25,.034);
+            skin("threshold-marker","amber",a+side*w*.3,cy+ph*.15,w*.045,ph*.36,.038);
+          }else if(id==="maintenance-west" && i===0){
+            skin("intake-well","dark",a+w*.075,cy,w*.70,ph*.68,.034);
+            for(let blade=0;blade<3;blade++)
+              skin("intake-louvre","ivory",a+w*.075,cy+(blade-1)*ph*.18,w*.64,.09,.044);
+          }else if(id==="maintenance-east" && i===1){
+            skin("manifold-feed","ivory",a+w*.06,cy+ph*.19,w*.67,.07,.034);
+            for(let valve=0;valve<3;valve++){
+              const x=a+(valve-1)*w*.22+w*.06;
+              skin("manifold-drop","ivory",x,cy-.03,.07,ph*.37,.035);
+              skin("manifold-valve","amber",x,cy-ph*.20,w*.14,.09,.044);
+            }
+          }else{
+            skin("inspection-seal","dark",a+w*.08,cy,w*.70,ph*.75,.034);
+            skin("inspection-cover","ivory",a+w*.08,cy,w*.66,ph*.67,.039,paint.ionSteel);
+            skin("inspection-latch","frame",a+w*.30,cy,.075,ph*.27,.044);
+            skin("inspection-tag","cyan",a-w*.13,cy+ph*.17,w*.18,.045,.044);
+          }
         }else if(west){
           // Readable room lighting and partial blinds instead of identical panes.
           skin("blind","frame",a+w*.27,cy+ph*.22,w*.35,ph*.36,.035);
@@ -74,11 +97,11 @@ export function buildPgNeighborhoodArchitecture(ctx: PgArtContext): void {
   // Every cassette fits its own wall segment; the space between segments stays open.
   function facade(id:string, axis:"x"|"z", sign:number, style:"habitat"|"service") {
     const s=solid(id),c=s.center,h=s.half,wide=axis==="z",half=wide?h.x:h.z;
-    const put=(suffix:string,m:PgArtMaterial,along:number,y:number,w:number,height:number,offset:number,detail=false)=>
-      box(`${id}:${suffix}`,m,wide?c.x+along:c.x+sign*(h.x+offset),y,wide?c.z+sign*(h.z+offset):c.z+along,wide?w:.012,height,wide?.012:w,detail);
+    const put=(suffix:string,m:PgArtMaterial,along:number,y:number,w:number,height:number,offset:number,detail=false,tint?:number)=>
+      box(`${id}:${suffix}`,m,wide?c.x+along:c.x+sign*(h.x+offset),y,wide?c.z+sign*(h.z+offset):c.z+along,wide?w:.012,height,wide?.012:w,detail,tint);
     const interior=style==="habitat"?"ivory":"frame";
     put("base", "dark",0,c.y-h.y+.15,half*2,.3,.010);
-    put("crown",interior,0,c.y+h.y-.18,half*2,.36,.013);
+    put("crown",interior,0,c.y+h.y-.18,half*2,.36,.013,false,style==="habitat"?paint.habitatCoral:paint.ionSteel);
     put("light",style==="habitat"?"amber":"cyan",0,c.y+h.y-.26,half*2-.12,.045,.026);
     // Observation ribbons, paired residential panes and high service glazing
     // have distinct rhythms while remaining embossed on their own real wall.
@@ -87,11 +110,11 @@ export function buildPgNeighborhoodArchitecture(ctx: PgArtContext): void {
     for(let i=0;i<bays;i++) {
       const a=(i-(bays-1)/2)*step,w=step-.18,ph=h.y*(style==="service"?.68:ribbon?.9:1.18),cy=c.y+(style==="service"?.38:0);
       put("window-reveal","dark",a,cy,w+.08,ph+.12,.016);
-      put("window", "glass",a,cy,w,ph,.028);
+      put("window", "glass",a,cy,w,ph,.028,false,style==="habitat"?paint.habitatGlass:undefined);
       for(const side of[-1,1])put("window-jamb",interior,a+side*(w/2+.04),cy,.065,ph+.12,.042);
       put("window-sill",interior,a,cy-ph/2-.05,w+.16,.10,.043);
       if(style==="service"){
-        put("service-panel","frame",a,c.y-.65,w,.52,.025);
+        put("service-panel","frame",a,c.y-.65,w,.52,.025,false,paint.ionSteel);
         for(let row=0;row<3;row++)put("vent","dark",a,c.y-.8+row*.14,w*.78,.045,.044);
         put("service-status","cyan",a+w*.3,c.y-.65,.05,.18,.044);
       }else if(ribbon){
@@ -124,8 +147,8 @@ export function buildPgNeighborhoodArchitecture(ctx: PgArtContext): void {
   }
   // Entry canopy has a layered bright soffit with a generous clear lower entry.
   const canopy=solid("nova-entry-canopy");
-  box("nova-canopy-soffit","ivory",-25,canopy.center.y-canopy.half.y-.012,.1,6.8,.018,4.0);
-  box("nova-canopy-nose","ivory",-25,3.5,2.218,7,.32,.025);
+  box("nova-canopy-soffit","ivory",-25,canopy.center.y-canopy.half.y-.012,.1,6.8,.018,4.0,false,paint.habitatCream);
+  box("nova-canopy-nose","ivory",-25,3.5,2.218,7,.32,.025,false,paint.habitatCoral);
   box("nova-canopy-shadow","dark",-25,3.38,2.234,6.9,.065,.012);
   box("nova-canopy-entry-light","amber",-25,3.305,1.5,5.6,.012,.16);
   for(const x of[-27.75,-22.25]){
@@ -139,9 +162,9 @@ export function buildPgNeighborhoodArchitecture(ctx: PgArtContext): void {
   box("ion-run-base","dark",12.624,.16,25,.012,.28,15.9);
   box("ion-run-guide","cyan",12.619,.72,25,.008,.045,15.6);
   // A closed shutter, diagnostic console and cooling hatch have distinct silhouettes.
-  box("ion-run-shutter-border","ivory",12.625,1.7,19.7,.01,2.45,3.9);
+  box("ion-run-shutter-border","ivory",12.625,1.7,19.7,.01,2.45,3.9,false,paint.ionBrass);
   box("ion-run-shutter","dark",12.618,1.7,19.7,.008,2.26,3.68);
-  for(let row=0;row<6;row++)box("ion-run-shutter-leaf","frame",12.613,.74+row*.38,19.7,.005,.31,3.52);
+  for(let row=0;row<6;row++)box("ion-run-shutter-leaf","frame",12.613,.74+row*.38,19.7,.005,.31,3.52,false,paint.ionSteel);
   box("ion-run-shutter-lock","amber",12.614,1,19.7,.004,.12,.35);
   box("ion-run-diagnostic-bezel","dark",12.624,1.93,24.55,.012,1.35,2.65);
   box("ion-run-diagnostic-screen","glass",12.616,1.93,24.55,.006,1.18,2.46);
@@ -191,16 +214,16 @@ export function buildPgNeighborhoodArchitecture(ctx: PgArtContext): void {
   // Furniture is backed by deliberate collision volumes. Cushion crowns rise
   // only four centimetres above the real bench top.
   const seat=solid("nova-lounge-seat");
-  for(const dx of[-1.08,0,1.08])ctx.add("nova-lounge-seat:cushion","sphere","frame",[seat.center.x+dx,.46,-18.5,.51,.08,.59]);
+  for(const dx of[-1.08,0,1.08])ctx.add("nova-lounge-seat:cushion","sphere","frame",[seat.center.x+dx,.46,-18.5,.51,.08,.59],undefined,false,paint.habitatCoral);
   box("nova-lounge-seat:front-rail","ivory",-30.5,.19,-17.838,3.35,.14,.018);
-  for(const dx of[-1.08,0,1.08])box("nova-lounge-back:upholstery","frame",-30.5+dx,.75,-18.916,1.01,.64,.02);
+  for(const dx of[-1.08,0,1.08])box("nova-lounge-back:upholstery","frame",-30.5+dx,.75,-18.916,1.01,.64,.02,false,paint.habitatCoral);
   box("nova-suite-table:top","ivory",-30,4.5,-17.5,1.98,.024,1.48);
   box("nova-suite-table:inset","glass",-30,4.517,-17.5,1.6,.008,1.08);
   ctx.add("nova-suite-table:interface","torus","frame",[-30,4.524,-17.5,.34,.34,.1],[Math.PI/2,0,0]);
   for(const id of["ion-repair-bench","ion-control-console"]){
     const s=solid(id),c=s.center,h=s.half;
     box(`${id}:countertop`,"ivory",c.x,c.y+h.y+.01,c.z,h.x*1.95,.018,h.z*1.96);
-    box(`${id}:front-cabinet`,"frame",c.x-h.x-.014,c.y,c.z,.018,h.y*1.8,h.z*1.9);
+    box(`${id}:front-cabinet`,"frame",c.x-h.x-.014,c.y,c.z,.018,h.y*1.8,h.z*1.9,false,paint.ionSteel);
     for(const dz of[-.95,0,.95]){
       box(`${id}:drawer`,"dark",c.x-h.x-.026,c.y,c.z+dz,.006,h.y*1.25,.8);
       box(`${id}:handle`,"ivory",c.x-h.x-.033,c.y+.15,c.z+dz,.008,.055,.35);

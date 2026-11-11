@@ -24,6 +24,8 @@ export interface PgModeRuntime {
  botGoal(player:PgPlayer,now:number):Vec3|null;
  /** Optional physically validated immediate steering; null means wait safely. */
  botWaypoint?(player:PgPlayer,goal:Vec3|null):Vec3|null;
+ /** Bound combat sidesteps to the public objective already being held. */
+ botCombatArea?(player:PgPlayer):{position:Vec3;radius:number}|null;
  botAction(player:PgPlayer,now:number):void;
  targets(shooter:PgPlayer):PgModeTarget[];
  leave(id:string,now:number):void;

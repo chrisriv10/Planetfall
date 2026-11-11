@@ -4,7 +4,7 @@ import { createPgKitPreview } from "./pg-kit-preview";
 import { PG_KIT_SOCKETS, pgKitStatRows, pgSocketModules, type PgKitSocket } from "./pg-kit-presentation";
 import "./pg-kit-editor.css";
 
-export interface PgKitEditorOptions { onApply: (loadout: PgLoadout) => void; onClose?: () => void; onOpen?: () => void; storage?: PgKitStorage; }
+export interface PgKitEditorOptions { getFinish?:()=>string|undefined; onApply: (loadout: PgLoadout) => void; onClose?: () => void; onOpen?: () => void; storage?: PgKitStorage; }
 let editorCount = 0;
 export function createPgKitEditor(options: PgKitEditorOptions) {
   const store = createPgCombatKitStore(options.storage), draft = createPgKitDraft(store), prefix = `pg-kits-${++editorCount}`;
@@ -35,7 +35,7 @@ export function createPgKitEditor(options: PgKitEditorOptions) {
       const tab = button("", () => { draft.select(index as PgKitId); feedback = ""; render(); document.getElementById(`${prefix}-tab-${index}`)?.focus(); }, "pg-kit-card");
       tab.id = `${prefix}-tab-${index}`; tab.setAttribute("role", "tab"); tab.tabIndex = draft.slot() === index ? 0 : -1; tab.setAttribute("aria-selected", String(draft.slot() === index)); tab.setAttribute("aria-controls", `${prefix}-draft`);
       tab.append(element("small", `0${index + 1} / ${saved.activeSlot === index ? "EQUIPPED" : "COMBAT KIT"}`, "pg-kit-card-index"), element("strong", kit.name ?? `Kit ${index + 1}`));
-      const thumbnail = preview?.thumbnail(kit.primary, kit.primaryModules ?? []);
+      const thumbnail = preview?.thumbnail(kit.primary, kit.primaryModules ?? [],options.getFinish?.());
       if (thumbnail) { const img = element("img"); img.src = thumbnail; img.alt = ""; img.className = "pg-kit-thumbnail"; tab.append(img); }
       tab.append(element("span", pgWeaponProfile(kit.primary).name), element("small", (kit.primaryModules ?? []).map(id => PG_MODULES[id].name).join(" · ") || "Standard configuration"), element("small", `${pgWeaponProfile(kit.secondary).name} / ${(kit.secondaryModules ?? []).map(id => PG_MODULES[id].name).join(" · ") || "Standard"}`, "pg-kit-card-secondary"));
       tab.addEventListener("keydown", event => { const next = ["ArrowDown", "ArrowRight"].includes(event.key) ? (index + 1) % 5 : ["ArrowUp", "ArrowLeft"].includes(event.key) ? (index + 4) % 5 : event.key === "Home" ? 0 : event.key === "End" ? 4 : null; if (next === null) return; event.preventDefault(); draft.select(next as PgKitId); feedback = ""; render(); document.getElementById(`${prefix}-tab-${next}`)?.focus(); }); tabs.append(tab);
@@ -71,7 +71,7 @@ export function createPgKitEditor(options: PgKitEditorOptions) {
     if (store.persistenceError()) status.textContent += " · Local storage unavailable; kits last for this session only.";
     const actions = element("div", "", "pg-kit-actions"); actions.append(button("Reset all kits", () => { store.reset(); draft.reload(); feedback = "Default kits restored. Select Save or Use Saved Kit to apply."; render(); }, "button-quiet"), button("Use Saved Kit", () => { apply(draft.useSaved()); render(); }), button("Save Kit & Select", () => { const valid = draft.save(); if (!valid) { feedback = "Enter a kit name of 1–24 characters and choose compatible modules."; render(); document.getElementById(name.id)?.focus(); return; } apply(valid); render(); }, "button-primary"));
     panel.append(header, note, layout, status, actions);
-    preview?.setWeapon(weapon, modules); preview?.setVisible(!root.hidden);
+    preview?.setWeapon(weapon, modules,options.getFinish?.()); preview?.setVisible(!root.hidden);
     if (focusId) document.getElementById(focusId)?.focus();
   }
   root.addEventListener("keydown", event => {

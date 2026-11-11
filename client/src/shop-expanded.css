@@ -1,0 +1,28 @@
+#shop-families.shop-categories { margin: 12px 0 6px; gap: 5px; }
+#shop-families button { padding: 6px 10px; background: #18263c; color: #c2d7e6; border: 1px solid #44566d; border-radius: 5px; }
+#shop-families button:is(.selected,[aria-pressed="true"],[aria-current="true"]) { background: #a2e8db; color: #122933; border-color: #a2e8db; }
+#shop-categories.shop-categories { margin: 0 0 12px; padding-top: 8px; border-top: 1px solid #52638265; }
+#shop-categories button { font-size: 12px; padding: 6px 9px; }
+.shop-item .shop-compatibility { color: #b8cbdb; font-size: .7rem; font-weight: 650; }
+.shop-cosmetic-preview:is(.cosmetic-kind-calling-card,.cosmetic-kind-emblem) { display: grid; place-items: center; box-sizing: border-box; }
+.cosmetic-kind-calling-card > svg { display: block; width: 100%; height: auto; max-height: 100%; }
+.cosmetic-kind-emblem > svg { display: block; width: min(65%,78px); height: auto; max-height: 80%; }
+.pass-card .pass-chapters { display: flex; flex-wrap: wrap; gap: 5px; margin: 10px 0 4px; }
+.pass-chapters button { min-height: 28px; padding: 4px 10px; border: 1px solid #455873; border-radius: 5px; color: #d6e1f1; background: #152238; font: 700 12px/1.25 system-ui,sans-serif; cursor: pointer; }
+.pass-chapters button:is(.selected,[aria-pressed="true"],[aria-current="true"],[aria-current="step"]) { border-color: #90e2d8; color: #c7fff2; background: #213c43; }
+.pass-card .pass-track { grid-template-columns: none; grid-template-rows: 1fr; grid-auto-flow: column; grid-auto-columns: clamp(132px,14vw,158px); grid-auto-rows: 1fr; align-items: stretch; gap: 8px; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scrollbar-color: #66749a #151c32; padding: 14px 3px 11px; }
+.pass-track .pass-tier[data-level] { box-sizing: border-box; min-width: 0; grid-template-rows: auto 1fr auto auto; scroll-snap-align: start; }
+.pass-tier .pass-reward-state { align-self: end; color: #b4bfd3; font: 700 10px/1.35 system-ui,sans-serif; letter-spacing: .055em; }
+.pass-tier.unlocked .pass-reward-state { color: #a9e7d9; }
+.pass-tier.milestone { border-top: 3px solid #a492d0; padding-top: 9px; }
+.pass-tier.current .pass-reward-state { color: #ffdf85; }
+.pass-card :is(.pass-chapters button,.pass-track,.pass-tier):focus-visible,
+.shop-card :is(.shop-categories button,.shop-item button):focus-visible { outline: 2px solid #b3f4e6; outline-offset: 1px; }
+@media (max-width: 540px) {
+  .pass-card .pass-track { grid-auto-columns: 132px; }
+  .pass-chapters button { min-height: 30px; padding-inline: 7px; }
+  #shop-categories button { font-size: 11px; padding: 6px 7px; }
+}
+@media (prefers-reduced-motion: reduce) { .pass-card .pass-track { scroll-behavior: auto; } }
+
+.shop-profile-identity{padding:10px 12px;border:1px solid #52638255;border-radius:8px;margin:8px 0 10px;font-size:12px;min-height:36px;display:flex;align-items:center}.shop-profile-identity strong{position:relative;z-index:0}

@@ -1,3 +1,5 @@
+import {bindingHudLabel} from "../../binding-hud-label";
+import {mouseButtonIcon} from "../../mouse-button-icon";
 import {createLobbyRosterRow} from "../../lobby-roster-art";
 import { PR_ROUNDS, type PrRoomView, type PrSnapshot } from "@planetfall/shared";
 import "./pr-ui.css";
@@ -43,7 +45,7 @@ export function createPrUi():PrUi {
       <div class="pr-hud-stats"><span id="pr-qualification"></span><strong id="pr-timer" aria-label="Time remaining"></strong><button id="pr-leave-game" aria-label="Leave PlanetRun">LEAVE RUN</button></div>
     </div>
     <div id="pr-round-announcement" class="pr-announcement" role="status"><span id="pr-announcement-label"></span><strong id="pr-announcement-main"></strong><p id="pr-announcement-detail"></p><div id="pr-round-roster" hidden><h3>ORBITAL ROSTER</h3><p id="pr-round-roster-summary"></p><ul id="pr-round-survivors"></ul></div></div>
-    <div class="pr-hud-bottom"><strong id="pr-player-status"></strong><span><kbd>SPACE</kbd> JUMP <kbd>SHIFT</kbd> DIVE <kbd>MOUSE / DRAG</kbd> LOOK</span></div>`);
+    <div class="pr-hud-bottom"><strong id="pr-player-status"></strong><span id="pr-controls"></span></div>`);
   const results=section("pr-results-screen",`
     <div class="pr-panel pr-results-card"><p class="pr-eyebrow">PLANETRUN · FINAL RESULTS</p><div class="pr-trophy" aria-hidden="true">✦</div><h1 id="pr-winner-title">Run complete</h1><p id="pr-winner-detail" class="pr-lead"></p><ol id="pr-final-roster" class="pr-final-roster"></ol><p id="pr-return-note" class="pr-note"></p><div class="pr-actions"><button id="pr-return" class="pr-primary">BACK TO LOBBY</button><button id="pr-leave-results" class="pr-back">MAIN MENU</button></div></div>`);
   const get=<T extends HTMLElement=HTMLElement>(id:string)=>ui.querySelector<T>(`#${id}`)!;
@@ -71,6 +73,10 @@ export function createPrUi():PrUi {
     },
     renderSnapshot(snapshot,localId){
       const round=PR_ROUNDS.find(r=>r.id===snapshot.roundId),me=snapshot.players.find(p=>p.id===localId);
+      const spectator=!!me&&me.status!=="active",context=spectator?"planet-run:spectator":"planet-run";
+      const key=(action:"jump"|"dive"|"previousTarget"|"nextTarget",pad?:string)=>mouseButtonIcon(bindingHudLabel(context,action,document.body.dataset.input,pad));
+      const controls=spectator?`<kbd>${key("previousTarget")}</kbd> / <kbd>${key("nextTarget")}</kbd> CHANGE ASTRONAUT`:`<kbd>${key("jump","A")}</kbd> JUMP <kbd>${key("dive","X")}</kbd> DIVE`;
+      const hints=`${controls} <kbd>${document.body.dataset.input==="gamepad"?"RS":"MOUSE / DRAG"}</kbd> LOOK`;if(get("pr-controls").innerHTML!==hints)get("pr-controls").innerHTML=hints;
       const seconds=Math.max(0,Math.ceil((snapshot.phaseEndsAt-snapshot.serverTime)/1000));
       const active=snapshot.players.filter(p=>p.status==="active").length;
       const qualified=snapshot.players.filter(p=>p.status==="qualified").length;

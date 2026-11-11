@@ -1,7 +1,7 @@
 import {test,expect} from "@playwright/test";
 import {io} from "socket.io-client";
 import {writeFile} from "node:fs/promises";
-import {selectExperimentalFamily} from "./select-family";
+import {selectExperimentalFamily,capturePgMouse,openLobbyConfiguration} from "./select-family";
 
 test.use({video:"on"});
 test("a live rejoin preserves equipment and ordinary input mantles the center plinth",async({page},info)=>{
@@ -11,7 +11,7 @@ test("a live rejoin preserves equipment and ordinary input mantles the center pl
  try{
   await page.setViewportSize({width:640,height:360});await page.goto("/");await page.getByLabel("Name",{exact:true}).fill("Mantle Pilot");await selectExperimentalFamily(page,"planet-gun");
   await page.locator("#settings-open").click();await page.locator("#graphics-quality").selectOption("low");await page.locator("#settings-close").click();
-  await page.locator("#create-room").click();await page.locator("#pg-fill").uncheck();code=await page.locator("#pg-code").innerText();
+  await page.locator("#create-room").click();await openLobbyConfiguration(page);await page.locator("#pg-fill").uncheck();code=await page.locator("#pg-code").innerText();
   if(!observer.connected)await new Promise<void>((resolve,reject)=>{observer.once("connect",resolve);observer.once("connect_error",reject);});
   const joined=await observer.timeout(5000).emitWithAck("pg:room:join",{code,name:"Idle Observer"});expect(joined.ok).toBe(true);observer.emit("pg:room:ready",{ready:true});
   await page.locator("#pg-ready").click();await page.locator("#pg-start").click();await expect.poll(async()=>(await state())?.phase).toBe("playing");
@@ -19,6 +19,7 @@ test("a live rejoin preserves equipment and ordinary input mantles the center pl
   await page.reload();await selectExperimentalFamily(page,"planet-gun");await page.locator("#room-code").fill(code);await page.locator("#join-room").click();
   await expect.poll(async()=>(await state())?.phase).toBe("playing");expect((await state()).local.id).toBe(before.local.id);expect((await state()).local.queuedLoadout).toBeUndefined();
   const go=async(x:number,z:number)=>{
+   await page.bringToFront();await capturePgMouse(page);
    for(let i=0;i<40;i++){
     const p=(await state()).local,dx=x-p.position.x,dz=z-p.position.z;if(Math.hypot(dx,dz)<.18&&Math.hypot(p.velocity.x,p.velocity.z)<.2)return;
     const c=Math.cos(p.yaw),s=Math.sin(p.yaw),mx=dx*c-dz*s,mz=dx*s+dz*c,side=Math.abs(mx)>Math.abs(mz),delta=side?mx:mz,key=side?(delta>0?"d":"a"):(delta>0?"s":"w");

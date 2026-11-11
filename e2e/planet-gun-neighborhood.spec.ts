@@ -1,6 +1,6 @@
 import {test,expect,type Page} from "@playwright/test";
 import {writeFile} from "node:fs/promises";
-import {selectExperimentalFamily} from "./select-family";
+import {selectExperimentalFamily,capturePgMouse,openLobbyConfiguration} from "./select-family";
 // Exercise the full Chromium compositor for the new real-input map review.
 test.use({channel:"chromium"});
 const state=(p:Page)=>p.evaluate(()=>(window as unknown as {__PLANETFALL_PG_DEBUG__:()=>any}).__PLANETFALL_PG_DEBUG__?.());
@@ -21,12 +21,13 @@ test("real clients walk both districts, terrace, upper rooms and authored wall-r
   // Full-size visual capture is a separate scenario. Keep this long input
   // route responsive in software WebGL without changing movement assertions.
   for(const [p,name]of[[a,"Neighborhood Walker"],[b,"Passive Observer"]]as const){await p.setViewportSize({width:640,height:360});await p.goto("/");await p.getByLabel("Name",{exact:true}).fill(name);await selectExperimentalFamily(p,"planet-gun");await p.locator("#settings-open").click();await p.locator("#graphics-quality").selectOption("low");await p.locator("#settings-close").click();}
-  await a.locator("#create-room").click();await expect(a.locator("#pg-lobby-screen")).toBeVisible();await a.locator("#pg-fill").uncheck();const code=await a.locator("#pg-code").innerText();
+  await a.locator("#create-room").click();await expect(a.locator("#pg-lobby-screen")).toBeVisible();await openLobbyConfiguration(a);await a.locator("#pg-fill").uncheck();const code=await a.locator("#pg-code").innerText();
   await b.locator("#room-code").fill(code);await b.locator("#join-room").click();await expect(b.locator("#pg-lobby-screen")).toBeVisible();await b.locator("#pg-ready").click();await a.locator("#pg-ready").click();await a.locator("#pg-start").click();
   for(const p of[a,b])await expect.poll(async()=>(await state(p))?.phase).toBe("playing");
   const page=(await state(a)).local.position.x<0?a:b;await page.bringToFront();expect((await state(page)).local.position.x).toBeLessThan(-30);console.log(`Route initial frame times: ${JSON.stringify((await state(page)).frameTimes.slice(-20))}`);
   const record=async(label:string)=>{const s=await state(page);expect(s.review).toBeNull();expect(s.blocked).toBe(false);expect(s.local.hp).toBe(100);evidence.push({label,position:s.local.position,mode:s.local.mode,wallId:s.local.wallId,ion:s.local.ion,grounded:s.local.grounded});};
   const go=async(x:number,z:number,label?:string,tolerance=.25)=>{
+   await page.bringToFront();await capturePgMouse(page);
    let arrived=false;
    for(let i=0;i<50;i++){
     const s=(await state(page)).local,dx=x-s.position.x,dz=z-s.position.z;if(i%10===0)console.log(`Route correction ${x},${z} ${JSON.stringify({p:s.position,v:s.velocity})}`);if(Math.hypot(dx,dz)<tolerance&&Math.hypot(s.velocity.x,s.velocity.z)<.1){arrived=true;break;}

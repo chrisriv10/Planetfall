@@ -12,7 +12,8 @@ describe("PostgreSQL-backed profile ledger (real PostgreSQL WASM engine)",()=>{
   const {db,c}=await connection(),first=await ProfileDatabase.open(c),store=new PlayerProfiles(undefined,first.document,first.database),identity=store.open(undefined),p=player();store.bind(p,identity.key);
   p.fallbucks=150;p.sessionTotalXp=115;p.sessionLevel=2;p.sessionXp=15;store.capture([p]);p.fallbucks-=100;p.ownedCosmetics.push("solar-gold");p.equippedCosmetics.suit="solar-gold";store.capture([p]);await store.close();
   const next=await ProfileDatabase.open(c),restarted=new PlayerProfiles(undefined,next.document,next.database),restored=player();const returning=restarted.open(identity.token);restarted.bind(restored,returning.key);
-  expect(restored).toMatchObject({fallbucks:50,sessionTotalXp:115,ownedCosmetics:["solar-gold"],equippedCosmetics:{suit:"solar-gold"}});
+  expect(restored).toMatchObject({fallbucks:100,sessionTotalXp:115,ownedCosmetics:["solar-gold"],equippedCosmetics:{suit:"solar-gold"}});
+  expect(restored.unlockedPassRewards).toContain("bucks-50");restarted.capture([restored]);expect(restored.fallbucks).toBe(100);
   const result=await db.query<{id:string}>("SELECT id FROM planetfall_guest_profiles");expect(result.rows).toEqual([{id:identity.key}]);expect(result.rows[0].id).not.toBe(identity.token);await restarted.close();
  },15000);
  it("retains the latest reward snapshot after a failed write and retries without duplicating currency",async()=>{

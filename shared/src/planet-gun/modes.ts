@@ -3,6 +3,8 @@ import type {PgTeam,PgWeaponId,PgLoadout} from "./types.js";
 import type {PgCollisionSnapshot} from "./mode-collision.js";
 import {PG_PANEL_SOCKETS,type PgPanelSocket} from "./mode-collision.js";
 import type {PgMovementRules} from "./movement-rules.js";
+import {PG_ZOMBIE_ARSENAL_COST,type PgZombieArsenalSnapshot} from "./zombie-arsenal.js";
+import {PG_ZOMBIE_FORGE_PRICES,type PgZombieForgeSnapshot} from "./zombie-forge.js";
 
 export const PG_MODE_IDS=["deathmatch","planetstrike","planetwatch","planetsiege","planetzombies"] as const;
 export type PgModeId=typeof PG_MODE_IDS[number];
@@ -32,17 +34,18 @@ export interface PgModeEffect {id:string;kind:"smoke"|"flash"|"heat"|"gravity"|"
 export interface PgModePilot {life:PgLifeState;maxHp:number;shield:number;characterId:string|null;side:PgTacticalSide;credits:number;armor:number;cooldowns:[number,number];charges:[number,number];ultimate:number;contribution:number;interaction:{targetId:string;startedAt:number;durationMs:number}|null;}
 export interface PgStrikePilot extends PgModePilot {carrying:boolean;utilities:[number,number,number];primaryUnlocked:boolean;}
 export interface PgSiegePilot extends PgModePilot {droneId:string|null;cameraId:string|null;reinforcements:number;controllingDrone?:boolean;}
-export interface PgZombiePilot extends PgModePilot {points:number;upgrade:0|1|2|3;perks:string[];primaryUnlocked:boolean;bleedoutAt:number;selfRecovery:boolean;revives:number;purchases:number;}
-export interface PgModeDrop {id:string;kind:"weapon"|"charge";position:Vec3;weapon?:PgWeaponId;magazine:number;reserve:number;}
+export interface PgZombiePilot extends PgModePilot {points:number;upgrade:0|1|2|3;perks:string[];primaryUnlocked:boolean;bleedoutAt:number;selfRecovery:boolean;revives:number;purchases:number;hitCount:number;hitCapacity:number;hitGraceUntil:number;hitRecoveryAt:number;}
+export interface PgModeDrop {id:string;kind:"weapon"|"charge";position:Vec3;weapon?:PgWeaponId;finishId?:string;magazine:number;reserve:number;}
 export interface PgModeIntel {targetId:string;position:Vec3;at:number;expiresAt:number;}
 export interface PgDrone {id:string;ownerId:string;position:Vec3;yaw:number;pitch:number;hp:number;disabledUntil:number;}
+export interface PgSiegeCameraState {id:string;hp:number;maxHp:number;disabled:boolean;disabledUntil:number;}
 export interface PgZombie {id:string;kind:"drifter"|"skitter"|"bulwark";position:Vec3;yaw:number;hp:number;maxHp:number;windupUntil:number;}
 interface PgModeCommon {collision:PgCollisionSnapshot;effects:PgModeEffect[];pilots:Record<string,PgModePilot>;round:number;subphase:string;deadline:number;controls?:Record<string,PgModeControl>;}
 export type PgModeSnapshot=
  | (PgModeCommon&{id:"planetstrike";pilots:Record<string,PgStrikePilot>;attackTeam:PgTeam;roundScores:Record<PgTeam,number>;charge:{carrierId:string|null;position:Vec3|null;site:"A"|"B"|null;detonatesAt:number};drops:PgModeDrop[]})
  | (PgModeCommon&{id:"planetwatch";control:{owner:PgTeam|null;capture:Record<PgTeam,number>;progress:Record<PgTeam,number>;contested:boolean;point:number};roundScores:Record<PgTeam,number>;intel:PgModeIntel[]})
- | (PgModeCommon&{id:"planetsiege";pilots:Record<string,PgSiegePilot>;attackTeam:PgTeam;roundScores:Record<PgTeam,number>;capture:number;site:number;drones:PgDrone[];intel:PgModeIntel[]})
- | (PgModeCommon&{id:"planetzombies";pilots:Record<string,PgZombiePilot>;wave:number;remaining:number;queued:number;zombies:PgZombie[];power:boolean;unlocked:string[];reason:string|null});
+ | (PgModeCommon&{id:"planetsiege";pilots:Record<string,PgSiegePilot>;attackTeam:PgTeam;roundScores:Record<PgTeam,number>;capture:number;site:number;drones:PgDrone[];cameras:PgSiegeCameraState[];intel:PgModeIntel[]})
+ | (PgModeCommon&{id:"planetzombies";pilots:Record<string,PgZombiePilot>;wave:number;remaining:number;queued:number;zombies:PgZombie[];arsenal:PgZombieArsenalSnapshot;forge:PgZombieForgeSnapshot;power:boolean;unlocked:string[];reason:string|null});
 
 /** Authored ground-level anchors; every site has independent exterior approaches. */
 export const PG_OBJECTIVES={
@@ -53,8 +56,12 @@ export const PG_OBJECTIVES={
  racks:[{id:"rack-pulse",position:{x:-22,y:0,z:6},weapon:"pulse"},{id:"rack-nova",position:{x:-18,y:0,z:10},weapon:"nova"},{id:"rack-photon",position:{x:-28,y:0,z:-5},weapon:"photon"},{id:"rack-rail",position:{x:27,y:0,z:14},weapon:"rail"}] as const,
 } as const;
 export const PG_STRIKE_PRICES:Readonly<Record<string,number>>=Object.freeze({orbit:200,comet:500,nova:1200,photon:1400,arc:1700,pulse:2400,helix:2500,quasar:2700,prism:3000,rail:4000,armor:650,smoke:300,flash:200,damage:400});
-export const PG_ZOMBIE_PRICES=Object.freeze({ammo:200,door:650,upgrade:[900,1600,2400] as const,"perk-vitality":750,"perk-reload":600,"perk-stamina":450,"rack-pulse":700,"rack-nova":700,"rack-photon":950,"rack-rail":1800,"rack-comet":350,"rack-orbit":350});
-export const PG_SIEGE_CAMERAS=[{id:"west-camera",position:{x:-34,y:2.5,z:-19}},{id:"east-camera",position:{x:34,y:2.5,z:26}}] as const;
+export const PG_ZOMBIE_PRICES=Object.freeze({"anomaly-arsenal":PG_ZOMBIE_ARSENAL_COST,ammo:200,door:650,upgrade:PG_ZOMBIE_FORGE_PRICES,"perk-vitality":750,"perk-reload":600,"perk-stamina":450,"rack-pulse":700,"rack-nova":700,"rack-photon":950,"rack-rail":1800,"rack-comet":350,"rack-orbit":350});
+/** Optical anchor and fixed aim shared by mounted hardware, feeds and authoritative scans. */
+export const PG_SIEGE_CAMERAS=[
+ {id:"west-camera",name:"Habitat gallery",position:{x:-34,y:2.5,z:-19},target:{x:-28,y:1.3,z:-9}},
+ {id:"east-camera",name:"Observatory court",position:{x:34,y:2.5,z:26},target:{x:28,y:1.3,z:15}},
+] as const;
 /** Quarantine infill occupies the habitat's genuinely open court edge, including its gallery. */
 export const PG_ZOMBIE_COURT_GATE:PgPanelSocket={id:"west-court-access",compound:"west",solid:{id:"panel-west-court-access",kind:"structure",center:{x:-15,y:4.5,z:-10},half:{x:.16,y:4.5,z:3},mantle:false},approaches:[{x:-16.2,y:0,z:-10},{x:-13.8,y:0,z:-10}]};
 export const PG_ZOMBIE_DOORS:readonly PgPanelSocket[]=[...PG_PANEL_SOCKETS.filter(s=>s.compound==="west"||s.compound==="east"),PG_ZOMBIE_COURT_GATE];

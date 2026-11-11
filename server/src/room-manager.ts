@@ -227,6 +227,7 @@ export class RoomManager {
       ack(this.attachProfile(socket,room,room.join(socket,payload?.name,payload?.sessionToken)));
     });
     socket.on("pg:room:ready",p=>{const c=this.currentPg(socket);c?.room.setReady(c.playerId,p?.ready);});
+    socket.on("pg:room:side",(p,ack)=>{const c=this.currentPg(socket),result=c?c.room.setSide(c.playerId,p):{ok:false,error:"Not in PlanetGun."};if(typeof ack==="function")ack(result);});
     socket.on("pg:room:configure",p=>{const c=this.currentPg(socket);c?.room.configure(c.playerId,p??{});});
     socket.on("pg:loadout",p=>{const c=this.currentPg(socket);c?.room.setLoadout(c.playerId,p);});
     socket.on("pg:mode:action",(p,ack)=>{const c=this.currentPg(socket),result=c?c.room.modeAction(c.playerId,p):{ok:false,error:"Not in PlanetGun."};if(typeof ack==="function")ack(result);});

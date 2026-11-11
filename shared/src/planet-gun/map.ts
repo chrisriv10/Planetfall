@@ -96,14 +96,18 @@ box("center-relay-canopy","floor",-2,5.7,-7,3.6,.18,2.5,true);
 // accidental walks off an unmarked tabletop.
 box("deck-rail-west","rail",-45.5,.65,0,.25,.65,37.5);
 box("deck-rail-east","rail",45.5,.65,0,.25,.65,37.5);
-box("deck-rail-north","rail",0,.65,-37.5,45,.65,.25);
-box("deck-rail-south","rail",0,.65,37.5,45,.65,.25);
+box("deck-rail-north","rail",0,.65,-37.5,45.75,.65,.25);
+box("deck-rail-south","rail",0,.65,37.5,45.75,.65,.25);
 const spawns:PgSpawn[]=[];for(const team of ["solar","void"] as const)for(let i=0;i<6;i++)spawns.push({id:`${team}-${i}`,team,position:v((team==="solar"?-1:1)*(i<3?40:36),0,[-27,0,29][i%3]),yaw:team==="solar"?-Math.PI/2:Math.PI/2});
 // Ground waypoints are visibility-linked once at map construction, not searched in 3D each frame.
 const ground:Vec3[]=[];
 const free=(p:Vec3)=>!solids.some(b=>p.y<b.center.y+b.half.y-.02&&p.y+B.height>b.center.y-b.half.y+.02&&Math.abs(p.x-b.center.x)<b.half.x+.46&&Math.abs(p.z-b.center.z)<b.half.z+.46);
 for(let x=-40;x<=40;x+=8)for(let z=-32;z<=32;z+=8){const p=v(x,0,z);if(free(p))ground.push(p);}
 for(const [x,z]of [[-38,-11],[-32,-11],[-25,-3],[-25,3],[38,17.5],[28,17.5],[16,15],[-31,-2],[32,4],[-12,-29.4],[-5.9,-29.4],[-5.9,-19],[15.6,16]]){const p=v(x,0,z);if(free(p))ground.push(p);}
+// The west end doorway opens beside the stair flight, not through it. These
+// ground anchors follow the existing corridor and the walkable first tread.
+// Keep the south corner inside the habitat; linking it to the exterior cuts a wall.
+for(const [x,z]of [[-33.8,-11],[-33.8,-1.9],[-31,-1.9],[-27.8,-1.9]]){const p=v(x,0,z);if(free(p))ground.push(p);}
 const navigation:PgNavNode[]=ground.map((position,id)=>({id,position,links:[]}));
 for(let a=0;a<navigation.length;a++)for(let b=a+1;b<navigation.length;b++){
  const from=navigation[a].position,to=navigation[b].position,dx=to.x-from.x,dz=to.z-from.z,d=Math.hypot(dx,dz);if(d>12||d<.1)continue;

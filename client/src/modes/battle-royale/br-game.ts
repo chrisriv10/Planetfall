@@ -1,3 +1,4 @@
+import {applyAstronautSuitFinish} from "../../astronaut-suit-finish";
 import {brShotDirectionAllowed,brVehicleSeatIndex,BR_VEHICLE_DEFINITIONS} from "@planetfall/shared";
 import {createBrTeamVehicle,updateBrTeamVehicle,type BrTeamVehicleVisual} from "./br-team-vehicles";
 import { brWeaponStats, isBrUtility, BR_UTILITIES, type BrWorldEffect } from "@planetfall/shared";
@@ -56,7 +57,7 @@ import {createBrHeldPresentation,type BrHeldPresentationFrame} from "./br-held-p
 import {createBrHeldAimFrame,brHeldAimFacing} from "./br-held-aim-frame";
 import {isBrSupportWeaponId} from "./br-held-weapon-support";
 
-type PlayerVisual = { supported:ReturnType<typeof createBrHeldPresentation>|null; supportedModel:THREE.Group|null; heldAimFrame:ReturnType<typeof createBrHeldAimFrame>; heldFrame:BrHeldPresentationFrame; lastShotAt:number; motion: ReturnType<typeof createAstronautMotion>; upperBody: THREE.Group; motionYaw: number | null; motionX: number; motionY: number; motionZ: number; nameplatePlacement: ReturnType<typeof createBrNameplatePlacement>; flightTrail:THREE.Line; flightTrailPoints:THREE.Vector3[]; trailSampleAt:number; group: THREE.Group; rig: THREE.Group; target: THREE.Vector3; label: THREE.Sprite; shadow:THREE.Mesh; body: THREE.Mesh; helmet: THREE.Group; cameraHelmetBounds: THREE.Box3; backpack: THREE.Group; suitMaterial: THREE.MeshStandardMaterial; lodDetails: THREE.Object3D[]; limbs: THREE.Group[]; wings: THREE.Group; weapon: THREE.Group; weaponId: BrWeaponId | null; actionDevice:THREE.Group; actionHealId:BrHealId|BrUtilityId|null; actionHealModel:THREE.Group|null; state: BrPlayerSnapshotState; relevant: boolean; emote: EmoteType | null; emoteEndsAt: number; damageFeedback:BrDamageFeedback; damageRipple:THREE.Mesh<THREE.SphereGeometry,THREE.MeshBasicMaterial> };
+type PlayerVisual = { astronaut:ReturnType<typeof createAstronautVisual>;supported:ReturnType<typeof createBrHeldPresentation>|null; supportedModel:THREE.Group|null; heldAimFrame:ReturnType<typeof createBrHeldAimFrame>; heldFrame:BrHeldPresentationFrame; lastShotAt:number; motion: ReturnType<typeof createAstronautMotion>; upperBody: THREE.Group; motionYaw: number | null; motionX: number; motionY: number; motionZ: number; nameplatePlacement: ReturnType<typeof createBrNameplatePlacement>; flightTrail:THREE.Line; flightTrailPoints:THREE.Vector3[]; trailSampleAt:number; group: THREE.Group; rig: THREE.Group; target: THREE.Vector3; label: THREE.Sprite; shadow:THREE.Mesh; body: THREE.Mesh; helmet: THREE.Group; cameraHelmetBounds: THREE.Box3; backpack: THREE.Group; suitMaterial: THREE.MeshStandardMaterial; lodDetails: THREE.Object3D[]; limbs: THREE.Group[]; wings: THREE.Group; weapon: THREE.Group; weaponId: BrWeaponId | null; actionDevice:THREE.Group; actionHealId:BrHealId|BrUtilityId|null; actionHealModel:THREE.Group|null; state: BrPlayerSnapshotState; relevant: boolean; emote: EmoteType | null; emoteEndsAt: number; damageFeedback:BrDamageFeedback; damageRipple:THREE.Mesh<THREE.SphereGeometry,THREE.MeshBasicMaterial> };
 type LootVisual = { group: BrLootLod; state: BrLootState };
 type CrateVisual = { group: THREE.Group; state: BrCrateState; baseY: number };
 type ProjectileVisual = { mesh: THREE.Mesh; target: THREE.Vector3; state: BrProjectileState; trail: THREE.Line; points: THREE.Vector3[] };
@@ -615,7 +616,7 @@ export class BattleRoyaleGame {
       if(frame.menuY<0){this.cycleSpectator(-1);this.onSpectateCycle?.(-1);}
       else if(frame.menuY>0){this.cycleSpectator(1);this.onSpectateCycle?.(1);}
       if (frame.pause.pressed || frame.cancel.pressed) this.onPause?.();
-      this.prompt = `${inputLabel("nextTarget", frame.method)} / ↑ ↓  CYCLE SPECTATOR`;
+      this.prompt = `${inputLabel("nextTarget", frame.method,"battle-royale")} / ↑ ↓  CYCLE SPECTATOR`;
       const target=this.getSpectatorTarget()?.state??null;
       this.onHud?.({ player: local, players: this.room?.players ?? [], teamMode:this.room?.teamMode??"solo", playersRemaining: this.room?.playersRemaining ?? 0, teamsRemaining: this.room?.teamsRemaining ?? 0, storm: this.room!.storm, phase: this.room!.phase, prompt: this.prompt, reloadProgress: 0, useProgress: 0, reviveProgress: 0, spectatorTarget:target,dropAltitude:null,targetedLoot:null });
       return;
@@ -697,7 +698,7 @@ export class BattleRoyaleGame {
     if (frame.emote.pressed) {
       this.triggerEmote(local, lookDirection);
     }
-    const jumpKey = inputLabel("jump", frame.method); const interactKey = inputLabel("interact", frame.method);
+    const jumpKey = inputLabel("jump", frame.method,"battle-royale"); const interactKey = inputLabel("interact", frame.method,"battle-royale");
     const selectedHeal=selectedItem&&isBrHeal(selectedItem.itemId)?BR_HEALS[selectedItem.itemId]:null;const healUsable=Boolean(selectedHeal&&(selectedHeal.hp>0?local.hp<BR_BALANCE.hp:local.shield<BR_BALANCE.shield));
     const promptDeployment=this.predictedMotion?.deployment??local.deployment;
     this.prompt = promptDeployment === "attached" ? `${jumpKey}  JUMP`
@@ -712,7 +713,7 @@ export class BattleRoyaleGame {
                     : nearbyVehicle ? `${interactKey}  ${nearbyVehicle.state.driverId?"BOARD":"PILOT"} ${BR_VEHICLE_DEFINITIONS[nearbyVehicle.state.kind].name}`
                       : selectedItem&&isBrUtility(selectedItem.itemId)?`${interactKey}  USE ${BR_UTILITIES[selectedItem.itemId].name}`
                       : selectedHeal&&healUsable ? `${interactKey}  USE ${selectedHeal.name}`
-                      : selectedItem && isBrWeapon(selectedItem.itemId) && selectedItem.itemId !== "energy-saber" && selectedItem.magazine === 0 ? `${inputLabel("repair", frame.method)}  RELOAD` : "";
+                      : selectedItem && isBrWeapon(selectedItem.itemId) && selectedItem.itemId !== "energy-saber" && selectedItem.magazine === 0 ? `${inputLabel("repair", frame.method,"battle-royale")}  RELOAD` : "";
     this.inputAccumulator += dt;
     if (this.inputAccumulator >= 1 / BR_BALANCE.inputRate) {
       this.inputAccumulator %= 1 / BR_BALANCE.inputRate;
@@ -1032,7 +1033,7 @@ export class BattleRoyaleGame {
       const state = this.renderState(source);
       let visual = this.players.get(state.id);
       if (!visual) { visual = this.makePlayer(state); this.players.set(state.id, visual); this.scene.add(visual.group,visual.flightTrail); }
-      visual.state = state; visual.relevant = true; visual.target.copy(vec(state.position)); visual.suitMaterial.color.set(cosmeticColor(state.equippedCosmetics.suit, state.color));
+      visual.state = state; visual.relevant = true; visual.target.copy(vec(state.position)); visual.suitMaterial.color.set(cosmeticColor(state.equippedCosmetics.suit, state.color));applyAstronautSuitFinish(visual.astronaut,SHOP_CATALOG.find(item=>item.id===state.equippedCosmetics.suit)?.suitStyle??null);
       if(visual.flightTrail.userData.cosmeticId!==state.equippedCosmetics.trail)configureCosmeticFlightTrail(visual.flightTrail,cosmeticColor(state.equippedCosmetics.trail,"#70f5ff"),state.equippedCosmetics.trail);
     }
   }
@@ -1093,7 +1094,7 @@ export class BattleRoyaleGame {
     const damageRipple=new THREE.Mesh(new THREE.SphereGeometry(.82,14,10),new THREE.MeshBasicMaterial({color:0x65eaff,transparent:true,opacity:0,wireframe:true,depthWrite:false,blending:THREE.AdditiveBlending}));
     damageRipple.position.y=.82;damageRipple.visible=false;group.add(damageRipple);
     const flightTrail=createCosmeticFlightTrail(cosmeticColor(state.equippedCosmetics.trail,"#70f5ff"),state.equippedCosmetics.trail); flightTrail.visible=false;
-    return { supported:null,supportedModel:null,heldAimFrame:createBrHeldAimFrame(),heldFrame:{dt:0,pitch:0,yaw:0,recoil:0,reloadProgress:null}, lastShotAt:-Infinity, motion:createAstronautMotion(astronaut), upperBody:astronaut.upperBody, motionYaw:null, motionX:state.position.x, motionY:state.position.y, motionZ:state.position.z, nameplatePlacement, flightTrail, flightTrailPoints:[], trailSampleAt:0, group, rig, target: vec(state.position), label, shadow, body, helmet: astronaut.helmet, cameraHelmetBounds, backpack: astronaut.backpack, suitMaterial: astronaut.suitMaterial, lodDetails: astronaut.lodDetails, limbs, wings, weapon, weaponId:null, actionDevice, actionHealId:null, actionHealModel:null, state, relevant: true, emote: null, emoteEndsAt: 0, damageFeedback:new BrDamageFeedback(), damageRipple };
+    return { astronaut,supported:null,supportedModel:null,heldAimFrame:createBrHeldAimFrame(),heldFrame:{dt:0,pitch:0,yaw:0,recoil:0,reloadProgress:null}, lastShotAt:-Infinity, motion:createAstronautMotion(astronaut), upperBody:astronaut.upperBody, motionYaw:null, motionX:state.position.x, motionY:state.position.y, motionZ:state.position.z, nameplatePlacement, flightTrail, flightTrailPoints:[], trailSampleAt:0, group, rig, target: vec(state.position), label, shadow, body, helmet: astronaut.helmet, cameraHelmetBounds, backpack: astronaut.backpack, suitMaterial: astronaut.suitMaterial, lodDetails: astronaut.lodDetails, limbs, wings, weapon, weaponId:null, actionDevice, actionHealId:null, actionHealModel:null, state, relevant: true, emote: null, emoteEndsAt: 0, damageFeedback:new BrDamageFeedback(), damageRipple };
   }
 
   private updateDamageFeedback(visual:PlayerVisual,now:number):void {

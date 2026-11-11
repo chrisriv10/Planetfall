@@ -64,9 +64,16 @@ describe("PlanetGun mode room authority and network boundary",()=>{
   const f=await fixture(),now=f.start(mode),p=f.room.players.get(f.joined.playerId)!;expect(p.slot).toBe(1);expect(p.guns[0].magazine).toBe(0);
   f.room.switchWeapon(p.id,0,now+500);expect(p.slot).toBe(1);expect(p.guns[0].reserve).toBe(0);
  });
- it.each(["planetstrike","planetsiege","planetzombies"] as const)("does not apply deathmatch regeneration in %s",async mode=>{
+ it.each(["planetstrike","planetsiege"] as const)("does not apply deathmatch regeneration in %s",async mode=>{
   const f=await fixture(),now=f.start(mode),p=f.room.players.get(f.joined.playerId)!;p.hp=50;p.lastDamageAt=now-PG_BALANCE.regenDelayMs-100;
   f.room.update(.1,now+100);expect(p.hp).toBe(50);
+ });
+ it("uses Zombies hit recovery timing through room authority instead of deathmatch HP regeneration",async()=>{
+  const f=await fixture(),now=f.start("planetzombies"),p=f.room.players.get(f.joined.playerId)!;p.protectedUntil=0;
+  expect(f.room["modeDamage"](p,null,999999,now)).toBe(33);expect(p.hp).toBe(67);
+  const state=(at:number)=>{const mode=f.room.snapshot(at,p.id).mode;if(mode?.id!=="planetzombies")throw Error("Expected PlanetZombies snapshot");return mode.pilots[p.id];};
+  expect(state(now).hitCount).toBe(1);f.room.update(.1,now+4999);expect(state(now+4999).hitCount).toBe(1);expect(p.hp).toBe(67);
+  f.room.update(.1,now+5100);expect(state(now+5100).hitCount).toBe(0);expect(p.hp).toBe(100);
  });
  it("restores the exact active Watch life, hero, cooldown and health on session reconnect",async()=>{
   const f=await fixture();const guest=await f.join();f.room.configure(f.joined.playerId,{mode:"planetwatch"});let p=f.room.players.get(f.joined.playerId)!;

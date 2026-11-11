@@ -1,4 +1,4 @@
-import {LatheGeometry,Vector2,type Matrix4,type Vector3} from "three";
+import {Float32BufferAttribute,LatheGeometry,Vector2,type Matrix4,type Vector3} from "three";
 
 function adsBlend(ads:number):number {
   const t=Number.isFinite(ads)?Math.max(0,Math.min(1,ads)):0;
@@ -28,11 +28,26 @@ export function pgSleeveRadius(ads:number):number {return .055-.007*adsBlend(ads
  */
 export function createPgSleeveGeometry():LatheGeometry {
   const profile=[
-    [0,-.5],[.91,-.5],[.94,-.46],[.96,-.30],[.99,-.08],
-    [1,.14],[.98,.26],[.92,.35],[.82,.42],[.73,.47],[.70,.5],[0,.5],
+    [0,-.5],[.78,-.5],[.87,-.41],[.88,-.18],[.96,-.08],[.85,-.035],
+    [.94,.02],[1,.14],[.93,.22],[.78,.265],[.91,.31],[.78,.40],[.70,.5],[0,.5],
   ];
-  const geometry=new LatheGeometry(profile.map(([radius,y])=>new Vector2(radius,y)),16);
+  const segments=12;
+  const geometry=new LatheGeometry(profile.map(([radius,y])=>new Vector2(radius,y)),segments);
   geometry.scale(1,1,.84);
+  const positions=geometry.getAttribute("position"),colors:number[]=[];
+  for(let i=0;i<positions.count;i++){
+    const y=positions.getY(i),angle=2*Math.PI*Math.floor(i/profile.length)/segments;
+    // Bias the folds around the forearm, like a pressure sleeve folded between
+    // the cuff and elbow. Keep the cap positions and padded wrist diameter.
+    const shear=(1-4*y*y)*.030*Math.sin(angle+.2);
+    positions.setY(i,y+shear);
+    const panel=.5+.5*Math.cos(angle-.55);
+    const reinforced=panel*panel*(y>.32?.30:.18);
+    const shade=1-reinforced-(y>.24&&y<.29?.17:0)-(y>-.05&&y<0?.11:0);
+    colors.push(shade,shade,shade);
+  }
+  geometry.setAttribute("color",new Float32BufferAttribute(colors,3));
+  geometry.computeVertexNormals();
   geometry.computeBoundingBox();geometry.computeBoundingSphere();
   return geometry;
 }

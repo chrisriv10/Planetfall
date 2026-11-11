@@ -2,6 +2,9 @@ import type {PgClientToServerEvents,PgServerToClientEvents} from "./planet-gun/t
 export * from "./planet-gun/index.js";
 import type { BrClientToServerEvents, BrServerToClientEvents } from "./battle-royale/types.js";
 import type { PrClientToServerEvents, PrServerToClientEvents } from "./planet-run/types.js";
+import type {GameFamily} from "./game-family.js";
+import {EXPANDED_SHOP_CATALOG,EXPANDED_PASS_REWARDS} from "./cosmetic-expansion.js";
+export * from "./weapon-finishes.js";
 export * from "./game-family.js";
 export * from "./planet-run/index.js";
 export * from "./battle-royale/index.js";
@@ -14,17 +17,21 @@ export type RoomPhase = "lobby" | "countdown" | "playing" | "overtime" | "result
 export type GameMode = "classic" | "chaos";
 export type ChaosModifier = "low-gravity" | "scrap-rush" | "fragile-worlds" | "launch-party" | "super-shove";
 export type BotDifficulty = "easy" | "normal" | "hard";
-export type EmoteType = "wave" | "laugh" | "point" | "panic" | "taunt" | "celebrate";
+export type EmoteType = "wave" | "laugh" | "point" | "panic" | "taunt" | "celebrate" | "salute" | "shuffle" | "flex";
 export type ScrapUtility = "shield" | "overcharge" | "launch-boost";
-export type CosmeticCategory = "suit" | "trail" | "emote" | "victory" | "planet";
+export type CosmeticCategory = "suit" | "trail" | "emote" | "victory" | "planet" | "weapon-skin" | "calling-card" | "emblem";
 
 export interface EquippedCosmetics {
   suit: string;
   trail: string;
   victory: string;
   planet: string;
+  "weapon-skin"?:string;
+  "calling-card"?:string;
+  emblem?:string;
 }
 export interface GuestProfile {
+  lobbyBadge?:string;
   fallbucks:number;crowns:number;sessionTotalXp:number;sessionLevel:number;sessionXp:number;
   ownedCosmetics:string[];equippedCosmetics:EquippedCosmetics;unlockedPassRewards:string[];
 }
@@ -37,7 +44,20 @@ export interface ShopItem {
   color?: string;
   emote?: EmoteType;
   passLevel?: number;
+  families?:readonly GameFamily[];
+  suitStyle?:"pressure"|"courier"|"salvage";
+  planetStyle?:"ocean"|"cinder"|"garden";
 }
+
+export const COSMETIC_FAMILIES:readonly GameFamily[]=["planetfall","battle-royale","planet-run","planet-gun"];
+export function cosmeticFamilies(item:Readonly<ShopItem>):readonly GameFamily[]{
+  if(item.families)return item.families;
+  if(item.category==="planet")return ["planetfall"];
+  if(item.category==="weapon-skin")return ["planet-gun"];
+  if(item.category==="trail")return ["planetfall","battle-royale","planet-run"];
+  return COSMETIC_FAMILIES;
+}
+export function cosmeticCompatible(item:Readonly<ShopItem>,family:GameFamily):boolean{return cosmeticFamilies(item).includes(family);}
 
 export interface PlanetPassReward {
   id: string;
@@ -49,7 +69,7 @@ export interface PlanetPassReward {
 }
 
 export const FREE_EMOTES: readonly EmoteType[] = ["wave", "point", "celebrate"];
-export const DEFAULT_COSMETICS: EquippedCosmetics = { suit: "default", trail: "default", victory: "default", planet: "default" };
+export const DEFAULT_COSMETICS: EquippedCosmetics = { suit: "default", trail: "default", victory: "default", planet: "default", "weapon-skin":"default","calling-card":"default",emblem:"default" };
 export const SHOP_CATALOG: readonly ShopItem[] = [
   { id: "solar-gold", name: "Solar Gold", category: "suit", price: 100, color: "#ffd84d" },
   { id: "ice-blue", name: "Ice Blue", category: "suit", price: 100, color: "#70f5ff" },
@@ -69,10 +89,19 @@ export const SHOP_CATALOG: readonly ShopItem[] = [
   { id: "ion-blue", name: "Ion Blue", category: "trail", price: 0, color: "#55dfff", passLevel: 3 },
   { id: "solar-visor", name: "Solar Visor", category: "suit", price: 0, color: "#ffe66b", passLevel: 5 },
   { id: "warp-spark", name: "Warp Spark", category: "trail", price: 0, color: "#ff79e6", passLevel: 7 },
-  { id: "ace", name: "Ace", category: "victory", price: 0, passLevel: 9 }
+  { id: "ace", name: "Ace", category: "victory", price: 0, passLevel: 9 },
+  ...EXPANDED_SHOP_CATALOG
 ];
 
-export const SESSION_PROGRESSION = { xpPerLevel: 100, maxLevel: 10 } as const;
+export const SESSION_PROGRESSION = { xpPerLevel: 100, maxLevel: 50 } as const;
+/** First ten level thresholds are unchanged. Later chapters gradually require
+ * more XP; level 50 takes 7,400 total XP without capping lifetime earned XP. */
+export function sessionXpRequired(level:number):number{
+  return level<10?100:level<20?125:level<30?150:level<40?175:200;
+}
+const SESSION_XP_THRESHOLDS:number[]=[0];
+for(let level=1;level<SESSION_PROGRESSION.maxLevel;level++)SESSION_XP_THRESHOLDS.push(SESSION_XP_THRESHOLDS[level-1]+sessionXpRequired(level));
+export function sessionXpForLevel(level:number):number{return SESSION_XP_THRESHOLDS[Math.max(1,Math.min(50,Number.isFinite(level)?Math.floor(level):1))-1];}
 export const PLANET_PASS_REWARDS: readonly PlanetPassReward[] = [
   { id: "default", level: 1, label: "READY FOR LAUNCH" },
   { id: "bucks-50", level: 2, label: "+50 FALLBUCKS", fallbucks: 50 },
@@ -83,7 +112,8 @@ export const PLANET_PASS_REWARDS: readonly PlanetPassReward[] = [
   { id: "warp-spark", level: 7, label: "WARP SPARK TRAIL", cosmeticId: "warp-spark" },
   { id: "bucks-125", level: 8, label: "+125 FALLBUCKS", fallbucks: 125 },
   { id: "ace", level: 9, label: "ACE VICTORY POSE", cosmeticId: "ace" },
-  { id: "ace-pilot", level: 10, label: "+200 FALLBUCKS · ACE PILOT", fallbucks: 200, badge: "ACE PILOT" }
+  { id: "ace-pilot", level: 10, label: "+200 FALLBUCKS · ACE PILOT", fallbucks: 200, badge: "ACE PILOT" },
+  ...EXPANDED_PASS_REWARDS
 ];
 
 export interface MatchRules {
@@ -706,7 +736,7 @@ export function isBotDifficulty(value: unknown): value is BotDifficulty {
 }
 
 export function isEmoteType(value: unknown): value is EmoteType {
-  return value === "wave" || value === "laugh" || value === "point" || value === "panic" || value === "taunt" || value === "celebrate";
+  return value === "wave" || value === "laugh" || value === "point" || value === "panic" || value === "taunt" || value === "celebrate" || value === "salute" || value === "shuffle" || value === "flex";
 }
 
 export function fallbucksReward(place: number): number {
@@ -714,13 +744,15 @@ export function fallbucksReward(place: number): number {
 }
 
 export function sessionLevelForXp(totalXp: number): number {
-  return Math.min(SESSION_PROGRESSION.maxLevel, Math.floor(Math.max(0, totalXp) / SESSION_PROGRESSION.xpPerLevel) + 1);
+  const safe=Number.isNaN(totalXp)?0:Math.max(0,totalXp);let low=0,high=SESSION_XP_THRESHOLDS.length;
+  while(low<high){const middle=(low+high)>>>1;if(SESSION_XP_THRESHOLDS[middle]<=safe)low=middle+1;else high=middle;}
+  return Math.max(1,low);
 }
 
 export function sessionXpInLevel(totalXp: number): number {
-  const safe = Math.max(0, totalXp);
-  if (sessionLevelForXp(safe) >= SESSION_PROGRESSION.maxLevel) return SESSION_PROGRESSION.xpPerLevel;
-  return safe % SESSION_PROGRESSION.xpPerLevel;
+  const safe=Number.isFinite(totalXp)?Math.max(0,totalXp):totalXp===Infinity?Number.MAX_SAFE_INTEGER:0,level=sessionLevelForXp(safe);
+  if(level>=SESSION_PROGRESSION.maxLevel)return sessionXpRequired(level);
+  return safe-sessionXpForLevel(level);
 }
 
 export function sessionMatchXp(place: number, awardCount: number, planetKills: number): number {

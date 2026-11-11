@@ -37,7 +37,7 @@ export class PgStrike implements PgModeRuntime {
  private sync(p:PgPlayer){const inventory=this.inventory.get(p.id)!;Object.assign(this.state(p),{primaryUnlocked:inventory.primary,utilities:[...inventory.utilities],charges:[inventory.utilities[0],inventory.utilities[1]]});}
  private alive(p:PgPlayer){return p.hp>0&&this.state(p)?.life==="alive";}
  private credit(p:PgPlayer,amount:number){const s=this.state(p);if(s)s.credits=Math.min(16000,s.credits+amount);}
- private spawnPosition(p:PgPlayer):Vec3 {return PG_MAP.spawns.find(s=>s.team===p.team)?.position??p.position;}
+ private spawnPosition(p:PgPlayer):Vec3 {return PG_MAP.spawns.filter(s=>s.team===p.team).sort((a,b)=>pgModeDistance(a.position,p.position)-pgModeDistance(b.position,p.position))[0]?.position??p.position;}
  private inBuyZone(p:PgPlayer){return PG_MAP.spawns.some(s=>s.team===p.team&&pgModeDistance(s.position,p.position)<5);}
  private round(now:number,initial=false):void {
   this.subphase="buy";this.deadline=now+BUY_MS;this.holds.clear();this.flashes.clear();this.effects=[];this.drops=[];this.charge={carrierId:null,position:null,site:null,detonatesAt:0};this.ctx.world.reset([],now);
@@ -115,7 +115,7 @@ export class PgStrike implements PgModeRuntime {
   if(inventory.primary)this.dropWeapon(p,0);
   this.dropWeapon(p,1);inventory.primary=false;inventory.utilities=[0,0,0];state.armor=0;this.sync(p);
  }
- private dropWeapon(p:PgPlayer,slot:0|1){const gun=p.guns[slot];this.drops.push({id:`weapon-${++this.serial}`,kind:"weapon",weapon:gun.id,position:pgSupportedModeDrop(p.position,this.ctx.world.map),magazine:gun.magazine,reserve:gun.reserve});if(slot===0)this.inventory.get(p.id)!.primary=false;gun.magazine=0;gun.reserve=0;p.slot=1;this.sync(p);}
+ private dropWeapon(p:PgPlayer,slot:0|1){const gun=p.guns[slot];this.drops.push({id:`weapon-${++this.serial}`,kind:"weapon",weapon:gun.id,finishId:p.equippedCosmetics?.["weapon-skin"]??"default",position:pgSupportedModeDrop(p.position,this.ctx.world.map),magazine:gun.magazine,reserve:gun.reserve});if(slot===0)this.inventory.get(p.id)!.primary=false;gun.magazine=0;gun.reserve=0;p.slot=1;this.sync(p);}
  private cancel(id:string){this.holds.delete(id);if(this.pilots[id])this.pilots[id].interaction=null;}
  private site(target:string){return PG_OBJECTIVES.strike.find(site=>target===`site-${site.id}`||target===site.id);}
  private validInteraction(p:PgPlayer,target:string):boolean {
@@ -195,6 +195,8 @@ export class PgStrike implements PgModeRuntime {
   if(this.subphase==="buy")return this.spawnPosition(p);
   if(this.subphase!=="action")return null;
   if((this.flashes.get(p.id)??0)>now)return {...p.position};
+  // Let ordinary braking settle before maintaining the stationary plant/defuse.
+  if(this.validInteraction(p,"charge")||PG_OBJECTIVES.strike.some(site=>this.validInteraction(p,`site-${site.id}`)))return {...p.position};
   if(this.charge.site)return this.charge.position;
   if(p.team===this.series.attackTeam&&this.charge.position)return this.charge.position;
   const roster=[...this.ctx.players.values()].filter(x=>x.team===p.team),index=Math.max(0,roster.indexOf(p));

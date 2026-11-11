@@ -1,0 +1,43 @@
+.pg-world-interaction-prompt {
+  position: absolute;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + clamp(110px, 18vh, 150px));
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  max-width: min(360px, calc(100% - 28px));
+  box-sizing: border-box;
+  padding: 8px 14px 8px 9px;
+  border: 1px solid #5c808e;
+  border-left: 3px solid #91e6df;
+  border-radius: 4px 10px 10px 4px;
+  background: #101a28f5;
+  color: #f0f7fc;
+  text-align: left;
+  text-shadow: none;
+  font: 600 14px/1.3 system-ui, sans-serif;
+  pointer-events: none;
+  user-select: none;
+}
+.pg-world-interaction-prompt[hidden] { display: none; }
+.pg-interaction-key {
+  display: grid;
+  place-items: center;
+  min-width: 32px;
+  min-height: 32px;
+  padding-inline: 4px;
+  box-sizing: border-box;
+  border: 1px solid #98eee5;
+  border-bottom: 3px solid #8a7cb9;
+  border-radius: 5px;
+  background: #273a46;
+  color: #ddfffa;
+  font: 800 15px/1 ui-monospace, monospace;
+}
+.pg-interaction-copy { display: grid; min-width: 0; gap: 1px; overflow-wrap: anywhere; }
+.pg-interaction-detail { color: #b9e7e4; font: 700 11px/1.4 ui-monospace, monospace; letter-spacing: .045em; }
+.pg-world-interaction-prompt[data-available=false] { border-left-color: #bbadd5; }
+.pg-world-interaction-prompt[data-available=false] .pg-interaction-key { border-color: #827e96; color: #c6c3d0; background: #292b38; }
+.pg-world-interaction-prompt[data-available=false] .pg-interaction-detail { color: #d8cde6; }

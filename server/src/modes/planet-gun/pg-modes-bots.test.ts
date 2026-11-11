@@ -1,7 +1,7 @@
 import {mkdirSync,writeFileSync} from "node:fs";
 import {describe,expect,it} from "vitest";
 import type {Server,Socket} from "socket.io";
-import {PG_BALANCE,PG_HERO_IDS,type ClientToServerEvents,type ServerToClientEvents,type PgModeId,type PgModeSnapshot} from "@planetfall/shared";
+import {PG_BALANCE,PG_HERO_IDS,PG_OBJECTIVES,type ClientToServerEvents,type ServerToClientEvents,type PgModeId,type PgModeSnapshot} from "@planetfall/shared";
 import {PlanetGunRoom} from "./pg-room.js";
 
 /** Ordinary fixed-step gameplay: no teleporting, health edits, scripted kills or deadline jumps. */
@@ -57,21 +57,27 @@ describe("new PlanetGun modes with ordinary autonomous bots",()=>{
    expect(captured,"No relay capture; inspect bots-planetwatch.json").toBe(true);expect(contested).toBe(true);expect(roundWon,"No control round win within six simulated minutes").toBe(true);expect(abilityKinds.size).toBeGreaterThanOrEqual(3);
   }finally{f.room.dispose();}
  },60000);
- it("Siege bots prepare real panels, breach them and advance objective capture",()=>{
-  const f=game("planetsiege",12),history:unknown[]=[];let prepared=false,breached=false,captured=false,largestCapture=0;const seenActive=new Set<string>();
+ it("Siege bots prepare, breach, physically enter the objective and resolve a contested round",()=>{
+  const f=game("planetsiege",12),history:unknown[]=[];let prepared=false,breached=false,captured=false,entered=false,roundWon=false,largestCapture=0;const seenActive=new Set<string>();
   try{
    for(let frame=1;frame<=30*360;frame++){
     const now=f.start+frame*1000/30;f.room.update(1/30,now);
     if(frame%15===0){const mode=f.room.snapshot(now).mode;if(mode?.id!=="planetsiege")throw Error("Missing Siege state");
      for(const panel of mode.collision.panels){if(panel.active){seenActive.add(panel.id);if(mode.subphase==="prepare")prepared=true;}else if(seenActive.has(panel.id))breached=true;}
      largestCapture=Math.max(largestCapture,mode.capture);captured||=mode.capture>=1;
-     if(frame%900===0)history.push({seconds:frame/30,mode:summarize(mode),players:[...f.room.players.values()].map(p=>({id:p.id,team:p.team,hp:p.hp,position:p.position}))});
-     if(prepared&&breached&&captured)break;
+     const objective=PG_OBJECTIVES.uplink[mode.site];
+     entered||=mode.subphase==="action"&&[...f.room.players.values()].some(p=>p.team===mode.attackTeam&&p.hp>0&&Math.hypot(p.position.x-objective.position.x,p.position.y-objective.position.y,p.position.z-objective.position.z)<=objective.radius);
+     roundWon||=mode.roundScores.solar+mode.roundScores.void>0;
+     if(frame%900===0)history.push({seconds:frame/30,mode:summarize(mode),players:[...f.room.players.values()].map(p=>({id:p.id,team:p.team,hp:p.hp,position:{...p.position}}))});
+     if(prepared&&breached&&entered&&roundWon)break;
     }
     if(f.room.phase==="results")break;
    }
-   evidence("bots-planetsiege",{population:12,dt:1/30,prepared,breached,captured,largestCapture,shots:f.shots(),history});
-   expect(prepared,"No defensive panels prepared; inspect bots-planetsiege.json").toBe(true);expect(breached,"No bot route resulted in a real panel breach").toBe(true);expect(captured,"No objective capture within six simulated minutes").toBe(true);
+   evidence("bots-planetsiege",{population:12,dt:1/30,prepared,breached,entered,roundWon,captured,largestCapture,shots:f.shots(),history});
+   expect(prepared,"No defensive panels prepared; inspect bots-planetsiege.json").toBe(true);expect(breached,"No bot route resulted in a real panel breach").toBe(true);
+   // A contested round may correctly end by elimination. A separate ordinary-
+   // movement playthrough requires the full timed capture with both teams alive.
+   expect(entered,"No living attacker physically entered the objective").toBe(true);expect(roundWon,"No valid contested round resolution within six simulated minutes").toBe(true);
   }finally{f.room.dispose();}
  },60000);
  it("four friendly survivors clear several finite zombie waves through ordinary combat",()=>{

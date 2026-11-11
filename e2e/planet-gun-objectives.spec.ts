@@ -1,12 +1,13 @@
 import {test,expect,type Page} from "@playwright/test";
 import {io as connect,type Socket} from "socket.io-client";
 import {writeFile} from "node:fs/promises";
-import {selectExperimentalFamily} from "./select-family";
+import {selectExperimentalFamily,capturePgMouse,openLobbyConfiguration} from "./select-family";
 import type {PgJoinResult} from "@planetfall/shared";
 test.use({channel:"chromium"});
 const state=(p:Page)=>p.evaluate(()=>(window as unknown as {__PLANETFALL_PG_DEBUG__:()=>any}).__PLANETFALL_PG_DEBUG__?.());
 async function prepare(p:Page,name:string){await p.setViewportSize({width:960,height:540});await p.goto("/");await p.getByLabel("Name",{exact:true}).fill(name);await selectExperimentalFamily(p,"planet-gun");await p.locator("#settings-open").click();await p.locator("#graphics-quality").selectOption("low");await p.locator("#settings-close").click();}
 async function go(page:Page,x:number,z:number){
+ await page.bringToFront();await capturePgMouse(page);
  for(let i=0;i<100;i++){
   const s=(await state(page)).local,dx=x-s.position.x,dz=z-s.position.z;if(Math.hypot(dx,dz)<.35&&Math.hypot(s.velocity.x,s.velocity.z)<.2){await page.keyboard.up("Control");return;}
   const c=Math.cos(s.yaw),sn=Math.sin(s.yaw),mx=dx*c-dz*sn,mz=dx*sn+dz*c,side=Math.abs(mx)>Math.abs(mz),delta=side?mx:mz,key=side?(delta>0?"d":"a"):(delta>0?"s":"w");
@@ -18,7 +19,7 @@ async function go(page:Page,x:number,z:number){
 test("two real clients plant and defuse a charge using uninterrupted held input",async({browser},info)=>{
  test.setTimeout(240000);const a=await browser.newPage(),b=await browser.newPage();
  try{
-  await prepare(a,"Charge Carrier");await prepare(b,"Defuse Pilot");await a.locator("#create-room").click();await a.getByLabel("PlanetGun submode").selectOption("planetstrike");await a.locator("#pg-fill").uncheck();const code=await a.locator("#pg-code").innerText();await b.locator("#room-code").fill(code);await b.locator("#join-room").click();await b.locator("#pg-ready").click();await a.locator("#pg-ready").click();await a.locator("#pg-start").click();for(const p of[a,b])await expect.poll(async()=>(await state(p))?.mode?.id).toBe("planetstrike");
+  await prepare(a,"Charge Carrier");await prepare(b,"Defuse Pilot");await a.locator("#create-room").click();await a.getByLabel("PlanetGun submode").selectOption("planetstrike");await openLobbyConfiguration(a);await a.locator("#pg-fill").uncheck();const code=await a.locator("#pg-code").innerText();await b.locator("#room-code").fill(code);await b.locator("#join-room").click();await b.locator("#pg-ready").click();await a.locator("#pg-ready").click();await a.locator("#pg-start").click();for(const p of[a,b])await expect.poll(async()=>(await state(p))?.mode?.id).toBe("planetstrike");
   await a.bringToFront();await go(a,-40,2);await go(a,-25,2);await go(a,-25,-9);await go(a,-28,-9);
   await b.bringToFront();await go(b,40,-19);await go(b,-28,-19);await go(b,-28,-8);
   await expect.poll(async()=>(await state(a)).mode.subphase,{timeout:25000}).toBe("action");
@@ -26,7 +27,7 @@ test("two real clients plant and defuse a charge using uninterrupted held input"
   await b.bringToFront();await b.keyboard.down("e");await expect.poll(async()=>{const s=await state(b);return s.mode.pilots[s.local.id].interaction?.targetId;}).toBe("charge");await b.screenshot({path:info.outputPath("strike-defuse-held.png")});await expect.poll(async()=>(await state(b)).mode.roundScores.void,{timeout:9000}).toBe(1);await b.keyboard.up("e");
   await b.waitForTimeout(200);await expect(b.getByText("Wait for the action phase",{exact:true})).toBeHidden();const result=await state(b);expect(result.mode.charge.site).toBeNull();await writeFile(info.outputPath("strike-objective-result.json"),JSON.stringify(result,null,2));await b.screenshot({path:info.outputPath("strike-defenders-round-win.png")});
   await expect.poll(async()=>(await state(b)).mode.subphase,{timeout:10000}).toBe("buy");
-  await b.keyboard.press("b");await b.locator(".pg-mode-menu").getByRole("button",{name:/^Pulse Rifle ·/}).click();await b.keyboard.press("b");
+  await b.keyboard.press("b");await b.locator('#pg-strike-buy-screen [data-item="pulse"]').click();await b.locator("#pg-strike-buy-screen .pg-buy-purchase").click();await expect(b.locator("#pg-strike-buy-screen .pg-buy-reason")).toHaveText("Purchase confirmed.");await b.keyboard.press("b");
   await expect.poll(async()=>{const s=await state(b);return s.mode.pilots[s.local.id].primaryUnlocked;}).toBe(true);
   await expect.poll(async()=>(await state(b)).mode.subphase,{timeout:25000}).toBe("action");
   const inventory=(await state(b)).local.guns[0];await b.keyboard.press("x");
@@ -47,7 +48,7 @@ test("two real clients plant and defuse a charge using uninterrupted held input"
 for(const mode of ["planetwatch","planetsiege"] as const)test(`${mode} full roster in-world character identities and quality samples`,async({browser},info)=>{
  test.setTimeout(180000);const a=await browser.newPage(),b=await browser.newPage(),idle:Socket[]=[];const samples:unknown[]=[];
  try{
-  await prepare(a,"Solar Review");await prepare(b,"Void Review");await a.locator("#create-room").click();await a.getByLabel("PlanetGun submode").selectOption(mode);await a.locator("#pg-fill").uncheck();const code=await a.locator("#pg-code").innerText();await b.locator("#room-code").fill(code);await b.locator("#join-room").click();
+  await prepare(a,"Solar Review");await prepare(b,"Void Review");await a.locator("#create-room").click();await a.getByLabel("PlanetGun submode").selectOption(mode);await openLobbyConfiguration(a);await a.locator("#pg-fill").uncheck();const code=await a.locator("#pg-code").innerText();await b.locator("#room-code").fill(code);await b.locator("#join-room").click();
   for(let i=0;i<10;i++){const c=connect("http://127.0.0.1:13000",{forceNew:true,transports:["websocket"],extraHeaders:{Origin:"http://127.0.0.1:15173"}});idle.push(c);await new Promise<void>((resolve,reject)=>{c.once("connect",resolve);c.once("connect_error",reject);});const j=await new Promise<PgJoinResult>(r=>c.emit("pg:room:join",{code,name:`Review Pilot ${i}`},r));expect(j.ok).toBe(true);c.emit("pg:room:ready",{ready:true});}
   await b.locator("#pg-ready").click();await a.locator("#pg-ready").click();await a.locator("#pg-start").click();for(const p of[a,b])await expect.poll(async()=>(await state(p))?.mode?.id).toBe(mode);
   const seen=new Set<string>();

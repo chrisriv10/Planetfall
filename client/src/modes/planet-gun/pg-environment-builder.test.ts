@@ -3,6 +3,33 @@ import * as THREE from "three";
 import {createPgEnvironmentBuilder,type PgArtMaterial} from "./pg-environment-builder";
 const palette=():Record<PgArtMaterial,THREE.Material>=>({ivory:new THREE.MeshStandardMaterial(),frame:new THREE.MeshStandardMaterial(),dark:new THREE.MeshStandardMaterial(),glass:new THREE.MeshStandardMaterial(),soil:new THREE.MeshStandardMaterial(),leaf:new THREE.MeshStandardMaterial(),cyan:new THREE.MeshStandardMaterial(),amber:new THREE.MeshStandardMaterial(),violet:new THREE.MeshStandardMaterial(),paving:new THREE.MeshStandardMaterial()});
 describe("shared neighborhood instance ownership",()=>{
+ it("stores sRGB paint in one static batch, defaulting unpainted instances to white",()=>{
+  const materials=palette(),art=createPgEnvironmentBuilder(materials);
+  const placement=Object.freeze([1,2,3,4,5,6] as const);
+  art.context.add("plain","box","ivory",placement);
+  art.context.add("painted","box","ivory",placement,undefined,false,0xd58064);
+  art.context.add("plain again","box","ivory",placement);
+  art.context.add("signal","box","amber",placement);
+  art.finish();
+  const mesh=art.root.getObjectByName("neighborhood:box:ivory:false") as THREE.InstancedMesh;
+  const signal=art.root.getObjectByName("neighborhood:box:amber:false") as THREE.InstancedMesh;
+  expect(mesh.material).toBe(materials.ivory);
+  expect(mesh.count).toBe(3);
+  const colors=mesh.instanceColor!;
+  expect(colors.usage).toBe(THREE.StaticDrawUsage);
+  expect(signal.instanceColor).toBeNull();
+  const color=new THREE.Color();
+  for(const [index,hex] of [0xffffff,0xd58064,0xffffff].entries()){
+   mesh.getColorAt(index,color);
+   expect(color.getHex()).toBe(hex);
+  }
+  const version=colors.version;
+  art.setQuality("low");art.setQuality("high");art.finish();
+  expect(mesh.instanceColor).toBe(colors);
+  expect(colors.version).toBe(version);
+  expect((materials.ivory as THREE.MeshStandardMaterial).color.getHex()).toBe(0xffffff);
+  art.dispose();Object.values(materials).forEach(m=>m.dispose());
+ });
  it("merges district features by geometry/material while preserving transformed audit data and Low silhouettes",()=>{
   const materials=palette(),art=createPgEnvironmentBuilder(materials);
   art.context.add("habitat","box","ivory",[1,2,3,2,3,4]);art.context.add("engineering","box","ivory",[8,4,6,3,2,1]);art.context.add("vent","box","ivory",[4,3,2,.1,.2,.1],undefined,true);

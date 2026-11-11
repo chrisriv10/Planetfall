@@ -1,6 +1,6 @@
 import {test,expect,type Page} from "@playwright/test";
 import {writeFile} from "node:fs/promises";
-import {selectExperimentalFamily} from "./select-family";
+import {selectExperimentalFamily,capturePgMouse,openLobbyConfiguration} from "./select-family";
 const state=(page:Page)=>page.evaluate(()=>(window as unknown as {__PLANETFALL_PG_DEBUG__:()=>any}).__PLANETFALL_PG_DEBUG__?.());
 const reviews=new WeakMap<Page,{shots:unknown[];snapshots:unknown[]}>();
 test.afterEach(async({page},info)=>{
@@ -19,7 +19,7 @@ test("Combat Kits persist real modules, launch equipped and queue in-game edits 
  const errors:string[]=[];page.on("pageerror",e=>errors.push(e.message));
  await page.setViewportSize({width:1280,height:720});await page.goto("/");await page.getByLabel("Name",{exact:true}).fill("Kit Pilot");await selectExperimentalFamily(page,"planet-gun");
  await page.locator("#settings-open").click();await page.locator("#graphics-quality").selectOption("low");await page.locator("#settings-close").click();
- await page.locator("#create-room").click();await page.locator("#pg-target").selectOption("4");await page.locator("#pg-edit-kits").click();
+ await page.locator("#create-room").click();await openLobbyConfiguration(page);await page.locator("#pg-target").selectOption("4");await page.locator("#pg-edit-kits").click();
  const editor=page.locator(".pg-kit-overlay");await expect(editor).toBeVisible();
  await editor.getByLabel("KIT NAME",{exact:true}).fill("Burst Patrol");await editor.getByLabel("Change weapon",{exact:true}).selectOption("helix");
  await page.locator("#pg-kits-1-primaryModules-precision-lens").click();await page.locator("#pg-kits-1-socket-energy").click();await page.locator("#pg-kits-1-primaryModules-expanded-cell").click();await page.locator("#pg-kits-1-socket-stability").click();await page.locator("#pg-kits-1-primaryModules-gyro-stabilizer").click();
@@ -30,14 +30,15 @@ test("Combat Kits persist real modules, launch equipped and queue in-game edits 
  await editor.getByRole("button",{name:"Save Kit & Select",exact:true}).click();await editor.getByRole("button",{name:"Close",exact:true}).click();
  await expect(page.locator("#pg-kit-summary")).toContainText("Burst Patrol");await expect(page.locator("#pg-kit-summary")).toContainText("Orbit");
  await page.locator("#pg-ready").click();await page.locator("#pg-start").click();await expect.poll(async()=>(await state(page))?.phase).toBe("playing");
+ await expect(page.locator("#pg-active-kit")).toBeVisible();await expect(page.locator("#pg-active-kit")).toHaveText("KIT · Burst Patrol");
  await expect.poll(async()=>(await state(page))?.local.guns[0].magazine).toBe(33);expect((await state(page)).local.guns[1].id).toBe("orbit");expect((await state(page)).local.guns[0].modules).toEqual(["expanded-cell","gyro-stabilizer","precision-lens"]);
- await page.keyboard.press("2");await expect.poll(async()=>(await state(page)).local.slot).toBe(1);await expect(page.locator("#pg-crosshair")).toHaveAttribute("data-optic","reflex-array");await page.mouse.down({button:"right"});await expect.poll(async()=>(await state(page)).ads).toBeGreaterThan(.95);await page.screenshot({path:info.outputPath("orbit-reflex-array.png")});await page.mouse.up({button:"right"});await page.keyboard.press("1");await expect.poll(async()=>(await state(page)).local.slot).toBe(0);await expect(page.locator("#pg-crosshair")).toHaveAttribute("data-optic","precision-lens");
+ await page.keyboard.press("2");await expect.poll(async()=>(await state(page)).local.slot).toBe(1);await expect(page.locator("#pg-crosshair")).toHaveAttribute("data-optic","reflex-array");await capturePgMouse(page);await page.mouse.down({button:"right"});await expect.poll(async()=>(await state(page)).ads).toBeGreaterThan(.95);await page.screenshot({path:info.outputPath("orbit-reflex-array.png")});await page.mouse.up({button:"right"});await page.keyboard.press("1");await expect.poll(async()=>(await state(page)).local.slot).toBe(0);await expect(page.locator("#pg-crosshair")).toHaveAttribute("data-optic","precision-lens");
  await page.mouse.click(640,360);await expect.poll(async()=>(await state(page)).local.guns[0].shots).toBe(3);await page.waitForTimeout(400);expect((await state(page)).local.guns[0].shots).toBe(3);
  await page.keyboard.press("r");await expect.poll(async()=>(await state(page)).local.guns[0].reloadUntil).toBeGreaterThan(0);await page.screenshot({path:info.outputPath("helix-component-reload.png")});
  await expect.poll(async()=>(await state(page)).local.guns[0].reloadUntil).toBe(0);
  await page.keyboard.press("Escape");await page.locator("#pause-kits").click();await expect(editor).toBeVisible();await expect.poll(async()=>(await state(page)).blocked).toBe(true);expect(await page.evaluate(()=>document.pointerLockElement===null)).toBe(true);
  const equipped=(await state(page)).local.guns.map((g:any)=>g.id);await editor.getByRole("button",{name:/^01 \/ PRIMARY/}).click();await editor.getByLabel("Change weapon",{exact:true}).selectOption("arc");await editor.getByRole("button",{name:"Save Kit & Select",exact:true}).click();
- await expect.poll(async()=>(await state(page)).local.queuedLoadout?.primary).toBe("arc");expect((await state(page)).local.guns.map((g:any)=>g.id)).toEqual(equipped);await expect(editor).toContainText("NEXT SPAWN");
+ await expect.poll(async()=>(await state(page)).local.queuedLoadout?.primary).toBe("arc");expect((await state(page)).local.guns.map((g:any)=>g.id)).toEqual(equipped);await expect(page.locator("#pg-active-kit")).toHaveText("KIT · Burst Patrol");await expect(page.locator("#pg-queued-kit")).toContainText("NEXT SPAWN");await expect(editor).toContainText("NEXT SPAWN");
  await page.keyboard.press("Escape");await expect(editor).toBeHidden();await expect(page.locator("#pause-overlay")).toBeVisible();await page.locator("#pause-leave").click();await expect(page.locator("#home-screen")).toBeVisible();
  await page.reload();await selectExperimentalFamily(page,"planet-gun");await page.locator("#create-room").click();await expect(page.locator("#pg-loadout")).toHaveValue("arc");await page.locator("#pg-edit-kits").click();await expect(editor.getByLabel("KIT NAME",{exact:true})).toHaveValue("Burst Patrol");expect(errors).toEqual([]);
 });

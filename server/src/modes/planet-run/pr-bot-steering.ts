@@ -1,5 +1,5 @@
 import {prCapacitorTarget} from "./pr-capacitor-steering.js";
-import {PR_BALANCE as B,prHash,prInsideTile,prObstacleTransform,prObstacleCenter,prPlatformCenter,type BotDifficulty,type PrInput,type PrPlayerState,type PrRoundDefinition,type PrTileState,type Vec3} from "@planetfall/shared";
+import {PR_BALANCE as B,SHATTERDECK_LAYOUT_CONFIG,prHash,prInsideTile,prObstacleTransform,prObstacleCenter,prPlatformCenter,type BotDifficulty,type PrInput,type PrPlayerState,type PrRoundDefinition,type PrTileState,type Vec3} from "@planetfall/shared";
 
 /** All crowd samples are observations, never another pilot's pending input. */
 export type PrCrowdPilot=Pick<PrPlayerState,"id"|"position"|"velocity"|"status">;
@@ -49,6 +49,9 @@ export class PrCrowdGrid {
 }
 const clamp=(v:number,lo:number,hi:number)=>Math.max(lo,Math.min(hi,v));
 const unit=(seed:number,index:number)=>(prHash(seed,index)>>>0)/4294967295;
+// See the next authored deck even from a jump apex. This remains shorter than
+// two deck gaps; lateral reach and ordinary decision/crowd budgets stay fixed.
+const SHATTER_LOOK_DOWN=Math.max(...SHATTERDECK_LAYOUT_CONFIG.deckHeights.slice(1).map((height,index)=>SHATTERDECK_LAYOUT_CONFIG.deckHeights[index]-height))+B.jumpSpeed**2/(2*B.gravity)+B.radius;
 export function prBotPersonality(identity:number):PrBotPersonality {
   return {lateral:(unit(identity,11)*2-1)*5.9,risk:.25+unit(identity,12)*.5,reactionLead:140+unit(identity,13)*160,passSide:unit(identity,14)<.5?-1:1,jumpConfidence:.6+unit(identity,15)*.35,diveConfidence:.2+unit(identity,16)*.65,phase:unit(identity,17)*Math.PI*2};
 }
@@ -178,12 +181,15 @@ function survivalTarget(p:PrPlayerState,r:PrRoundDefinition,t:number,seed:number
 function shatterTarget(p:PrPlayerState,r:PrRoundDefinition,tiles:PrTileState,t:number,m:PrSteeringMemory,person:PrBotPersonality,nearby:readonly PrCrowdPilot[]):Vec3 {
   const current=r.tiles[Number(p.supportId?.replace("tile:",""))];
   const goal=r.tiles[m.goal];
-  if(goal&&tiles.intact(goal.id,t+250)&&t<(m.nextTargetAt??0)&&Math.hypot(goal.center.x-p.position.x,goal.center.z-p.position.z)>.45)return goal.center;
-  const candidates=current?current.neighbors.map(id=>r.tiles[id]):r.tiles.filter(tile=>tile.center.y<=p.position.y+.1&&tile.center.y>p.position.y-6&&Math.hypot(tile.center.x-p.position.x,tile.center.z-p.position.z)<6);
-  let best=-Infinity,target=p.position;m.goal=-1;
+  if(goal&&goal.center.y<=p.position.y+.1&&goal.center.y>p.position.y-SHATTER_LOOK_DOWN&&tiles.intact(goal.id,t+250)&&t<(m.nextTargetAt??0)&&Math.hypot(goal.center.x-p.position.x,goal.center.z-p.position.z)>.45)return goal.center;
+  const candidates=current?current.neighbors.map(id=>r.tiles[id]):r.tiles.filter(tile=>tile.center.y<=p.position.y+.1&&tile.center.y>p.position.y-SHATTER_LOOK_DOWN&&Math.hypot(tile.center.x-p.position.x,tile.center.z-p.position.z)<6);
+  let best=-Infinity,landingY=-Infinity,target=p.position;m.goal=-1;
   for(const tile of candidates){
     const distance=Math.hypot(tile.center.x-p.position.x,tile.center.z-p.position.z),arrival=t+distance/B.runSpeed*1000+150;
     if(!tiles.intact(tile.id,arrival))continue;
+    // An airborne route lands on the highest viable plane; do not prefer a
+    // well-connected lower deck through an intact landing immediately above it.
+    if(!current){if(tile.center.y<landingY)continue;if(tile.center.y>landingY){landingY=tile.center.y;best=-Infinity;}}
     const connectivity=tile.neighbors.filter(id=>tiles.intact(id,arrival+220)).length;
     const score=connectivity*.8+(tiles.triggered.has(tile.id)?-3:2)-prCrowdOccupancy(tile.center.x,tile.center.z,tile.center.y,nearby)*3-distance*.2+unit(m.identitySeed??0,tile.id)*.7;
     if(score>best){best=score;target=tile.center;m.goal=tile.id;}
@@ -236,10 +242,10 @@ export function prCrowdBotInput(p:PrPlayerState,r:PrRoundDefinition,tiles:PrTile
     const competence=difficulty==="easy"?.16:difficulty==="hard"?.95:.6;
     if(t>=p.diveReadyAt&&t-(m.lastDiveAt??-5000)>3400&&unit(identity,Math.floor(t/800))<person.diveConfidence*competence){
       const aheadX=p.position.x+dx*3.5,aheadZ=p.position.z+dz*3.5;
-      const safeLanding=r.id==="shatterdeck"?r.tiles.some(tile=>tile.center.y<=p.position.y&&tile.center.y>p.position.y-4&&tiles.intact(tile.id,t+450)&&prInsideTile(tile,aheadX,aheadZ)):!!platformAt(r,aheadX,aheadZ,t+350,p.position.y+.3,.8);
+      const safeLanding=r.id==="shatterdeck"?r.tiles.some(tile=>tile.center.y<=p.position.y&&tile.center.y>p.position.y-SHATTER_LOOK_DOWN&&tiles.intact(tile.id,t+450)&&prInsideTile(tile,aheadX,aheadZ)):!!platformAt(r,aheadX,aheadZ,t+350,p.position.y+.3,.8);
       const finishDistance=r.finish?Math.hypot(p.position.x-r.finish.center.x,p.position.z-r.finish.center.z):Infinity;
       const finishSprint=r.category==="race"&&finishDistance>2&&finishDistance<7&&p.checkpoint===r.checkpoints.length-1;
-      const supportBelow=r.id==="shatterdeck"?r.tiles.some(tile=>tile.center.y<=p.position.y+.3&&tile.center.y>p.position.y-4&&tiles.intact(tile.id,t)&&prInsideTile(tile,p.position.x,p.position.z)):walkableSupportAt(r,p.position.x,p.position.z,t,p.position.y+.3);
+      const supportBelow=r.id==="shatterdeck"?r.tiles.some(tile=>tile.center.y<=p.position.y+.3&&tile.center.y>p.position.y-SHATTER_LOOK_DOWN&&tiles.intact(tile.id,t)&&prInsideTile(tile,p.position.x,p.position.z)):walkableSupportAt(r,p.position.x,p.position.z,t,p.position.y+.3);
       // Recovery is a local gap decision. A distant waypoint says nothing about
       // whether this short jump needs help; continuous deck beneath an ordinary
       // descending jump does not justify a dive.

@@ -2,7 +2,7 @@ import {describe,it,expect} from "vitest";
 import * as THREE from "three";
 import {pgCreateCollisionSnapshot,type PgModeSnapshot} from "@planetfall/shared";
 import {createPgModeArt} from "./pg-mode-art";
-const state=():Extract<PgModeSnapshot,{id:"planetzombies"}>=>({id:"planetzombies",collision:pgCreateCollisionSnapshot(),effects:[],pilots:{},round:1,subphase:"wave",deadline:10000,wave:1,remaining:1,queued:0,zombies:[],power:false,unlocked:[],reason:null});
+const state=():Extract<PgModeSnapshot,{id:"planetzombies"}>=>({id:"planetzombies",forge:{phase:"idle",ownerId:null,weaponId:null,targetTier:null,startedAt:null,completesAt:null},collision:pgCreateCollisionSnapshot(),effects:[],pilots:{},round:1,subphase:"wave",deadline:10000,wave:1,remaining:1,queued:0,zombies:[],arsenal:{phase:"idle",ownerId:null,weaponId:null,revealAt:null,expiresAt:null},power:false,unlocked:[],reason:null});
 describe("PlanetGun authoritative world presentation",()=>{
  it("marks objectives with ground rings and labels without solid posts through the capture position",()=>{
   const art=createPgModeArt(),s=state();art.update(s,"",0);

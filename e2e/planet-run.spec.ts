@@ -1,9 +1,10 @@
-import {selectExperimentalFamily} from "./select-family";
+import {prRound} from "@planetfall/shared";
+import {selectExperimentalFamily,openLobbyConfiguration} from "./select-family";
 import {writeFile} from "node:fs/promises";
 import {expect,test,type Page} from "@playwright/test";
 const debug=(page:Page)=>page.evaluate(()=>(window as unknown as {__PLANETFALL_PR_DEBUG__?:()=>{phase:string;roundId:string;roundIndex:number;active:boolean;camera:{yaw:number;pitch:number};players:number;triggeredTiles:number;local:{position:{x:number;y:number;z:number};velocity:{y:number};grounded:boolean};calls:number;triangles:number;frameTimes:number[]}}).__PLANETFALL_PR_DEBUG__?.());
 async function home(page:Page){await page.goto("/");await page.getByLabel("Name",{exact:true}).fill("Course Pilot");await selectExperimentalFamily(page,"planet-run");}
-async function review(page:Page,round:string,beforeRunning?:()=>Promise<void>){await home(page);await page.locator("#create-room").click();await expect(page.locator("#pr-lobby-screen")).toBeVisible();await page.locator("#pr-target").selectOption("10");if(!await page.locator(`[data-round='${round}']`).isVisible())await page.locator("#pr-dev-review summary").click();await page.locator(`[data-round='${round}']`).click();await beforeRunning?.();await expect.poll(async()=>(await debug(page))?.phase).toBe("running");}
+async function review(page:Page,round:string,beforeRunning?:()=>Promise<void>){await home(page);await page.locator("#create-room").click();await expect(page.locator("#pr-lobby-screen")).toBeVisible();await openLobbyConfiguration(page);await page.locator("#pr-target").selectOption("10");if(!await page.locator(`[data-round='${round}']`).isVisible())await page.locator("#pr-dev-review summary").click();await page.locator(`[data-round='${round}']`).click();await beforeRunning?.();await expect.poll(async()=>(await debug(page))?.phase).toBe("running");}
 test("PlanetRun lifecycle, input, UI capture and cross-family renderer ownership",async({page},info)=>{
   const errors:string[]=[];page.on("pageerror",e=>errors.push(e.message));
   await home(page);await page.locator("#create-room").click();await expect(page.locator("#pr-lobby-screen")).toBeVisible();
@@ -32,12 +33,16 @@ test("PlanetRun quick solo fills bots and advances an ordinary tournament",async
 test("Shatterdeck contact breaks cells and falls to a lower deck",async({page},info)=>{
   // Observe the upper spawn during deployment. A normal phase poll can return
   // after the620ms contact tile has already broken; that is expected gameplay.
+  const top=Math.max(...prRound("shatterdeck").tiles.map(t=>t.center.y));
   await review(page,"shatterdeck",async()=>{
     await expect.poll(async()=>(await debug(page))?.roundId).toBe("shatterdeck");
-    await expect.poll(async()=>(await debug(page))?.local.position.y).toBeGreaterThan(17);
+    await expect.poll(async()=>(await debug(page))?.local.position.y).toBeGreaterThan(top-.1);
   });
   await expect.poll(async()=>(await debug(page))!.triggeredTiles).toBeGreaterThan(0);
-  await expect.poll(async()=>(await debug(page))!.local.position.y).toBeLessThan(17);
+  await expect.poll(async()=>(await debug(page))!.local.position.y).toBeLessThan(top-7);
+  await expect.poll(async()=>{const s=await debug(page);return s!.local.grounded&&s!.local.position.y<top-7;}).toBe(true);
+  const landing=await page.evaluate(()=>new Promise<{state:unknown;image:string}>(resolve=>requestAnimationFrame(()=>resolve({state:(window as any).__PLANETFALL_PR_DEBUG__?.(),image:(document.querySelector("#game-canvas") as HTMLCanvasElement).toDataURL("image/png")}))));
+  await writeFile(info.outputPath("shatterdeck-landing.json"),JSON.stringify(landing.state,null,2));await writeFile(info.outputPath("shatterdeck-landing-canvas.png"),Buffer.from(landing.image.split(",")[1],"base64"));
   await page.screenshot({path:info.outputPath("shatterdeck-lower-deck.png")});
   // Idle human can lose; keep watching until the real final produces a result.
   await expect(page.locator("#pr-results-screen")).toBeVisible({timeout:135000});
@@ -49,7 +54,7 @@ test(`PlanetRun six-round rendering samples at ${quality}`,async({page},info)=>{
   const samples:unknown[]=[];
     await home(page);await page.locator("#settings-open").click();await page.locator("#graphics-quality").selectOption(quality);await page.locator("#settings-close").click();
     for(const round of ["cargo-cyclone","solar-sweep","meteor-garden","flux-gardens","capacitor-causeway","shatterdeck"]){
-      await page.locator("#create-room").click();await expect(page.locator("#pr-lobby-screen")).toBeVisible();await page.locator("#pr-target").selectOption("10");if(!await page.locator(`[data-round='${round}']`).isVisible())await page.locator("#pr-dev-review summary").click();await page.locator(`[data-round='${round}']`).click();
+      await page.locator("#create-room").click();await expect(page.locator("#pr-lobby-screen")).toBeVisible();await openLobbyConfiguration(page);await page.locator("#pr-target").selectOption("10");if(!await page.locator(`[data-round='${round}']`).isVisible())await page.locator("#pr-dev-review summary").click();await page.locator(`[data-round='${round}']`).click();
       await expect.poll(async()=>(await debug(page))?.phase).toBe("running");
       await page.waitForTimeout(2000);const state=await debug(page);expect(state!.calls).toBeGreaterThan(0);expect(state!.triangles).toBeGreaterThan(0);
       const frames=state!.frameTimes.slice(-90).sort((a,b)=>a-b);samples.push({quality,round,...state,medianFrameMs:frames[Math.floor(frames.length*.5)],p95FrameMs:frames[Math.floor(frames.length*.95)]});

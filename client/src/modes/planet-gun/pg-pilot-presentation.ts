@@ -1,31 +1,31 @@
 import * as THREE from "three";
-import {pgGunProfile,type BrWeaponId,type PgSnapshotPlayer,type PgWeaponId} from "@planetfall/shared";
+import {PG_LEAN,pgGunProfile,type PgModuleId,type PgSnapshotPlayer,type PgWeaponId} from "@planetfall/shared";
 import type {AstronautVisual} from "../../astronaut";
-import {BrWeaponModelLibrary} from "../battle-royale/br-weapon-model-library";
-import {createPgOrbitModel} from "./pg-weapon-presentation";
-
-const MODELS:Record<Exclude<PgWeaponId,"orbit">,BrWeaponId>={pulse:"pulse-rifle",nova:"nova-smg",photon:"photon-shotgun",quasar:"quasar-carbine",rail:"rail-laser",comet:"comet-hand-cannon",helix:"helix-burst-rifle",arc:"arc-blaster",prism:"prism-beam"};
-let library:BrWeaponModelLibrary|null=null,users=0;
+import {createPgWorldWeaponMount} from "./pg-world-weapon-art";
 /** Call after canonical astronaut motion updates. A separate pose layer keeps
  * these restrained mode accents from accumulating in canonical animation. */
 export function createPgPilotPresentation(rig:AstronautVisual){
-  if(!library)library=new BrWeaponModelLibrary();users++;
-  const weaponLibrary=library,root=new THREE.Group(),glove=new THREE.Vector3();
+  const root=new THREE.Group(),glove=new THREE.Vector3();
   const upperParent=rig.upperBody.parent??rig.group,posture=new THREE.Group();
   posture.name="planet-gun-pilot-posture";upperParent.add(posture);posture.add(rig.upperBody);
   root.name="planet-gun-held-weapon";root.rotation.order="YXZ";rig.upperBody.add(root);
-  const models=new Map<PgWeaponId,THREE.Group>();let current:PgWeaponId|null=null,disposed=false;
-  const orbitGeometry=new THREE.BoxGeometry(1,1,1),orbitMaterials=[new THREE.MeshStandardMaterial({color:0x91a7b3,metalness:.7,roughness:.35}),new THREE.MeshStandardMaterial({color:0x263c48,roughness:.65}),new THREE.MeshStandardMaterial({color:0x14222c,roughness:.9})];
+  const mount=createPgWorldWeaponMount(root);let disposed=false;
+  function poseWeapon(weaponId:PgWeaponId,pitch:number,reload:number,recoil:number,visible:boolean,upgradeTier:0|1|2|3=0,finishId?:string,modules?:readonly PgModuleId[]):void{
+      mount.set(weaponId,modules,finishId,upgradeTier);
+      root.visible=visible;
+      rig.rightArm.updateMatrix();glove.set(0,-.61,0).applyMatrix4(rig.rightArm.matrix);
+      root.position.copy(glove);root.position.y+=.13-reload*.05;root.position.z-=.12+recoil*.35;
+      root.rotation.set(Math.max(-1.2,Math.min(1.2,pitch))*.65+reload*.3+recoil,Math.PI,0,"YXZ");
+  }
   return {
-    update(state:PgSnapshotPlayer,time:number):void{
+    /** Display-only composition for the character selector; no synthetic player state. */
+    display(input:{weaponId:PgWeaponId;pitch?:number;reload?:number;recoil?:number;visible?:boolean;finishId?:string}):void{
+      if(disposed)return;posture.position.set(0,0,0);posture.rotation.set(0,0,0);
+      poseWeapon(input.weaponId,input.pitch??0,input.reload??0,input.recoil??0,input.visible??true,0,input.finishId);
+    },
+    update(state:PgSnapshotPlayer,time:number,presentation:{upgradeTier?:0|1|2|3;weaponInserted?:boolean}={}):void{
       if(disposed)return;
       const gun=state.guns[state.slot];
-      if(current!==gun.id){
-        let model=models.get(gun.id);
-        if(!model){model=gun.id==="orbit"?createPgOrbitModel({box:orbitGeometry,metal:orbitMaterials[0],composite:orbitMaterials[1],grip:orbitMaterials[2],ownMaterial:m=>m}):weaponLibrary.create(MODELS[gun.id],0x8ee8d9);model.scale.setScalar(.48);model.traverse(o=>{if(o instanceof THREE.Mesh)o.castShadow=false;});root.add(model);models.set(gun.id,model);}
-        for(const [id,item]of models)item.visible=id===gun.id;current=gun.id;
-      }
-      root.visible=state.hp>0;
       posture.position.set(0,0,0);posture.rotation.set(0,0,0);
       if(state.hp<=0){
         const progress=Math.min(1,Math.max(0,(time-state.deadAt)/350)),ease=progress*progress*(3-2*progress);
@@ -37,14 +37,21 @@ export function createPgPilotPresentation(rig:AstronautVisual){
           const outward=state.wallNormal.x*Math.cos(yaw)-state.wallNormal.z*Math.sin(yaw);
           posture.rotation.z=-Math.max(-1,Math.min(1,outward))*.12;posture.rotation.x=.055;
         }else if(!state.grounded&&state.jumpHeld&&state.ion>0){posture.rotation.x=.075;posture.position.z=.025;}
+        if(state.grounded && state.mode==="ground" && Number.isFinite(state.lean) && state.lean!==0){
+          const lean=THREE.MathUtils.clamp(state.lean,-1,1);
+          // The group faces yaw + PI. Roll around the leg-independent posture
+          // origin, then supply only the remaining travel to the optical center.
+          const roll=lean*PG_LEAN.roll, headHeight=rig.helmet.position.y;
+          posture.rotation.z=roll;
+          posture.position.x=-lean*PG_LEAN.distance/rig.group.scale.x + headHeight*Math.sin(roll);
+          posture.position.y=-Math.abs(lean)*PG_LEAN.drop/rig.group.scale.y + headHeight*(1-Math.cos(roll));
+        }
         if(state.adsSince>0){posture.rotation.x+=.035;posture.position.z+=.025;}
       }
-      rig.rightArm.updateMatrix();glove.set(0,-.61,0).applyMatrix4(rig.rightArm.matrix);
       const reload=gun.reloadUntil>time?Math.sin(Math.PI*Math.max(0,Math.min(1,1-(gun.reloadUntil-time)/pgGunProfile(gun).reloadMs))):0;
       const recoil=state.hp>0?Math.min(.045,Math.max(0,gun.recoil||0)):0;
-      root.position.copy(glove);root.position.y+=.13-reload*.05;root.position.z-=.12+recoil*.35;
-      root.rotation.set(Math.max(-1.2,Math.min(1.2,state.pitch))*.65+reload*.3+recoil,Math.PI,0,"YXZ");
+      poseWeapon(gun.id,state.pitch,reload,recoil,state.hp>0&&!presentation.weaponInserted,presentation.upgradeTier??0,state.equippedCosmetics?.["weapon-skin"],gun.modules);
     },
-    dispose():void{if(disposed)return;disposed=true;root.removeFromParent();root.clear();upperParent.add(rig.upperBody);posture.removeFromParent();models.clear();orbitGeometry.dispose();for(const m of orbitMaterials)m.dispose();users--;if(users===0){weaponLibrary.dispose();library=null;}}
+    dispose():void{if(disposed)return;disposed=true;mount.dispose();root.removeFromParent();upperParent.add(rig.upperBody);posture.removeFromParent();}
   };
 }

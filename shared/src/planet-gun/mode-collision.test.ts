@@ -54,6 +54,11 @@ describe("PlanetGun room-local collision",()=>{
   const snapshot=pgCreateCollisionSnapshot();snapshot.panels[0].solid.id=PG_MAP.solids[0].id;
   expect(()=>pgCollisionMap(snapshot)).toThrow("Duplicate");
  });
+ it("lets client collision skip bot-only navigation while keeping the exact same solids",()=>{
+  const snapshot=pgCreateCollisionSnapshot(),authority=pgCollisionMap(snapshot),prediction=pgCollisionMap(snapshot,PG_MAP,{navigation:false});
+  expect(prediction.solids).toEqual(authority.solids);expect(prediction.navigation).toBe(PG_MAP.navigation);
+  for(const socket of PG_PANEL_SOCKETS)expect(pgCapsuleClear({...socket.solid.center,y:0},B.height,prediction)).toBe(false);
+ });
  it("prunes blocked walk links and restores them when a panel opens",()=>{
   const socket=PG_PANEL_SOCKETS[0],base={...PG_MAP,navigation:[{id:0,position:socket.approaches[0],links:[{to:1,kind:"walk" as const}]},{id:1,position:socket.approaches[1],links:[{to:0,kind:"walk" as const}]}]};
   expect(pgCollisionMap(pgCreateCollisionSnapshot(),base).navigation[0].links).toEqual([]);

@@ -1,0 +1,51 @@
+[data-ui-motion] {
+  --ui-motion-time: 150ms;
+  --ui-motion-ease: cubic-bezier(.2, .7, .25, 1);
+}
+
+/* The selectors also cover menus created after startup. HUD screens keep their own lifecycle. */
+[data-ui-motion] :is(
+  #home-screen, .mode-lobby, #results-screen, .screen[id$="-results-screen"],
+  .overlay, .pg-kit-overlay, .pg-mode-menu, .pg-selection-screen,
+  .pg-strike-buy-screen, .pg-siege-feed-ui, #pg-scoreboard, .toast
+) {
+  transition: opacity var(--ui-motion-time) var(--ui-motion-ease);
+
+  /* Retain pixels during exit only where interaction can end synchronously. */
+  @supports (interactivity: inert) and (transition-behavior: allow-discrete) {
+    transition: opacity var(--ui-motion-time) var(--ui-motion-ease),
+                display var(--ui-motion-time) allow-discrete;
+  }
+
+  &:is([hidden], .screen:not(.active)) {
+    opacity: 0;
+    pointer-events: none;
+    interactivity: inert;
+  }
+
+  /* The ready room, warning dialog and character picker animate their own contents on entry. */
+  @starting-style {
+    &:not([hidden], .screen:not(.active), .ready-room, #mode-warning, .pg-selection-screen) {
+      opacity: 0;
+    }
+  }
+}
+
+[data-ui-motion] .toast { animation: none; }
+
+[data-ui-motion] #pass-xp-meter {
+  transition: width var(--ui-motion-time) var(--ui-motion-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-ui-motion] :is(#ui, .overlay, .pg-kit-overlay, .toast),
+  [data-ui-motion] :is(#ui, .overlay, .pg-kit-overlay) *,
+  [data-ui-motion] :is(#ui, .overlay, .pg-kit-overlay) *::before,
+  [data-ui-motion] :is(#ui, .overlay, .pg-kit-overlay) *::after {
+    transition: none !important;
+  }
+
+  [data-ui-motion] :is(.button, .hub-tab, .room-code, .icon-button):is(:hover, :active, :focus-visible, .gamepad-focus) {
+    transform: none !important;
+  }
+}

@@ -1,6 +1,8 @@
 import {randomBytes,randomUUID} from "node:crypto";
+import {reconcilePassRewards} from "../../pass-reconciliation.js";
 import type {Server,Socket} from "socket.io";
 import {DEFAULT_COSMETICS,FREE_EMOTES,SHOP_CATALOG,PLANET_PASS_REWARDS,PR_BALANCE as B,PR_ROUNDS,PrTileState,prBump,prQualificationTarget,prRank,prSanitizeInput,prSelectRound,prRound,prSpawn,prStepMotion,sessionLevelForXp,sessionXpInLevel,type ClientToServerEvents,type GuestProfile,type PrConfiguration,type PrInput,type PrJoinResult,type PrPhase,type PrPlayerState,type PrRoomView,type PrRoundDefinition,type PrSnapshot,type ServerToClientEvents,type Vec3} from "@planetfall/shared";
+import {buyCosmetic,equipCosmetic} from "../../cosmetic-shop.js";
 import {prBotInput,PrCrowdGrid,PR_CROWD_LIMITS,type PrBotMemory} from "./pr-bots.js";
 type GameServer=Server<ClientToServerEvents,ServerToClientEvents>;
 type GameSocket=Socket<ClientToServerEvents,ServerToClientEvents>;
@@ -14,7 +16,7 @@ export class PlanetRunRoom {
   readonly players=new Map<string,Record>();
   hostId="";phase:PrPhase="lobby";configuration:PrConfiguration={targetPlayers:20,fillBots:true,botDifficulty:"normal"};
   round:PrRoundDefinition|null=null;roundIndex=0;seed=0;roundStartedAt=0;phaseEndsAt=0;qualificationTarget=0;winnerId:string|null=null;
-  tiles=new PrTileState([]);onProgress?:(players:Iterable<GuestProfile>)=>void;
+  tiles=new PrTileState([]);onProgress?:import("../../player-profiles.js").ProgressHandler;
   private crowd:PrCrowdGrid|null=null;private crowdEpoch=-1;
   private accumulator=0;private lastSnapshot=0;private matchStartedAt=0;private rewarded=false;private finishOrder:string[]=[];private roundParticipants=new Set<string>();
   constructor(readonly code:string,private readonly io:GameServer){}
@@ -80,16 +82,13 @@ export class PlanetRunRoom {
     if(this.phase!=="lobby"&&now-this.lastSnapshot>=1000/B.snapshotRate){this.lastSnapshot=now;this.io.to(this.code).emit("pr:match:snapshot",this.snapshot(now,false));}
   }
   buyShopItem(id:string,itemId:string):{ok:boolean;error?:string} {
-    const p=this.players.get(id),item=SHOP_CATALOG.find(i=>i.id===itemId&&!i.passLevel&&i.category!=="planet");
-    if(!p||!item||!["lobby","results"].includes(this.phase))return {ok:false,error:"Shop is available between matches."};
-    if(p.ownedCosmetics.includes(itemId))return {ok:false,error:"Already owned."};
-    if(p.fallbucks<item.price)return {ok:false,error:"Not enough Fallbucks."};
-    p.fallbucks-=item.price;p.ownedCosmetics.push(itemId);this.emitRoom();return {ok:true};
+    const result=buyCosmetic(this.players.get(id),this.phase,itemId);
+    if(result.ok)this.emitRoom();return result;
   }
   equipShopItem(id:string,itemId:string):{ok:boolean;error?:string} {
-    const p=this.players.get(id),item=SHOP_CATALOG.find(i=>i.id===itemId);
-    if(!p||!item||item.category==="emote"||item.category==="planet"||!p.ownedCosmetics.includes(itemId)||!["lobby","results"].includes(this.phase))return {ok:false,error:"You cannot equip that item here."};
-    p.equippedCosmetics[item.category]=item.id;this.emitRoom();return {ok:true};
+    const result=equipCosmetic(this.players.get(id),this.phase,itemId,"planet-run");
+    if(!result.ok)return result;
+    if(result.changed)this.emitRoom();return {ok:true};
   }
   /** Called only by the explicitly enabled development review protocol. */
   startReview(id:string,roundId:import("@planetfall/shared").PrRoundId,seed:number,players:10|20|30,now=Date.now()):boolean {
@@ -156,9 +155,8 @@ export class PlanetRunRoom {
       // A tiny/abandoned tournament cannot pay repeated participation rewards.
       const eligible=now-this.matchStartedAt>=60000&&this.players.size>=6;
       for(const p of this.players.values())if(!p.isBot&&eligible){
-        const old=p.sessionLevel;p.sessionTotalXp+=20+p.qualifiedRounds*15+(p.id===winner?60:0);p.fallbucks+=5+p.qualifiedRounds*3+(p.id===winner?20:0);if(p.id===winner)p.crowns++;
-        p.sessionLevel=sessionLevelForXp(p.sessionTotalXp);p.sessionXp=sessionXpInLevel(p.sessionTotalXp);
-        for(const r of PLANET_PASS_REWARDS)if(r.level>old&&r.level<=p.sessionLevel&&!p.unlockedPassRewards.includes(r.id)){p.unlockedPassRewards.push(r.id);p.fallbucks+=r.fallbucks??0;if(r.cosmeticId&&!p.ownedCosmetics.includes(r.cosmeticId))p.ownedCosmetics.push(r.cosmeticId);}
+        p.sessionTotalXp+=20+p.qualifiedRounds*15+(p.id===winner?60:0);p.fallbucks+=5+p.qualifiedRounds*3+(p.id===winner?20:0);if(p.id===winner)p.crowns++;
+        reconcilePassRewards(p);
       }
     }
     this.emitRoom();

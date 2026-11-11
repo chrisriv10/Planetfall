@@ -88,3 +88,21 @@ describe("capacitor / final presentation boundaries",()=>{
   art.dispose();
  });
 });
+
+it("aligns collars, crown, and conduit travel with a relocated set of decks",()=>{
+ const ctx=context("shatterdeck");
+ const tiles=ctx.round.tiles.map(tile=>({...tile,center:{...tile.center,y:tile.center.y+17+tile.deck*.25}}));
+ const art=createPrShatterdeckArt({...ctx,round:{...ctx.round,tiles,killY:ctx.round.killY-8}});
+ const heights=[...new Set(tiles.map(tile=>tile.center.y))].sort((a,b)=>a-b),collars:number[]=[];
+ ctx.root.traverse(node=>{if(node instanceof THREE.InstancedMesh)for(const feature of node.userData.features){
+  if(feature.name==="layer-containment-collar")collars.push(feature.placement[1]);
+ }});
+ expect(collars.sort((a,b)=>a-b)).toEqual(heights);
+ expect(ctx.root.getObjectByName("shatterdeck-rotating-crown")!.position.y).toBeGreaterThan(heights[heights.length-1]);
+ expect(ctx.root.getObjectByName("shatterdeck-deep-reactor")!.position.y).toBeLessThan(ctx.round.killY-8);
+ for(const time of [0,5000,18000,90000]){
+  art.update(time,0,new Map());const y=ctx.root.getObjectByName("shatterdeck-conduit-flow")!.position.y;
+  expect(y).toBeGreaterThanOrEqual(heights[0]);expect(y).toBeLessThanOrEqual(heights[heights.length-1]);
+ }
+ art.dispose();
+});

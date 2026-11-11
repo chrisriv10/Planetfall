@@ -1,4 +1,5 @@
 import { randomBytes, randomUUID } from "node:crypto";
+import {buyCosmetic,equipCosmetic} from "../../cosmetic-shop.js";
 import type { Server, Socket } from "socket.io";
 import {
   BR_TEAM_VEHICLE_SPAWNS,brResolveFlight,brBoardVehicle,brLeaveVehicle,brVehicleSeatIndex,brVehicleSeatPosition,BR_VEHICLE_DEFINITIONS,brCrateContents, isBrUtility, BR_UTILITIES, brWeaponStats, BR_BALANCE, BR_BOT_DIFFICULTY, BR_CRATE_SOCKETS, BR_HEALS, BR_LOOT_SOCKETS, BR_MAP, BR_POIS, BR_RARITY_MULTIPLIER, BR_STARTING_AMMO, BR_STORM_PHASES, BR_VEHICLE_SPAWNS, BR_WEAPONS,
@@ -11,6 +12,7 @@ import {
   type EmoteType, type ServerToClientEvents, type Vec3
 } from "@planetfall/shared";
 import { SpatialGrid } from "./spatial-grid.js";
+import {reconcilePassRewards} from "../../pass-reconciliation.js";
 import { BrPhysicsWorld } from "./br-physics.js";
 import { generateBrLoot } from "./br-loot-generation.js";
 import { placeBrLoot,placeBrDroppedLoot } from "./br-loot-placement.js";
@@ -437,20 +439,15 @@ export class BattleRoyaleRoom {
   }
 
   buyShopItem(playerId: string, itemId: string): { ok: boolean; error?: string } {
-    if (this.phase !== "lobby" && this.phase !== "results") return { ok: false, error: "Shop is only available between matches." };
-    const player = this.players.get(playerId); const item = SHOP_CATALOG.find((entry) => entry.id === itemId && !entry.passLevel);
-    if (!player || !item) return { ok: false, error: "Item not found." };
-    if (item.category === "planet") return { ok: false, error: "Planet cosmetics are only available in Planetfall." };
-    if (player.ownedCosmetics.includes(item.id)) return { ok: false, error: "Already owned." };
-    if (player.fallbucks < item.price) return { ok: false, error: "Not enough Fallbucks." };
-    player.fallbucks -= item.price; player.ownedCosmetics.push(item.id); this.emitRoom(); return { ok: true };
+    const result=buyCosmetic(this.players.get(playerId),this.phase,itemId);
+    if(result.ok)this.emitRoom();
+    return result;
   }
 
   equipShopItem(playerId: string, itemId: string): { ok: boolean; error?: string } {
-    if (this.phase !== "lobby" && this.phase !== "results") return { ok: false, error: "Shop is only available between matches." };
-    const player = this.players.get(playerId); const item = SHOP_CATALOG.find((entry) => entry.id === itemId);
-    if (!player || !item || item.category === "emote" || item.category === "planet" || !player.ownedCosmetics.includes(item.id)) return { ok: false, error: "You do not own that item." };
-    player.equippedCosmetics[item.category] = item.id; this.emitRoom(); return { ok: true };
+    const result=equipCosmetic(this.players.get(playerId),this.phase,itemId,"battle-royale");
+    if(!result.ok)return result;
+    if(result.changed)this.emitRoom();return {ok:true};
   }
 
   returnToLobby(playerId: string): void {
@@ -1027,19 +1024,12 @@ export class BattleRoyaleRoom {
       const bucks = placement === 1 ? 100 : placement === 2 ? 50 : placement === 3 ? 25 : 10;
       if (!player.isBot) {
         player.fallbucks += bucks;
-        const previousLevel = player.sessionLevel;
-        const maximumXp = (SESSION_PROGRESSION.maxLevel - 1) * SESSION_PROGRESSION.xpPerLevel;
-        player.sessionTotalXp = Math.min(maximumXp, player.sessionTotalXp + xp);
-        player.sessionLevel = sessionLevelForXp(player.sessionTotalXp);
-        player.sessionXp = sessionXpInLevel(player.sessionTotalXp);
-        for (const reward of PLANET_PASS_REWARDS) if (reward.level > previousLevel && reward.level <= player.sessionLevel && !player.unlockedPassRewards.includes(reward.id)) {
-          player.unlockedPassRewards.push(reward.id);
-          if (reward.fallbucks) player.fallbucks += reward.fallbucks;
-          if (reward.cosmeticId && !player.ownedCosmetics.includes(reward.cosmeticId)) player.ownedCosmetics.push(reward.cosmeticId);
-        }
+        player.sessionTotalXp += xp;
+        reconcilePassRewards(player);
       }
       return { playerId: player.id, teamId: player.teamId, placement, kills: player.kills, damage: Math.round(player.damageDealt), revives: player.revives, survivalMs: (player.eliminatedAt ?? now) - player.matchStartedAt, xp, fallbucks: bucks };
     }) };
+    this.onProgress?.(this.players.values());
     this.phase = "results"; this.io.to(this.code).emit("br:match:ended", this.matchResult); this.emitRoom();
   }
 
@@ -1088,7 +1078,7 @@ export class BattleRoyaleRoom {
     }
   }
 
-  onProgress?: (players:Iterable<import("../../player-profiles.js").PlayerProgress>)=>void;
+  onProgress?:import("../../player-profiles.js").ProgressHandler;
   private emitRoom(): void { this.onProgress?.(this.players.values());this.io.to(this.code).emit("br:room:state", this.view()); }
   private error(playerId: string, message: string, code?: string): void { const player = this.players.get(playerId); if (player?.socketId) this.io.to(player.socketId).emit("br:error", { message, code }); }
   private canDamage(attacker: BrPlayerRecord, target: BrPlayerRecord): boolean { return target.alive && target.id !== attacker.id && (BR_BALANCE.friendlyFire || target.teamId !== attacker.teamId); }

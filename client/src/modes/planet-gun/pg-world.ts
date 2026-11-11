@@ -1,3 +1,5 @@
+import {PG_DISTRICT_PALETTE as P} from "./pg-district-palette";
+import {pgPerimeterRailArt} from "./pg-perimeter-rail-art";
 import * as THREE from "three";
 import { PG_MAP } from "@planetfall/shared";
 import {createPgEnvironmentBuilder} from "./pg-environment-builder";
@@ -29,12 +31,12 @@ export class PgWorldRenderer {
       const m = new THREE.MeshStandardMaterial({ color, roughness: .68, metalness: .24, emissive: color, emissiveIntensity: emissive });
       this.resources.add(m); return m;
     };
-    const deck = material(0x243549), west = material(0xa6b0c3), east = material(0x8494ae);
-    const ivory = material(0xe0e5ed), trim = material(0x182538), garden = material(0x344f53), maintenance=material(0x7f8b91);
-    const solarPaving=material(0x35414b),voidPaving=material(0x35414b),hydroPaving=material(0x35464b),servicePaving=material(0x3b444b),plazaPaving=material(0x3b4b5b);
-    const cyan = material(0x70dfff, 1.15), amber = material(0xffcd76, 1), violet = material(0xc2a0ff, 1);
-    const glass = material(0x36778c, .16), runPanel=material(0x253c45,.025);
-    const soil=material(0x4c5545),leaf=material(0x5d9c72);
+    const deck = material(P.deck), west = material(P.west), east = material(P.east);
+    const ivory = material(P.ivory), trim = material(P.trim), garden = material(P.garden), maintenance=material(P.maintenance);
+    const solarPaving=material(P.solarPaving),voidPaving=material(P.voidPaving),hydroPaving=material(P.hydroPaving),servicePaving=material(P.servicePaving),plazaPaving=material(P.plazaPaving);
+    const cyan = material(P.cyan, 1.15), amber = material(P.amber, 1), violet = material(P.violet, 1);
+    const glass = material(P.glass, .16), runPanel=material(P.runPanel,.025);
+    const soil=material(P.soil),leaf=material(P.leaf);
     glass.roughness=.22;glass.metalness=.58;trim.roughness=.42;trim.metalness=.48;
     deck.roughness=.93;deck.metalness=.08;ivory.roughness=.57;garden.roughness=.86;
     this.neighborhood=createPgEnvironmentBuilder({ivory,frame:west,dark:trim,glass,soil,leaf,cyan,amber,violet,paving:plazaPaving});
@@ -48,6 +50,11 @@ export class PgWorldRenderer {
     for (const s of PG_MAP.solids) {
       const c = s.center, h = s.half;
       const color = s.kind === "tree"?soil:s.kind === "landscape"?garden:s.kind === "structure"?trim:s.kind === "rail" ? ivory : s.id.startsWith("maintenance-") ? maintenance : s.kind === "wall-run" || s.kind === "planter" ? garden : s.kind === "habitat" ? c.x < 0 ? west : east : s.kind === "transit" ? ivory : deck;
+      if(s.kind==="rail"){
+        const rail=pgPerimeterRailArt(s),palette={trim,deck,ivory,amber};add(`body-${color.uuid}`,color,rail.body);
+        for(const detail of rail.details)add(detail.key,palette[detail.material],detail.box);
+        continue;
+      }
       add(`body-${color.uuid}`, color, [c.x,c.y,c.z,h.x*2,h.y*2,h.z*2]);
       if (s.id === "orbital-deck"||s.id==="service-run-east"||s.id.startsWith("nova-")||s.id.startsWith("ion-")||s.id.startsWith("center-relay-")||s.id.startsWith("garden-bed-")||s.id==="transit-ticket-bank") continue;
       if ((s.kind === "habitat" || s.kind === "wall-run") && !PG_AUTHORED_FACADE_IDS.has(s.id)) {
@@ -143,19 +150,7 @@ export class PgWorldRenderer {
           add("plant-rosettes",garden,[c.x+x,c.y+h.y+.014,c.z+z,.42,.016,.42],this.detail);
         add("planter-light",cyan,[c.x,c.y+h.y-.12,c.z+h.z+.008,h.x*2-.3,.055,.012]);
       }
-      if(s.kind==="rail"){
-        const wide=h.x>h.z;
-        // Opaque crash barrier with inset panels and a continuous coping. All
-        // substantial surfaces remain inside its authoritative solid volume.
-        add("barrier-coping",trim,[c.x,c.y+h.y-.06,c.z,h.x*2,.12,h.z*2]);
-        for(const sign of[-1,1]){
-          add("barrier-inset",deck,wide?[c.x,.62,c.z+sign*(h.z+.008),h.x*2-.1,.57,.012]:[c.x+sign*(h.x+.008),.62,c.z,.012,.57,h.z*2-.1]);
-          for(let along=-(wide?h.x:h.z)+1;along<(wide?h.x:h.z);along+=3.2){
-            add("barrier-rib",ivory,wide?[c.x+along,.62,c.z+sign*(h.z+.018),.12,1.02,.015]:[c.x+sign*(h.x+.018),.62,c.z+along,.015,1.02,.12]);
-            add("barrier-reflector",amber,wide?[c.x+along,1.1,c.z+sign*(h.z+.029),.28,.055,.012]:[c.x+sign*(h.x+.029),1.1,c.z+along,.012,.055,.28]);
-          }
-        }
-      }
+
     }
     // Existing door openings retain their entire clear width. These are
     // threshold inlays and jamb strips on their adjacent solid faces.

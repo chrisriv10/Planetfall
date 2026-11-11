@@ -1,6 +1,8 @@
 import {randomBytes,randomUUID} from "node:crypto";
+import {reconcilePassRewards} from "../../pass-reconciliation.js";
 import type {Server,Socket} from "socket.io";
 import {DEFAULT_COSMETICS,SHOP_CATALOG,PLANET_PASS_REWARDS,PG_BALANCE as B,pgGunProfile,pgUpdateGunHeat,pgValidateLoadout,pgCreateGun,pgFinishReload,pgSanitizeInput,pgSpawnMotion,pgStartReload,pgStepMovement,sessionLevelForXp,sessionXpInLevel,type ClientToServerEvents,type ServerToClientEvents,type GuestProfile,type PgPlayer,type PgInput,type PgJoinResult,type PgRoomView,type PgConfiguration,type PgLoadout,type PgSnapshot,type PgFireRequest} from "@planetfall/shared";
+import {buyCosmetic,equipCosmetic} from "../../cosmetic-shop.js";
 import {PgCombat} from "./pg-combat.js";
 import {PgMatch} from "./pg-match.js";
 import {pgChooseSpawn,type PgSpawnDanger} from "./pg-spawns.js";
@@ -23,7 +25,7 @@ export class PlanetGunRoom {
   private match=new PgMatch();private combat=new PgCombat();private accumulator=0;private lastSnapshot=0;private startedAt=0;private rewarded=false;private feed:PgSnapshot["feed"]=[];private deathDanger:PgSpawnDanger[]=[];
   private mode:PgModeRuntime|null=null;private readonly world=new PgModeWorld();private modeStarted=false;
   private readonly actionSequences=new Map<string,number>();private readonly selections=new Map<string,string>();private readonly savedKits=new Map<string,PgLoadout>();private readonly selectedLoadouts=new Map<string,PgLoadout>();
-  onProgress?:(players:Iterable<GuestProfile>)=>void;
+  onProgress?:import("../../player-profiles.js").ProgressHandler;
   constructor(readonly code:string,private readonly io:GameServer){}
   get phase(){return this.match.phase;}
   view(viewerId?:string):PgRoomView{const viewer=viewerId?this.players.get(viewerId):undefined;return {gameFamily:this.family,code:this.code,hostId:this.hostId,phase:this.phase,...(viewerId?{lastActionSequence:this.actionSequences.get(viewerId)??-1}:{}),configuration:{...this.configuration},players:[...this.players.values()].map(p=>{const state=publicPlayer(p);const selected=this.selectedLoadouts.get(p.id);if(this.configuration.mode==="planetsiege"&&viewer?.team!==p.team)this.hideEquipment(state);else if(this.phase==="lobby"&&selected)state.loadout=structuredClone(selected);return state;}),...(this.selections.size?{selections:Object.fromEntries([...this.selections].filter(([id])=>this.configuration.mode!=="planetsiege"||viewer?.team===this.players.get(id)?.team))}:{})};}
@@ -32,6 +34,7 @@ export class PlanetGunRoom {
     const now=Date.now(),returning=token?[...this.players.values()].find(p=>p.sessionToken===token&&!p.connected&&p.disconnectedAt!==null&&now-p.disconnectedAt<B.disconnectGraceMs):undefined;
     if(!returning&&this.phase!=="lobby")return {ok:false,error:"This match has started. Reconnect using the original session."};
     if(!returning&&this.players.size>=(this.configuration.mode==="planetzombies"?4:B.maxPlayers))return {ok:false,error:"PlanetGun is full."};
+    if(!returning&&this.configuration.mode==="planetstrike"&&this.players.size>=this.configuration.targetPlayers)return {ok:false,error:"PlanetStrike has reached its player target."};
     const p=returning??this.makePlayer(typeof name==="string"?name.trim().replace(/[^a-zA-Z0-9 _-]/g,"").slice(0,18)||"Pilot":"Pilot",false);
     if(returning)this.combat.forget(p.id);
     p.connected=true;p.disconnectedAt=null;p.socketId=socket.id;p.input={...idle(),yaw:p.yaw,pitch:p.pitch};p.lastInputAt=now;this.players.set(p.id,p);if(!this.hostId)this.hostId=p.id;
@@ -43,8 +46,40 @@ export class PlanetGunRoom {
     const mode=p.mode===undefined?this.configuration.mode??"deathmatch":pgModeId(p.mode);if(!mode){this.error(id,"Unknown PlanetGun mode.");return;}
     const humans=[...this.players.values()].filter(v=>!v.isBot).length,maximum=PG_MODES[mode].maxPlayers;if(humans>maximum){this.error(id,"PlanetZombies supports at most four survivors. Leave this room intact and create a smaller crew.");return;}
     const sizes=mode==="planetzombies"?[1,2,3,4]:[4,8,12];if(p.targetPlayers!==undefined&&(!sizes.includes(p.targetPlayers)||p.targetPlayers<humans)){this.error(id,"Player target must fit everyone in the room.");return;}
+    const changedMode=mode!==(this.configuration.mode??"deathmatch");
+    const target=p.targetPlayers??(changedMode?(mode==="planetzombies"?4:12):this.configuration.targetPlayers),fill=typeof p.fillBots==="boolean"?p.fillBots:this.configuration.fillBots;
+    if(mode==="planetstrike"){
+      const teams=changedMode?this.strikeLobbyTeams():new Map([...this.players.values()].filter(v=>!v.isBot).map(v=>[v.id,v.team]));
+      const error=this.strikeBalanceError(teams.values(),target,fill);
+      if(error){this.error(id,error);return;}
+    }
     if(mode!==(this.configuration.mode??"deathmatch")){this.configuration.mode=mode;this.configuration.targetPlayers=mode==="planetzombies"?4:12;this.selections.clear();this.selectedLoadouts.clear();for(const player of this.players.values()){player.ready=false;if(mode==="planetzombies")player.team="solar";}if(mode!=="planetzombies"){let index=0;for(const player of this.players.values())player.team=index++%2?"void":"solar";}}
+    if(changedMode&&mode==="planetstrike")for(const [key,team]of this.strikeLobbyTeams()){const player=this.players.get(key)!;player.team=team;player.color=team==="solar"?"#ffba62":"#80dfff";}
     if(p.targetPlayers!==undefined)this.configuration.targetPlayers=p.targetPlayers;if([25,50,75].includes(p.scoreLimit!))this.configuration.scoreLimit=p.scoreLimit!;if(typeof p.fillBots==="boolean")this.configuration.fillBots=p.fillBots;if(["easy","normal","hard"].includes(p.botDifficulty!))this.configuration.botDifficulty=p.botDifficulty!;this.emitRoom();
+  }
+  /** A lobby preference chooses the initial role; round-series halftime never changes teams. */
+  setSide(id:string,raw:unknown):{ok:boolean;error?:string}{
+    const p=this.players.get(id);
+    if(!p||p.isBot||!p.connected||this.phase!=="lobby"||this.configuration.mode!=="planetstrike")return {ok:false,error:"Starting sides can only be selected in a PlanetStrike lobby."};
+    if(!raw||typeof raw!=="object"||Array.isArray(raw)||Object.keys(raw).length!==1||!("side"in raw)||typeof raw.side!=="string"||!["auto","attack","defend"].includes(raw.side))return {ok:false,error:"Choose Auto, Attack, or Defend."};
+    const side=(raw as {side:"auto"|"attack"|"defend"}).side;
+    if(side===(p.preferredSide??"auto"))return {ok:true};
+    const others=[...this.players.values()].filter(v=>!v.isBot&&v.id!==id),solar=others.filter(v=>v.team==="solar").length,voidCount=others.length-solar;
+    const team=side==="auto"?(solar<=voidCount?"solar":"void"):side==="attack"?"solar":"void";
+    const error=this.strikeBalanceError([...others.map(v=>v.team),team],this.configuration.targetPlayers,this.configuration.fillBots);
+    if(error)return {ok:false,error};
+    p.preferredSide=side;p.team=team;p.color=team==="solar"?"#ffba62":"#80dfff";p.ready=false;this.emitRoom();return {ok:true};
+  }
+  private strikeBalanceError(teams:Iterable<PgTeam>,target:number,fill:boolean):string|undefined{
+    let solar=0,voidCount=0;for(const team of teams)if(team==="solar")solar++;else voidCount++;
+    if(Math.max(solar,voidCount)>Math.floor(target/2))return "That starting side is full. Increase the player target or choose the other side.";
+    if(!fill&&Math.abs(solar-voidCount)>1)return "Starting sides must be balanced without bot fill. Enable bot fill or choose the other side.";
+  }
+  private strikeLobbyTeams():Map<string,PgTeam>{
+    const humans=[...this.players.values()].filter(p=>!p.isBot),teams=new Map<string,PgTeam>();let solar=0,voidCount=0;
+    for(const p of humans)if(p.preferredSide&&p.preferredSide!=="auto"){const team=p.preferredSide==="attack"?"solar":"void";teams.set(p.id,team);if(team==="solar")solar++;else voidCount++;}
+    for(const p of humans)if(!teams.has(p.id)){const team=solar<=voidCount?"solar":"void";teams.set(p.id,team);if(team==="solar")solar++;else voidCount++;}
+    return teams;
   }
   setReady(id:string,ready:boolean):void{const p=this.players.get(id);if(p&&this.phase==="lobby"){p.ready=!!ready;this.emitRoom();}}
   setLoadout(id:string,raw:unknown):void {
@@ -57,6 +92,7 @@ export class PlanetGunRoom {
   }
   start(id:string,now=Date.now()):boolean {
     if(id!==this.hostId||this.phase!=="lobby")return false;const humans=[...this.players.values()].filter(p=>!p.isBot&&p.connected);if(!humans.length||humans.some(p=>!p.ready))return false;if(humans.length>this.configuration.targetPlayers){this.error(id,"Increase the player target to fit this crew before starting.");return false;}
+    if(this.configuration.mode==="planetstrike"){const error=this.strikeBalanceError([...this.players.values()].filter(p=>!p.isBot).map(p=>p.team),this.configuration.targetPlayers,this.configuration.fillBots);if(error){this.error(id,error);return false;}}
     for(const [key,p]of this.players)if(p.isBot)this.players.delete(key);
     if(this.configuration.fillBots)while(this.players.size<this.configuration.targetPlayers){const p=this.makePlayer(`Nova ${this.players.size+1}`,true);this.players.set(p.id,p);}
     if(this.players.size<(this.configuration.mode==="planetzombies"?1:2))return false;
@@ -85,10 +121,10 @@ export class PlanetGunRoom {
     for(const p of this.players.values()){
       if(p.hp<=0){if(!this.mode&&now>=p.respawnAt)this.respawn(p,now);else continue;}
       let input=p.input;
-      if(p.isBot){this.mode?.botAction(p,now);const goal=this.mode?.botGoal(p,now)??null;const decision=pgBotInput(p,this.players.values(),now,this.configuration.botDifficulty,p.bot,this.mode?{map:this.world.map,goal,...(this.mode.botWaypoint?{steering:this.mode.botWaypoint(p,goal)}:{}),grounded:this.configuration.mode!=="planetwatch",visible:(a,b)=>this.world.visible(a,b)&&(this.mode?.visible?.(a,b)??true)}:undefined);input=decision.input;if(decision.fire)shots.push({id:p.id,sequence:++p.fireSequence});if(p.guns[p.slot].magazine===0)this.reload(p.id,now);}
+      if(p.isBot){this.mode?.botAction(p,now);const goal=this.mode?.botGoal(p,now)??null;const decision=pgBotInput(p,this.players.values(),now,this.configuration.botDifficulty,p.bot,this.mode?{map:this.world.map,goal,...(this.mode.botWaypoint?{steering:this.mode.botWaypoint(p,goal)}:{}),grounded:this.configuration.mode!=="planetwatch",combatArea:this.mode.botCombatArea?.(p)??undefined,allowCombatReposition:this.mode.canMove(p)&&this.mode.canFire(p),visible:(a,b)=>this.world.visible(a,b)&&(this.mode?.visible?.(a,b)??true)}:undefined);input=decision.input;if(decision.fire)shots.push({id:p.id,sequence:++p.fireSequence});if(p.guns[p.slot].magazine===0)this.reload(p.id,now);}
       else if(!p.connected||now-p.lastInputAt>400)input={...idle(),sequence:p.input.sequence,yaw:p.yaw,pitch:p.pitch};
       if(this.mode&&p.isBot)input.collisionRevision=this.world.revision;if(this.mode&&!p.isBot&&input.collisionRevision!==this.world.revision)input={...idle(),sequence:input.sequence,yaw:p.yaw,pitch:p.pitch};
-      const wasSprint=p.mode==="sprint";if(!this.mode||this.mode.canMove(p))pgStepMovement(p,input,dt,now,this.world.map,this.mode?.movement(p));else p.velocity={x:0,y:0,z:0};p.lastInputSequence=input.sequence;
+      const wasSprint=p.mode==="sprint";if(!this.mode||this.mode.canMove(p))pgStepMovement(p,input,dt,now,this.world.map,this.mode?.movement(p));else {p.velocity={x:0,y:0,z:0};p.lean=0;}p.lastInputSequence=input.sequence;
       if(wasSprint&&p.mode!=="sprint")p.fireReadyAt=Math.max(p.fireReadyAt,now+pgGunProfile(p.guns[p.slot]).sprintDelayMs);
       if(input.ads&&p.mode!=="sprint"){if(!p.adsSince)p.adsSince=now;}else p.adsSince=0;
       for(const gun of p.guns){pgFinishReload(gun,now);pgUpdateGunHeat(gun,now);const modifiers=this.mode?.weaponModifiers?.(p,now);if(modifiers)pgCoolModeGun(gun,modifiers,now);gun.recoil=Math.max(0,gun.recoil-dt*.09);}
@@ -107,14 +143,14 @@ export class PlanetGunRoom {
     if(killer&&killer.team!==victim.team){killer.kills++;this.feed.push({id:this.feed.length?this.feed.at(-1)!.id+1:1,at:now,killerId:killer.id,victimId:victim.id,weapon,headshot});if(this.feed.length>8)this.feed.shift();}
   }
   private respawn(p:Pilot,now:number,loadout?:PgLoadout,position?:PgPlayer["position"]):void {if(loadout)p.loadout=structuredClone(loadout);else if(!this.mode&&p.queuedLoadout){p.loadout=p.queuedLoadout;delete p.queuedLoadout;}const s=pgChooseSpawn(p.team,this.players.values(),this.deathDanger,now);Object.assign(p,pgSpawnMotion(position??s.position,s.yaw));p.hp=100;p.lifeId++;p.deadAt=0;p.respawnAt=0;p.protectedUntil=now+1000;p.lastDamageAt=now;p.lastAttacker=null;p.guns=[pgCreateGun(p.loadout.primary,p.loadout.primaryModules),pgCreateGun(p.loadout.secondary,p.loadout.secondaryModules)];p.slot=0;p.adsSince=0;p.fireReadyAt=now+150;p.input={...idle(),sequence:p.lastInputSequence,yaw:s.yaw};p.bot=pgBotMemory();}
-  private reward(now:number):void {this.rewarded=true;if(now-this.startedAt<60000||!this.mode&&this.players.size<6)return;for(const p of this.players.values())if(!p.isBot){const contribution=this.mode?.snapshot(p.id).pilots[p.id]?.contribution??0;if(this.mode&&p.kills===0&&contribution<=0)continue;const old=p.sessionLevel,win=p.team===this.match.winner;p.fallbucks+=5+Math.min(15,p.kills+Math.floor(contribution/100))+(win?10:0);p.sessionTotalXp+=25+Math.min(100,p.kills*5+Math.floor(contribution/10))+(win?35:0);p.sessionLevel=sessionLevelForXp(p.sessionTotalXp);p.sessionXp=sessionXpInLevel(p.sessionTotalXp);for(const r of PLANET_PASS_REWARDS)if(r.level>old&&r.level<=p.sessionLevel&&!p.unlockedPassRewards.includes(r.id)){p.unlockedPassRewards.push(r.id);p.fallbucks+=r.fallbucks??0;if(r.cosmeticId&&!p.ownedCosmetics.includes(r.cosmeticId))p.ownedCosmetics.push(r.cosmeticId);}}this.onProgress?.(this.players.values());}
+  private reward(now:number):void {this.rewarded=true;if(now-this.startedAt<60000||!this.mode&&this.players.size<6)return;for(const p of this.players.values())if(!p.isBot){const contribution=this.mode?.snapshot(p.id).pilots[p.id]?.contribution??0;if(this.mode&&p.kills===0&&contribution<=0)continue;const win=p.team===this.match.winner;p.fallbucks+=5+Math.min(15,p.kills+Math.floor(contribution/100))+(win?10:0);p.sessionTotalXp+=25+Math.min(100,p.kills*5+Math.floor(contribution/10))+(win?35:0);reconcilePassRewards(p);}this.onProgress?.(this.players.values());}
   leave(id:string):void {this.onProgress?.(this.players.values());this.mode?.leave(id,Date.now());this.selections.delete(id);this.selectedLoadouts.delete(id);this.savedKits.delete(id);this.actionSequences.delete(id);this.players.delete(id);this.combat.forget(id);if(this.hostId===id)this.migrateHost();this.emitRoom();}
   disconnect(id:string):void{const p=this.players.get(id);if(p){p.connected=false;p.socketId=null;p.disconnectedAt=Date.now();p.input=idle();if(this.hostId===id)this.migrateHost();this.emitRoom();}}
   isEmpty():boolean{return ![...this.players.values()].some(p=>!p.isBot&&(p.connected||p.disconnectedAt!==null&&Date.now()-p.disconnectedAt<B.disconnectGraceMs));}
   dispose():void{this.onProgress?.(this.players.values());this.players.clear();this.combat.clear();}
   returnToLobby(id:string):void{if(id!==this.hostId||this.phase!=="results")return;for(const [key,p]of this.players)if(p.isBot)this.players.delete(key);else {p.ready=false;const kit=this.savedKits.get(p.id);if(kit)p.loadout=structuredClone(kit);}this.savedKits.clear();this.mode=null;this.modeStarted=false;this.world.reset([],Date.now());this.match=new PgMatch(this.configuration.scoreLimit);this.emitRoom();}
-  buyShopItem(id:string,itemId:string):{ok:boolean;error?:string}{const p=this.players.get(id),item=SHOP_CATALOG.find(i=>i.id===itemId&&!i.passLevel&&i.category!=="planet");if(!p||!item||!["lobby","results"].includes(this.phase))return {ok:false,error:"Shop is available between matches."};if(p.ownedCosmetics.includes(itemId)||p.fallbucks<item.price)return {ok:false,error:"Already owned or insufficient Fallbucks."};p.fallbucks-=item.price;p.ownedCosmetics.push(itemId);this.emitRoom();return {ok:true};}
-  equipShopItem(id:string,itemId:string):{ok:boolean;error?:string}{const p=this.players.get(id),item=SHOP_CATALOG.find(i=>i.id===itemId);if(!p||!item||item.category==="planet"||item.category==="emote"||!p.ownedCosmetics.includes(itemId)||!["lobby","results"].includes(this.phase))return {ok:false,error:"Cannot equip that item here."};p.equippedCosmetics[item.category]=item.id;this.emitRoom();return {ok:true};}
+  buyShopItem(id:string,itemId:string):{ok:boolean;error?:string}{const result=buyCosmetic(this.players.get(id),this.phase,itemId);if(result.ok)this.emitRoom();return result;}
+  equipShopItem(id:string,itemId:string):{ok:boolean;error?:string}{const result=equipCosmetic(this.players.get(id),this.phase,itemId,"planet-gun");if(!result.ok)return result;if(result.changed)this.emitRoom();return {ok:true};}
   private hideEquipment(state:Pick<PgPlayer,"loadout"|"queuedLoadout"|"guns"|"slot"|"hp">):void{state.hp=state.hp>0?100:0;state.loadout={primary:"pulse",secondary:"orbit"};delete state.queuedLoadout;state.slot=0;state.guns=[pgCreateGun("pulse"),pgCreateGun("orbit")];for(const gun of state.guns){gun.magazine=0;gun.reserve=0;}}
   private migrateHost():void{this.hostId=[...this.players.values()].find(p=>!p.isBot&&p.connected)?.id??"";}
   private emitRoom():void{this.onProgress?.(this.players.values());if(this.configuration.mode==="planetsiege"){for(const p of this.players.values())if(p.socketId)this.io.to(p.socketId).emit("pg:room:state",this.view(p.id));}else this.io.to(this.code).emit("pg:room:state",this.view());}

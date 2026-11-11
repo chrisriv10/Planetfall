@@ -1,5 +1,5 @@
-import { PR_BALANCE } from "./balance.js";
-import type { PrCheckpoint,PrObstacle,PrPlatform,PrRoundDefinition,PrRoundId,PrTile } from "./types.js";
+import {buildShatterdeckLayout} from "./shatterdeck-layout.js";
+import type { PrCheckpoint,PrObstacle,PrPlatform,PrRoundDefinition,PrRoundId } from "./types.js";
 const v=(x:number,y:number,z:number)=>({x,y,z});
 const platform=(id:string,x:number,y:number,z:number,hx:number,hz:number):PrPlatform=>({id,center:v(x,y,z),half:v(hx,.6,hz)});
 const checkpoint=(z:number,y=0):PrCheckpoint=>({center:v(0,y+2,z),half:v(9,4,2),spawn:v(0,y+.6,z+3)});
@@ -47,22 +47,7 @@ function capacitorCauseway():PrRoundDefinition{
  return round;
 }
 function shatterdeck():PrRoundDefinition {
-  const tiles:PrTile[]=[],r=PR_BALANCE.tileRadius;
-  for(let deck=0;deck<4;deck++)for(let q=-7;q<=7;q++)for(let s=-7;s<=7;s++){
-    const radius=Math.max(Math.abs(q),Math.abs(s),Math.abs(q+s)),limit=[4,6,6,7][deck];
-    if(radius>limit)continue;
-    // Four authored footprints: compact crown, broken annulus, linked wings,
-    // broad fragmented base. Central lanes preserve readable landing options.
-    if(deck===1&&radius<2||deck===1&&q>2&&s===0)continue;
-    if(deck===2&&Math.abs(q)<2&&Math.abs(s)>2)continue;
-    if(deck===3&&radius>3&&(q-s)%4===0)continue;
-    tiles.push({id:tiles.length,deck,column:q,row:s,center:v(Math.sqrt(3)*r*(q+s/2),18-deck*5,1.5*r*s),neighbors:[]});
-  }
-  const offsets=[[1,0],[0,1],[-1,1],[-1,0],[0,-1],[1,-1]];
-  const lookup=new Map(tiles.map(t=>[`${t.deck}:${t.column}:${t.row}`,t.id]));
-  for(const tile of tiles)for(const [dq,ds]of offsets){const id=lookup.get(`${tile.deck}:${tile.column+dq}:${tile.row+ds}`);if(id!==undefined)tile.neighbors.push(id);}
-  const upper=tiles.filter(t=>t.deck===0);
-  return {id:"shatterdeck",name:"Shatterdeck",theme:"Experimental energy conservatory",category:"final",minimumPlayers:1,maximumPlayers:30,timeoutMs:120000,objective:"Keep a route beneath your boots",platforms:[],obstacles:[],checkpoints:[],finish:null,waypoints:[],spawns:Array.from({length:30},(_,i)=>({...upper[Math.floor(i*upper.length/30)].center})),killY:-5,tiles};
+  return {id:"shatterdeck",name:"Shatterdeck",theme:"Experimental energy conservatory",category:"final",minimumPlayers:1,maximumPlayers:30,timeoutMs:120000,objective:"Keep a route beneath your boots",platforms:[],obstacles:[],checkpoints:[],finish:null,waypoints:[],...buildShatterdeckLayout()};
 }
 export const PR_ROUNDS:readonly PrRoundDefinition[]=[
   race("cargo-cyclone","Cargo Cyclone","Coral freight accelerators"),

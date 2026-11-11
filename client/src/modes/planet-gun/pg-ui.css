@@ -212,3 +212,6 @@
 @media(max-width:700px) { .pg-hud-top { width:280px; top:10px; padding:8px 10px; } #pg-score { grid-template-columns:58px 32px 12px 32px 58px; font-size:10px; gap:5px; } #pg-score b { font-size:28px; } #pg-timer { font-size:13px; } .pg-vitals { width:172px; padding:10px; gap:12px; } #pg-health-value { font-size:32px; } #pg-ammo { min-width:145px; padding:10px; } #pg-magazine { font-size:43px; } .pg-reserve { font-size:17px; } #pg-weapon-name { font-size:11px; } .pg-edge-controls { top:12px; right:8px; } #pg-pause,#pg-scoreboard-toggle { min-height:34px; padding:6px; } #pg-feed { top:100px; font-size:11px; } }
 
 .pg-kit-lobby-actions{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:end}.pg-kit-lobby-actions label{font-size:11px;color:#b5c5de}#pg-lobby-screen.mode-lobby .pg-kit-lobby-actions #pg-edit-kits{margin:0;min-height:44px;grid-area:auto}.pg-selected-kit{margin-top:12px}.pg-selected-kit .panel-kicker{margin:0 0 6px}
+
+#pg-active-kit { display:block; max-width:230px; overflow:hidden; text-overflow:ellipsis; color:#e1ebff; font-size:11px; line-height:1.5; }
+#pg-active-kit[hidden] { display:none; }

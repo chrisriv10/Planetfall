@@ -1,3 +1,4 @@
+import {applyAstronautSuitFinish} from "../../../astronaut-suit-finish";
 import * as THREE from 'three';
 import {SHOP_CATALOG,type PrSnapshotPlayer} from '@planetfall/shared';
 import {createAstronautVisual,type AstronautVisual} from '../../../astronaut';
@@ -23,6 +24,6 @@ export function createPrWinnerStage(){
   applyCosmeticEmotePose(astronaut,'celebrate',t);astronaut.group.rotation.y+=applyCosmeticVictoryPose(astronaut,player.equippedCosmetics.victory,t/1000);
  };
  return {root,setWinner(next:PrSnapshotPlayer|null){if(disposed)return;const nextKey=next?JSON.stringify([next.id,next.color,next.isBot,next.equippedCosmetics]):'';player=next;root.visible=!!next;if(nextKey===key)return;key=nextKey;release(pilot);astronaut=undefined;
-   if(next){const suit=SHOP_CATALOG.find(i=>i.category==='suit'&&i.id===next.equippedCosmetics.suit)?.color??next.color;astronaut=createAstronautVisual({identityColor:next.color,suitAccent:suit,isBot:next.isBot});pilot.add(astronaut.group);accent.color.set(next.color);accent.emissive.set(next.color);update(0);}
+   if(next){const suit=SHOP_CATALOG.find(i=>i.category==='suit'&&i.id===next.equippedCosmetics.suit)?.color??next.color;astronaut=createAstronautVisual({identityColor:next.color,suitAccent:suit,isBot:next.isBot});applyAstronautSuitFinish(astronaut,SHOP_CATALOG.find(i=>i.id===next.equippedCosmetics.suit)?.suitStyle??null);pilot.add(astronaut.group);accent.color.set(next.color);accent.emissive.set(next.color);update(0);}
   },update,dispose(){if(disposed)return;disposed=true;release(pilot);release(podium);root.clear();root.removeFromParent();astronaut=undefined;player=null;}};
 }

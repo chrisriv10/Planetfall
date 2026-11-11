@@ -1,8 +1,12 @@
 import type {PrRoundDefinition} from "@planetfall/shared";
 export const PR_REVIEW_NAMES=["start","hazard","center","landmark","finish","oblique"] as const;
 export type PrReviewName=typeof PR_REVIEW_NAMES[number];
+const finalBounds=(round:PrRoundDefinition)=>{
+ const heights=round.tiles.map(t=>t.center.y),top=Math.max(...heights),bottom=Math.min(...heights);
+ return {top,bottom,middle:(top+bottom)/2,radius:Math.max(...round.tiles.map(t=>Math.hypot(t.center.x,t.center.z)))+1.35};
+};
 /** Short authored opening shot, derived only from immutable course art coordinates. */
-export function prIntroCamera(round:PrRoundDefinition,progress:number){
+export function prIntroCamera(round:PrRoundDefinition,progress:number):{position:readonly[number,number,number];target:readonly[number,number,number]}{
  const shots:Record<PrRoundDefinition['id'],{from:readonly[number,number,number];to:readonly[number,number,number];target:readonly[number,number,number]}>= {
   'cargo-cyclone':{from:[41,28,10],to:[27,20,-8],target:[0,2,-43]},
   'solar-sweep':{from:[35,27,32],to:[26,21,29],target:[0,5,0]},
@@ -11,15 +15,16 @@ export function prIntroCamera(round:PrRoundDefinition,progress:number){
   'capacitor-causeway':{from:[40,26,-15],to:[28,19,-30],target:[0,3,-65]},
   shatterdeck:{from:[45,38,44],to:[34,31,36],target:[0,10,0]},
  };
- const shot=shots[round.id],p=Math.max(0,Math.min(1,progress)),t=p*p*(3-2*p);
+ const bounds=round.category==="final"?finalBounds(round):null;
+ const shot=bounds?{from:[bounds.radius*1.9,bounds.top+18,bounds.radius*1.9],to:[bounds.radius*1.5,bounds.top+12,bounds.radius*1.6],target:[0,bounds.middle,0] as const}:shots[round.id],p=Math.max(0,Math.min(1,progress)),t=p*p*(3-2*p);
  return {position:shot.from.map((v,i)=>v+(shot.to[i]-v)*t) as [number,number,number],target:shot.target};
 }
 export function prReviewCamera(round:PrRoundDefinition,name:PrReviewName):{position:readonly[number,number,number];target:readonly[number,number,number]}{
- const race=round.category==="race",final=round.category==="final";
+ const race=round.category==="race",final=round.category==="final",b=final?finalBounds(round):null;
  const cameras:Record<PrReviewName,{position:readonly[number,number,number];target:readonly[number,number,number]}>=race?{
   start:{position:[15,10,27],target:[0,2,-8]},hazard:{position:[13,7,-7],target:[0,1.5,-24]},center:{position:[16,13,-45],target:[0,1,-65]},landmark:{position:[-18,8,-42],target:[30,9,-62]},finish:{position:[14,10,-104],target:[0,2,-124]},oblique:{position:[55,70,30],target:[0,0,-55]},
  }:final?{
-  start:{position:[24,31,26],target:[0,17,0]},hazard:{position:[12,22,10],target:[0,18,0]},center:{position:[37,18,25],target:[0,10,0]},landmark:{position:[47,29,42],target:[0,12,0]},finish:{position:[24,7,20],target:[0,2,0]},oblique:{position:[42,55,46],target:[0,10,0]},
+  start:{position:[b!.radius*1.1,b!.top+13,b!.radius*1.2],target:[0,b!.top,0]},hazard:{position:[12,b!.top+4,10],target:[0,b!.top,0]},center:{position:[b!.radius*1.8,b!.middle+8,b!.radius*1.2],target:[0,b!.middle,0]},landmark:{position:[b!.radius*2,b!.top+6,b!.radius*1.8],target:[0,b!.middle,0]},finish:{position:[24,b!.bottom+6,20],target:[0,b!.bottom,0]},oblique:{position:[b!.radius*1.9,b!.top+30,b!.radius*2.1],target:[0,b!.middle,0]},
  }:{
   start:{position:[27,18,27],target:[0,1,0]},hazard:{position:[15,7,12],target:[0,1,0]},center:{position:[1,8,15],target:[0,1,-4]},landmark:{position:[-21,8,14],target:[35,9,-12]},finish:{position:[30,28,30],target:[0,1,0]},oblique:{position:[38,53,41],target:[0,0,0]},
  };
@@ -30,7 +35,7 @@ export function prReviewCamera(round:PrRoundDefinition,name:PrReviewName):{posit
    'meteor-garden':{position:[37,24,-10],target:[0,9,-49]},
    'flux-gardens':{position:[0,14,-38],target:[33,15,-66]},
    'capacitor-causeway':{position:[5,24,-30],target:[48,18,-60]},
-   shatterdeck:{position:[40,28,40],target:[0,12,0]},
+   shatterdeck:cameras.landmark,
   };return landmarks[round.id];
  }
  return cameras[name];

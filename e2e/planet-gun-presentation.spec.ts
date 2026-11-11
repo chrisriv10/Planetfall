@@ -1,6 +1,6 @@
 import {test,expect,type Page} from "@playwright/test";
 import {writeFile} from "node:fs/promises";
-import {selectExperimentalFamily} from "./select-family";
+import {selectExperimentalFamily,capturePgMouse,openLobbyConfiguration} from "./select-family";
 
 const diagnostics=new WeakMap<Page,{shots:unknown[];snapshots:unknown[]}>();
 test.afterEach(async({page},info)=>{
@@ -9,7 +9,7 @@ test.afterEach(async({page},info)=>{
  await writeFile(info.outputPath("input-network-review.json"),JSON.stringify({network,client},null,2));
 });
 
-for(const weapon of["pulse","nova","photon","quasar","rail"]){
+for(const weapon of["pulse","nova","photon","quasar","rail","helix","arc","prism","comet","orbit"]){
  test(`PlanetGun ${weapon} held hip, ADS, recoil, reload and sprint presentation`,async({page},info)=>{
   const network={shots:[] as unknown[],snapshots:[] as unknown[]};diagnostics.set(page,network);
   page.on("websocket",socket=>{
@@ -22,23 +22,31 @@ for(const weapon of["pulse","nova","photon","quasar","rail"]){
   // A passive second human keeps pose capture deterministic. Combat against
   // bots and the opposing-client scoped hit are exercised in separate tests;
   // an AI elimination here can reset ammo/life in the middle of a screenshot.
-  await page.locator("#create-room").click();await expect(page.locator("#pg-lobby-screen")).toBeVisible();await page.locator("#pg-fill").uncheck();const code=await page.locator("#pg-code").innerText();
+  await page.locator("#create-room").click();await expect(page.locator("#pg-lobby-screen")).toBeVisible();await openLobbyConfiguration(page);await page.locator("#pg-fill").uncheck();const code=await page.locator("#pg-code").innerText();
   const wing=await page.context().newPage();await wing.goto("/");await wing.getByLabel("Name",{exact:true}).fill("Presentation Target");await selectExperimentalFamily(wing,"planet-gun");await wing.locator("#room-code").fill(code);await wing.locator("#join-room").click();await expect(wing.locator("#pg-lobby-screen")).toBeVisible();await wing.locator("#pg-ready").click();
-  await page.locator("#pg-loadout").selectOption(weapon);await page.locator("#pg-ready").click();await page.locator("#pg-start").click();await page.bringToFront();
+  const slot=weapon==="comet"||weapon==="orbit"?1:0;
+  if(slot===1){
+   await page.locator("#pg-edit-kits").click();const editor=page.locator(".pg-kit-overlay");
+   await editor.getByRole("button",{name:/^02 \/ SECONDARY/}).click();await editor.getByLabel("Change weapon",{exact:true}).selectOption(weapon);
+   await editor.getByRole("button",{name:"Save Kit & Select",exact:true}).click();await editor.getByRole("button",{name:"Close",exact:true}).click();
+  }else await page.locator("#pg-loadout").selectOption(weapon);
+  await page.locator("#pg-ready").click();await page.locator("#pg-start").click();await page.bringToFront();
   const state=async()=>page.evaluate(()=>(window as unknown as {__PLANETFALL_PG_DEBUG__:()=>any}).__PLANETFALL_PG_DEBUG__());
-  await expect.poll(async()=>(await state())?.phase).toBe("playing");expect((await state()).players).toBe(2);
+  await expect.poll(async()=>(await state())?.phase).toBe("playing");expect((await state()).players).toBe(2);if(slot===1){await page.keyboard.press("2");await expect.poll(async()=>(await state()).local.slot).toBe(1);}expect((await state()).local.guns[slot].id).toBe(weapon);
   await page.waitForTimeout(500);await page.screenshot({path:info.outputPath(`${weapon}-hip.png`)});
-  await page.mouse.move(640,360);await page.mouse.down({button:"right"});await expect.poll(async()=>(await state()).ads).toBeGreaterThan(.99);
+  await capturePgMouse(page);await page.mouse.move(640,360);await page.mouse.down({button:"right"});await expect.poll(async()=>(await state()).ads).toBeGreaterThan(.99);
   const crosshair=await page.locator("#pg-crosshair").boundingBox();expect(crosshair).not.toBeNull();expect(crosshair!.x+crosshair!.width/2).toBeCloseTo(640,1);expect(crosshair!.y+crosshair!.height/2).toBeCloseTo(360,1);
   expect(await page.locator("#pg-crosshair").evaluate(e=>Number(getComputedStyle(e).getPropertyValue("--pg-optic-opacity")))).toBeGreaterThan(.99);
   await page.screenshot({path:info.outputPath(`${weapon}-ads.png`)});
-  const magazine=(await state()).local.guns[0].magazine;await page.mouse.down();
+  const magazine=(await state()).local.guns[slot].magazine;await page.mouse.down();
   // Hold the real input until authority observes it, rather than releasing a
   // 110ms pulse while a software-rendered screenshot may stall the frame loop.
-  await expect.poll(async()=>(await state()).local.guns[0].magazine).toBeLessThan(magazine);
+  await expect.poll(async()=>(await state()).local.guns[slot].magazine).toBeLessThan(magazine);
   await page.screenshot({path:info.outputPath(`${weapon}-recoil.png`)});await page.mouse.up();await page.mouse.up({button:"right"});
   await page.keyboard.down("Control");await page.keyboard.press("r");await page.keyboard.up("Control");await expect(page.locator("#pg-ammo")).toContainText("RELOADING");await page.waitForTimeout(450);await page.screenshot({path:info.outputPath(`${weapon}-reload.png`)});
-  await expect(page.locator("#pg-reload")).toBeEmpty();await page.keyboard.down("Shift");await page.keyboard.down("w");await expect.poll(async()=>(await state()).local.mode).toBe("sprint");await page.screenshot({path:info.outputPath(`${weapon}-sprint.png`)});await page.keyboard.up("w");await page.keyboard.up("Shift");
+  await expect.poll(async()=>(await state()).local.guns[slot].reloadUntil).toBe(0);
+  if(weapon==="prism"){await expect(page.locator("#pg-reload")).toHaveText(/^HEAT \d+%$/);expect((await state()).local.guns[slot].heat).toBeLessThan(.05);}else await expect(page.locator("#pg-reload")).toBeEmpty();
+  await page.keyboard.down("Shift");await page.keyboard.down("w");await expect.poll(async()=>(await state()).local.mode).toBe("sprint");await page.screenshot({path:info.outputPath(`${weapon}-sprint.png`)});await page.keyboard.up("w");await page.keyboard.up("Shift");
   if(weapon==="pulse"){
    await page.keyboard.press("2");await expect(page.locator("#pg-ammo")).toContainText("Comet");await page.waitForTimeout(450);await page.screenshot({path:info.outputPath("comet-hip.png")});
    await page.setViewportSize({width:864,height:540});await page.waitForTimeout(500);

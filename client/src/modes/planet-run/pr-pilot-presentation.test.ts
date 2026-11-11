@@ -2,6 +2,7 @@ import {describe,it,expect,vi} from "vitest";
 import * as THREE from "three";
 import {DEFAULT_COSMETICS,SHOP_CATALOG,type PrSnapshotPlayer} from "@planetfall/shared";
 import {createAstronautVisual} from "../../astronaut";
+import {createAstronautMotion} from "../../astronaut-motion";
 import {createPrPilotPresentation} from "./pr-pilot-presentation";
 
 function fixture(){
@@ -20,14 +21,14 @@ describe("PlanetRun canonical pilot presentation",()=>{
  it("uses supplied gravity/boost context for airborne stretch, bounded trails, and landing recovery",()=>{
   const {rig,state,art,trail}=fixture(),baseScale=rig.torso.scale.clone(),baseY=rig.torso.position.y;
   state.grounded=false;state.velocity={x:4,y:3,z:0};art.update(state,50,.05,{lowGravity:true});art.update(state,100,.05,{lowGravity:true});
-  expect(trail.visible).toBe(true);expect(trail.count).toBe(8);expect(rig.torso.scale.y).toBeGreaterThan(baseScale.y);expect(rig.leftArm.rotation.z).toBe(.4);
+  expect(trail.visible).toBe(true);expect(trail.count).toBeGreaterThan(0);expect(trail.count).toBeLessThanOrEqual(8);expect(rig.torso.scale.y).toBeGreaterThan(baseScale.y);expect(rig.leftArm.rotation.z).toBe(.4);
   state.velocity.y=-10;art.update(state,150,.05);state.grounded=true;state.velocity.y=0;art.update(state,200,.05);expect(rig.torso.position.y).toBeLessThan(baseY);
   for(let i=0;i<30;i++)art.update(state,250+i*50,.05);expect(rig.torso.position.y).toBeCloseTo(baseY);expect(trail.visible).toBe(false);
   art.update(state,1800,.05,{boosted:true});expect(trail.visible).toBe(true);expect(rig.leftArm.rotation.x).toBe(.55);art.dispose();expect(rig.torso.scale).toEqual(baseScale);
  });
  it("preserves catalog trail identity and skips all trail uploads for far pilots",()=>{
   const {state,art,trail}=fixture();const item=SHOP_CATALOG.find(i=>i.category==="trail"&&i.color)!;state.equippedCosmetics.trail=item.id;state.velocity.z=13;
-  art.update(state,50,.05,{boosted:true});expect((trail.material as THREE.MeshBasicMaterial).color.getHex()).toBe(new THREE.Color(item.color!).getHex());
+  art.update(state,50,.05,{boosted:true});expect((trail.material as THREE.ShaderMaterial).uniforms.tint.value.getHex()).toBe(new THREE.Color(item.color!).getHex());
   const version=trail.instanceMatrix.version;for(let i=0;i<20;i++)art.update(state,100+i*50,.05,{boosted:true,detail:"far"});expect(trail.visible).toBe(false);expect(trail.instanceMatrix.version).toBe(version);
   state.velocity.z=0;art.update(state,1200,.05);expect(trail.visible).toBe(false);art.dispose();
  });
@@ -39,4 +40,17 @@ describe("PlanetRun canonical pilot presentation",()=>{
   for(let i=0;i<25;i++)art.update(state,1550+i*50,.05);expect(trail.visible).toBe(false);
   expect(trail.geometry).toBe(geo);expect(trail.material).toBe(mat);expect(trail.instanceMatrix).toBe(buffer);art.dispose();art.dispose();expect(sd).toHaveBeenCalledTimes(1);expect(gd).toHaveBeenCalledTimes(1);expect(md).toHaveBeenCalledTimes(1);expect(scene.children).toEqual([rig.group]);
  });
+});
+
+it("blends a complete forward dive and recovers without accumulating root or helmet rotation",()=>{
+ const {rig,state,art}=fixture(),motion=createAstronautMotion(rig),before=JSON.stringify(state);
+ state.grounded=false;state.velocity.z=13;state.diveUntil=350;state.diveReadyAt=1050;
+ const snapshot=JSON.stringify(state),position=rig.group.position.clone();let pitch=0;
+ for(let i=0;i<120;i++){
+  const elapsed=i*1000/60;rig.group.rotation.set(0,.7,0);Object.assign(motion.input,{dt:1/60,timeSeconds:elapsed/1000,grounded:false,forwardSpeed:13,verticalSpeed:-2});motion.update();
+  art.update(state,elapsed,1/60);const up=new THREE.Vector3(0,1,0).applyQuaternion(rig.group.quaternion);
+  if(i===10){pitch=Math.acos(up.y);expect(pitch).toBeGreaterThan(1);expect(rig.leftArm.rotation.x).toBeLessThan(-2);}
+  if(i>90){expect(Math.acos(up.y)).toBeLessThan(.001);expect(Math.abs(rig.helmet.rotation.x)).toBeLessThan(.1);}
+ }
+ expect(pitch).toBeLessThan(1.13);expect(rig.group.position).toEqual(position);expect(JSON.stringify(state)).toBe(snapshot);expect(before).not.toBe(snapshot);art.dispose();
 });

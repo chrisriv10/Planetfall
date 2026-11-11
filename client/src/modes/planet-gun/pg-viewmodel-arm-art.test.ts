@@ -20,6 +20,9 @@ describe("camera-safe first-person sleeve span",()=>{
     const geometry=createPgSleeveGeometry();
     try{
       const position=geometry.getAttribute("position"),normal=geometry.getAttribute("normal");
+      const color=geometry.getAttribute("color");
+      expect(color.count).toBe(position.count);
+      expect(Math.max(...color.array)-Math.min(...color.array)).toBeGreaterThan(.25);
       let wristRadius=0,bellyRadius=0;
       for(let i=0;i<position.count;i++){
         const x=position.getX(i),y=position.getY(i),z=position.getZ(i),r=Math.hypot(x,z);

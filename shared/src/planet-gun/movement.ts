@@ -1,3 +1,4 @@
+import {pgStepLean} from "./lean.js";
 import type {Vec3} from "../index.js";
 import {PG_BALANCE as B} from "./balance.js";
 import {PG_MAP} from "./map.js";
@@ -5,8 +6,8 @@ import {PG_DEFAULT_MOVEMENT_RULES, type PgMovementRules} from "./movement-rules.
 import {pgClamp} from "./math.js";
 import type {PgInput,PgMap,PgMotion,PgSolid} from "./types.js";
 const approach=(a:number,b:number,n:number)=>a+pgClamp(b-a,-n,n);
-export function pgSpawnMotion(position:Vec3,yaw=0):PgMotion{return {position:{...position},velocity:{x:0,y:0,z:0},yaw,pitch:0,grounded:false,crouched:false,ion:100,launchY:position.y,jumpHeld:false,coyoteUntil:0,jumpBufferUntil:0,lastJumpAt:-1000,slideUntil:0,slideReadyAt:0,wallId:null,wallNormal:{x:0,y:0,z:0},wallUntil:0,wallReadyAt:0,mantleFrom:null,mantleTo:null,mantleStart:0,mantleUntil:0,mode:"air"};}
-export function pgSanitizeInput(raw:unknown):PgInput|null {if(!raw||typeof raw!=="object")return null;const p=raw as PgInput;if(!Number.isSafeInteger(p.sequence)||p.sequence<0||![p.moveX,p.moveZ,p.yaw,p.pitch].every(Number.isFinite)||![p.jump,p.sprint,p.crouch,p.ads].every(v=>typeof v==="boolean"))return null;const n=Math.max(1,Math.hypot(p.moveX,p.moveZ));return {sequence:p.sequence,moveX:p.moveX/n,moveZ:p.moveZ/n,yaw:Math.atan2(Math.sin(p.yaw),Math.cos(p.yaw)),pitch:pgClamp(p.pitch,-1.45,1.45),jump:p.jump,sprint:p.sprint,crouch:p.crouch,ads:p.ads,...(Number.isSafeInteger(p.collisionRevision)&&p.collisionRevision!>=0?{collisionRevision:p.collisionRevision}:{})};}
+export function pgSpawnMotion(position:Vec3,yaw=0):PgMotion{return {lean:0,position:{...position},velocity:{x:0,y:0,z:0},yaw,pitch:0,grounded:false,crouched:false,ion:100,launchY:position.y,jumpHeld:false,coyoteUntil:0,jumpBufferUntil:0,lastJumpAt:-1000,slideUntil:0,slideReadyAt:0,wallId:null,wallNormal:{x:0,y:0,z:0},wallUntil:0,wallReadyAt:0,mantleFrom:null,mantleTo:null,mantleStart:0,mantleUntil:0,mode:"air"};}
+export function pgSanitizeInput(raw:unknown):PgInput|null {if(!raw||typeof raw!=="object")return null;const p=raw as PgInput;if(!Number.isSafeInteger(p.sequence)||p.sequence<0||![p.moveX,p.moveZ,p.yaw,p.pitch].every(Number.isFinite)||![p.jump,p.sprint,p.crouch,p.ads].every(v=>typeof v==="boolean"))return null;if(p.lean!==undefined&&(!Number.isInteger(p.lean)||Math.abs(p.lean)>1))return null;const n=Math.max(1,Math.hypot(p.moveX,p.moveZ));return {sequence:p.sequence,moveX:p.moveX/n,moveZ:p.moveZ/n,yaw:Math.atan2(Math.sin(p.yaw),Math.cos(p.yaw)),pitch:pgClamp(p.pitch,-1.45,1.45),jump:p.jump,sprint:p.sprint,crouch:p.crouch,ads:p.ads,lean:p.lean??0,...(Number.isSafeInteger(p.collisionRevision)&&p.collisionRevision!>=0?{collisionRevision:p.collisionRevision}:{})};}
 export function pgCapsuleClear(position:Vec3,height:number,map:PgMap=PG_MAP,ignore?:string):boolean{return !map.solids.some(b=>b.id!==ignore&&position.y<b.center.y+b.half.y-.025&&position.y+height>b.center.y-b.half.y+.025&&Math.abs(position.x-b.center.x)<b.half.x+B.radius-.02&&Math.abs(position.z-b.center.z)<b.half.z+B.radius-.02);}
 function overlapXZ(p:Vec3,b:PgSolid,r:number=B.radius):boolean{return Math.hypot(Math.max(0,Math.abs(p.x-b.center.x)-b.half.x),Math.max(0,Math.abs(p.z-b.center.z)-b.half.z))<=r;}
 function wallContact(p:PgMotion,map:PgMap):{box:PgSolid;normal:Vec3}|null {
@@ -25,14 +26,14 @@ function beginMantle(p:PgMotion,dx:number,dz:number,at:number,map:PgMap):boolean
   if(!b.mantle||b.half.x<.7||b.half.z<.7||rise<.35||rise>B.mantleHeight||!overlapXZ(reach,b))continue;
   const target={x:pgClamp(reach.x,b.center.x-b.half.x+B.radius+.05,b.center.x+b.half.x-B.radius-.05),y:top,z:pgClamp(reach.z,b.center.z-b.half.z+B.radius+.05,b.center.z+b.half.z-B.radius-.05)};
   if(Math.abs(target.x)>map.halfWidth-B.radius||Math.abs(target.z)>map.halfDepth-B.radius||!pgCapsuleClear(target,B.height,map,b.id))continue;
-  p.mantleFrom={...p.position};p.mantleTo=target;p.mantleStart=at;p.mantleUntil=at+B.mantleMs;p.mode="mantle";p.wallId=null;return true;
+  p.lean=0;p.mantleFrom={...p.position};p.mantleTo=target;p.mantleStart=at;p.mantleUntil=at+B.mantleMs;p.mode="mantle";p.wallId=null;return true;
  }
  return false;
 }
 /** Identical bounded kinematics for authority and prediction. Feet position is the collider origin. */
 export function pgStepMovement(p:PgMotion,input:PgInput,dt:number,at:number,map:PgMap=PG_MAP,rules:PgMovementRules=PG_DEFAULT_MOVEMENT_RULES):void {
  if(!Number.isFinite(dt)||dt<=0||dt>1/30+1e-6)throw new Error("PlanetGun requires a bounded fixed step");
- p.yaw=input.yaw;p.pitch=input.pitch;
+ p.yaw=input.yaw;p.pitch=input.pitch;if(!rules.lean)p.lean=0;
  if(!rules.wallRun)p.wallId=null;
  if(!rules.slide)p.slideUntil=0;
  if(!rules.jump)p.jumpBufferUntil=0;
@@ -83,5 +84,5 @@ export function pgStepMovement(p:PgMotion,input:PgInput,dt:number,at:number,map:
   if(p.velocity.y>0&&oldY+height<=bottom+.03&&p.position.y+height>=bottom){p.position.y=bottom-height;p.velocity.y=0;}
  }
  if(Number.isFinite(support)){p.position.y=support;p.velocity.y=0;p.grounded=true;p.wallId=null;}
- p.ion=pgClamp(p.ion,0,100);
+ p.ion=pgClamp(p.ion,0,100);pgStepLean(p,input,dt,map,!!rules.lean);
 }

@@ -1,10 +1,24 @@
 import {describe,it,expect} from "vitest";
+import {Euler,Vector3} from "three";
 import {PG_MAP} from "@planetfall/shared";
 import {buildPgNeighborhoodStreets} from "./pg-neighborhood-streets";
 import type {PgArtContext} from "./pg-environment-builder";
+import {PG_SURFACE_TINT as paint} from "./pg-district-palette";
 
 const capture=()=>{const calls:Parameters<PgArtContext["add"]>[]=[];buildPgNeighborhoodStreets({add:(...args)=>calls.push(args)});return calls;};
 describe("Nova neighborhood streets and landscape",()=>{
+  it("carries district finishes across the street slabs, garden terrace and transit bank",()=>{
+    const calls=capture();
+    for(const [prefix,tint] of [
+      ["street-habitat-0",paint.habitatCoral],["street-engineering-0",paint.ionSteel],
+      ["street-spine-0",paint.transitNavy],["street-garden-0",paint.hydroTeal],
+      ["garden-terrace-cap-",paint.hydroPorcelain],["transit-ticket-bank-rim-",paint.transitOrange],
+    ] as const){
+      const matches=calls.filter(([name])=>name.startsWith(prefix));
+      expect(matches.length,prefix).toBeGreaterThan(0);
+      for(const feature of matches)expect(feature[6]).toBe(tint);
+    }
+  });
   it("backs maintenance diagrams with real planter faces instead of freestanding props",()=>{
     for(const [name,,,p]of capture().filter(([name])=>name.includes('-maintenance-'))){
       const id=name.split('-maintenance-')[0],s=PG_MAP.solids.find(s=>s.id===id)!;
@@ -68,7 +82,7 @@ describe("Nova neighborhood streets and landscape",()=>{
     for(const tree of trees){
       const crowns=calls.filter(([name])=>name.startsWith(`${tree.id}-canopy-`));
       expect(crowns).toHaveLength(5);
-      for(const [,,,p,,detail]of crowns){expect(detail).not.toBe(true);expect(p[1]-p[4]).toBeGreaterThan(4);}
+      for(const [,primitive,,p,,detail]of crowns){expect(primitive).toBe("leafFan");expect(detail).not.toBe(true);expect(p[1]-p[4]).toBeGreaterThan(4);}
       expect(Math.max(...crowns.map(c=>c[3][1]+c[3][4]))).toBeGreaterThan(8);
     }
   });
@@ -76,5 +90,32 @@ describe("Nova neighborhood streets and landscape",()=>{
     const calls=capture();
     expect(new Set(calls.map(([,primitive,material,,,detail])=>`${primitive}:${material}:${!!detail}`)).size).toBeLessThanOrEqual(10);
     for(const [,,,p]of calls){expect(p.every(Number.isFinite)).toBe(true);expect(p.slice(3).every(v=>v>0)).toBe(true);}
+  });
+  it("connects each lateral whorl to its trunk with a single overhead limb in the planter soil batch",()=>{
+    const calls=capture();
+    const branches=calls.filter(([name])=>name.includes("-branch-"));
+    const batch=([,primitive,material,,,detail]:Parameters<PgArtContext["add"]>)=>`${primitive}:${material}:${!!detail}`;
+    const existingBatches=new Set(calls.filter(([name])=>!name.includes("-branch-")).map(batch));
+    expect(branches).toHaveLength(12);
+    expect(new Set(branches.map(batch))).toEqual(new Set(["box:soil:false"]));
+    expect(existingBatches.has("box:soil:false")).toBe(true);
+    for(const tree of PG_MAP.solids.filter(s=>s.id.startsWith("garden-tree-"))){
+      const crowns=calls.filter(([name])=>name.startsWith(`${tree.id}-canopy-`));
+      for(const [name,,,crown] of crowns){
+        const branch=branches.find(([id])=>id===name.replace("-canopy-","-branch-"));
+        const lateral=Math.abs(crown[0]-tree.center.x)>tree.half.x || Math.abs(crown[2]-tree.center.z)>tree.half.z;
+        expect(!!branch,name).toBe(lateral);
+        if(!branch)continue;
+        const [,,,p,rotation]=branch;
+        const center=new Vector3(p[0],p[1],p[2]);
+        const halfAxis=new Vector3(0,p[4]/2,0).applyEuler(new Euler(...rotation!));
+        const base=center.clone().sub(halfAxis),tip=center.add(halfAxis);
+        expect(Math.abs(base.x-tree.center.x)).toBeLessThan(tree.half.x);
+        expect(Math.abs(base.z-tree.center.z)).toBeLessThan(tree.half.z);
+        expect(Math.abs(base.y-tree.center.y)).toBeLessThan(tree.half.y);
+        expect(base.y-Math.hypot(p[3],p[5])/2).toBeGreaterThan(3.8);
+        expect(tip.distanceTo(new Vector3(crown[0],crown[1]-.85*crown[4],crown[2]))).toBeLessThan(1e-6);
+      }
+    }
   });
 });

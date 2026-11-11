@@ -1,0 +1,18 @@
+.pg-health-vignette {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  user-select: none;
+  --pg-health-edge: 7vmin;
+  background:
+    linear-gradient(to right, #c51625, #a20c1840 38%, transparent) left / var(--pg-health-edge) 100% no-repeat,
+    linear-gradient(to left, #c51625, #a20c1840 38%, transparent) right / var(--pg-health-edge) 100% no-repeat,
+    linear-gradient(to bottom, #c51625, #a20c1840 38%, transparent) top / 100% var(--pg-health-edge) no-repeat,
+    linear-gradient(to top, #c51625, #a20c1840 38%, transparent) bottom / 100% var(--pg-health-edge) no-repeat;
+  transition: opacity 140ms ease-out;
+}
+.pg-health-vignette[hidden] { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .pg-health-vignette { transition: none; }
+}

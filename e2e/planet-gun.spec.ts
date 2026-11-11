@@ -1,5 +1,5 @@
 import {test,expect,type Page} from "@playwright/test";
-import {selectExperimentalFamily} from "./select-family";
+import {selectExperimentalFamily,capturePgMouse,openLobbyConfiguration} from "./select-family";
 import {writeFile} from "node:fs/promises";
 // Read live, read-only DEV diagnostics: the DOM output refreshes only every
 // 500ms, which can steer corrective key pulses from an obsolete position.
@@ -16,13 +16,13 @@ test("PlanetGun warning, lobby, FPS movement, combat controls and clean exit",as
  await page.goto("/");await page.getByLabel("Name",{exact:true}).fill("Nova Pilot");await selectExperimentalFamily(page,"planet-gun");
  await page.locator("#create-room").click();await expect(page.locator("#pg-lobby-screen")).toBeVisible();
  await page.mouse.click(1200,300);expect(await page.evaluate(()=>document.pointerLockElement===null)).toBe(true);
- await page.locator("#pg-target").selectOption("4");await page.locator("#pg-loadout").selectOption("nova");
+ await openLobbyConfiguration(page);await page.locator("#pg-target").selectOption("4");await page.locator("#pg-loadout").selectOption("nova");
  await page.locator("#pg-ready").click();await page.locator("#pg-start").click();
  await expect.poll(async()=>(await state(page))?.phase).toBe("playing");
  const before=(await state(page)).local.position;await page.keyboard.down("w");await page.waitForTimeout(700);await page.keyboard.up("w");
  await expect.poll(async()=>{const p=(await state(page)).local.position;return Math.hypot(p.x-before.x,p.z-before.z);}).toBeGreaterThan(2);
  await page.keyboard.down("Space");await page.waitForTimeout(300);await page.keyboard.up("Space");await expect.poll(async()=>(await state(page)).local.position.y).toBeGreaterThan(.6);
- await page.mouse.move(700,400);await page.mouse.down();await page.waitForTimeout(350);await page.mouse.up();
+ await capturePgMouse(page);await page.mouse.move(700,400);await page.mouse.down();await page.waitForTimeout(350);await page.mouse.up();
  await expect.poll(async()=>(await state(page)).local.guns[0].magazine).toBeLessThan(36);await page.screenshot({path:info.outputPath("pre-reload.png")});
  await page.keyboard.down("Control");await page.keyboard.press("r");await page.keyboard.up("Control");await expect(page.locator("#pg-ammo")).toContainText("RELOADING");
  await page.keyboard.press("2");await expect(page.locator("#pg-ammo")).toContainText("Comet");

@@ -1,0 +1,33 @@
+.controls-editor {
+  color: #e5edf9;
+  border: 1px solid #40546c;
+  background: #0b1728;
+  border-radius: 7px 13px 7px 13px;
+  margin-bottom: 14px;
+  font: 600 13px/1.35 system-ui,sans-serif;
+}
+.controls-heading { padding: 11px 13px; color: #b7ecf3; font-weight: 800; cursor: pointer; }
+.controls-heading::marker { color: #76d9e7; }
+.controls-panel { padding: 0 10px 10px; }
+.controls-toolbar,.controls-feedback { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.controls-mode { flex: 1; min-width: 0; display: grid; gap: 3px; color: #b3c5da; font-size: 11px; }
+.controls-editor :is(button,select) { border: 1px solid #485e73; border-radius: 4px; background: #192939; color: #e8f2fa; font: inherit; cursor: pointer; }
+.controls-editor .controls-context { width: 100%; padding: 6px; font-size: 13px; }
+.controls-editor :is(.controls-reset-all,.controls-reset,.controls-cancel) { padding: 6px 9px; font-size: 11px; }
+.controls-toolbar .controls-reset-all { align-self: end; }
+.controls-feedback { margin-top: 7px; padding: 7px 8px; background: #25313c; border-left: 2px solid #e4c48a; color: #f2ddb6; font-size: 12px; }
+.controls-editor [hidden] { display: none; }
+.controls-rows { margin-top: 9px; max-height: clamp(105px,28dvh,255px); overflow: auto; overscroll-behavior: contain; scrollbar-color: #486373 #101b27; }
+.controls-row { display: grid; grid-template-columns: minmax(80px,1fr) minmax(98px,1.18fr) auto; align-items: center; gap: 6px; padding: 5px 2px; border-top: 1px solid #2f4151; }
+.controls-editor .controls-binding { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 3px; min-height: 30px; padding: 3px; color: #cae6ed; font-size: 11px; }
+.controls-binding[data-capturing=true] { border-color: #a3e7db; background: #24403f; }
+.controls-key { padding: 1px 4px; border-radius: 2px; background: #283d50; color: #e1f8fa; font: 700 10px/1.5 ui-monospace,monospace; }
+.controls-key svg { display: block; width: 14px; height: 18px; }
+.controls-editor :is(button,select,summary):focus-visible { outline: 2px solid #b5f7e9; outline-offset: -2px; }
+@media (max-width: 480px) {
+  .controls-panel { padding-inline: 7px; }
+  .controls-action { font-size: 12px; }
+  .controls-editor :is(.controls-reset,.controls-reset-all) { padding-inline: 5px; }
+  .controls-row { grid-template-columns: minmax(60px,.85fr) minmax(87px,1fr) auto; }
+}
+@media (max-height: 600px) { .controls-rows { max-height: 21dvh; } }

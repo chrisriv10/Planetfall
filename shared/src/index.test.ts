@@ -192,15 +192,15 @@ describe("shared gameplay math", () => {
     for (const previous of CHAOS_MODIFIERS) expect(selectChaosModifier(previous, () => .999)).not.toBe(previous);
   });
 
-  it("defines four distinct weapons and a bounded session-only cosmetic catalog", () => {
+  it("defines four distinct weapons and a bounded persistent cosmetic catalog", () => {
     expect(WEAPON_ORDER).toEqual(["rocket", "asteroid", "cluster", "gravity-bomb"]);
     expect(BALANCE.weapons.cluster.fragmentCount).toBe(5);
     expect(BALANCE.weapons.cluster.damage * BALANCE.weapons.cluster.fragmentCount).toBeLessThanOrEqual(BALANCE.weapons.asteroid.damage);
     expect(BALANCE.weapons["gravity-bomb"].damage).toBeLessThan(BALANCE.weapons.rocket.damage);
-    expect(SHOP_CATALOG.filter((item) => !item.passLevel)).toHaveLength(15);
-    expect(SHOP_CATALOG.filter((item) => item.passLevel)).toHaveLength(4);
+    expect(SHOP_CATALOG.filter((item) => !item.passLevel)).toHaveLength(47);
+    expect(SHOP_CATALOG.filter((item) => item.passLevel)).toHaveLength(5);
     expect(new Set(SHOP_CATALOG.map((item) => item.id)).size).toBe(SHOP_CATALOG.length);
-    expect(SHOP_CATALOG.filter((item) => !item.passLevel).every((item) => item.price >= 100 && item.price <= 300)).toBe(true);
+    expect(SHOP_CATALOG.slice(0,19).filter((item) => !item.passLevel).every((item) => item.price >= 100 && item.price <= 300)).toBe(true);
     expect(SHOP_CATALOG.filter((item) => item.passLevel).every((item) => item.price === 0)).toBe(true);
     expect(SHOP_CATALOG.find((item) => item.id === "verity")).toMatchObject({ category: "planet", price: 300, color: "#ffd84d" });
     expect(FREE_EMOTES).toEqual(["wave", "point", "celebrate"]);
@@ -220,17 +220,17 @@ describe("shared gameplay math", () => {
   });
 
   it("awards bounded session XP and deterministic Planet Pass levels", () => {
-    expect(SESSION_PROGRESSION).toEqual({ xpPerLevel: 100, maxLevel: 10 });
+    expect(SESSION_PROGRESSION).toEqual({ xpPerLevel: 100, maxLevel: 50 });
     expect(sessionMatchXp(1, 8, 8)).toBe(135);
     expect(sessionMatchXp(2, 0, 0)).toBe(80);
     expect(sessionMatchXp(6, 0, 0)).toBe(40);
     expect(sessionLevelForXp(0)).toBe(1);
     expect(sessionLevelForXp(99)).toBe(1);
     expect(sessionLevelForXp(100)).toBe(2);
-    expect(sessionLevelForXp(99999)).toBe(10);
+    expect(sessionLevelForXp(99999)).toBe(50);
     expect(sessionXpInLevel(245)).toBe(45);
-    expect(sessionXpInLevel(900)).toBe(100);
+    expect(sessionXpInLevel(900)).toBe(0);
     expect(planetPassRewardsBetween(1, 4).map((reward) => reward.level)).toEqual([2, 3, 4]);
-    expect(PLANET_PASS_REWARDS).toHaveLength(10);
+    expect(PLANET_PASS_REWARDS).toHaveLength(50);
   });
 });

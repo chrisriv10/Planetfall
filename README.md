@@ -6,11 +6,15 @@
 [![Three.js](https://img.shields.io/badge/Three.js-3D-000000?logo=threedotjs&logoColor=white)](https://threejs.org/)
 [![Socket.IO](https://img.shields.io/badge/Socket.IO-multiplayer-010101?logo=socketdotio&logoColor=white)](https://socket.io/)
 
-Planetfall is a browser-based 3D space party game with two distinct ways to play.
+Planetfall is a browser-based 3D space party game with four game families.
 
 **Planetfall** supports 2–6 pilots on destructible tiny planets with Scrap, cannons, raids, grapples, repairs, Classic, and Chaos rounds.
 
-**Battle Royale** supports private Solo, Duo, and Squad rooms with bot fill for 10, 20, or 40 participants. Drop from the Starliner onto Orbital Isle, loot weapons and utilities, survive the Void, revive crewmates, and become the last crew standing.
+**PlanetRoyale** supports private Solo, Duo, and Squad rooms with bot fill for 10, 20, or 40 participants. Drop from the Starliner onto Orbital Isle, loot weapons and utilities, survive the Void, revive crewmates, and become the last crew standing.
+
+**PlanetRun** is an orbital obstacle tournament for up to 30 pilots, with six themed rounds, bot fill, jumping and diving.
+
+**PlanetGun** is a first-person arena with Team Deathmatch, PlanetStrike, PlanetWatch, PlanetSiege and cooperative PlanetZombies. Strike and Siege use round-based attack/defense; Zombies supports up to four survivors. Experimental families display a work-in-progress notice before entry.
 
 ## Run it
 
@@ -27,7 +31,7 @@ Choose **Play Solo** for a match with three bots, or **Create Room** and share t
 
 Hosts can choose **Classic** or **Chaos**, set bot difficulty, and add bots. The orbital ready room is the hub for Ready, Shop, Planet Pass, and Settings. Matches award XP, Crowns, and Fallbucks. The same browser's guest profile preserves progress and purchased cosmetics across rooms and refreshes when the server has durable storage configured. Fallbucks buy cosmetics and never affect gameplay. See [saved profiles and hosting requirements](docs/PLAYER_PROFILES.md).
 
-Select **Battle Royale** on the home screen to create a BR room or start a Solo match with bots. BR hosts choose team size, participant target, bot fill, and difficulty.
+Select **PlanetRoyale** on the home screen to create a BR room or start a Solo match with bots. BR hosts choose team size, participant target, bot fill, and difficulty.
 
 ## Controls
 
@@ -49,7 +53,9 @@ Select **Battle Royale** on the home screen to create a BR room or start a Solo 
 
 Near a structure, the prompt shows its available Scrap utility. Use `E` / `X` for shields or cannon overcharge, and `R` / `RB` at a launch pad for a launch boost. Aim directly at a nearby astronaut before grappling to create a short player tether.
 
-Battle Royale uses `Shift` / `B` to sprint, `Ctrl` / right-stick click to slide, `1–5` / `Y` to select inventory slots, `R` / `RB` to reload, and `M` / D-pad down for the tactical map. Jump from the Starliner with `Space` / `A`; Ion Wings deploy automatically near the island.
+PlanetRoyale uses `Shift` / `B` to sprint, `Ctrl` / right-stick click to slide, `1–5` / `Y` to select inventory slots, `R` / `RB` to reload, and `M` / D-pad down for the tactical map. Jump from the Starliner with `Space` / `A`; Ion Wings deploy automatically near the island.
+
+PlanetRun uses `Space` to jump and `Shift` to dive. PlanetGun uses left click to fire, right click to aim, `R` to reload and `1` / `2` to select weapons. Mode-specific interaction, equipment and ability prompts appear in the HUD.
 
 ## Stack
 

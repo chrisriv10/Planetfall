@@ -84,7 +84,15 @@ export function createPgPilotBatches() {
       const opaque = !Array.isArray(m) && !m.transparent && !(m instanceof THREE.ShaderMaterial) && instances <= 32
         && source.onBeforeRender === THREE.Object3D.prototype.onBeforeRender
         && !(source.geometry instanceof THREE.InstancedBufferGeometry);
-      const key = opaque ? geometryKey(source.geometry) + "|material:" + materialKey(m as THREE.Material) + `|shadow:${source.castShadow},${source.receiveShadow}|order:${source.renderOrder}|layers:${source.layers.mask}` : "";
+      // World-weapon bakes already share immutable resources across pilots.
+      // Identity avoids serializing their merged vertex arrays and finish maps.
+      let key = "";
+      if (opaque) {
+        const resources = source.userData.pgSharedWorldWeapon
+          ? `world-weapon:${source.geometry.uuid}:${(m as THREE.Material).uuid}`
+          : geometryKey(source.geometry) + "|material:" + materialKey(m as THREE.Material);
+        key = resources + `|shadow:${source.castShadow},${source.receiveShadow}|order:${source.renderOrder}|layers:${source.layers.mask}`;
+      }
       let batch = key ? batches.get(key) : undefined;
       if (key && !batch && batches.size < MAX_BATCHES) {
         const mesh = new THREE.InstancedMesh(source.geometry.clone(), cloneMaterial(m as THREE.Material), PARTS_PER_BATCH);
