@@ -22,6 +22,7 @@ export interface AccountProvider {
 export function createNeonAccountProvider(baseUrl:string,cookieSecret:string,origin:string):AccountProvider {
   const log = resolveNeonAuthLogging({logLevel:"silent"});
   const config = {baseUrl,cookieSecret,sameSite:"lax" as const,log};
+  const managedGoogleStart = new URL(`${baseUrl.replace(/\/$/,"")}/sign-in/social/init`);
   const endpoint = (path:string) => new URL(path,origin);
   function request(url:URL,cookie:string,body?:object) {
     const headers = new Headers({origin,cookie:extractNeonAuthCookies(cookie)});
@@ -64,10 +65,17 @@ export function createNeonAccountProvider(baseUrl:string,cookieSecret:string,ori
       }));
       if(!res.ok)return new Response(null,{status:502});
       const data = await res.json() as {url?:string};
-      const destination = new URL(data.url??"");
-      if(destination.protocol!=="https:"||destination.origin!=="https://accounts.google.com"||destination.username||destination.password)
+      let destination:URL;
+      try {destination=new URL(data.url??"");}
+      catch {return new Response(null,{status:502});}
+      const directGoogle=destination.origin==="https://accounts.google.com";
+      const managedGoogle=destination.origin===managedGoogleStart.origin&&
+        destination.pathname===managedGoogleStart.pathname&&Boolean(destination.searchParams.get("token"));
+      if(destination.protocol!=="https:"||(!directGoogle&&!managedGoogle)||destination.username||destination.password)
         return new Response(null,{status:502});
-      if(selectAccount)destination.searchParams.set("prompt","select_account");
+      // Neon sets its OAuth state cookie on the managed hop. Preserve that
+      // signed URL so the browser can complete the provider exchange.
+      if(selectAccount&&directGoogle)destination.searchParams.set("prompt","select_account");
       const headers = new Headers({"content-type":"application/json"});
       setFirstPartyCookies(headers,res.headers.getSetCookie());
       return new Response(JSON.stringify({url:destination.href}),{headers});

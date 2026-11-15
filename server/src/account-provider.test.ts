@@ -13,6 +13,20 @@ const valid=()=>({
 });
 afterEach(()=>vi.unstubAllGlobals());
 
+it("allows the exact Neon-managed initiation URL and rejects other destinations",async()=>{
+  const managed=`${upstream}/sign-in/social/init?token=managed-challenge`;
+  const fetchStart=vi.fn(async()=>Response.json({url:managed},{headers:{"set-cookie":`${challenge}; Path=/; HttpOnly; Secure`}}));
+  vi.stubGlobal("fetch",fetchStart);
+  const auth=provider();
+  const started=await auth.start("",true);
+  expect(await started.json()).toEqual({url:managed});
+  expect(started.headers.getSetCookie()).toEqual([`${challenge}; Path=/; HttpOnly; Secure; SameSite=Lax`]);
+  for(const url of [managed.replace("ep-project","ep-other"),`${upstream}/sign-in/social/init`,`${upstream}/other?token=managed-challenge`]) {
+    fetchStart.mockResolvedValueOnce(Response.json({url}));
+    expect((await auth.start("",false)).status).toBe(502);
+  }
+});
+
 it("uses the SDK’s verifier exchange and returns host-only secure cookies",async()=>{
   const upstreamFetch=vi.fn(async(input:string,init:RequestInit)=>{
     const url=new URL(input),headers=new Headers(init.headers);
