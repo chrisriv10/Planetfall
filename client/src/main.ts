@@ -32,6 +32,8 @@ import { brItemName, brItemDescription, BR_RARITIES } from "@planetfall/shared";
 import { mouseButtonIcon } from "./mouse-button-icon";
 import { cosmeticCompatible,cosmeticFamilies,sessionXpRequired,BALANCE, BR_BALANCE, BR_HEALS, BR_MAP, BR_POIS, BR_SECONDARY_LOCATIONS, BR_WEAPONS, CHAOS_COPY, PLANET_PASS_REWARDS, SESSION_PROGRESSION, SHOP_CATALOG, WEAPON_COPY, WEAPON_ORDER, brPickupDisposition, isBrWeapon, type BotDifficulty, type BrCrateState, type BrItemId, type BrJoinResult, type BrLootState, type BrMatchResult, type BrPlayerState, type BrRoomView, type BrTeamMode, type ChaosModifier, type CosmeticCategory, type EmoteType, type GameFamily, type GameMode, type JoinResult, type MatchCalloutType, type MatchEvent, type MatchResult, type RoomView, type WeaponType } from "@planetfall/shared";
 import { createGameSocket,getGuestProfile } from "./network";
+import {AccountClient} from "./account-client";
+import {PG_MODE_PREFERENCE_KEY} from "./account-preference-sync";
 import { inputLabel, type InputMethod } from "./input";
 import { SETTINGS_STORAGE_KEY, parseStoredSettings, type UserSettings } from "./settings";
 import { AutoQualityController } from "./auto-quality";
@@ -68,12 +70,12 @@ async function sendPgModeAction(intent:PgModeUiAction):Promise<PgModeActionResul
  if(!result.ok&&result.error)toast(result.error);
  else if(result.ok&&resolved.kind==="select"){
   const mode=pgRoom?.configuration.mode??"deathmatch",side=pgRoom?.phase==="lobby"?(me.team==="solar"?"attack":"defend"):pendingPgSnapshot?.mode?.pilots[playerId]?.side??(me.team==="solar"?"attack":"defend");
-  pgSaveCharacterPreference(localStorage,mode,side,{characterId:resolved.characterId,...(resolved.loadout?{loadout:resolved.loadout}:{})});
+  pgSaveCharacterPreference(account.preferences.storage,mode,side,{characterId:resolved.characterId,...(resolved.loadout?{loadout:resolved.loadout}:{})});
  }
  return result;
 }
 
-pgModeUi.onAction=sendPgModeAction;pgModeUi.onConfigure=mode=>{localStorage.setItem("planetfall:pg-mode:v1",mode);socket.emit("pg:room:configure",{mode});};pgModeUi.onMenuChange=open=>{captureUi(open||Boolean(activeOverlay()));};
+pgModeUi.onAction=sendPgModeAction;pgModeUi.onConfigure=mode=>{account.preferences.storage.setItem(PG_MODE_PREFERENCE_KEY,mode);socket.emit("pg:room:configure",{mode});};pgModeUi.onMenuChange=open=>{captureUi(open||Boolean(activeOverlay()));};
 const modeWarning=createModeWarningArt();modeWarning.root.classList.add("overlay");if(!modeWarning.root.isConnected)document.body.append(modeWarning.root);
 let pendingFamily:GameFamily|null=null;let familyFocus:HTMLElement|null=null;
 const screens = {
@@ -205,9 +207,41 @@ nameInput.value = nameInput.value || localStorage.getItem("planetfall:name") || 
 const prefersReducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 let settings = parseStoredSettings(localStorage.getItem(SETTINGS_STORAGE_KEY), prefersReducedMotion);
 
-const socket = createGameSocket();
+const account = new AccountClient({
+  leaveRoom,
+  clearRoom:()=>{
+    if(currentCode||joining)clearMembership();
+    else {releaseShopPreviews();releasePassPreviews();}
+    shopProfile.replaceChildren();
+    shopGrid.replaceChildren();
+    byId("shop-balance").textContent="0";
+    byId("pass-track").replaceChildren();
+    for(const id of ["pass-level","lobby-level","br-lobby-level"])byId(id).textContent="LEVEL 1";
+    byId("pass-xp-copy").textContent=`0 / ${sessionXpRequired(1)} XP`;
+    byId("pass-xp-meter").style.width="0%";
+  },
+  render:()=>{
+    byId("account-home-status").textContent=account.signedIn?"Signed in":"Guest";
+    if(!shopOverlay.hidden)renderShop();
+    if(!passOverlay.hidden)renderPass();
+  },
+  applyPreferences:applyAccountPreferences,
+  guestControls:()=>readPortableControls(settings),
+  cosmeticName:()=>{const id=getGuestProfile()?.equippedCosmetics.suit;return id?SHOP_CATALOG.find(item=>item.id===id)?.name??"Standard suit":undefined;},
+  overlay:open=>{
+    if(open)document.exitPointerLock?.();
+    settingsOverlay.inert=open;
+    captureUi(Boolean(activeOverlay()));
+    if(open)focusFirst(account.panel.root);
+  },
+  notify:toast,
+});
+const socket = createGameSocket(()=>account.credentials());
+account.attach(socket);
+byId("ui").append(account.panel.root);
 let pgKitFocus:HTMLElement|null=null;
 const pgKits=createPgKitEditor({
+  storage:account.preferences.storage,
   getFinish:()=>pgRoom?.players.find(player=>player.id===playerId)?.equippedCosmetics["weapon-skin"]??getGuestProfile()?.equippedCosmetics["weapon-skin"],
   onApply:loadout=>{socket.emit("pg:loadout",loadout);pgUi.renderKit(loadout);},
   onOpen:()=>{document.exitPointerLock?.();captureUi(true);},
@@ -283,13 +317,15 @@ if (socket.connected) setConnection("online", "Online");
 
 socket.on("connect", () => {
   setConnection("online", "Online");
+  if(!joining){createButton.disabled=false;soloButton.disabled=false;joinButton.disabled=false;}
   if (currentCode && playerId) resumeRoom();
 });
-socket.on("disconnect", () => setConnection("offline", "Reconnecting..."));
+socket.on("disconnect", () => {
+  createButton.disabled=true;soloButton.disabled=true;joinButton.disabled=true;
+  setConnection("offline", "Reconnecting...");
+});
 socket.io.on("reconnect_attempt", () => setConnection("", "Server waking up..."));
 socket.on("server:error", ({ message }) => toast(message));
-socket.on("profile:state",()=>{if(!shopOverlay.hidden)renderShop();});
-socket.on("profile:ready",()=>{if(!shopOverlay.hidden)renderShop();});
 socket.on("room:state", (nextRoom) => applyRoom(nextRoom));
 socket.on("match:snapshot", (snapshot) => {
   const accepted = game.applySnapshot(snapshot);
@@ -445,6 +481,7 @@ game.onLeaderboard = (expanded) => {
 };
 
 settingsOpenButton.addEventListener("click", () => openSettings("screen"));
+for(const id of ["account-home","account-settings"])byId(id).addEventListener("click",()=>account.open());
 settingsCloseButton.addEventListener("click", closeSettings);
 pauseButton.addEventListener("click", () => togglePause(true));
 resumeButton.addEventListener("click", closePause);
@@ -506,6 +543,8 @@ byId("pass-close").addEventListener("click", closePass);
 byId("settings-lobby").addEventListener("click", () => openSettings("screen"));
 addEventListener("keydown", (event) => {
   const escape=event.code==="Escape",menuToggle=matchesControlKey(event,"buyMenu"),pause=escape||matchesControlKey(event,"pause");
+  if(escape&&!account.panel.root.hidden){event.preventDefault();game.consumeUiCancel();account.close();return;}
+  if(!account.panel.root.hidden&&event.key!=="Tab")return;
   if(!escape&&textInputOwnsBindings(event.target))return;
   if(event.repeat&&event.code!=="Tab")return;
   if((escape||menuToggle)&&pgStrikeBuy.visible){event.preventDefault();if(escape)game.consumeUiCancel();pgStrikeBuy.close();return;}
@@ -569,7 +608,7 @@ byId("br-shop-results").addEventListener("click", openShop);
 byId("br-leave").addEventListener("click", () => void leaveRoom());
 byId("br-elimination-quit").addEventListener("click", () => void leaveRoom());
 familyPlanetfallButton.disabled = false; familyBrButton.disabled = false; byId<HTMLButtonElement>("family-pr").disabled=false;byId<HTMLButtonElement>("family-pg").disabled=false;
-createButton.disabled = false; soloButton.disabled = false; joinButton.disabled = false; settingsOpenButton.disabled = false; shopHomeButton.disabled = false;
+settingsOpenButton.disabled = false; shopHomeButton.disabled = false;
 
 function requestFamilySelection(family:GameFamily):void {
   if(currentScreen!=="home"||activeOverlay()||joining||leaving)return;
@@ -626,47 +665,57 @@ async function copyRoomCode(code?: string): Promise<void> {
   try { await navigator.clipboard.writeText(code); toast("Room code copied!"); } catch { toast(`Room code: ${code}`); }
 }
 
-async function leaveRoom(): Promise<void> {
-  if (leaving || !currentCode) return;
-  if (!socket.connected) { toast("Reconnect before leaving the room."); return; }
-  pgCharacterSelection.close(false);pgStrikeBuy.close(false);pgSiegeFeed.update();
-  leaving = true;
+async function leaveRoom(): Promise<boolean> {
+  if(leaving||joining)return false;
+  if(!currentCode)return true;
+  if(!socket.connected){toast("Reconnect before leaving the room.");return false;}
+  leaving=true;
   membershipGeneration++;
   captureUi(true);
-  const code = currentCode;
-  const family = currentFamily;
   try {
-    const result = await socket.timeout(5000).emitWithAck("room:leave", { code });
-    if (!result.ok) throw new Error(result.error);
-    sessionStorage.removeItem(family === "planet-gun" ? `planetfall:pg:${code}` : family === "planet-run" ? `planetfall:pr:${code}` : family === "battle-royale" ? `planetfall:br:${code}` : `planetfall:${code}`);
-    currentCode = ""; playerId = ""; room = null; brRoom = null; prRoom=null;pendingPrSnapshot=null;
-    pgGame?.deactivate();pgGame?.reset();pgRoom=null;pendingPgSnapshot=null;setPgScoreboard(false);
-    prGame?.deactivate();prGame?.reset();
-    pendingBrLoot = []; pendingBrCrates = [];
-    brGame?.deactivate(); brGame?.reset(); game.clearRoom();
-    for (const overlay of [brQuickPlay, brInventoryOverlay, brMapOverlay, shopOverlay, passOverlay, settingsOverlay, pauseOverlay, emoteWheel]) overlay.hidden = true;
-    releaseShopPreviews(); releasePassPreviews();
-    for (const timer of [hintTimer, controlsTimer, modifierRevealTimer, majorCalloutTimer, brEventTimer]) clearTimeout(timer);
-    clearInterval(countdownTimer); countdownTimer = 0; countdownNumber = -1;
-    eventFeed.replaceChildren(); byId("br-kill-feed").replaceChildren();
-    byId("br-event-banner").hidden = true; byId("br-void-warning").hidden = true;
-    byId("br-elimination-summary").hidden = true; byId("br-altitude").hidden = true;
-    for (const node of brMiniTeammates.values()) node.remove(); brMiniTeammates.clear();
-    brInventoryMarkup = ""; brTeammateMarkup = ""; lastBrHudPlayer = null;
-    lastBrStormStage = null; lastBrStormPhase = -1; lastBrOutsideVoid = false; nextBrVoidCueAt = 0;
-    announcedWinner = undefined; lastMinuteCue = 0; leaderboardExpanded = false;
-    leaderboard.classList.remove("visible", "expanded"); controlHelp.classList.remove("visible");
-    game.audio.setUrgency(0); currentFamily = selectedFamily;
-    game.setHomeFamily(selectedFamily); game.setActive(true); game.setMode("home");
-    captureUi(false); showScreen("home"); focusFirst(screens.home);
-  } catch (error) {
-    toast(error instanceof Error ? error.message : "Could not leave. Please try again.");
+    const result=await socket.timeout(5000).emitWithAck("room:leave",{code:currentCode});
+    if(!result.ok)throw new Error(result.error);
+    clearMembership();
+    return true;
+  } catch(error) {
+    toast(error instanceof Error?error.message:"Could not leave. Please try again.");
     captureUi(Boolean(activeOverlay()));
-  } finally { leaving = false; }
+    return false;
+  } finally {leaving=false;}
 }
 
+function clearMembership():void {
+  pgCharacterSelection.close(false);pgStrikeBuy.close(false);pgSiegeFeed.update();
+  membershipGeneration++;
+  joining=false;
+  const code=currentCode,family=currentFamily;
+  sessionStorage.removeItem(family === "planet-gun" ? `planetfall:pg:${code}` : family === "planet-run" ? `planetfall:pr:${code}` : family === "battle-royale" ? `planetfall:br:${code}` : `planetfall:${code}`);
+  currentCode = ""; playerId = ""; room = null; brRoom = null; prRoom=null;pendingPrSnapshot=null;
+  pgGame?.deactivate();pgGame?.reset();pgRoom=null;pendingPgSnapshot=null;setPgScoreboard(false);
+  prGame?.deactivate();prGame?.reset();
+  pendingBrLoot = []; pendingBrCrates = [];
+  brGame?.deactivate(); brGame?.reset(); game.clearRoom();
+  for (const overlay of [brQuickPlay, brInventoryOverlay, brMapOverlay, shopOverlay, passOverlay, settingsOverlay, pauseOverlay, emoteWheel]) overlay.hidden = true;
+  releaseShopPreviews(); releasePassPreviews();
+  for (const timer of [hintTimer, controlsTimer, modifierRevealTimer, majorCalloutTimer, brEventTimer]) clearTimeout(timer);
+  clearInterval(countdownTimer); countdownTimer = 0; countdownNumber = -1;
+  eventFeed.replaceChildren(); byId("br-kill-feed").replaceChildren();
+  byId("br-event-banner").hidden = true; byId("br-void-warning").hidden = true;
+  byId("br-elimination-summary").hidden = true; byId("br-altitude").hidden = true;
+  for (const node of brMiniTeammates.values()) node.remove(); brMiniTeammates.clear();
+  brInventoryMarkup = ""; brTeammateMarkup = ""; lastBrHudPlayer = null;
+  lastBrStormStage = null; lastBrStormPhase = -1; lastBrOutsideVoid = false; nextBrVoidCueAt = 0;
+  announcedWinner = undefined; lastMinuteCue = 0; leaderboardExpanded = false;
+  leaderboard.classList.remove("visible", "expanded"); controlHelp.classList.remove("visible");
+  game.audio.setUrgency(0); currentFamily = selectedFamily;
+  game.setHomeFamily(selectedFamily); game.setActive(true); game.setMode("home");
+  captureUi(Boolean(activeOverlay())); showScreen("home"); focusFirst(activeOverlay()??screens.home);
+}
+
+
 function joinOrCreate(kind: "create" | "join" | "solo", family = selectedFamily): void {
-  if (joining || leaving) return;
+  if (joining || leaving || !socket.connected) return;
+  if(account.changing){toast("Wait for your pilot profile to finish connecting.");return;}
   const name = nameInput.value.trim();
   const code = codeInput.value.trim().toUpperCase();
   // Quick-play room creation is asynchronous. Capture the confirmed choices
@@ -687,7 +736,7 @@ function joinOrCreate(kind: "create" | "join" | "solo", family = selectedFamily)
       joining=false;createButton.disabled=false;soloButton.disabled=false;joinButton.disabled=false;
       if(!result.ok)return toast(result.error);
       currentFamily="planet-gun";playerId=result.playerId;currentCode=result.room.code;
-      sessionStorage.setItem(`planetfall:pg:${currentCode}`,result.sessionToken);applyPgRoom(result.room);if(kind!=="join"){const mode=localStorage.getItem("planetfall:pg-mode:v1");if(mode&&["deathmatch","planetstrike","planetwatch","planetsiege","planetzombies"].includes(mode))socket.emit("pg:room:configure",{mode:mode as import("@planetfall/shared").PgModeId});}
+      sessionStorage.setItem(`planetfall:pg:${currentCode}`,result.sessionToken);applyPgRoom(result.room);if(kind!=="join"){const mode=account.preferences.storage.getItem(PG_MODE_PREFERENCE_KEY);if(mode&&["deathmatch","planetstrike","planetwatch","planetsiege","planetzombies"].includes(mode))socket.emit("pg:room:configure",{mode:mode as import("@planetfall/shared").PgModeId});}
       // A live rejoin preserves the server's current/queued equipment. Sending
       // the saved kit here would queue it again just because the page rejoined.
       if(result.room.phase==="lobby")socket.emit("pg:loadout",pgKits.selected());
@@ -1315,14 +1364,15 @@ function closePass(): void {
 function renderPass(): void {
   releasePassPreviews();
   const me = (currentFamily === "planet-gun" ? pgRoom?.players : currentFamily === "planet-run" ? prRoom?.players : currentFamily === "battle-royale" ? brRoom?.players : room?.players)?.find((player) => player.id === playerId);
-  const level = me?.sessionLevel ?? 1;
-  const xp = me?.sessionXp ?? 0;
+  const profile = me??getGuestProfile();
+  const level = profile?.sessionLevel ?? 1;
+  const xp = profile?.sessionXp ?? 0;
   byId("pass-level").textContent = `LEVEL ${level}`;
   byId("pass-xp-copy").textContent = level >= SESSION_PROGRESSION.maxLevel ? "MAX LEVEL" : `${xp} / ${sessionXpRequired(level)} XP`;
   byId<HTMLElement>("pass-xp-meter").style.width = `${level >= SESSION_PROGRESSION.maxLevel ? 100 : Math.min(100, xp/sessionXpRequired(level)*100)}%`;
   byId("pass-track").replaceChildren(...PLANET_PASS_REWARDS.map((reward) => {
     const tier = document.createElement("article");
-    const unlocked = level >= reward.level || Boolean(me?.unlockedPassRewards.includes(reward.id));
+    const unlocked = level >= reward.level || Boolean(profile?.unlockedPassRewards.includes(reward.id));
     tier.className = `pass-tier${unlocked ? " unlocked" : ""}${level === reward.level ? " current" : ""}${reward.level%10===0?" milestone":""}`;tier.dataset.level=String(reward.level);
     tier.innerHTML = `<strong>${reward.level}</strong><i></i><span>${escapeHtml(reward.label)}</span><small class="pass-reward-state">${level===reward.level?"CURRENT":unlocked?"UNLOCKED":"LOCKED"}</small>`;
     const cosmetic = reward.cosmeticId ? SHOP_CATALOG.find((item) => item.id === reward.cosmeticId) : undefined;
@@ -1344,6 +1394,23 @@ function hydrateSettings(): void {
   updateSettingOutputs();
 }
 
+function readPortableControls(value:UserSettings) {
+  const {mouseSensitivity,controllerSensitivity,invertY,cameraShake}=value;
+  return {mouseSensitivity,controllerSensitivity,invertY,cameraShake};
+}
+
+function applyAccountPreferences():void {
+  const device=parseStoredSettings(localStorage.getItem(SETTINGS_STORAGE_KEY),prefersReducedMotion);
+  const synced=account.preferences.value;
+  settings=synced?{...device,...(synced.controls??readPortableControls(parseStoredSettings(null,prefersReducedMotion)))}:device;
+  bindingSettings.reload();
+  pgKits.reloadFromStorage();
+  hydrateSettings();
+  autoQuality.setSelection(settings.graphicsQuality);
+  game.setSettings(runtimeSettings());
+  brGame?.setSettings(runtimeSettings());prGame?.setSettings(runtimeSettings());pgGame?.setSettings(runtimeSettings());
+}
+
 function updateSettingsFromUi(): void {
   settings = parseStoredSettings(JSON.stringify({
     mouseSensitivity: Number(mouseSensitivity.value),
@@ -1354,7 +1421,11 @@ function updateSettingsFromUi(): void {
     cameraShake: cameraShake.value,
     graphicsQuality: graphicsQuality.value
   } satisfies Record<keyof UserSettings, unknown>), prefersReducedMotion);
-  localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+  if(account.preferences.value) {
+    const device=parseStoredSettings(localStorage.getItem(SETTINGS_STORAGE_KEY),prefersReducedMotion);
+    localStorage.setItem(SETTINGS_STORAGE_KEY,JSON.stringify({...device,graphicsQuality:settings.graphicsQuality,musicVolume:settings.musicVolume,sfxVolume:settings.sfxVolume}));
+    account.preferences.update({controls:readPortableControls(settings)});
+  } else localStorage.setItem(SETTINGS_STORAGE_KEY,JSON.stringify(settings));
   autoQuality.setSelection(settings.graphicsQuality);
   game.setSettings(runtimeSettings());
   brGame?.setSettings(runtimeSettings());prGame?.setSettings(runtimeSettings());pgGame?.setSettings(runtimeSettings());
@@ -1416,6 +1487,7 @@ function closeSettings(): void {
 }
 
 function togglePause(forceOpen = false): void {
+  if(!account.panel.root.hidden){account.close();return;}
   const classicActive = room && ["countdown", "playing", "overtime"].includes(room.phase);
   const brActive = brRoom && ["countdown", "ship", "combat"].includes(brRoom.phase);
   if (!(pgRoom&&["countdown","playing","overtime"].includes(pgRoom.phase)) && !classicActive && !brActive && !(prRoom&&prRoom.phase!=="lobby"&&prRoom.phase!=="results")) return;
@@ -1532,6 +1604,7 @@ function navigateUi(action: "up" | "down" | "left" | "right" | "confirm" | "back
     if (!brMapOverlay.hidden) return toggleBrMap(false);
     if (!shopOverlay.hidden) return closeShop();
     if (!passOverlay.hidden) return closePass();
+    if(!account.panel.root.hidden)return account.close();
     if (!settingsOverlay.hidden) return closeSettings();
     if (!pauseOverlay.hidden) return closePause();
     if(pgSiegeFeed.visible){pgSiegeFeed.exit();return;}
@@ -1572,7 +1645,7 @@ function focusFirst(root: HTMLElement): void {
 }
 
 function focusableElements(root:HTMLElement):HTMLElement[]{return [...root.querySelectorAll<HTMLElement>("button:not([disabled]):not([hidden]), input:not([disabled]):not([hidden]), select:not([disabled]):not([hidden]), summary, [tabindex]:not([tabindex='-1'])")].filter(element=>element.offsetParent!==null);}
-function activeOverlay():HTMLElement|null{return pgStrikeBuy.visible?pgStrikeBuy.root:pgCharacterSelection.visible?pgCharacterSelection.root:pgModeUi.menuOpen?pgModeUi.hudRoot.querySelector<HTMLElement>(".pg-mode-menu"):!pgKits.root.hidden?pgKits.root:pgUi.scoreboardVisible?byId("pg-scoreboard"):!modeWarning.root.hidden?modeWarning.root:!brQuickPlay.hidden?brQuickPlay:!brInventoryOverlay.hidden?brInventoryOverlay:!brMapOverlay.hidden?brMapOverlay:!shopOverlay.hidden?shopOverlay:!passOverlay.hidden?passOverlay:!settingsOverlay.hidden?settingsOverlay:!pauseOverlay.hidden?pauseOverlay:pgSiegeFeed.visible?pgSiegeFeed.root:null;}
+function activeOverlay():HTMLElement|null{return !account.panel.root.hidden?account.panel.root:pgStrikeBuy.visible?pgStrikeBuy.root:pgCharacterSelection.visible?pgCharacterSelection.root:pgModeUi.menuOpen?pgModeUi.hudRoot.querySelector<HTMLElement>(".pg-mode-menu"):!pgKits.root.hidden?pgKits.root:pgUi.scoreboardVisible?byId("pg-scoreboard"):!modeWarning.root.hidden?modeWarning.root:!brQuickPlay.hidden?brQuickPlay:!brInventoryOverlay.hidden?brInventoryOverlay:!brMapOverlay.hidden?brMapOverlay:!shopOverlay.hidden?shopOverlay:!passOverlay.hidden?passOverlay:!settingsOverlay.hidden?settingsOverlay:!pauseOverlay.hidden?pauseOverlay:pgSiegeFeed.visible?pgSiegeFeed.root:null;}
 
 function setGameMode(mode: GameMode): void {
   if (!room || room.hostId !== playerId || room.phase !== "lobby" || room.gameMode === mode) return;
@@ -1735,7 +1808,7 @@ if(import.meta.env.DEV){
 function setPgScoreboard(show:boolean):void{pgUi.showScoreboard(show);captureUi(show||Boolean(activeOverlay()));if(show)byId("pg-scoreboard-close").focus();}
 function applyPgRoom(next:PgRoomView):void {
  if(currentFamily!=="planet-gun"||next.code!==currentCode)return;pgRoom=next;pgActionSequence=Math.max(pgActionSequence,next.lastActionSequence??0);pgUi.render(next,playerId);pgStartingSide.render(next,playerId);pgModeUi.render(next,playerId,next.phase==="lobby"?null:pendingPgSnapshot?.mode);pgCharacterSelection.update();pgStrikeBuy.update();pgSiegeFeed.update();
- if(next.phase==="lobby"){const me=next.players.find(p=>p.id===playerId),mode=next.configuration.mode??"deathmatch",side=me?.team==="void"?"defend":"attack",signature=`${next.code}:${mode}:${side}`;if(pgPreferenceApplied!==signature){pgPreferenceApplied=signature;const preference=pgReadCharacterPreference(localStorage,mode,side);if(preference&&!next.selections?.[playerId])sendPgModeAction({kind:"select",...preference});}pgModeUi.setSnapshot(null,playerId);pgGame?.deactivate();game.setActive(true);game.setHomeFamily("planet-gun");syncLobbyPresentation("planet-gun",next.players,next.hostId);game.setMode("lobby");showScreen("pgLobby");}
+ if(next.phase==="lobby"){const me=next.players.find(p=>p.id===playerId),mode=next.configuration.mode??"deathmatch",side=me?.team==="void"?"defend":"attack",signature=`${next.code}:${mode}:${side}`;if(pgPreferenceApplied!==signature){pgPreferenceApplied=signature;const preference=pgReadCharacterPreference(account.preferences.storage,mode,side);if(preference&&!next.selections?.[playerId])sendPgModeAction({kind:"select",...preference});}pgModeUi.setSnapshot(null,playerId);pgGame?.deactivate();game.setActive(true);game.setHomeFamily("planet-gun");syncLobbyPresentation("planet-gun",next.players,next.hostId);game.setMode("lobby");showScreen("pgLobby");}
  else {game.setActive(false);brGame?.deactivate();prGame?.deactivate();
   if(!pgGame&&!pgLoading)pgLoading=import("./modes/planet-gun/pg-game").then(({PlanetGunGame})=>{pgGame=new PlanetGunGame(game.renderer,canvas,socket,s=>{pgUi.renderSnapshot(s,playerId);const observer=s.players.find(p=>p.id===playerId);pgModeUi.setViewPosition(observer?{...observer.position,y:observer.position.y+(observer.crouched?PG_BALANCE.crouchEye:PG_BALANCE.eye)}:null);pgModeUi.setSnapshot(s.mode??null,playerId,s.serverTime,s.players);pgCharacterSelection.update();pgStrikeBuy.update();pgSiegeFeed.update();},(n,head)=>pgUi.hit(n,head),game.audio);pgGame.onCaptureHint=mode=>pgUi.setCaptureHint(mode);pgGame.onInputMethod=renderInputUi;pgGame.onSpectator=name=>pgUi.setSpectator(name);pgGame.onModeAction=sendPgModeAction;pgGame.onModeMenu=togglePgModeMenu;pgGame.onAim=(weapon,ads,spread,optic)=>pgUi.updateAim(weapon,ads,spread,optic);pgGame.onMenuNavigate=navigateUi;pgGame.onPause=()=>togglePause();pgGame.onScoreboard=()=>setPgScoreboard(!pgUi.scoreboardVisible);pgGame.setSettings(runtimeSettings());if(currentFamily==="planet-gun"&&pgRoom?.phase!=="lobby"){pgGame.activate(playerId);if(pendingPgSnapshot)pgGame.applySnapshot(pendingPgSnapshot);}}).finally(()=>pgLoading=null);
   else pgGame?.activate(playerId);showScreen(next.phase==="results"?"pgResults":"pgHud");
@@ -1759,3 +1832,6 @@ byId("pg-scoreboard-toggle").addEventListener("click",()=>setPgScoreboard(true))
 if(import.meta.env.DEV){Object.defineProperty(window,"__PLANETFALL_PG_DEBUG__",{value:()=>pgGame?.debugState(),configurable:true});setInterval(()=>{if(!pgGame)return;let output=byId("pg-dev-state");if(!output){output=document.createElement("output");output.id="pg-dev-state";output.hidden=true;document.body.append(output);}output.textContent=JSON.stringify(pgGame.debugState());},500);}
 
 if(import.meta.env.DEV){const review=document.createElement("details");review.id="pg-dev-review";review.style.cssText="position:absolute;top:120px;left:16px;pointer-events:auto;font-size:11px;background:#08162be0;max-width:190px";const title=document.createElement("summary");title.textContent="DEV · MAP REVIEW";review.append(title);for(const name of ["player","overhead","solar","void","center","left","right","upper","wallRun","westInterior","eastInterior","serviceInterior","habitatSuite","oblique","orbit","crowd3","crowd6"]as const){const b=document.createElement("button");b.textContent=name;b.dataset.pgView=name;b.addEventListener("click",()=>pgGame?.setReviewView(name==="player"?null:name));review.append(b);}for(const enabled of [false,true]){const b=document.createElement("button");b.textContent=enabled?"Batched pilots":"Original pilots";b.dataset.pgBatching=String(enabled);b.addEventListener("click",()=>pgGame?.setPilotBatching(enabled));review.append(b);}review.append(createDevCanvasRecording(canvas,()=>`pg-${pgGame?.debugState().players}`));pgUi.hud.append(review);}
+
+bindingSettings.useStorage(account.preferences.storage);
+account.start();

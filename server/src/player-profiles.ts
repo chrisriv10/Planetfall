@@ -18,6 +18,8 @@ const keyFor=(token:string)=>createHash("sha256").update(token).digest("hex");
 export class PlayerProfiles {
   onChange?:(key:string,profile:PlayerProgress)=>void;
   private readonly records=new Map<string,PlayerProgress>();
+  private readonly pendingClaims=new Set<string>();
+  private readonly claimed=new Set<string>();
   private readonly bindings=new WeakMap<PlayerProgress,Binding>();
   private readonly players=new Set<WeakRef<PlayerProgress>>();
   private dirty=false;
@@ -36,9 +38,29 @@ export class PlayerProfiles {
   }
   open(rawToken:unknown):{token:string;key:string}{
     const valid=typeof rawToken==="string"&&/^[a-f0-9]{64}$/.test(rawToken);
-    if(valid&&this.records.has(keyFor(rawToken)))return {token:rawToken,key:keyFor(rawToken)};
+    if(valid&&this.pendingClaims.has(keyFor(rawToken)))throw new Error("Guest identity transfer pending");
+    const existing=this.guestKey(rawToken);
+    if(valid&&existing)return {token:rawToken,key:existing};
     const token=randomBytes(32).toString("hex"),key=keyFor(token);
     this.records.set(key,empty());this.dirty=true;this.flush();return {token,key};
+  }
+  guestKey(token:unknown):string|undefined {
+    if(typeof token!=="string"||!/^[a-f0-9]{64}$/.test(token))return;
+    const key=keyFor(token);
+    return this.records.has(key)&&!this.claimed.has(key)&&!this.pendingClaims.has(key)?key:undefined;
+  }
+  ownsBearer(key:string,token:unknown):boolean {
+    return typeof token==="string"&&/^[a-f0-9]{64}$/.test(token)&&keyFor(token)===key;
+  }
+  reserveGuest(key:string):void {this.pendingClaims.add(key);}
+  holdGuest(key:string):void {this.claimed.add(key);this.pendingClaims.delete(key);}
+  releaseGuest(key:string):void {this.pendingClaims.delete(key);}
+  boundKey(player:PlayerProgress):string|undefined {return this.bindings.get(player)?.key;}
+  hasProgress(key:string):boolean {
+    const p=this.view(key);
+    return p.fallbucks!==0||p.crowns!==0||p.sessionTotalXp!==0||p.ownedCosmetics.length!==0||
+      p.unlockedPassRewards.some(id=>id!=="default")||Boolean(p.lobbyBadge)||
+      Object.entries(DEFAULT_COSMETICS).some(([category,id])=>p.equippedCosmetics[category as keyof typeof DEFAULT_COSMETICS]!==id);
   }
   bind(player:PlayerProgress,key:string):void {
     if(this.bindings.has(player))return;

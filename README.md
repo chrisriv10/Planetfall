@@ -61,6 +61,12 @@ PlanetRun uses `Space` to jump and `Shift` to dive. PlanetGun uses left click to
 
 Vite, TypeScript, Three.js, Rapier, Socket.IO, Express, and an in-memory authoritative server.
 
+## Accounts and saved progression
+
+Play as a guest or open **Account** from Home or Settings to sign in with Google when the host has enabled accounts. The first sign-in can link your guest profile. If the account already has progress and this device has guest progress, choose which to play with. Both profiles are kept separately. Sign in with the same Google account on another device to recover progression, supported controls and Combat Kit settings across all four game families.
+
+Guest play works locally without an identity provider. See [saved player profiles](docs/PLAYER_PROFILES.md) for ownership and preferences, and [deployment](docs/DEPLOYMENT.md#optional-google-accounts) for opt-in hosting and local OAuth setup.
+
 ## Deploy
 
 1. Deploy the Render server using [render.yaml](render.yaml), then copy its public URL.

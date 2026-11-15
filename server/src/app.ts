@@ -8,6 +8,9 @@ import {fileURLToPath} from "node:url";
 import {PlayerProfiles} from "./player-profiles.js";
 import {ProfileDatabase} from "./profile-database.js";
 import type { ClientToServerEvents, ServerToClientEvents } from "@planetfall/shared";
+import {installAccounts} from "./accounts.js";
+import type {AccountProvider} from "./account-provider.js";
+import type {ProfileDatabaseConnection} from "./profile-database.js";
 import { RoomManager } from "./room-manager.js";
 
 export interface ServerOptions {
@@ -18,6 +21,7 @@ export interface ServerOptions {
   /** Tests may use an isolated file; undefined test servers stay in memory. */
   profileFile?: string;
   profileDatabaseUrl?:string;
+  testAccounts?:{provider:AccountProvider;connection:ProfileDatabaseConnection;origin:string};
 }
 
 export async function createPlanetfallServer(options: ServerOptions = {}) {
@@ -43,15 +47,47 @@ export async function createPlanetfallServer(options: ServerOptions = {}) {
   const testEnvironment=(options.nodeEnv??process.env.NODE_ENV)==="test";
   const profileFile=options.profileFile??(testEnvironment?undefined:process.env.PLANETFALL_DATA_DIR?resolve(process.env.PLANETFALL_DATA_DIR,"player-profiles.json"):fileURLToPath(new URL("../data/player-profiles.json",import.meta.url)));
   const databaseUrl=options.profileDatabaseUrl??(!testEnvironment?process.env.DATABASE_URL:undefined);
-  const persisted=databaseUrl?await ProfileDatabase.connect(databaseUrl):undefined;
+  if(options.testAccounts&&(!testEnvironment||process.env.NODE_ENV==="production"))throw new Error("Test accounts require test mode");
+  const baseUrl = testEnvironment ? undefined : process.env.NEON_AUTH_BASE_URL;
+  const cookieSecret = process.env.NEON_AUTH_COOKIE_SECRET;
+  const gatewaySecret = options.testAccounts ? undefined : process.env.PLANETFALL_ACCOUNT_GATEWAY_SECRET;
+  const accountOrigin = options.testAccounts?.origin ?? process.env.PLANETFALL_ACCOUNT_ORIGIN;
+  let provider = options.testAccounts?.provider;
+  if(baseUrl) {
+    const upstream = new URL(baseUrl);
+    if(upstream.protocol!=="https:"||upstream.username||upstream.password||upstream.search||upstream.hash||
+      !accountOrigin||new URL(accountOrigin).origin!==accountOrigin||!allowedOrigins.includes(accountOrigin)||
+      accountOrigin.startsWith("http:")&&!localOrigins.includes(accountOrigin)||
+      !cookieSecret||cookieSecret.length<32||!databaseUrl||
+      isProduction&&(!accountOrigin.startsWith("https://")||!gatewaySecret||gatewaySecret.length<32))
+      throw new Error("Incomplete account configuration");
+    const {createNeonAccountProvider}=await import("./account-provider.js");
+    provider=createNeonAccountProvider(upstream.href.replace(/\/$/,""),cookieSecret,accountOrigin);
+  }
+  const persisted=options.testAccounts?await ProfileDatabase.open(options.testAccounts.connection):
+    databaseUrl?await ProfileDatabase.connect(databaseUrl):undefined;
   const profiles=new PlayerProfiles(persisted?undefined:profileFile,persisted?.document,persisted?.database);
   const manager = new RoomManager(io,profiles,!isProduction&&process.env.PLANETFALL_PR_REVIEW==="1");
+  let stopAccounts:(()=>void)|undefined;
+  try {
+    for(const key of await persisted?.database.accountKeys(Boolean(provider))??[])profiles.holdGuest(key);
+    if(provider&&accountOrigin&&persisted) {
+      stopAccounts=installAccounts({app,io,manager,profiles,database:persisted.database,provider,origin:accountOrigin,gatewaySecret});
+    } else {
+      app.post("/api/account/session",(_request,response)=>response.set("Cache-Control","private, no-store").json({state:"disabled"}));
+      io.use((socket,next)=>next(socket.handshake.auth?.accountTicket===undefined?undefined:new Error("Planetfall accounts unavailable")));
+    }
+  } catch(error) {
+    await profiles.close();
+    throw error;
+  }
   // Storage mode is safe to expose for release checks; never expose paths,
   // connection strings, profile tokens or balances through health responses.
   const profileStorage=persisted?"postgresql":profileFile?"file":"memory";
   app.get("/health", (_request, response) => response.json({ ok: true, rooms: manager.rooms.size, uptime: process.uptime(), profileStorage }));
-  app.use((error: unknown, _request: express.Request, response: express.Response, next: express.NextFunction) => {
+  app.use((error: unknown, request: express.Request, response: express.Response, next: express.NextFunction) => {
     if (error instanceof Error && error.message === "Origin not allowed") return response.status(403).json({ error: "Origin not allowed" });
+    if(request.path.startsWith("/api/account/"))return response.status(400).set("Cache-Control","private, no-store").end();
     next(error);
   });
   io.on("connection", (socket) => manager.bind(socket));
@@ -69,6 +105,7 @@ export async function createPlanetfallServer(options: ServerOptions = {}) {
       return { port: activePort, url: `http://127.0.0.1:${activePort}` };
     },
     async close(): Promise<void> {
+      stopAccounts?.();
       manager.stop();
       try {
         await profiles.close();

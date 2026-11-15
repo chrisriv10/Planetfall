@@ -46,7 +46,9 @@ export class RoomManager {
   }
 
   bind(socket: GameSocket): void {
-    if(socket.handshake.auth?.profile===true){
+    if(typeof socket.data.profileKey==="string"){
+      socket.emit("profile:ready",{profile:this.profiles.view(socket.data.profileKey)});
+    }else if(socket.handshake.auth?.profile===true){
       try{const profile=this.profiles.open(socket.handshake.auth.profileToken);socket.data.profileKey=profile.key;socket.emit("profile:ready",{token:profile.token,profile:this.profiles.view(profile.key)});}
       catch(error){console.error("Cannot open persistent player profile.",error);socket.emit("server:error",{message:"Your saved profile is temporarily unavailable. Please reconnect."});socket.disconnect(true);return;}
     }
@@ -56,18 +58,7 @@ export class RoomManager {
       const reply = (result: import("@planetfall/shared").LeaveRoomResult) => { if (typeof ack === "function") ack(result); };
       if (!/^[A-Z2-9]{6}$/.test(code)) return reply({ ok: false, error: "Enter the six-character room code." });
       if (current && current.room.code !== code) return reply({ ok: false, error: "That is not your current room." });
-      // Clear routing before any authoritative broadcasts or later input packets.
-      void socket.leave(code);
-      delete socket.data.roomCode;
-      delete socket.data.playerId;
-      delete socket.data.gameFamily;
-      if (current) {
-        current.room.leave(current.playerId);
-        if (current.room.isEmpty()) {
-          current.room.dispose();
-          this.rooms.delete(code);
-        }
-      }
+      this.leaveMembership(socket);
       reply({ ok: true });
     });
     socket.on("room:create", (payload, ack) => {
@@ -104,7 +95,7 @@ export class RoomManager {
       if (room instanceof PlanetGunRoom) return this.reply(ack, {ok:false,error:"That code belongs to PlanetGun."});
       if (room instanceof PlanetRunRoom) return this.reply(ack, { ok: false, error: "That code belongs to a PlanetRun room." });
       if (room instanceof BattleRoyaleRoom) return this.reply(ack, { ok: false, error: "That code belongs to a Battle Royale room." });
-      this.reply(ack, this.attachProfile(socket,room,room.join(socket, payload?.name, payload?.sessionToken)));
+      this.reply(ack, this.attachProfile(socket,room,this.joinRoom(socket,room,payload?.name,payload?.sessionToken)));
     });
     socket.on("room:ready", (payload) => { const c = this.currentClassic(socket); if (c) c.room.setReady(c.playerId, payload?.ready); });
     socket.on("room:bot:add", () => { const c = this.currentClassic(socket); if (c) c.room.addBot(c.playerId); });
@@ -141,7 +132,7 @@ export class RoomManager {
       if (room instanceof PlanetGunRoom) return this.replyBr(ack, {ok:false,error:"That code belongs to PlanetGun."});
       if (room instanceof PlanetRunRoom) return this.replyBr(ack, { ok: false, error: "That code belongs to a PlanetRun room." });
       if (!(room instanceof BattleRoyaleRoom)) return this.replyBr(ack, { ok: false, error: "That code belongs to Planetfall Classic." });
-      this.replyBr(ack, this.attachProfile(socket,room,room.join(socket, payload?.name, payload?.sessionToken)));
+      this.replyBr(ack, this.attachProfile(socket,room,this.joinRoom(socket,room,payload?.name,payload?.sessionToken)));
     });
     socket.on("br:room:ready", (payload) => { const c = this.currentBr(socket); if (c) c.room.setReady(c.playerId, payload?.ready); });
     socket.on("br:room:configure", (payload) => { const c = this.currentBr(socket); if (c) c.room.configure(c.playerId, payload ?? {}); });
@@ -194,7 +185,7 @@ export class RoomManager {
       const room=this.rooms.get(String(payload?.code??"").trim().toUpperCase());
       if(!room)return ack({ok:false,error:"Room not found. It may have expired."});
       if(!(room instanceof PlanetRunRoom))return ack({ok:false,error:room instanceof BattleRoyaleRoom?"That code belongs to Battle Royale.":"That code belongs to Planetfall Classic."});
-      ack(this.attachProfile(socket,room,room.join(socket,payload?.name,payload?.sessionToken)));
+      ack(this.attachProfile(socket,room,this.joinRoom(socket,room,payload?.name,payload?.sessionToken)));
     });
     socket.on("pr:room:ready",p=>{const c=this.currentPr(socket);c?.room.setReady(c.playerId,p?.ready);});
     socket.on("pr:room:configure",p=>{const c=this.currentPr(socket);c?.room.configure(c.playerId,p??{});});
@@ -224,7 +215,7 @@ export class RoomManager {
       if(this.current(socket))return ack({ok:false,error:"Already in a room."});
       const room=this.rooms.get(String(payload?.code??"").trim().toUpperCase());
       if(!(room instanceof PlanetGunRoom))return ack({ok:false,error:room?"That code belongs to another game family.":"Room not found."});
-      ack(this.attachProfile(socket,room,room.join(socket,payload?.name,payload?.sessionToken)));
+      ack(this.attachProfile(socket,room,this.joinRoom(socket,room,payload?.name,payload?.sessionToken)));
     });
     socket.on("pg:room:ready",p=>{const c=this.currentPg(socket);c?.room.setReady(c.playerId,p?.ready);});
     socket.on("pg:room:side",(p,ack)=>{const c=this.currentPg(socket),result=c?c.room.setSide(c.playerId,p):{ok:false,error:"Not in PlanetGun."};if(typeof ack==="function")ack(result);});
@@ -241,6 +232,35 @@ export class RoomManager {
     socket.on("pg:shop:buy",(p,ack)=>{const c=this.currentPg(socket);if(typeof ack==="function")ack(c?c.room.buyShopItem(c.playerId,String(p?.itemId??"")):{ok:false,error:"Not in PlanetGun."});});
     socket.on("pg:shop:equip",(p,ack)=>{const c=this.currentPg(socket);if(typeof ack==="function")ack(c?c.room.equipShopItem(c.playerId,String(p?.itemId??"")):{ok:false,error:"Not in PlanetGun."});});
     socket.on("disconnect", () => { const c = this.current(socket); if (c) c.room.disconnect(c.playerId); });
+  }
+
+  endIdentity(socket:GameSocket,reason:Parameters<ServerToClientEvents["account:ended"]>[0]):void {
+    this.leaveMembership(socket);
+    socket.emit("account:ended",reason);
+    socket.disconnect(true);
+  }
+
+  private leaveMembership(socket:GameSocket):void {
+    const current=this.current(socket);
+    if(socket.data.roomCode)void socket.leave(socket.data.roomCode);
+    delete socket.data.roomCode;
+    delete socket.data.playerId;
+    delete socket.data.gameFamily;
+    if(!current)return;
+    current.room.leave(current.playerId);
+    if(current.room.isEmpty()) {
+      current.room.dispose();
+      this.rooms.delete(current.room.code);
+    }
+  }
+
+  private joinRoom<R extends GameRoom|BattleRoyaleRoom|PlanetRunRoom|PlanetGunRoom>(
+    socket:GameSocket,room:R,name:unknown,token?:string
+  ):ReturnType<R["join"]> {
+    const returning=typeof token==="string"&&token ? [...room.players.values()].find(player=>player.sessionToken===token):undefined;
+    if(returning&&this.profiles.boundKey(returning)!==socket.data.profileKey)
+      return {ok:false,error:"Sign in as the original pilot to resume this room."} as ReturnType<R["join"]>;
+    return room.join(socket,name,token) as ReturnType<R["join"]>;
   }
 
   private trackRoom<T extends GameRoom|BattleRoyaleRoom|PlanetRunRoom|PlanetGunRoom>(room:T):T {room.onProgress=players=>this.profiles.capture(players);return room;}

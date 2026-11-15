@@ -6,11 +6,19 @@ export type GameSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 let guestProfile:GuestProfile|null=null;
 export const getGuestProfile=():GuestProfile|null=>guestProfile;
 
-export function createGameSocket(): GameSocket {
+export const GUEST_TOKEN_KEY="planetfall:profile-token";
+export const clearNetworkProfile=()=>{guestProfile=null;};
+
+export function createGameSocket(accountAuth?:()=>Promise<{profile?:true;profileToken?:string;accountTicket?:string}>): GameSocket {
   const serverUrl = import.meta.env.VITE_SERVER_URL || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
   const socket:GameSocket=io(serverUrl, {
-    auth:callback=>callback({profile:true,profileToken:localStorage.getItem("planetfall:profile-token")??undefined}),
-    autoConnect: true,
+    auth:callback=>{
+      if(!accountAuth){callback({profile:true,profileToken:localStorage.getItem(GUEST_TOKEN_KEY)??undefined});return;}
+      const transport=socket.io.engine;
+      const send=(data:object)=>{if(socket.active&&socket.io.engine===transport)callback(data);};
+      void accountAuth().then(send,()=>send({accountTicket:"unavailable"}));
+    },
+    autoConnect: !accountAuth,
     reconnection: true,
     reconnectionAttempts: 10,
     reconnectionDelay: 500,
@@ -19,7 +27,7 @@ export function createGameSocket(): GameSocket {
     transports: ["websocket", "polling"]
   });
   // Register immediately: connection may complete while the renderer imports.
-  socket.on("profile:ready",({token,profile})=>{localStorage.setItem("planetfall:profile-token",token);guestProfile=profile;});
+  socket.on("profile:ready",({token,profile})=>{if(token)localStorage.setItem(GUEST_TOKEN_KEY,token);guestProfile=profile;});
   socket.on("profile:state",profile=>{guestProfile=profile;});
   pgClock(socket);
   return socket;

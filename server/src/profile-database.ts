@@ -25,6 +25,43 @@ export class ProfileDatabase {
       return {database:new ProfileDatabase(connection),document:{version:1,profiles:Object.fromEntries(rows.rows.map(row=>[String(row.id),row.progress as PlayerProgress]))}};
     }catch(error){await connection.end();throw error;}
   }
+  async accountKeys(enable:boolean):Promise<string[]> {
+    if(enable)await this.connection.query(`CREATE TABLE IF NOT EXISTS planetfall_account_links (
+      issuer text NOT NULL, auth_user_id text NOT NULL, profile_key text UNIQUE NOT NULL REFERENCES planetfall_guest_profiles(id),
+      linked_at timestamptz NOT NULL DEFAULT now(),
+      preferences jsonb, preferences_revision integer NOT NULL DEFAULT 0,
+      PRIMARY KEY (issuer, auth_user_id),
+      CHECK (preferences IS NULL OR octet_length(preferences::text) <= 12000)
+    )`);
+    else {
+      const {rows}=await this.connection.query("SELECT to_regclass('planetfall_account_links') AS table_name");
+      if(!rows[0]?.table_name)return [];
+    }
+    const {rows}=await this.connection.query("SELECT profile_key FROM planetfall_account_links");
+    return rows.map(row=>String(row.profile_key));
+  }
+  async accountLink(issuer:string,userId:string):Promise<string|undefined> {
+    const {rows}=await this.connection.query("SELECT profile_key FROM planetfall_account_links WHERE issuer=$1 AND auth_user_id=$2",[issuer,userId]);
+    return rows[0]?.profile_key as string|undefined;
+  }
+  async linkedProfile(key:string):Promise<boolean> {
+    const {rows}=await this.connection.query("SELECT 1 FROM planetfall_account_links WHERE profile_key=$1",[key]);
+    return rows.length>0;
+  }
+  async claimProfile(issuer:string,userId:string,key:string):Promise<boolean> {
+    await this.flush();
+    const {rows}=await this.connection.query("INSERT INTO planetfall_account_links (issuer,auth_user_id,profile_key) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING RETURNING profile_key",[issuer,userId,key]);
+    return rows.length>0;
+  }
+  async accountPreferences(key:string):Promise<{revision:number;value:unknown}> {
+    const {rows}=await this.connection.query("SELECT preferences, preferences_revision FROM planetfall_account_links WHERE profile_key=$1",[key]);
+    if(!rows[0])throw new Error("Account profile unavailable");
+    return {revision:Number(rows[0].preferences_revision),value:rows[0].preferences};
+  }
+  async saveAccountPreferences(key:string,revision:number,value:unknown):Promise<boolean> {
+    const {rows}=await this.connection.query("UPDATE planetfall_account_links SET preferences=$3::jsonb, preferences_revision=preferences_revision+1 WHERE profile_key=$1 AND preferences_revision=$2 RETURNING preferences_revision",[key,revision,JSON.stringify(value)]);
+    return rows.length>0;
+  }
   enqueue(document:ProfileDocument):void {this.pending=document;this.start();}
   retry():void {this.start();}
   private start():void {

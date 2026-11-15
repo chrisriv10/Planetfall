@@ -10,6 +10,11 @@ export class BindingSettingsStore {
   constructor(private storage: BindingStorage | undefined = browserStorage()) {
     try { this.settings = parseBindingSettings(storage?.getItem(BINDING_STORAGE_KEY)); } catch { this.settings = emptyBindingSettings(); }
   }
+  useStorage(storage:BindingStorage):void {this.storage=storage;this.reload();}
+  reload():void {
+    try { this.settings=parseBindingSettings(this.storage?.getItem(BINDING_STORAGE_KEY)); } catch { this.settings=emptyBindingSettings(); }
+    for(const listener of this.listeners)listener(this.get());
+  }
   get(): BindingSettings { return parseBindingSettings(this.settings); }
   subscribe(listener: (settings: BindingSettings) => void): () => void { this.listeners.add(listener); return () => this.listeners.delete(listener); }
   set(settings: BindingSettings): void {

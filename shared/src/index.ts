@@ -442,7 +442,8 @@ export interface ClientToServerEvents extends BrClientToServerEvents, PrClientTo
 }
 
 export interface ServerToClientEvents extends BrServerToClientEvents, PrServerToClientEvents, PgServerToClientEvents {
-  "profile:ready": (payload: { token: string; profile:GuestProfile }) => void;
+  "profile:ready": (payload: { token?: string; profile:GuestProfile }) => void;
+  "account:ended": (reason: "expired" | "signed-out" | "linked" | "unavailable") => void;
   "profile:state": (profile:GuestProfile) => void;
   "room:state": (room: RoomView) => void;
   "match:snapshot": (snapshot: ServerSnapshot) => void;
@@ -794,3 +795,7 @@ export function launchVelocity(from: Vec3, source: Pick<PlanetState, "position">
     : normalize(add(normalize(projectOnPlane(direct, outward)), scale(outward, 0.42)));
   return scale(direction, BALANCE.launch.speed);
 }
+
+export * from "./input-bindings.js";
+export * from "./account-preferences.js";
+export * from "./pg-character-preferences.js";

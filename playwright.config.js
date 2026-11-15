@@ -5,7 +5,11 @@ export default defineConfig({
   testIgnore: "planet-gun-production.spec.ts",
   timeout: 90_000,
   expect: { timeout: 15_000 },
-  use: { baseURL: "http://127.0.0.1:15173", headless: true },
+  use: { headless: true },
+  projects: [
+    { name: "gameplay", testIgnore: ["accounts.spec.ts","planet-gun-production.spec.ts"], use: { baseURL: "http://127.0.0.1:15173" } },
+    { name: "accounts", testMatch: "accounts.spec.ts", use: { baseURL: "http://127.0.0.1:25173" } },
+  ],
   webServer: [
     {
       command: "npm run build -w @planetfall/shared && npm run dev -w @planetfall/server",
@@ -22,6 +26,20 @@ export default defineConfig({
       command: "npm run dev -w @planetfall/client -- --host 127.0.0.1 --port 15173",
       url: "http://127.0.0.1:15173",
       env: { VITE_SERVER_URL: "http://127.0.0.1:13000" },
+      reuseExistingServer: false,
+      timeout: 60_000
+    },
+    {
+      command: "npm exec -- tsx e2e/fixtures/account-server.ts",
+      url: "http://127.0.0.1:23000/health",
+      env: { PORT: "23000", NODE_ENV: "test", CLIENT_ORIGIN: "http://127.0.0.1:25173", PLANETFALL_TEST_MATCH_MS: "7000" },
+      reuseExistingServer: false,
+      timeout: 60_000
+    },
+    {
+      command: "npm run dev -w @planetfall/client -- --host 127.0.0.1 --port 25173",
+      url: "http://127.0.0.1:25173",
+      env: { VITE_SERVER_URL: "http://127.0.0.1:23000" },
       reuseExistingServer: false,
       timeout: 60_000
     }

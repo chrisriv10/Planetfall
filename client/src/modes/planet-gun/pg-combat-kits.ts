@@ -29,11 +29,22 @@ export function pgReadCombatKits(raw: unknown): PgCombatKits {
 function browserStorage(): PgKitStorage | undefined { try { return globalThis.localStorage; } catch { return undefined; } }
 export function createPgCombatKitStore(storage: PgKitStorage | undefined = browserStorage()) {
   let state = pgDefaultCombatKits(), persistenceError = false;
-  try { const raw = storage?.getItem(PG_COMBAT_KITS_KEY); if (raw) { try { state = pgReadCombatKits(JSON.parse(raw)); } catch { state = pgDefaultCombatKits(); } } } catch { persistenceError = true; }
+  const reload = () => {
+    state = pgDefaultCombatKits();
+    persistenceError = false;
+    try {
+      const raw=storage?.getItem(PG_COMBAT_KITS_KEY);
+      if(raw)state=pgReadCombatKits(JSON.parse(raw));
+    } catch(error) {
+      if(!(error instanceof SyntaxError))persistenceError=true;
+    }
+  };
+  reload();
   const persist = () => { try { if (!storage) { persistenceError = true; return; } storage.setItem(PG_COMBAT_KITS_KEY, JSON.stringify(state)); persistenceError = false; } catch { persistenceError = true; } };
   const selected = () => clone(state.kits[state.activeSlot]);
   const select = (slot: PgKitId): PgLoadout => { if (!Number.isInteger(slot) || slot < 0 || slot > 4) throw new Error("Invalid Combat Kit slot"); state.activeSlot = slot; persist(); return selected(); };
   return {
+    reload,
     snapshot: () => clone(state), selected, select,
     persistenceError: () => persistenceError,
     save(slot: PgKitId, raw: unknown): PgLoadout | null {

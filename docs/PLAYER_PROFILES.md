@@ -1,16 +1,33 @@
-# Saved Fallbucks and guest profiles
+# Saved progression and optional accounts
 
 Fallbucks previously belonged only to a room's in-memory player record. They
-survived a rematch, but leaving the room discarded that wallet. Both Classic and
-BR now restore the same server-owned guest profile when that browser joins a new
-room. Currency, crowns, XP/pass progress, owned cosmetics and equipment are saved.
+survived a rematch, but leaving the room discarded that wallet. All four game
+families now share a server-owned ledger for currency, crowns, XP, Planet Pass,
+owned cosmetics and equipment.
 
 The client stores only a random bearer token under `planetfall:profile-token`.
 Balances are never accepted from browser storage or client payloads. Profile
 tokens are sent only to their owning connection; the database stores token hashes.
 Changing the display name does not change the wallet. Another player using the
 same name cannot claim it. Clearing site storage or using another browser starts
-a different guest profile; account login/recovery is not implemented here.
+a different guest profile unless you linked the original to a Google account.
+
+## Account ownership and guest linking
+
+Google sign-in uses [Neon Managed Better Auth](https://neon.com/docs/auth/overview). Neon manages the `neon_auth` schema. Planetfall's `planetfall_account_links` table maps the configured Neon branch issuer and verified user ID to one row in `planetfall_guest_profiles`. Its primary key and unique foreign key enforce one-to-one ownership. Account ownership depends on the verified provider ID, independently of email and pilot display name.
+
+- First sign-in can link the exact guest ledger after the server verifies both the Google session and the browser's guest credential. The database saves pending progress before creating the link. Unclaimed guest tokens keep working. Once linked, the original guest token can no longer access that ledger.
+- If the Google account already owns a profile and this device also holds guest progress, the browser offers a choice. Choosing the account preserves the guest ledger and token for later play. Choosing guest signs out of the account and resumes the guest ledger. Balances and rewards stay separate.
+- Shop purchases, owned and equipped cosmetics, calling cards, emblems, weapon finishes, XP, Crowns, Fallbucks and Planet Pass stay in the same ledger across Planetfall, PlanetRoyale, PlanetRun and PlanetGun.
+- Signing out revokes the current managed session, leaves its active rooms and clears the private UI before reconnecting as a guest. Switching accounts leaves the current room first and opens Google account selection. Room reconnects require the original pilot profile.
+- The browser holds the existing guest bearer locally, managed auth in a first-party HTTP-only cookie and a one-use game connection ticket in memory. Tickets expire after 15 seconds. The server rechecks active accounts every 30 seconds and rejects socket packets past known session expiry. Account API responses are private and uncached.
+- Account names and optional avatars appear in the signed-in browser's Account UI. The Planetfall ledger stores no provider email, OAuth tokens, passwords or avatar URLs. Account deletion and unlinking require a separate coordinated identity and data-management flow.
+
+## Account preferences
+
+Account sign-in syncs mouse and controller sensitivity, inverted Y, camera shake, custom bindings, preferred PlanetGun mode, five Combat Kits and hero/operator preferences. Equipped cosmetics continue through the server-authoritative ledger. Graphics, render resolution, performance and audio settings stay device-local.
+
+When a guest profile is linked for the first time, its valid device preferences seed the account. Writes require the same authenticated session context and the revision the device loaded. If another device has already saved a newer revision, the stale write is rejected and the browser loads the newer document with a notice. Signing out restores the device's saved guest settings. Preference writes cannot modify wallets, rewards or cosmetic ownership.
 
 ## Hosted storage
 
@@ -106,8 +123,8 @@ acceptance, recorded below. Startup success alone was not counted as acceptance.
 
 Neon Free has usage limits; it is not an unlimited service. See
 [Neon pricing](https://neon.com/pricing). Guest identity still depends on retaining
-the browser's profile token; this change does not add account login or recover
-wallets discarded before durable storage existed.
+the browser's profile token until a profile is linked. Wallets discarded before
+durable storage remain unrecoverable.
 
 ### Hosted durability acceptance completed
 

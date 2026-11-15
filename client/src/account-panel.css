@@ -1,0 +1,35 @@
+.account-overlay { position: fixed; inset: 0; z-index: 160; display: grid; place-items: center; padding: clamp(12px, 3vw, 32px); overflow: auto; background: rgba(3, 6, 24, .78); backdrop-filter: blur(12px); }
+/* Account is a self-contained modal, so it does not reserve the global overlay header space. */
+#account-overlay { box-sizing: border-box; padding: clamp(12px, 3vw, 32px); align-items: safe center; justify-items: center; overscroll-behavior: contain; }
+.account-overlay[hidden] { display: none !important; }
+.account-panel { width: min(100%, 520px); box-sizing: border-box; padding: clamp(20px, 4vw, 32px); border: 1px solid rgba(112, 245, 255, .26); border-radius: 24px; color: #f4f7ff; background: linear-gradient(145deg, rgba(22, 32, 79, .98), rgba(8, 12, 39, .98)); box-shadow: 0 24px 90px rgba(0, 0, 0, .45), inset 0 1px 0 rgba(255, 255, 255, .06); }
+.account-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 24px; }
+.account-eyebrow { margin: 0 0 6px; color: #70f5ff; font-size: 10px; font-weight: 800; letter-spacing: .15em; }
+.account-heading { margin: 0; font-size: clamp(26px, 5vw, 34px); letter-spacing: -.025em; }
+.account-close { flex-shrink: 0; min-height: 44px; padding: 8px 12px; }
+.account-identity { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
+.account-portrait { flex: 0 0 64px; width: 64px; height: 64px; position: relative; display: grid; place-items: center; overflow: hidden; border-radius: 18px; border: 1px solid rgba(112, 245, 255, .4); background: linear-gradient(145deg, #183d65, #152044); }
+.account-initials { font-size: 23px; font-weight: 800; color: #70f5ff; }
+.account-avatar { width: 100%; height: 100%; object-fit: cover; }
+.account-identity-text { min-width: 0; }
+.account-name { margin: 0 0 5px; font-size: 20px; overflow-wrap: anywhere; }
+.account-provider { margin: 0; color: #9ddbe5; font-size: 12px; }
+.account-description, .account-feedback { font-size: 14px; line-height: 1.6; margin: 0 0 20px; color: #d5def2; }
+.account-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0 0 12px; }
+.account-stat { min-width: 0; padding: 14px 10px; border-radius: 12px; border: 1px solid rgba(154, 187, 230, .14); background: rgba(2, 8, 29, .38); }
+.account-stat dt { color: #aebedb; font-size: 11px; margin-bottom: 7px; }
+.account-stat dd { margin: 0; color: #ffdc4f; font-weight: 800; font-size: clamp(15px, 3.6vw, 21px); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.account-cosmetic { display: flex; justify-content: space-between; gap: 16px; margin: 0 0 20px; font-size: 12px; line-height: 1.5; color: #aebedb; }
+.account-cosmetic strong { color: #e7edff; text-align: right; overflow-wrap: anywhere; }
+.account-feedback { padding: 12px 14px; border-left: 2px solid #70f5ff; border-radius: 0 8px 8px 0; background: rgba(112, 245, 255, .07); color: #e5fcff; overflow-wrap: anywhere; }
+.account-actions { display: grid; gap: 10px; }
+.account-action { width: 100%; min-height: 46px; white-space: normal; line-height: 1.4; padding: 12px 16px; }
+.account-panel button:focus-visible { outline: 3px solid #70f5ff; outline-offset: 4px; }
+.account-panel button:disabled { opacity: .5; cursor: wait; transform: none; }
+.account-note { margin: 18px 0 0; color: #9cacc9; font-size: 11px; line-height: 1.6; }
+.account-panel [hidden] { display: none !important; }
+@media (max-height: 620px) { #account-overlay { align-items: start; } .account-header { margin-bottom: 16px; } }
+@media (prefers-reduced-motion: reduce) { .account-panel, .account-panel button { animation: none; transition: none; } }
+
+.home-pilot-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+#account-home-status { color: var(--ui-muted, #a3bad1); font-size: .72em; margin-inline-start: .25em; }

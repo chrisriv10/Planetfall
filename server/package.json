@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.20.0",
+    "@neon/auth": "0.8.2",
     "@planetfall/shared": "*",
     "cors": "^2.8.5",
     "express": "^5.2.1",

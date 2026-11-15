@@ -85,6 +85,7 @@ export function createPgKitEditor(options: PgKitEditorOptions) {
     open(next: "lobby" | "game" = "lobby") { returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null; context = next; draft.reload(); feedback = ""; root.hidden = false; if (!preview) preview = createPgKitPreview(previewHost); render(); options.onOpen?.(); panel.querySelector<HTMLElement>("button")?.focus(); },
     selected: store.selected,
     selectPrimaryLegacy(id: PgPrimaryWeaponId) { const kit = store.selectPrimaryLegacy(id); options.onApply(kit); if (!root.hidden) { draft.reload(); render(); } return kit; },
+    reloadFromStorage() { store.reload(); draft.reload(); if (!root.hidden) render(); },
     refresh() { draft.reload(); if (!root.hidden) render(); },
     dispose() { close(); preview?.dispose(); preview = undefined; root.remove(); },
   };
