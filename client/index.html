@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#080b28" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="description" content="Planetfall is a tiny-planet multiplayer party game." />
     <title>Planetfall</title>
   </head>
@@ -33,11 +34,13 @@
             <div class="home-pilot-actions">
               <button id="shop-home" class="button button-quiet home-shop-button" type="button" disabled>SHOP</button>
               <button id="account-home" class="button button-quiet home-shop-button" type="button">ACCOUNT <small id="account-home-status">Guest</small></button>
+              <button id="leaderboard-home" class="button button-quiet home-shop-button" type="button">LEADERBOARD</button>
             </div>
           </div>
           <div id="home-controls" class="control-strip" aria-label="Game controls">
             <span><kbd>WASD</kbd> Move</span><span><kbd>E</kbd> Interact</span><span><kbd>RMB</kbd> Grapple</span>
           </div>
+          <p id="home-presence" class="home-presence" role="status" aria-live="polite" aria-atomic="true"><span>Players Online</span><strong id="home-online-count">Unavailable</strong></p>
           <p class="service-note">Server may need a moment to wake up.</p>
         </div>
       </section>

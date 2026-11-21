@@ -1,13 +1,21 @@
 import {PGlite} from "@electric-sql/pglite";
 import {createPlanetfallServer} from "../../server/src/app.js";
 import {GameRoom} from "../../server/src/game-room.js";
+import {migrateProfileSchema} from "../../server/src/profile-migrations.js";
+import type {ProfileDatabaseConnection} from "../../server/src/profile-connection.js";
 import {FixtureAccountProvider} from "./account-provider.js";
 
 const database = new PGlite();
 await database.waitReady;
 const provider = new FixtureAccountProvider();
+const connection:ProfileDatabaseConnection={
+  query:(sql,values)=>database.query(sql,values),
+  transaction:run=>database.transaction(tx=>run((sql,values)=>tx.query(sql,values))),
+  end:()=>database.close(),
+};
+await migrateProfileSchema(connection);
 const server = await createPlanetfallServer({nodeEnv:"test",testAccounts:{provider,
-  origin:"http://127.0.0.1:25173",connection:{query:(sql,values)=>database.query(sql,values),end:()=>database.close()},
+  origin:"http://127.0.0.1:25173",connection,
 }});
 // This runner is used only by Playwright, and is outside the production build.
 server.app.post("/__test/revoke",(req,res)=>{

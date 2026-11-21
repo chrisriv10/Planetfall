@@ -14,21 +14,53 @@ type Pilot = { parts: Part[]; stamp: number };
 export function createPgPilotBatches() {
   const group = new THREE.Group(); group.name = "planet-gun-canonical-pilot-batches";
   const pilots = new Map<THREE.Object3D, Pilot>();
-  const batches = new Map<string, Batch>();
-  const geometryKeys = new WeakMap<THREE.BufferGeometry, string>();
+  const batches = new Map<string, Batch[]>();
+  let batchCount = 0;
+  // Registration-local caches: edits to source resources must be seen when
+  // registering again, including material edits that do not bump version.
+  let geometryKeys = new WeakMap<THREE.BufferGeometry, string>();
+  let materialKeys = new WeakMap<THREE.Material, string>();
   const matrix = new THREE.Matrix4(), color = new THREE.Color();
   let frame = 1, disposed = false;
   function geometryKey(g: THREE.BufferGeometry): string {
     let key = geometryKeys.get(g); if (key) return key;
+    const fingerprint = (array: ArrayBufferView) => {
+      const bytes = new Uint8Array(array.buffer, array.byteOffset, array.byteLength);
+      let hash = 2166136261;
+      for (let i = 0; i < bytes.length; i++) hash = Math.imul(hash ^ bytes[i]!, 16777619);
+      return `${array.constructor.name}:${bytes.length}:${hash >>> 0}`;
+    };
     const attrs = Object.keys(g.attributes).sort().map(name => {
       const a = g.getAttribute(name);
       if (a instanceof THREE.InterleavedBufferAttribute) return `${name}:interleaved:${g.uuid}`;
-      return `${name}:${a.itemSize}:${a.normalized}:${a.array.constructor.name}:${Array.from(a.array).join(",")}`;
+      return `${name}:${a.itemSize}:${a.normalized}:${a.gpuType}:${fingerprint(a.array)}`;
     });
-    key = `${attrs.join("|")}|index:${g.index ? Array.from(g.index.array).join(",") : "none"}|groups:${JSON.stringify(g.groups)}|range:${g.drawRange.start},${g.drawRange.count}`;
+    key = `${attrs.join("|")}|index:${g.index ? `${g.index.itemSize}:${g.index.normalized}:${g.index.gpuType}:${fingerprint(g.index.array)}` : "none"}|groups:${JSON.stringify(g.groups)}|range:${g.drawRange.start},${g.drawRange.count}`;
     geometryKeys.set(g, key); return key;
   }
+  function equalGeometry(a: THREE.BufferGeometry, b: THREE.BufferGeometry): boolean {
+    // Fingerprints only select candidates. Verify exact bytes/layout before
+    // sharing, so even a hash collision cannot alter a pilot's appearance.
+    function equalAttribute(x: THREE.BufferAttribute | THREE.InterleavedBufferAttribute | null, y: THREE.BufferAttribute | THREE.InterleavedBufferAttribute | null): boolean {
+      if (!x || !y) return x === y;
+      if (x.itemSize !== y.itemSize || x.normalized !== y.normalized || x.array.constructor !== y.array.constructor) return false;
+      if (x instanceof THREE.InterleavedBufferAttribute || y instanceof THREE.InterleavedBufferAttribute) {
+        if (!(x instanceof THREE.InterleavedBufferAttribute && y instanceof THREE.InterleavedBufferAttribute)
+          || x.offset !== y.offset || x.data.stride !== y.data.stride) return false;
+      } else if (x.gpuType !== y.gpuType) return false;
+      if (x.array.byteLength !== y.array.byteLength) return false;
+      const left = new Uint8Array(x.array.buffer, x.array.byteOffset, x.array.byteLength);
+      const right = new Uint8Array(y.array.buffer, y.array.byteOffset, y.array.byteLength);
+      for (let i = 0; i < left.length; i++) if (left[i] !== right[i]) return false;
+      return true;
+    }
+    const names = Object.keys(a.attributes);
+    if (names.length !== Object.keys(b.attributes).length || a.drawRange.start !== b.drawRange.start || a.drawRange.count !== b.drawRange.count
+      || JSON.stringify(a.groups) !== JSON.stringify(b.groups) || !equalAttribute(a.index, b.index)) return false;
+    return names.every(name => !!b.attributes[name] && equalAttribute(a.getAttribute(name), b.getAttribute(name)));
+  }
   function materialKey(m: THREE.Material): string {
+    const cached = materialKeys.get(m); if (cached !== undefined) return cached;
     const json = m.toJSON();
     delete (json as { uuid?: string }).uuid; delete (json as { name?: string }).name;
     // Material.toJSON omits some render-state flags (e.g. clipping). Include
@@ -40,7 +72,8 @@ export function createPgPilotBatches() {
       if (value === null || typeof value === "number" || typeof value === "string" || typeof value === "boolean") state[key] = value;
     }
     state.clippingPlanes = m.clippingPlanes?.map(p => [p.normal.x, p.normal.y, p.normal.z, p.constant]);
-    return JSON.stringify(json) + JSON.stringify(state) + "|" + m.customProgramCacheKey() + "|" + m.onBeforeCompile.toString();
+    const key = JSON.stringify(json) + JSON.stringify(state) + "|" + m.customProgramCacheKey() + "|" + m.onBeforeCompile.toString();
+    materialKeys.set(m, key); return key;
   }
   function cloneMaterial(m: THREE.Material): THREE.Material {
     const clone = m.clone();
@@ -62,7 +95,12 @@ export function createPgPilotBatches() {
       if (part.batch) part.batch.refs -= part.instances;
     }
     pilots.delete(root);
-    for (const [key, batch] of batches) if (batch.refs === 0) { releaseMesh(batch.mesh); batches.delete(key); }
+    for (const [key, bucket] of batches) {
+      for (let i = bucket.length - 1; i >= 0; i--) if (bucket[i]!.refs === 0) {
+        releaseMesh(bucket[i]!.mesh); bucket.splice(i, 1); batchCount--;
+      }
+      if (!bucket.length) batches.delete(key);
+    }
   }
   function register(root: THREE.Object3D): { accepted: boolean; batched: number; individual: number; reason?: string } {
     if (disposed || (!pilots.has(root) && pilots.size >= MAX_PILOTS)) return { accepted: false, batched: 0, individual: 0, reason: "pilot capacity" };
@@ -74,6 +112,7 @@ export function createPgPilotBatches() {
     });
     if (reason || sources.length > MAX_PARTS) return { accepted: false, batched: 0, individual: 0, reason: reason || "part capacity" };
     unregister(root);
+    geometryKeys = new WeakMap(); materialKeys = new WeakMap();
     const parts: Part[] = []; let batched = 0, individual = 0;
     for (const source of sources) {
       const ancestors: THREE.Object3D[] = [];
@@ -93,18 +132,20 @@ export function createPgPilotBatches() {
           : geometryKey(source.geometry) + "|material:" + materialKey(m as THREE.Material);
         key = resources + `|shadow:${source.castShadow},${source.receiveShadow}|order:${source.renderOrder}|layers:${source.layers.mask}`;
       }
-      let batch = key ? batches.get(key) : undefined;
-      if (key && !batch && batches.size < MAX_BATCHES) {
+      const bucket = key ? batches.get(key) : undefined;
+      let batch = bucket?.find(candidate => source.userData.pgSharedWorldWeapon || equalGeometry(source.geometry, candidate.mesh.geometry));
+      if (key && !batch && batchCount < MAX_BATCHES) {
         const mesh = new THREE.InstancedMesh(source.geometry.clone(), cloneMaterial(m as THREE.Material), PARTS_PER_BATCH);
-        mesh.name = `planet-gun-canonical-batch-${batches.size}`;
+        mesh.name = `planet-gun-canonical-batch-${batchCount}`;
         mesh.count = 0; mesh.frustumCulled = false;
         mesh.castShadow = source.castShadow; mesh.receiveShadow = source.receiveShadow;
         mesh.renderOrder = source.renderOrder; mesh.layers.mask = source.layers.mask;
         mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         // Allocate once; white preserves normal material color for regular meshes.
-        for (let i = 0; i < PARTS_PER_BATCH; i++) mesh.setColorAt(i, color.set(0xffffff));
-        mesh.instanceColor!.setUsage(THREE.DynamicDrawUsage);
-        group.add(mesh); batch = { mesh, used: 0, refs: 0 }; batches.set(key, batch);
+        mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(PARTS_PER_BATCH * 3).fill(1), 3).setUsage(THREE.DynamicDrawUsage);
+        group.add(mesh); batch = { mesh, used: 0, refs: 0 };
+        if (bucket) bucket.push(batch); else batches.set(key, [batch]);
+        batchCount++;
       }
       // Bound admission by registered parts, so submit never silently drops one.
       if (batch && batch.refs + instances <= PARTS_PER_BATCH) {
@@ -159,7 +200,7 @@ export function createPgPilotBatches() {
   }
   function flush() {
     if (disposed) return;
-    for (const batch of batches.values()) {
+    for (const bucket of batches.values()) for (const batch of bucket) {
       batch.mesh.count = batch.used; batch.used = 0;
       batch.mesh.instanceMatrix.needsUpdate = true; batch.mesh.instanceColor!.needsUpdate = true;
     }

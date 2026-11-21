@@ -1513,7 +1513,7 @@ export class GameRoom {
   }
 
   onProgress?:import("./player-profiles.js").ProgressHandler;
-  private emitRoom(): void { this.onProgress?.(this.players.values());this.io.to(this.code).emit("room:state", this.view()); }
+  emitRoom(): void { this.onProgress?.(this.players.values());this.io.to(this.code).emit("room:state", this.view()); }
   private error(playerId: string, message: string): void {
     const socketId = this.players.get(playerId)?.socketId;
     if (socketId) this.io.to(socketId).emit("server:error", { message });

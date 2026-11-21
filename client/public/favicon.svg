@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <title>Planetfall</title>
+  <rect width="32" height="32" rx="7" fill="#080b28"/>
+  <g transform="rotate(-7 16 16)">
+    <ellipse cx="16" cy="16" rx="12" ry="6.5"
+      fill="none" stroke="#70f5ff" stroke-width="2.5"/>
+    <circle cx="27.5" cy="16" r="3.2" fill="#ff68c4"/>
+  </g>
+</svg>

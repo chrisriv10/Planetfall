@@ -3,7 +3,7 @@ import {
  pgAim,pgCapsuleClear,pgCharacterDefaultLoadout,pgCreateGun,pgResolveHero,pgValidateHeroLoadout,
  type PgAbilityDefinition,type PgHeroDefinition,type PgHeroId,type PgModeAction,type PgModeActionResult,
  type PgModeEffect,type PgModeIntel,type PgModePilot,type PgModeSnapshot,type PgMovementRules,
- type PgPlayer,type PgSolid,type PgTeam,type PgWeaponId,type Vec3,
+ type PgMap,type PgPlayer,type PgSolid,type PgTeam,type PgWeaponId,type Vec3,
 } from "@planetfall/shared";
 import {pgModeDistance,pgModeError,pgModeOk,pgModePilot} from "./pg-mode-base.js";
 import type {PgModeContext,PgModeRuntime,PgModeTarget} from "./pg-mode-runtime.js";
@@ -31,11 +31,23 @@ interface WatchEffect extends PgModeEffect {
  shield:number;
 }
 type WatchSnapshot=Extract<PgModeSnapshot,{id:"planetwatch"}>;
+interface RelayBotGoals {preferred:Vec3;fallback?:Vec3[];}
 const clamp=(n:number,min:number,max:number)=>Math.max(min,Math.min(max,n));
 const eye=(p:Vec3):Vec3=>({x:p.x,y:p.y+1.3,z:p.z});
 const finitePosition=(p:Vec3|undefined):p is Vec3=>!!p&&[p.x,p.y,p.z].every(Number.isFinite);
 const allies=(a:PgPlayer,b:PgPlayer)=>a.team===b.team;
 const WAVE_MS=8000,SWAP_RADIUS=8,CAPTURE_MS=4000,PROGRESS_PER_SECOND=2;
+
+function relayFallbacks(point:Vec3,angle:number,preferred:Vec3):Vec3[] {
+ const candidates:Vec3[]=[point];
+ for(const radius of [1.1,2.2,3.3,4.4])for(let step=0;step<24;step++){
+  if(radius===2.2&&step===0)continue; // The preferred position has already failed.
+  const turn=angle+step/24*Math.PI*2;
+  candidates.push({x:point.x+Math.cos(turn)*radius,y:point.y,z:point.z+Math.sin(turn)*radius});
+ }
+ return candidates.map(position=>({position,distance:pgModeDistance(position,preferred)}))
+  .sort((a,b)=>a.distance-b.distance).map(entry=>entry.position);
+}
 
 /** PlanetWatch owns only its round, hero and effect state. Player bodies remain room-owned. */
 export class PgWatch implements PgModeRuntime {
@@ -58,6 +70,9 @@ export class PgWatch implements PgModeRuntime {
  private finished=false;
  private botNavigation?:PgZombieNavigation;
  private botGoals=new Map<string,{revision:number;round:number;hero:PgHeroId;reconsiderAt:number;goal:Vec3|null}>();
+ private relayBotGoals=new Map<number,RelayBotGoals>();
+ private relayGroundMap?:PgMap;
+ private relayGround=new Map<Vec3,boolean>();
  constructor(private ctx:PgModeContext) {this.assignRoster();}
 
  start(now:number):void {
@@ -398,29 +413,36 @@ export class PgWatch implements PgModeRuntime {
    // Physical queries use exact feet coordinates. Bound those moving-origin
    // decisions to the fastest bot reaction interval, with immediate topology invalidation.
    this.botGoals.set(p.id,{revision,round:this.round,hero:hero.id,reconsiderAt:now+170,goal:goal?{...goal}:null});
-   return goal;
+   return goal?{...goal}:null;
   };
-  const navigation=this.botNavigation??=new PgZombieNavigation(this.ctx.world.map);
-  navigation.update(this.ctx.world.map,this.ctx.world.revision);
-  const reachable=(position:Vec3)=>this.validGround(position)&&navigation.reachable(p.position,position);
-  const point=PG_OBJECTIVES.relay[(this.round-1)%3].position;
+  const map=this.ctx.world.map,navigation=this.botNavigation??=new PgZombieNavigation(map);
+  navigation.update(map,revision);
+  const relay=(this.round-1)%PG_OBJECTIVES.relay.length,point=PG_OBJECTIVES.relay[relay].position;
   if(hero.role==="support"){
    const wounded=[...this.ctx.players.values()].filter(other=>other.id!==p.id&&other.team===p.team&&this.living(other)&&other.hp<this.maxHp(other)*.65&&pgModeDistance(other.position,point)<20).sort((a,b)=>a.hp/this.maxHp(a)-b.hp/this.maxHp(b))[0];
-   if(wounded&&pgModeDistance(p.position,wounded.position)>7&&reachable(wounded.position))return remember({...wounded.position});
+   if(wounded&&pgModeDistance(p.position,wounded.position)>7&&this.validGround(wounded.position)&&navigation.reachable(p.position,wounded.position))return remember(wounded.position);
   }
   const index=PG_HERO_IDS.indexOf(hero.id),angle=index/6*Math.PI*2;
-  const preferred={x:point.x+Math.cos(angle)*2.2,y:point.y,z:point.z+Math.sin(angle)*2.2};
+  const key=relay*PG_HERO_IDS.length+index;
+  let candidates=this.relayBotGoals.get(key);
+  if(!candidates){
+   candidates={preferred:{x:point.x+Math.cos(angle)*2.2,y:point.y,z:point.z+Math.sin(angle)*2.2}};
+   this.relayBotGoals.set(key,candidates);
+  }
+  if(this.relayGroundMap!==map){this.relayGroundMap=map;this.relayGround.clear();}
+  const reachable=(position:Vec3)=>{
+   // Support is shared for this topology. Reachability still depends on each bot's feet.
+   let valid=this.relayGround.get(position);
+   if(valid===undefined){valid=this.validGround(position);this.relayGround.set(position,valid);}
+   return valid&&navigation.reachable(p.position,position);
+  };
+  const {preferred}=candidates;
   if(reachable(preferred))return remember(preferred);
   // The role ring intersects authored stairs at the west/east relay and can
   // acquire a new barrier mid-round. Keep the role's nearby capture position,
   // but only select supported ground connected by full standing-body corridors.
-  const candidates:Vec3[]=[{...point}];
-  for(const radius of [1.1,2.2,3.3,4.4])for(let step=0;step<24;step++){
-   const turn=angle+step/24*Math.PI*2;
-   candidates.push({x:point.x+Math.cos(turn)*radius,y:point.y,z:point.z+Math.sin(turn)*radius});
-  }
-  candidates.sort((a,b)=>pgModeDistance(a,preferred)-pgModeDistance(b,preferred));
-  return remember(candidates.find(reachable)??null);
+  candidates.fallback??=relayFallbacks(point,angle,preferred);
+  return remember(candidates.fallback.find(reachable)??null);
  }
  botAction(p:PgPlayer,now:number):void {
   this.now=now;const s=this.state(p);if(!this.canFire(p)||now<s.nextBotAt)return;s.nextBotAt=now+700;

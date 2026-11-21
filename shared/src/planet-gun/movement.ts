@@ -64,14 +64,27 @@ export function pgStepMovement(p:PgMotion,input:PgInput,dt:number,at:number,map:
  else if(!p.wallId){const targetSpeed=p.crouched?rules.crouchSpeed:rules.sprint&&input.sprint&&!input.ads?rules.sprintSpeed:input.ads?rules.walkSpeed*.7:rules.walkSpeed,accel=p.grounded?(moving?B.acceleration:B.braking):B.airAcceleration;p.velocity.x=approach(p.velocity.x,dx*targetSpeed,accel*dt);p.velocity.z=approach(p.velocity.z,dz*targetSpeed,accel*dt);}
  let n=Math.hypot(p.velocity.x,p.velocity.z);if(n>rules.maxSpeed){p.velocity.x*=rules.maxSpeed/n;p.velocity.z*=rules.maxSpeed/n;}
  let oldY=p.position.y;const height=p.crouched?B.crouchHeight:B.height;
- for(const axis of ["x","z"] as const){if(Math.abs(p.velocity[axis])<1e-8)continue;p.position[axis]+=p.velocity[axis]*dt;
+ for(const axis of ["x","z"] as const){
+  // An airborne pilot can overlap a side face after descending, even without planar input.
+  if(Math.abs(p.velocity[axis])<1e-8&&(axis==="z"||p.grounded||Math.abs(p.velocity.z)>=1e-8))continue;
+  const before=p.position[axis];
+  p.position[axis]+=p.velocity[axis]*dt;
   for(const b of map.solids){const top=b.center.y+b.half.y,bottom=b.center.y-b.half.y;
    if(p.position.y>=top-.04||p.position.y+height<=bottom+.02||!overlapXZ(p.position,b,B.radius-.01))continue;
    // Small stair steps are traversable only with clear standing headroom.
    if(p.grounded&&top-p.position.y<=.4+1e-6&&top>p.position.y){const raised={...p.position,y:top};if(pgCapsuleClear(raised,height,map,b.id)){p.position.y=top;oldY=Math.max(oldY,top);continue;}}
    if(rules.mantle&&!p.grounded&&input.jump&&beginMantle(p,dx,dz,at,map))return;
-   const other=axis==="x"?"z":"x";if(Math.abs(p.position[other]-b.center[other])>=b.half[other]+B.radius-.02)continue;
-   p.position[axis]=b.center[axis]+(Math.sign(p.position[axis]-b.center[axis])||1)*(b.half[axis]+B.radius);p.velocity[axis]=0;
+   const other=axis==="x"?"z":"x",otherOffset=Math.abs(p.position[other]-b.center[other]);
+   const otherDepth=b.half[other]+B.radius-otherOffset;
+   if(otherDepth<=.02)continue;
+   const axisDepth=b.half[axis]+B.radius-Math.abs(p.position[axis]-b.center[axis]);
+   // Preserve the swept axis for a new contact. An existing overlap needs the
+   // shallower exit face, which can be perpendicular to the current sweep.
+   const existingOverlap=otherDepth<axisDepth&&Math.hypot(Math.max(0,Math.abs(before-b.center[axis])-b.half[axis]),Math.max(0,otherOffset-b.half[other]))<=B.radius-.01;
+   const normal=existingOverlap?other:axis;
+   const side=Math.sign(p.position[normal]-b.center[normal])||1;
+   p.position[normal]=b.center[normal]+side*(b.half[normal]+B.radius);
+   if(normal===axis||p.velocity[normal]*side<0)p.velocity[normal]=0;
   }
  }
  p.position.y+=p.velocity.y*dt;p.grounded=false;

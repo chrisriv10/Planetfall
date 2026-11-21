@@ -35,11 +35,12 @@ export class PgZombies implements PgModeRuntime {
  private deadline=0;private power=false;private reason:string|null=null;
  private soloRecoverAt=0;
  private shotSerial=0;private recoveryCandidates:{at:number;revision:number;points:Vec3[]}|null=null;
+ private spawnEntries:{revision:number;nodes:{id:number;position:Vec3}[]}|null=null;
  constructor(private ctx:PgModeContext){this.navigation=new PgZombieNavigation(ctx.world.map);this.barricades=new PgZombieBarricades(PG_ZOMBIE_BARRICADE_SITES,ctx.world);}
  start(now:number):void {
   this.now=now;this.arsenal.reset();this.forge.reset();
   this.pilots.clear();this.zombies.clear();this.interactions.clear();this.sequences.clear();this.unlocked.clear();
-  this.wave=0;this.queued=0;this.serial=0;this.recoveryCandidates=null;this.shotSerial=0;this.power=false;this.reason=null;this.soloRecoverAt=0;this.subphase="intermission";this.deadline=now+4000;
+  this.wave=0;this.queued=0;this.serial=0;this.recoveryCandidates=null;this.spawnEntries=null;this.shotSerial=0;this.power=false;this.reason=null;this.soloRecoverAt=0;this.subphase="intermission";this.deadline=now+4000;
   this.ctx.world.reset([...this.barricades.initialPanels(),...PG_ZOMBIE_BARRICADE_SITES.flatMap(site=>site.posts).map(post=>({id:post.id,solid:structuredClone(post.solid),active:true,hp:1000000,maxHp:1000000,reinforced:true,revision:0})),... [PG_ZOMBIE_ARSENAL_SITE,PG_ZOMBIE_FORGE_SITE,...PG_ZOMBIE_TONIC_SOCKETS,...PG_ZOMBIE_WALL_BUYS].map(site=>({id:site.solid.id,solid:structuredClone(site.solid),active:true,hp:1000000,maxHp:1000000,reinforced:true,revision:0})),...PG_ZOMBIE_DOORS.map(s=>({id:s.id,solid:structuredClone(s.solid),active:true,hp:1000000,maxHp:1000000,reinforced:true,revision:0})),...PG_ZOMBIE_QUARANTINE_WINGS.map(solid=>({id:solid.id,solid:structuredClone(solid),active:true,hp:1000000,maxHp:1000000,reinforced:true,revision:0}))],now);
   this.navigation.update(this.ctx.world.map,this.ctx.world.revision);
   const solo=this.ctx.players.size===1;
@@ -133,13 +134,26 @@ export class PgZombies implements PgModeRuntime {
   // Authored map waypoints are supported and share the exact current collision graph.
   const goals=survivors.map(target=>({target,goal:this.navigation.nearest(target.position)})).filter((entry):entry is {target:PgPlayer;goal:number}=>entry.goal!==null);if(!goals.length){const target=survivors[this.serial%survivors.length],entries=PG_ZOMBIE_ENTRIES.filter(position=>this.navigation.supported(position)&&this.navigation.reachable(position,target.position)&&survivors.every(p=>distance(p.position,position)>=3.5));const position=entries[this.serial%entries.length];if(!position)return false;return this.spawnAt(position,target,now);}const {target,goal}=goals[this.serial%goals.length];
   const field=this.navigation.field(goal);
-  const entryNodes=[...this.ctx.world.map.navigation,...PG_ZOMBIE_ENTRIES.map((position,id)=>({id:this.navigation.nearest(position)??-1,position,links:[]}))];
-  const safeDistance=entryNodes.some(n=>field.has(n.id)&&this.navigation.supported(n.position)&&survivors.every(p=>distance(p.position,n.position)>=5))?5:3.5;
-  const candidates=entryNodes.filter(n=>field.has(n.id)&&this.navigation.supported(n.position)&&survivors.every(p=>distance(p.position,n.position)>=safeDistance)).map(node=>({node,score:Math.min(...survivors.map(p=>distance(p.position,node.position)))+(survivors.every(p=>!this.ctx.world.visible(eye(p.position),eye(node.position)))?40:0)}));
+  const entryNodes=this.eligibleSpawnEntries();
+  const safeDistance=entryNodes.some(n=>field.has(n.id)&&survivors.every(p=>distance(p.position,n.position)>=5))?5:3.5;
+  const candidates=entryNodes.filter(n=>field.has(n.id)&&survivors.every(p=>distance(p.position,n.position)>=safeDistance)).map(node=>({node,score:Math.min(...survivors.map(p=>distance(p.position,node.position)))+(survivors.every(p=>!this.ctx.world.visible(eye(p.position),eye(node.position)))?40:0)}));
   candidates.sort((a,b)=>b.score-a.score);
   // A camper cannot freeze spawning: choose a valid reachable entrance, including a visible one.
   const entry=candidates[this.serial%Math.min(4,candidates.length)]?.node;if(!entry)return false;
   return this.spawnAt(entry.position,target,now);
+ }
+ private eligibleSpawnEntries():{id:number;position:Vec3}[] {
+  const {map,revision}=this.ctx.world;
+  if(this.spawnEntries?.revision===revision)return this.spawnEntries.nodes;
+  // Supports and authored entry anchors only change with collision topology.
+  const nodes:{id:number;position:Vec3}[]=map.navigation.filter(node=>this.navigation.supported(node.position));
+  for(const position of PG_ZOMBIE_ENTRIES){
+   if(!this.navigation.supported(position))continue;
+   const id=this.navigation.nearest(position);
+   if(id!==null)nodes.push({id,position});
+  }
+  this.spawnEntries={revision,nodes};
+  return nodes;
  }
  private spawnAt(position:Vec3,target:PgPlayer,now:number,barricadeId:string|null=null):boolean {
   const kind:PgZombie["kind"]=this.wave>=3&&this.serial%7===0?"bulwark":this.wave>=2&&this.serial%3===0?"skitter":"drifter";

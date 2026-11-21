@@ -12,14 +12,14 @@ export class PgCombat {
   readonly history=new PgHistory();
   private sequences=new Map<string,number>();
   private shotId=0;
-  fire(shooter:PgPlayer,raw:PgFireRequest,players:Iterable<PgPlayer>,now:number,environment?:PgCombatEnvironment):PgShot[] {
+  fire(shooter:PgPlayer,raw:PgFireRequest,players:Iterable<PgPlayer>,now:number,environment?:PgCombatEnvironment,aim:Pick<PgPlayer,"yaw"|"pitch">=shooter):PgShot[] {
     if(!raw||!Number.isSafeInteger(raw.sequence)||raw.sequence<0||raw.sequence<=(this.sequences.get(shooter.id)??-1)||!Number.isFinite(raw.clientTime)||raw.clientTime<now-B.rewindMs||raw.clientTime>now+50||!Number.isFinite(raw.yaw)||!Number.isFinite(raw.pitch)||Math.abs(raw.pitch)>1.45)return [];
     // Consume valid sequence numbers even on rejected cooldown packets; replay cannot become a later shot.
     this.sequences.set(shooter.id,raw.sequence);
     const gun=shooter.guns[shooter.slot],w=pgGunProfile(gun);
     pgFinishReload(gun,now);pgUpdateGunHeat(gun,now);if(environment?.modifiers)pgCoolModeGun(gun,environment.modifiers,now);
-    const yawError=Math.atan2(Math.sin(raw.yaw-shooter.yaw),Math.cos(raw.yaw-shooter.yaw));
-    if(shooter.hp<=0||!shooter.connected&&!shooter.isBot||raw.weapon!==gun.id||gun.reloadUntil||gun.magazine<=0||now<gun.nextFireAt||now<(gun.overheatedUntil??0)||now<shooter.fireReadyAt||shooter.mode==="sprint"||shooter.mode==="mantle"||Math.abs(yawError)>.25||Math.abs(raw.pitch-shooter.pitch)>.25)return [];
+    const yawError=Math.atan2(Math.sin(raw.yaw-aim.yaw),Math.cos(raw.yaw-aim.yaw));
+    if(shooter.hp<=0||!shooter.connected&&!shooter.isBot||raw.weapon!==gun.id||gun.reloadUntil||gun.magazine<=0||now<gun.nextFireAt||now<(gun.overheatedUntil??0)||now<shooter.fireReadyAt||shooter.mode==="sprint"||shooter.mode==="mantle"||Math.abs(yawError)>.25||Math.abs(raw.pitch-aim.pitch)>.25)return [];
     const modifiers=environment?.modifiers;
     gun.magazine--;gun.nextFireAt=now+w.intervalMs*(modifiers?.interval??modifiers?.fireIntervalMultiplier??1);gun.shots++;gun.recoil+=w.recoil*(modifiers?.recoilMultiplier??1);shooter.protectedUntil=0;if(modifiers)pgHeatModeGun(gun,modifiers,now);
     if(w.burstShots){gun.burstRemaining=(gun.burstRemaining||w.burstShots)-1;if(!gun.burstRemaining)gun.nextFireAt=now+(w.burstRecoveryMs??w.intervalMs);}

@@ -1,11 +1,18 @@
 import {PG_BALANCE,pgCapsuleClear,pgRayBox,type PgMap,type PgSolid,type Vec3} from "@planetfall/shared";
 
 const distance=(a:Vec3,b:Vec3)=>Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z);
-interface FlatLevel {supports:PgSolid[];obstacles:PgSolid[];steps:PgSolid[];}
+interface Footprint {minX:number;maxX:number;minZ:number;maxZ:number;}
+interface NavigationSolid extends Footprint {solid:PgSolid;top:number;supportRadius:number;}
+interface FlatLevel {supports:PgSolid[];obstacles:NavigationSolid[];steps:NavigationSolid[];}
+interface NavigationCell {supports:NavigationSolid[];collision:PgMap;}
+const cellSize=4;
+function footprintOverlaps(a:Footprint,b:Footprint):boolean {
+ return a.maxX>=b.minX&&a.minX<=b.maxX&&a.maxZ>=b.minZ&&a.minZ<=b.maxZ;
+}
 // The same rectangular footprint used by pgCapsuleClear, swept continuously.
 function intersectsFootprint(a:Vec3,b:Vec3,s:PgSolid):boolean {
  let lo=0,hi=1;
- for(const axis of ["x","z"] as const){
+ for(const axis of footprintAxes){
   const half=s.half[axis]+PG_BALANCE.radius-.02,origin=a[axis]-s.center[axis],delta=b[axis]-a[axis];
   if(Math.abs(delta)<1e-10){if(Math.abs(origin)>=half)return false;continue;}
   const first=(-half-origin)/delta,last=(half-origin)/delta;
@@ -13,6 +20,7 @@ function intersectsFootprint(a:Vec3,b:Vec3,s:PgSolid):boolean {
  }
  return true;
 }
+const footprintAxes=["x","z"] as const;
 /** Shared reverse routes: every infected targeting a survivor reuses one field. */
 export class PgZombieNavigation {
  private revision=-1;
@@ -24,18 +32,38 @@ export class PgZombieNavigation {
  private walkCache=new Map<string,boolean>();
  private incoming=new Map<number,number[]>();
  private flatLevels=new Map<number,FlatLevel>();
+ private solids:NavigationSolid[]=[];
+ private cells=new Map<number,Map<number,NavigationCell>>();
  constructor(private map:PgMap,private options:{groundLevelOnly?:boolean}={}){this.rebuild();}
  private rebuild():void{
   this.blockers=this.map.solids.map(s=>({...s,half:{x:s.half.x+.43,y:s.half.y,z:s.half.z+.43}}));this.fields.clear();this.fieldDistances.clear();this.nearestCache.clear();this.supportedCache.clear();this.walkCache.clear();
   this.incoming.clear();
   this.flatLevels.clear();
-  for(const solid of this.map.solids){
-   const y=solid.center.y+solid.half.y,level=this.flatLevels.get(y)??{supports:[],obstacles:[],steps:[]};
-   level.supports.push(solid);this.flatLevels.set(y,level);
-  }
+  this.cells.clear();
+  this.solids=this.map.solids.map(solid=>{
+   const {center,half}=solid,top=center.y+half.y,level=this.flatLevels.get(top)??{supports:[],obstacles:[],steps:[]};
+   level.supports.push(solid);this.flatLevels.set(top,level);
+   return {solid,top,supportRadius:solid.kind==="stair"?PG_BALANCE.radius-.01:PG_BALANCE.radius*.65,
+    minX:center.x-half.x,maxX:center.x+half.x,minZ:center.z-half.z,maxZ:center.z+half.z};
+  });
   for(const [y,level] of this.flatLevels){
-   level.obstacles=this.map.solids.filter(s=>y<s.center.y+s.half.y-.025&&y+PG_BALANCE.height>s.center.y-s.half.y+.025);
-   level.steps=level.obstacles.filter(s=>s.center.y+s.half.y<=y+.400001);
+   level.obstacles=this.solids.filter(({solid:s,top})=>y<top-.025&&y+PG_BALANCE.height>s.center.y-s.half.y+.025);
+   level.steps=level.obstacles.filter(({top})=>top<=y+.400001);
+  }
+  // Every sample only needs solids within standing capsule distance. The full
+  // shared capsule test and rounded stair support test still decide contact.
+  for(const solid of this.solids){
+   const radius=PG_BALANCE.radius;
+   for(let x=Math.floor((solid.minX-radius)/cellSize);x<=Math.floor((solid.maxX+radius)/cellSize);x++){
+    let row=this.cells.get(x);
+    if(!row){row=new Map();this.cells.set(x,row);}
+    for(let z=Math.floor((solid.minZ-radius)/cellSize);z<=Math.floor((solid.maxZ+radius)/cellSize);z++){
+     let cell=row.get(z);
+     if(!cell){cell={supports:[],collision:{...this.map,solids:[]}};row.set(z,cell);}
+     cell.supports.push(solid);
+     cell.collision.solids.push(solid.solid);
+    }
+   }
   }
   for(const node of this.map.navigation)for(const edge of node.links){
    const target=this.map.navigation[edge.to];
@@ -53,38 +81,46 @@ export class PgZombieNavigation {
   }
  }
  update(map:PgMap,revision:number):void{if(revision!==this.revision){this.map=map;this.revision=revision;this.rebuild();}}
+ private cellAt(position:Vec3):NavigationCell|undefined {
+  return this.cells.get(Math.floor(position.x/cellSize))?.get(Math.floor(position.z/cellSize));
+ }
  /** Follow support heights along a capsule corridor, including both stair directions. */
  private walkable(a:Vec3,b:Vec3):boolean {
   const key=`${a.x},${a.y},${a.z}:${b.x},${b.y},${b.z}`,cached=this.walkCache.get(key);if(cached!==undefined)return cached;
   const result=this.corridor(a,b);if(this.walkCache.size>=2048)this.walkCache.clear();this.walkCache.set(key,result);return result;
  }
  private corridor(a:Vec3,b:Vec3):boolean {
+  const radius=PG_BALANCE.radius;
+  const footprint={minX:Math.min(a.x,b.x)-radius,maxX:Math.max(a.x,b.x)+radius,minZ:Math.min(a.z,b.z)-radius,maxZ:Math.max(a.z,b.z)+radius};
   // Most pursuits stay on the orbital deck or one gallery. A convex support
   // covering both ends supports the entire segment; sweep its full capsule
   // against preselected height blockers instead of sampling every 16cm.
   const level=a.y===b.y?this.flatLevels.get(a.y):undefined;
   if(level&&level.supports.some(s=>Math.abs(a.x-s.center.x)<=s.half.x&&Math.abs(a.z-s.center.z)<=s.half.z&&Math.abs(b.x-s.center.x)<=s.half.x&&Math.abs(b.z-s.center.z)<=s.half.z)){
-   if(!level.obstacles.some(s=>intersectsFootprint(a,b,s)))return true;
+   if(!level.obstacles.some(s=>footprintOverlaps(footprint,s)&&intersectsFootprint(a,b,s.solid)))return true;
    // Tactical ground routes go around stair flights. A same-height shortcut
    // must not silently climb a tread and drop off its rounded corner.
    if(this.options.groundLevelOnly&&a.y===0)return false;
    // Without a first climbable riser there is no way to gain height before
    // the blocking solid. Only actual step routes need the sampled fallback.
-   if(!level.steps.some(s=>intersectsFootprint(a,b,s)))return false;
+   if(!level.steps.some(s=>footprintOverlaps(footprint,s)&&intersectsFootprint(a,b,s.solid)))return false;
   }
-  const solids=this.map.solids.filter(s=>s.center.x+s.half.x>=Math.min(a.x,b.x)-PG_BALANCE.radius&&s.center.x-s.half.x<=Math.max(a.x,b.x)+PG_BALANCE.radius&&s.center.z+s.half.z>=Math.min(a.z,b.z)-PG_BALANCE.radius&&s.center.z-s.half.z<=Math.max(a.z,b.z)+PG_BALANCE.radius);
-  const local={...this.map,solids},n=Math.ceil(Math.hypot(b.x-a.x,b.z-a.z)/.16);let y=a.y;
-  if(!pgCapsuleClear(a,PG_BALANCE.height,local))return false;
-  for(let i=1;i<=Math.max(1,n);i++){
-   const t=i/Math.max(1,n),p={x:a.x+(b.x-a.x)*t,y,z:a.z+(b.z-a.z)*t};let support=-Infinity;
-   for(const s of solids){
-    const radius=s.kind==="stair"?PG_BALANCE.radius-.01:PG_BALANCE.radius*.65;
+  const runX=b.x-a.x,runZ=b.z-a.z;
+  const steps=Math.max(1,Math.ceil(Math.hypot(runX,runZ)/.16));
+  let y=a.y;
+  const origin=this.cellAt(a);
+  if(origin&&!pgCapsuleClear(a,PG_BALANCE.height,origin.collision))return false;
+  for(let i=1;i<=steps;i++){
+   const t=i/steps,p={x:a.x+runX*t,y,z:a.z+runZ*t};let support=-Infinity;
+   const cell=this.cellAt(p);
+   if(!cell)return false;
+   for(const {solid:s,top,supportRadius} of cell.supports){
+    if(top>y+.400001||top<=support)continue;
     const dx=Math.max(0,Math.abs(p.x-s.center.x)-s.half.x),dz=Math.max(0,Math.abs(p.z-s.center.z)-s.half.z);
-    if(dx*dx+dz*dz>radius*radius)continue;
-    const top=s.center.y+s.half.y;if(top<=y+.400001&&top>support)support=top;
+    if(dx*dx+dz*dz<=supportRadius*supportRadius)support=top;
    }
    if(!Number.isFinite(support)||support<y-.65)return false;
-   p.y=support;if(!pgCapsuleClear(p,PG_BALANCE.height,local))return false;y=support;
+   p.y=support;if(!pgCapsuleClear(p,PG_BALANCE.height,cell.collision))return false;y=support;
   }
   return Math.abs(y-b.y)<.25;
  }
@@ -124,7 +160,8 @@ export class PgZombieNavigation {
  }
  supported(position:Vec3):boolean {
   const key=`${position.x},${position.y},${position.z}`,cached=this.supportedCache.get(key);if(cached!==undefined)return cached;
-  const supported=pgCapsuleClear(position,1.8,this.map)&&this.map.solids.some(s=>Math.abs(s.center.y+s.half.y-position.y)<.25&&Math.abs(s.center.x-position.x)<=s.half.x&&Math.abs(s.center.z-position.z)<=s.half.z);
+  const cell=this.cellAt(position);
+  const supported=!!cell&&pgCapsuleClear(position,1.8,cell.collision)&&cell.collision.solids.some(s=>Math.abs(s.center.y+s.half.y-position.y)<.25&&Math.abs(s.center.x-position.x)<=s.half.x&&Math.abs(s.center.z-position.z)<=s.half.z);
   if(this.supportedCache.size>=512)this.supportedCache.clear();this.supportedCache.set(key,supported);return supported;
  }
 }

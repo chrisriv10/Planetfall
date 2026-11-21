@@ -37,6 +37,7 @@ import type {GameAudio} from "../../audio";
 import {PgWorldRenderer} from "./pg-world";
 import {createPgViewmodel,PG_VIEWMODEL_LAYER} from "./pg-viewmodel";
 import {renderPgFrame} from "./pg-render";
+import {createPgWatchEntryShaders} from "./pg-watch-entry-shaders";
 
 export class PlanetGunGame {
  private readonly inputOwnership=new PgInputOwnership();private publishedInputMethod:InputMethod="keyboard";onInputMethod:(method:InputMethod)=>void=()=>{};
@@ -45,6 +46,9 @@ export class PlanetGunGame {
  private readonly cameraLifecycle=new PgCameraLifecycle();private spectatorTarget:string|null=null;onSpectator:(name:string|null)=>void=()=>{};
  private readonly renderCorrection=new PgRenderCorrection();private readonly nameSolids=[...PG_MAP.solids];private readonly friendlyNames=createPgFriendlyNames(this.nameSolids);
  private readonly modeArt=createPgModeArt();private firstPersonIdentity="";private firstPersonCharacter:ReturnType<typeof createPgFirstPersonCharacterArt>|null=null;
+ private watchMode=false;
+ private rampartWarmup:Promise<void>|null=null;
+ private watchEntry: {shaders:ReturnType<typeof createPgWatchEntryShaders>;abort:AbortController;pending:boolean;shadows:boolean}|null=null;
  private collision:PgCollisionSnapshot|null=null;private collisionMap=PG_MAP;private modeHold:string|null=null;private modeHoldAt=0;private modeInteractHeld=false;private modeDrone=false;private modeDroneAt=0;
  onModeAction:(action:PgModeIntent)=>void=()=>{};onModeMenu:()=>void=()=>{};
  private readonly motionDiagnostics=import.meta.env.DEV?new PgMotionDiagnostics():null;
@@ -65,6 +69,7 @@ export class PlanetGunGame {
  private rendererName="";private suitAccent=0xffba62;private settings:UserSettings|null=null;private pilots=new Map<string,{rig:AstronautVisual;presentation:ReturnType<typeof createPgPilotPresentation>;motion:ReturnType<typeof createAstronautMotion>;detail:PgPilotDetail;nextAnimationAt:number;lastAnimationAt:number;suitColor:number;suitKey:string;batchKey:string;batched:boolean;characterId:string;characterArt:ReturnType<typeof createPgCharacterArt>|null}>();private effects=new PgEffects();private remoteSteps=new Map<string,number>();
  constructor(private renderer:THREE.WebGLRenderer,private canvas:HTMLCanvasElement,private socket:GameSocket,private hud:(s:PgSnapshot)=>void,private hit:(n:number,headshot:boolean)=>void,private audio:GameAudio){
   const gl=renderer.getContext(),extension=gl.getExtension("WEBGL_debug_renderer_info");this.rendererName=String(gl.getParameter(extension?extension.UNMASKED_RENDERER_WEBGL:gl.RENDERER));
+  canvas.addEventListener("webglcontextrestored",()=>{if(this.active&&this.watchMode){this.prepareRampart();if(this.snapshot?.phase==="countdown")this.prepareWatchEntry();}});
   this.scene.background=new THREE.Color(0x101c32);this.scene.fog=new THREE.Fog(0x101c32,100,230);this.scene.add(this.modeArt.group,this.world.root,this.camera,this.effects.root,this.nearPilots.group,this.farPilots.group,this.friendlyNames.root);this.viewCamera.layers.set(PG_VIEWMODEL_LAYER);this.viewmodelScene.add(this.viewCamera);this.viewCamera.add(this.viewmodel.root);this.attachMuzzle();
   this.scene.add(new THREE.HemisphereLight(0xb8d7ef,0x526574,1.7));this.sun.position.set(-35,55,20);this.sun.shadow.mapSize.set(1024,1024);Object.assign(this.sun.shadow.camera,{left:-64,right:64,top:64,bottom:-64,near:10,far:150});this.sun.shadow.bias=-.0003;this.sun.shadow.normalBias=.035;this.sun.shadow.camera.updateProjectionMatrix();this.scene.add(this.sun);const fill=new THREE.DirectionalLight(0xffd8ad,.5);fill.position.set(30,18,-25);this.scene.add(fill);
   bindingSettings.subscribe(settings=>this.bindings.setSettings(settings));
@@ -82,8 +87,10 @@ export class PlanetGunGame {
  private setCaptureHint(mode:PgCaptureHintMode):void{if(mode!==this.captureHint){this.captureHint=mode;this.onCaptureHint(mode);}}
  getInputMethod():InputMethod{return this.inputOwnership.method;}
  private sensorActive():boolean{const m=this.snapshot?.mode;return m?.id==="planetsiege"&&!!(m.pilots[this.id]?.cameraId||m.pilots[this.id]?.controllingDrone);}
- private canLook():boolean{return this.active&&!this.blocked&&!this.review&&!this.reviewPilot&&this.socket.connected&&!!this.snapshot&&["playing","overtime"].includes(this.snapshot.phase)&&this.snapshot.players.some(p=>p.id===this.id);}
- private canPlay():boolean{return this.active&&!this.blocked&&!this.review&&!this.reviewPilot&&this.socket.connected&&!!this.snapshot&&["playing","overtime"].includes(this.snapshot.phase)&&((this.snapshot.players.find(p=>p.id===this.id)?.hp??0)>0||this.sensorActive());}
+ private get preparingRampart():boolean{return this.watchMode&&this.rampartWarmup!==null;}
+ private get preparingWatchEntry():boolean{return this.watchEntry?.pending??false;}
+ private canLook():boolean{return this.active&&!this.preparingRampart&&!this.preparingWatchEntry&&!this.blocked&&!this.review&&!this.reviewPilot&&this.socket.connected&&!!this.snapshot&&["playing","overtime"].includes(this.snapshot.phase)&&this.snapshot.players.some(p=>p.id===this.id);}
+ private canPlay():boolean{return this.active&&!this.preparingRampart&&!this.preparingWatchEntry&&!this.blocked&&!this.review&&!this.reviewPilot&&this.socket.connected&&!!this.snapshot&&["playing","overtime"].includes(this.snapshot.phase)&&((this.snapshot.players.find(p=>p.id===this.id)?.hp??0)>0||this.sensorActive());}
  getBindingContext():BindingContext{const viewer=this.snapshot?.players.find(p=>p.id===this.id);return !viewer||viewer.hp>0||this.sensorActive()?(this.snapshot?.mode?`planet-gun:${this.snapshot.mode.id}`:"planet-gun"):"planet-gun:spectator";}
  private syncBindingContext():void{const context=this.getBindingContext(),enabled=this.canLook();if(context!==this.bindings.getContext()||this.bindingEnabled!==enabled){this.clearInput();this.bindings.setContext(context);this.bindingEnabled=enabled;}this.bindings.setBlocked(!enabled);}
  private releaseBindingHolds():void{this.mouseFire=this.bindings.held("fire");this.mouseAds=this.bindings.held("aim");if(!this.bindings.held("interact")&&this.modeHold){this.onModeAction({kind:"interact",targetId:this.modeHold,held:false});this.modeHold=null;this.modeInteractHeld=false;}}
@@ -109,11 +116,49 @@ export class PlanetGunGame {
  }
  private interactMode(s:PgSnapshot,p:PgSnapshot["players"][number],at:number,repeated=false):void{this.modeHoldAt=at;const intent=pgNearbyModeInteraction(s,p,at);if(intent&&(!repeated||intent.kind==="interact")){this.onModeAction(intent);this.modeHold=intent.kind==="interact"?intent.targetId:null;}}
  private clearInput():void{this.bindings.clear();this.bindingHeld.clear();this.modeInteractHeld=false;if(this.modeHold){this.onModeAction({kind:"interact",targetId:this.modeHold,held:false});this.modeHold=null;}if(this.modeDrone){this.onModeAction({kind:"drone",control:false,moveX:0,moveZ:0,yaw:this.yaw,pitch:this.pitch});this.modeDrone=false;}this.beamUntil=0;this.beamPlaying=false;this.audio.pgBeam(false);this.burstCycle.cancel();this.jumpQueuedUntil=0;this.mouseFire=false;this.semiPending=false;this.semiPendingUntil=0;this.mouseAds=false;this.dragged=false;}
- activate(id:string):void{this.id=id;if(this.active)return;this.active=true;this.audio.setPgAmbience(true);if(this.settings)this.setSettings(this.settings);this.lastFrame=performance.now();this.renderer.setAnimationLoop(t=>this.frame(t));}
- deactivate():void{if(!this.active)return;this.setCaptureHint(null);this.active=false;this.audio.setPgAmbience(false);this.clearInput();document.exitPointerLock?.();this.renderer.setAnimationLoop(null);}
+ activate(id:string,watchMode=false):void{
+  this.id=id;
+  if(this.active)return;
+  this.active=true;this.watchMode=watchMode;
+  this.audio.setPgAmbience(true);
+  if(this.settings)this.setSettings(this.settings);
+  // The room enters a three-second countdown before accepting gameplay input.
+  // A reconnect can already be in play, so the frame and input gate also wait for readiness.
+  if(this.watchMode)this.prepareRampart();
+  this.lastFrame=performance.now();this.renderer.setAnimationLoop(t=>this.frame(t));
+ }
+ private prepareRampart():void{
+  if(this.rampartWarmup)return;
+  const shadows=this.renderer.shadowMap.enabled;
+  const pending=this.modeArt.warmRampart(this.renderer,this.camera,this.scene);
+  this.rampartWarmup=pending;
+  void pending.catch(error=>console.warn("PlanetWatch shader warm-up failed.",error)).finally(()=>{
+   this.rampartWarmup=null;
+   // Quality can change while the driver compiles. Finish one variant before starting the next.
+   if(this.active&&this.watchMode&&this.renderer.shadowMap.enabled!==shadows)this.prepareRampart();
+  });
+ }
+ private prepareWatchEntry():void{
+  this.releaseWatchEntry();
+  const abort=new AbortController();
+  const nameplate=this.friendlyNames.root.children.find((object):object is THREE.Sprite=>object instanceof THREE.Sprite);
+  const shaders=createPgWatchEntryShaders(this.modeArt.watchEntryShaderObjects(),this.viewmodel.watchEntryShaderSources(),nameplate);
+  const preparation={abort,shaders,pending:true,shadows:this.renderer.shadowMap.enabled};
+  this.watchEntry=preparation;
+  void shaders.prepare(this.renderer,{scene:this.scene,camera:this.camera},{scene:this.viewmodelScene,camera:this.viewCamera},abort.signal)
+   .catch(error=>{if(!abort.signal.aborted)console.warn("PlanetWatch match-entry shader preparation failed.",error);})
+   .finally(()=>{preparation.pending=false;});
+ }
+ private releaseWatchEntry():void{
+  if(!this.watchEntry)return;
+  this.watchEntry.abort.abort();
+  this.watchEntry.shaders.dispose();
+  this.watchEntry=null;
+ }
+ deactivate():void{if(!this.active)return;this.setCaptureHint(null);this.active=false;this.releaseWatchEntry();this.audio.setPgAmbience(false);this.clearInput();document.exitPointerLock?.();this.renderer.setAnimationLoop(null);}
  setUiCaptured(value:boolean):void{if(this.blocked!==value)this.clearInput();this.blocked=value;this.bindings.setBlocked(!this.canLook());if(value){this.setCaptureHint(null);document.exitPointerLock?.();}}
  setCharacterShowcase(view:PgShowcaseLayerView|null,stage:HTMLElement|null):void{this.characterShowcaseLayer.set(view,stage);}
- setSettings(settings:UserSettings):void{this.settings=settings;const quality=settings.graphicsQuality==="auto"?"medium":settings.graphicsQuality,q=QUALITY_PRESETS[quality];this.quality=quality;this.world.setQuality(quality);if(this.active){this.renderer.setPixelRatio(Math.min(devicePixelRatio,q.pixelRatioCap)*q.resolutionScale);this.renderer.shadowMap.enabled=quality==="high";if(this.sun)this.sun.castShadow=quality==="high";}}
+ setSettings(settings:UserSettings):void{this.settings=settings;const quality=settings.graphicsQuality==="auto"?"medium":settings.graphicsQuality,q=QUALITY_PRESETS[quality];this.quality=quality;this.world.setQuality(quality);if(this.active){const shadows=quality==="high",changed=this.renderer.shadowMap.enabled!==shadows;this.renderer.setPixelRatio(Math.min(devicePixelRatio,q.pixelRatioCap)*q.resolutionScale);this.renderer.shadowMap.enabled=shadows;this.sun.castShadow=shadows;if(changed&&this.watchMode)this.prepareRampart();}}
  applySnapshot(s:PgSnapshot):void {
   const profileStart=this.profile?performance.now():0;
   if(this.snapshot&&s.serverTime<this.snapshot.serverTime)return;
@@ -127,7 +172,7 @@ export class PlanetGunGame {
   if(this.collision)this.motionDiagnostics?.topology(performance.now(),this.collision.revision,this.collision.topologyRevision??this.collision.revision,collisionChanged);this.snapshot=s;if(s.mode?.id==="planetsiege"){const state=s.mode.pilots[this.id];this.modeDrone=!!state?.controllingDrone;}this.offset=Math.max(this.offset,s.serverTime-performance.now());const me=s.players.find(p=>p.id===this.id);
   if(me){const gun=me.guns[me.slot],profile=pgGunProfile(gun);this.burstCycle.observe({weapon:gun.id,lifeId:me.lifeId,serverTime:s.serverTime,shots:gun.shots,nextFireAt:gun.nextFireAt,burstShots:profile.burstShots??0,intervalMs:profile.intervalMs,recoveryMs:profile.burstRecoveryMs??profile.intervalMs});this.suitAccent=new THREE.Color(SHOP_CATALOG.find(i=>i.id===me.equippedCosmetics.suit&&i.category==="suit")?.color??me.color).getHex();if(me.lifeId!==this.life){this.life=me.lifeId;this.simulationAt=s.serverTime;this.yaw=me.yaw;this.pitch=me.pitch;this.pending=[];this.nextFire=0;this.sprintFireAt=0;this.sprintExitSequence=-1;this.firingWeapon="";this.wallRoll=0;this.movementFov=0;this.ads=0;this.recoil=0;this.landingImpulse=0;this.accumulator=0;this.renderCorrection.reset();this.clearInput();}
    const predictedBefore=this.local,oldLife=old?.lifeId;this.local=structuredClone(me);this.sequence=Math.max(this.sequence,me.lastInputSequence);this.pending=this.pending.filter(p=>p.input.sequence>me.lastInputSequence);
-   if(me.hp>0&&["playing","overtime"].includes(s.phase)){const replay=pgReconcileMotion(me,me.lastInputSequence,this.pending,s.serverTime,this.collisionMap,s.mode?.controls?.[me.id]?.movement??PG_DEFAULT_MOVEMENT_RULES);this.local=replay.motion;this.pending=replay.pending;this.simulationAt=replay.at;}
+   if(me.hp>0&&["playing","overtime"].includes(s.phase)){const replay=pgReconcileMotion(me,me.lastInputSequence,this.pending,s.serverTime,this.collisionMap,s.mode?.controls?.[me.id]?.movement??PG_DEFAULT_MOVEMENT_RULES,s.mode?.controls?.[me.id]?.canMove??true);this.local=replay.motion;this.pending=replay.pending;this.simulationAt=replay.at;}
    if(predictedBefore&&oldLife===me.lifeId){
     const previousOffset={...this.renderCorrection.offset};
     const continuous=me.hp>0&&["playing","overtime"].includes(s.phase)&&this.pending.length<30&&!collisionChanged;
@@ -146,7 +191,8 @@ export class PlanetGunGame {
  setPilotBatching(enabled:boolean):void{if(import.meta.env.DEV)this.pilotBatching=enabled;}
  setReviewView(name:keyof typeof PG_REVIEW_VIEWS|"crowd3"|"crowd6"|null):void{if(!import.meta.env.DEV)return;this.setReviewPilot(null);this.review=name;this.crowdReview=name==="crowd3"||name==="crowd6"?pgCrowdReviewPose((this.snapshot?.players??[]).filter(p=>p.id!==this.id),name==="crowd3"?3:6):null;this.clearInput();document.exitPointerLock?.();}
  private frame(now:number):void {
-  if(!this.active)return;const inputNow=performance.now(),frameMs=Math.max(0,now-this.lastFrame),dt=Math.min(.05,Math.max(0,frameMs/1000));this.lastFrame=now;this.times.push(frameMs);if(this.times.length>240)this.times.shift();const s=this.snapshot,me=s?.players.find(p=>p.id===this.id);if(!s||!me||!this.local)return;
+  if(!this.active)return;const inputNow=performance.now(),frameMs=Math.max(0,now-this.lastFrame),dt=Math.min(.05,Math.max(0,frameMs/1000));this.lastFrame=now;if(this.preparingRampart)return;this.times.push(frameMs);if(this.times.length>240)this.times.shift();const s=this.snapshot,me=s?.players.find(p=>p.id===this.id);if(!s||!me||!this.local)return;
+  if(this.preparingWatchEntry&&["countdown","playing","overtime"].includes(s.phase))return;
   this.syncBindingContext();this.bindingHeld=this.bindings.sample().held;this.mouseFire=this.bindingHeld.has("fire");this.mouseAds=this.bindingHeld.has("aim");
   const physicalController=navigator.getGamepads?.().find(p=>p?.connected),controller=this.inputOwnership.sample(physicalController),buttons=physicalController?.buttons.map(b=>b.pressed)??[];if(this.publishedInputMethod!==this.inputOwnership.method){this.publishedInputMethod=this.inputOwnership.method;this.onInputMethod(this.publishedInputMethod);}
   this.setCaptureHint(this.canLook()&&this.inputOwnership.method==="keyboard"&&document.pointerLockElement!==this.canvas?(me.hp>0||this.sensorActive()?"play":"spectate"):null);
@@ -236,13 +282,14 @@ export class PlanetGunGame {
   this.effects.update(now);this.world.update(now);
   const zombieMode=s.mode?.id==="planetzombies"?s.mode:null;this.modeArt.update(s.mode??null,this.id,presentationAt,this.quality,matchMedia("(prefers-reduced-motion: reduce)").matches,zombieMode?s.players.find(player=>player.id===zombieMode.arsenal.ownerId)?.name??null:null,zombieMode?s.players.find(player=>player.id===zombieMode.forge.ownerId)?.name??null:null);
   const profileWorld=this.profile?performance.now():0;
+  if(this.watchMode&&s.phase==="countdown"&&this.watchEntry?.shadows!==this.renderer.shadowMap.enabled){this.prepareWatchEntry();return;}
   if(this.canvas.width!==Math.floor(innerWidth*this.renderer.getPixelRatio())||this.canvas.height!==Math.floor(innerHeight*this.renderer.getPixelRatio()))this.renderer.setSize(innerWidth,innerHeight);renderPgFrame(this.renderer,this.scene,this.camera,this.viewmodelScene,this.viewCamera,this.viewmodel.root.visible);this.characterShowcaseLayer.render(this.renderer,this.camera,now/1000,this.quality,matchMedia("(prefers-reduced-motion: reduce)").matches);
   const owner=this.review||this.reviewPilot?"review":this.sensorActive()?"sensor":cameraView.kind==="spectator"?`spectator:${cameraView.targetId??"none"}`:"local";
   this.motionDiagnostics?.presented(performance.now(),owner,me.lifeId,this.camera.rotation.y,this.camera.rotation.x,this.yaw,this.pitch,this.camera.position);
   this.profile?.frame(inputNow,profileInput,profileViewmodel,profilePilots,profileWorld,performance.now());
  }
  debugState(){let visibleInstances=0;const materials=new Set<THREE.Material>();for(const scene of[this.scene,this.viewmodelScene])scene.traverseVisible(o=>{if(o instanceof THREE.Mesh){for(const m of Array.isArray(o.material)?o.material:[o.material])materials.add(m);if(o instanceof THREE.InstancedMesh)visibleInstances+=o.count;}});return {inputMethod:this.inputOwnership.method,renderer:this.rendererName,visibleInstances,materialCount:materials.size,review:this.review,reviewPilot:this.reviewPilot,active:this.active,phase:this.snapshot?.phase,local:this.local,mode:this.snapshot?.mode,collisionRevision:this.collision?.revision,blocked:this.blocked,pending:this.pending.length,players:this.snapshot?.players.length,quality:this.settings?.graphicsQuality,ads:this.ads,cameraFov:this.camera.fov,cameraRoll:this.camera.rotation.z,calls:this.renderer.info.render.calls,triangles:this.renderer.info.render.triangles,geometries:this.renderer.info.memory.geometries,textures:this.renderer.info.memory.textures,pilotBatching:this.pilotBatching,pilotDetail:{...this.detailCounts},burst:{pending:this.burstCycle.pending,remaining:this.burstCycle.remaining,inFlight:this.burstCycle.inFlight},audio:this.audio.debugState(),reloadPhase:this.viewmodel.getReloadPhase(),resolvedQuality:this.quality,effects:this.effects.stats(),programs:this.renderer.info.programs?.length,cameraDirection:(()=>{const direction=this.camera.getWorldDirection(new THREE.Vector3());return{x:direction.x,y:direction.y,z:direction.z};})(),cameraPosition:{x:this.camera.position.x,y:this.camera.position.y,z:this.camera.position.z},remotePilots:this.snapshot?.players.filter(p=>p.id!==this.id).map(p=>({id:p.id,name:p.name,team:p.team,characterId:this.snapshot?.mode?.pilots[p.id]?.characterId,hp:p.hp,lean:p.lean,position:p.position,velocity:p.velocity})),nameplates:this.friendlyNames.stats(),renderCorrection:{...this.renderCorrection.offset},movement:this.motionDiagnostics?.read(),network:pgClock(this.socket).measurements(),profile:this.profile?.read(),frameTimes:[...this.times]};}
- reset():void{this.characterShowcaseLayer.reset();this.setCaptureHint(null);this.inputOwnership.reset();this.cameraLifecycle.reset();this.spectatorTarget=null;this.onSpectator(null);this.firstPersonCharacter?.dispose();this.firstPersonCharacter=null;this.firstPersonIdentity="";this.modeArt.update(null,this.id,0);this.collision=null;this.collisionMap=PG_MAP;this.nameSolids.splice(0,this.nameSolids.length,...PG_MAP.solids);this.renderCorrection.reset();this.simulationAt=0;this.friendlyNames.clear();this.motionDiagnostics?.reset();this.farPilots.clear();this.burstCycle.cancel();this.reloadPhase="idle";this.landingImpulse=0;this.offset=0;this.review=null;this.reviewPilot=null;this.snapshot=null;this.local=null;this.pending=[];this.life=-1;for(const v of this.pilots.values()){this.nearPilots.unregister(v.rig.group);v.characterArt?.dispose();v.presentation.dispose();this.disposePilot(v.rig);}this.pilots.clear();this.effects.dispose();this.effects=new PgEffects();this.scene.add(this.effects.root);this.attachMuzzle();this.remoteSteps.clear();}
+ reset():void{this.releaseWatchEntry();this.characterShowcaseLayer.reset();this.setCaptureHint(null);this.inputOwnership.reset();this.cameraLifecycle.reset();this.spectatorTarget=null;this.onSpectator(null);this.firstPersonCharacter?.dispose();this.firstPersonCharacter=null;this.firstPersonIdentity="";this.modeArt.update(null,this.id,0);this.collision=null;this.collisionMap=PG_MAP;this.nameSolids.splice(0,this.nameSolids.length,...PG_MAP.solids);this.renderCorrection.reset();this.simulationAt=0;this.friendlyNames.clear();this.motionDiagnostics?.reset();this.farPilots.clear();this.burstCycle.cancel();this.reloadPhase="idle";this.landingImpulse=0;this.offset=0;this.review=null;this.reviewPilot=null;this.snapshot=null;this.local=null;this.pending=[];this.life=-1;for(const v of this.pilots.values()){this.nearPilots.unregister(v.rig.group);v.characterArt?.dispose();v.presentation.dispose();this.disposePilot(v.rig);}this.pilots.clear();this.effects.dispose();this.effects=new PgEffects();this.scene.add(this.effects.root);this.attachMuzzle();this.remoteSteps.clear();}
  private attachMuzzle():void{this.effects.muzzleRoot.traverse(o=>o.layers.set(PG_VIEWMODEL_LAYER));this.viewCamera.add(this.effects.muzzleRoot);}
  private disposePilot(rig:AstronautVisual):void{rig.group.removeFromParent();const geometries=new Set<THREE.BufferGeometry>(),materials=new Set<THREE.Material>();rig.group.traverse(o=>{if(o instanceof THREE.Mesh){geometries.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:[o.material])materials.add(m);}});for(const g of geometries)g.dispose();for(const m of materials)m.dispose();}
 }

@@ -100,7 +100,10 @@ test("switching accounts leaves the room and loads only the new pilot preference
   await context.addCookies([{name:"pf-test-selected",value:"switch-to",url:baseURL!}]);
   await page.locator("#settings-lobby").click();
   await page.locator("#account-settings").click();
-  await panel(page).getByRole("button",{name:"Switch Account"}).click();
+  await Promise.all([
+    page.waitForURL(url=>url.searchParams.get("account")==="return",{waitUntil:"commit"}),
+    panel(page).getByRole("button",{name:"Switch Account"}).click(),
+  ]);
   await signedIn(page);
   await expect(balance(page)).toHaveText("0");
   await expect(page.locator("#home-screen")).toHaveClass(/active/);

@@ -3,16 +3,20 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "./e2e",
   testIgnore: "planet-gun-production.spec.ts",
+  // The WebGL clients, authority and latency proxy share the local machine.
+  workers: 1,
   timeout: 90_000,
   expect: { timeout: 15_000 },
-  use: { headless: true },
+  // Full Chromium uses the host graphics path where available. The separate
+  // headless shell uses SwiftShader on the Windows release workstation.
+  use: { channel: "chromium", headless: true },
   projects: [
     { name: "gameplay", testIgnore: ["accounts.spec.ts","planet-gun-production.spec.ts"], use: { baseURL: "http://127.0.0.1:15173" } },
     { name: "accounts", testMatch: "accounts.spec.ts", use: { baseURL: "http://127.0.0.1:25173" } },
   ],
   webServer: [
     {
-      command: "npm run build -w @planetfall/shared && npm run dev -w @planetfall/server",
+      command: "npm run build -w @planetfall/shared && npm exec -- tsx server/src/index.ts",
       url: "http://127.0.0.1:13000/health",
       // The end-to-end raid drives two real WebGL clients through launch,
       // traversal, shove, sabotage and cannon play. Give the test match enough

@@ -27,7 +27,28 @@ test("a real survivor fights finite waves, buys equipment, powers and upgrades t
   if(me.life!=="alive"){await page.waitForTimeout(500);continue;}
   if(!me.primaryUnlocked&&me.points>=700&&s.mode.power){await route(page,{x:-22,y:0,z:6},info.outputPath("pulse-route-failure.json"));await buy(/^Pulse Rifle ·/);await expect.poll(async()=>{const v=await state(page);return v.mode.pilots[v.local.id].primaryUnlocked;}).toBe(true);bought=true;await page.screenshot({path:info.outputPath("survivor-purchased-pulse.png")});continue;}
   if(bought&&!powered&&s.mode.power){powered=true;await page.screenshot({path:info.outputPath("station-power-restored.png")});}
-  if(bought&&s.mode.power&&!upgraded&&me.points>=900){await route(page,PG_ZOMBIE_FORGE_SITE.interaction);await page.keyboard.press("1");await lookAt(page,{...PG_ZOMBIE_FORGE_SITE.position,y:1.1});await page.keyboard.press("e");await expect.poll(async()=>(await state(page)).mode.forge.phase).toBe("processing");await page.screenshot({path:info.outputPath("forge-processing-weapon.png")});await expect(page.locator("#pg-reload")).toContainText("OVERCHARGING");await page.keyboard.press("2");await expect.poll(async()=>(await state(page)).local.slot).toBe(1);await expect.poll(async()=>{const v=await state(page);return v.mode.pilots[v.local.id].upgrade;}).toBe(1);upgraded=true;await page.keyboard.press("1");await page.screenshot({path:info.outputPath("survivor-upgraded-weapon.png")});continue;}
+  if(bought&&s.mode.power&&!upgraded&&me.points>=900){
+   await route(page,PG_ZOMBIE_FORGE_SITE.interaction);
+   await page.keyboard.press("1");
+   await expect.poll(async()=>(await state(page)).local.slot).toBe(0);
+   await lookAt(page,{...PG_ZOMBIE_FORGE_SITE.position,y:1.1});
+   // Bots use the same Forge. Wait for the real console to become available
+   // before the single purchase intent, including any teammate's completion.
+   const prompt=page.locator(".pg-world-interaction-prompt");
+   await expect(prompt).toContainText("OVERCHARGE FORGE");
+   await expect(prompt).toHaveAttribute("data-available","true");
+   await page.keyboard.press("e");
+   await expect.poll(async()=>{const v=await state(page);return {phase:v.mode.forge.phase,owner:v.mode.forge.ownerId===v.local.id};}).toEqual({phase:"processing",owner:true});
+   await page.screenshot({path:info.outputPath("forge-processing-weapon.png")});
+   await expect(page.locator("#pg-reload")).toContainText("OVERCHARGING");
+   await page.keyboard.press("2");
+   await expect.poll(async()=>(await state(page)).local.slot).toBe(1);
+   await expect.poll(async()=>{const v=await state(page);return v.mode.pilots[v.local.id].upgrade;}).toBe(1);
+   upgraded=true;
+   await page.keyboard.press("1");
+   await page.screenshot({path:info.outputPath("survivor-upgraded-weapon.png")});
+   continue;
+  }
   if(upgraded&&sawRevived&&s.mode.wave>=4&&me.points>=850){
    await route(page,PG_ZOMBIE_ARSENAL_SITE.interaction,info.outputPath("arsenal-route-failure.json"));await page.bringToFront();await lookAt(page,{...PG_ZOMBIE_ARSENAL_SITE.position,y:1.1});
    // A held purchase is a single intent; it must not auto-claim or buy again.

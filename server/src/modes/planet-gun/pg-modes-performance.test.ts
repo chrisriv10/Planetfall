@@ -7,7 +7,7 @@ import {PgModeWorld} from "./pg-mode-world.js";
 import {PgZombies} from "./pg-zombies.js";
 
 function record(name:string,value:unknown){mkdirSync(".local-runtime/pg-metrics",{recursive:true});writeFileSync(`.local-runtime/pg-metrics/${name}.json`,JSON.stringify(value,null,2));}
-function distribution(samples:number[]){const sorted=[...samples].sort((a,b)=>a-b);return {averageTickMs:sorted.reduce((a,b)=>a+b,0)/sorted.length,p50TickMs:sorted[Math.floor(sorted.length*.5)],p95TickMs:sorted[Math.floor(sorted.length*.95)],maxTickMs:sorted.at(-1)};}
+function distribution(samples:number[]){const sorted=[...samples].sort((a,b)=>a-b);return {averageTickMs:sorted.reduce((a,b)=>a+b,0)/sorted.length,p50TickMs:sorted[Math.floor(sorted.length*.5)],p95TickMs:sorted[Math.floor(sorted.length*.95)],p99TickMs:sorted[Math.floor(sorted.length*.99)],maxTickMs:sorted.at(-1)};}
 function fixture(mode:PgModeId,population:4|12,onSnapshot?:(snapshot:PgSnapshot)=>void){
  let maxSnapshotBytes=0,shots=0,snapshots=0;
  const io={to:()=>({emit:(event:string,payload:unknown)=>{if(event==="pg:combat:shot")shots++;if(event==="pg:match:snapshot"){snapshots++;maxSnapshotBytes=Math.max(maxSnapshotBytes,Buffer.byteLength(JSON.stringify(payload)));onSnapshot?.(payload as PgSnapshot);}}})} as unknown as Server<ClientToServerEvents,ServerToClientEvents>;

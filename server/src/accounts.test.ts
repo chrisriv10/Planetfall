@@ -1,9 +1,11 @@
-import {afterEach,expect,it} from "vitest";
+import {afterEach,expect,it,vi} from "vitest";
 import {PGlite} from "@electric-sql/pglite";
 import {io,type Socket} from "socket.io-client";
-import type {ClientToServerEvents,ServerToClientEvents} from "@planetfall/shared";
+import {SHOP_CATALOG,type ClientToServerEvents,type ServerToClientEvents} from "@planetfall/shared";
 import {createPlanetfallServer} from "./app.js";
 import {FixtureAccountProvider} from "../../e2e/fixtures/account-provider.js";
+import type {ProfileDatabaseConnection,ProfileQuery} from "./profile-database.js";
+import {migrateProfileSchema} from "./profile-migrations.js";
 
 type GameSocket=Socket<ServerToClientEvents,ClientToServerEvents>;
 const origin="http://127.0.0.1:5173";
@@ -15,15 +17,32 @@ async function fixture() {
   cleanup.push(()=>db.close());
   const provider=new FixtureAccountProvider();
   let failLink=false, failAfterLink=false;
-  async function boot() {
-    const app=await createPlanetfallServer({port:0,nodeEnv:"test",testAccounts:{origin,provider,connection:{
-      async query(sql,values){
-        if(failLink&&sql.startsWith("INSERT INTO planetfall_account_links")){failLink=false;throw new Error("Transient fixture failure");}
-        const result=await db.query<Record<string,unknown>>(sql,values);
-        if(failAfterLink&&sql.startsWith("INSERT INTO planetfall_account_links")){failAfterLink=false;throw new Error("Ambiguous fixture commit");}
+  let beforeReceipt:(()=>Promise<void>)|undefined;
+  const connection:ProfileDatabaseConnection={
+      query:(sql,values)=>db.query(sql,values),
+      async transaction(run){
+        let claim=false;
+        const result=await db.transaction(tx=>{
+          const query:ProfileQuery=async(sql,values)=>{
+            if(sql.startsWith("INSERT INTO planetfall_account_links")){
+              claim=true;
+              if(failLink){failLink=false;throw new Error("Transient fixture failure");}
+            }
+            if(sql.startsWith("INSERT INTO planetfall_profile_operations")&&beforeReceipt){
+              const wait=beforeReceipt;beforeReceipt=undefined;await wait();
+            }
+            return tx.query(sql,values);
+          };
+          return run(query);
+        });
+        if(claim&&failAfterLink){failAfterLink=false;throw new Error("Ambiguous fixture commit");}
         return result;
-      }, end:async()=>{},
-    }}});
+      },
+      end:async()=>{},
+  };
+  await migrateProfileSchema(connection);
+  async function boot() {
+    const app=await createPlanetfallServer({port:0,nodeEnv:"test",testAccounts:{origin,provider,connection}});
     let closed=false;
     async function close(){if(closed)return;closed=true;await app.close();}
     cleanup.push(close);
@@ -45,8 +64,58 @@ async function fixture() {
     }
     return {app,post,connect,dial,close};
   }
-  return {db,provider,boot,failNextLink:()=>{failLink=true;},loseNextLinkResponse:()=>{failAfterLink=true;}};
+  return {db,provider,boot,failNextLink:()=>{failLink=true;},loseNextLinkResponse:()=>{failAfterLink=true;},
+    beforeReceipt:(wait:()=>Promise<void>)=>{beforeReceipt=wait;}};
 }
+
+it("acknowledges a Shop purchase only after its committed debit and ownership survive reconnection",async()=>{
+  const {boot,beforeReceipt}=await fixture();
+  const first=await boot(),guest=await first.connect({profile:true});
+  const joined=await guest.socket.timeout(5000).emitWithAck("room:create",{name:"Shop pilot"});
+  if(!joined.ok)throw Error(joined.error);
+  const room=first.app.manager.rooms.get(joined.room.code)!,pilot=room.players.get(joined.playerId)!;
+  const item=SHOP_CATALOG.find(item=>item.id==="solar-gold")!;
+  const saved=new Promise<void>(resolve=>guest.socket.once("profile:state",()=>resolve()));
+  pilot.fallbucks=item.price+25;
+  room.onProgress?.([pilot]);
+  await saved;
+  const reached=Promise.withResolvers<void>(),release=Promise.withResolvers<void>();
+  beforeReceipt(async()=>{reached.resolve();await release.promise;});
+  let acknowledged=false;
+  const purchase=guest.socket.timeout(5000).emitWithAck("shop:buy",{itemId:item.id}).then(result=>{acknowledged=true;return result;});
+  try{
+    await reached.promise;
+    expect(acknowledged).toBe(false);
+    expect(pilot.ownedCosmetics).not.toContain(item.id);
+  }finally{release.resolve();}
+  expect(await purchase).toEqual({ok:true});
+  expect((await guest.socket.timeout(5000).emitWithAck("shop:equip",{itemId:item.id})).ok).toBe(true);
+  const second=await boot(),returning=await second.connect({profile:true,profileToken:guest.ready.token});
+  expect(returning.ready.profile).toMatchObject({fallbucks:25,ownedCosmetics:[item.id],equippedCosmetics:{suit:item.id}});
+  expect(returning.ready.token).toBe(guest.ready.token);
+},30000);
+
+it("settles a retiring guest room into its linked ledger without broadcasting account progress to the old guest socket",async()=>{
+  const {boot,provider}=await fixture();
+  const first=await boot(),guest=await first.connect({profile:true});
+  const joined=await guest.socket.timeout(5000).emitWithAck("room:create",{name:"Retiring pilot"});
+  if(!joined.ok)throw Error(joined.error);
+  const room=first.app.manager.rooms.get(joined.room.code)!,pilot=room.players.get(joined.playerId)!;
+  const second=await boot();
+  const session=provider.issue("replacement-account");
+  const link=await (await second.post("session",session,{choice:"link",guestToken:guest.ready.token})).json();
+  expect(link).toMatchObject({state:"signed-in",claimedGuest:true});
+  expect(await guest.socket.timeout(5000).emitWithAck("leaderboard:visibility","Old guest")).toMatchObject({ok:false});
+  const pushed=vi.fn();
+  guest.socket.on("profile:state",pushed);
+  const ended=new Promise(resolve=>guest.socket.once("account:ended",resolve));
+  pilot.fallbucks+=30;pilot.sessionTotalXp+=60;
+  room.onProgress?.([pilot]);
+  expect(await ended).toBe("linked");
+  expect(pushed).not.toHaveBeenCalled();
+  const account=await second.connect({accountTicket:link.ticket});
+  expect(account.ready.profile).toMatchObject({fallbucks:30,sessionTotalXp:60});
+},30000);
 
 it("links the original earned ledger, rejects old guest and room credentials, and restores after restart",async()=>{
   const {boot,provider,db}=await fixture();
@@ -59,6 +128,7 @@ it("links the original earned ledger, rejects old guest and room credentials, an
   player.fallbucks=150;player.sessionTotalXp=115;player.crowns=1;
   player.ownedCosmetics.push("solar-gold");player.equippedCosmetics.suit="solar-gold";
   room.onProgress?.([player]);
+  expect(await guest.socket.timeout(5000).emitWithAck("leaderboard:visibility","Stella Flight")).toEqual({ok:true});
   const guestToken=guest.ready.token!;
   const first=provider.issue("primary"),second=provider.issue("primary");
   const stolen=provider.issue("different");
@@ -74,6 +144,12 @@ it("links the original earned ledger, rejects old guest and room credentials, an
   await expect(server.connect({accountTicket:link.ticket})).rejects.toThrow(/unavailable/);
   const bLink=await (await server.post("session",second)).json();
   const b=await server.connect({accountTicket:bLink.ticket});
+  const count=new Promise<number>(resolve=>b.socket.once("presence:count",resolve));
+  b.socket.emit("presence:menu",true);
+  expect(await count).toBe(1);
+  expect(await b.socket.timeout(5000).emitWithAck("leaderboard:read")).toMatchObject({ok:true,data:{
+    entries:[{rank:1,name:"Stella Flight",xp:115,isYou:true}],
+  }});
   expect(b.ready.profile).toEqual(a.ready.profile);
   expect(a.ready.profile).toMatchObject({fallbucks:200,crowns:1,sessionTotalXp:115,ownedCosmetics:["solar-gold"],equippedCosmetics:{suit:"solar-gold"}});
   expect(a.ready.profile.unlockedPassRewards).toContain("bucks-50");
@@ -102,6 +178,12 @@ it("links the original earned ledger, rejects old guest and room credentials, an
   server=await boot();
   const restoredLink=await (await server.post("session",second)).json();
   const restored=await server.connect({accountTicket:restoredLink.ticket});
+  const restartedCount=new Promise<number>(resolve=>restored.socket.once("presence:count",resolve));
+  restored.socket.emit("presence:menu",true);
+  expect(await restartedCount).toBe(1);
+  expect(await restored.socket.timeout(5000).emitWithAck("leaderboard:read")).toMatchObject({ok:true,data:{
+    currentPlayer:{rank:1,name:"Stella Flight",xp:115,isYou:true},
+  }});
   expect(restored.ready.profile).toMatchObject({fallbucks:225,sessionTotalXp:115,equippedCosmetics:{suit:"solar-gold"}});
   expect((await server.connect({profile:true,profileToken:guestToken})).ready.profile.fallbucks).toBe(0);
 },30_000);

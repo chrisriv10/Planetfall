@@ -1079,7 +1079,7 @@ export class BattleRoyaleRoom {
   }
 
   onProgress?:import("../../player-profiles.js").ProgressHandler;
-  private emitRoom(): void { this.onProgress?.(this.players.values());this.io.to(this.code).emit("br:room:state", this.view()); }
+  emitRoom(): void { this.onProgress?.(this.players.values());this.io.to(this.code).emit("br:room:state", this.view()); }
   private error(playerId: string, message: string, code?: string): void { const player = this.players.get(playerId); if (player?.socketId) this.io.to(player.socketId).emit("br:error", { message, code }); }
   private canDamage(attacker: BrPlayerRecord, target: BrPlayerRecord): boolean { return target.alive && target.id !== attacker.id && (BR_BALANCE.friendlyFire || target.teamId !== attacker.teamId); }
   private isActionPhase(): boolean { return this.phase === "ship" || this.phase === "combat"; }

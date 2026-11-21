@@ -26,6 +26,21 @@ describe("infected physical navigation",()=>{
   const nav=new PgZombieNavigation({...PG_MAP,navigation:[],solids});
   expect(nav.reachable({x:-3,y:3.5,z:0},{x:3,y:3.5,z:0})).toBe(false);
  });
+ it("includes capsule blockers over a cell boundary when climbing and rebuilding routes",()=>{
+  const floor={id:"floor",kind:"floor" as const,center:{x:0,y:-.5,z:0},half:{x:8,y:.5,z:8},mantle:false};
+  const step={id:"step",kind:"stair" as const,center:{x:3,y:.15,z:0},half:{x:1,y:.15,z:2},mantle:false};
+  const barrier={id:"rail",kind:"structure" as const,center:{x:4.16,y:1,z:0},half:{x:.04,y:1,z:1},mantle:false};
+  const from={x:0,y:0,z:0},to={x:3.9,y:.3,z:0};
+  const map={...PG_MAP,navigation:[],solids:[floor,step]};
+  const nav=new PgZombieNavigation(map);
+  expect(nav.connects(from,to)).toBe(true);
+  nav.update({...map,solids:[...map.solids,barrier]},1);
+  expect(nav.connects(from,to)).toBe(false);
+  expect(nav.supported(to)).toBe(false);
+  nav.update(map,2);
+  expect(nav.connects(from,to)).toBe(true);
+  expect(nav.supported(to)).toBe(true);
+ });
  it("walks between supported roof fallback entries without a ground anchor",()=>{const from={x:-30.5,y:6.8,z:-19},to={x:-22.5,y:6.8,z:-15.5},position=follow(from,to,quarantine().map);expect(Math.hypot(position.x-to.x,position.y-to.y,position.z-to.z)).toBeLessThan(.65);});
  it.each([{x:-32,y:0,z:-16},{x:-16,y:0,z:-16},{x:-31,y:3.5,z:-13}])("reaches the quarantined survivor from $x,$y,$z",from=>{const to={x:-28,y:0,z:-5.25},position=follow(from,to,quarantine().map);expect(Math.hypot(position.x-to.x,position.y-to.y,position.z-to.z),JSON.stringify(position)).toBeLessThan(.65);});
  it.each([{from:{x:-28,y:0,z:-3},to:{x:-25,y:3.5,z:-15}},{from:{x:-25,y:3.5,z:-15},to:{x:-28,y:0,z:-3}},{from:{x:32,y:0,z:4},to:{x:28,y:3.5,z:20}},{from:{x:28,y:3.5,z:20},to:{x:32,y:0,z:4}}])("walks a gallery stair route in either direction: $from -> $to",({from,to})=>{const position=follow(from,to);expect(Math.hypot(position.x-to.x,position.y-to.y,position.z-to.z),JSON.stringify(position)).toBeLessThan(.65);});

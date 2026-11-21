@@ -1,7 +1,55 @@
 import {describe,it,expect} from "vitest";
-import {pgSpawnMotion,pgStepMovement,type PgInput} from "@planetfall/shared";
+import {PG_BALANCE,PG_MAP,PG_SIEGE_MOVEMENT_RULES,pgCapsuleClear,pgSpawnMotion,pgStepMovement,type PgInput} from "@planetfall/shared";
 import {pgReconcileMotion,type PgPendingInput} from "./pg-prediction";
 describe("PlanetGun delayed input acknowledgements",()=>{
+ it("preserves a movement-locked authoritative pose while acknowledging and retaining queued inputs",()=>{
+  const authority=pgSpawnMotion({x:40,y:0,z:0},Math.PI/2);
+  authority.grounded=true;authority.mode="ground";
+  const command:PgInput={sequence:10,moveX:1,moveZ:-1,yaw:Math.PI/2,pitch:0,jump:true,sprint:true,crouch:true,ads:false,lean:1};
+  const pending:PgPendingInput[]=Array.from({length:4},(_,i)=>({input:{...command,sequence:10+i},at:1000+i*1000/PG_BALANCE.tickRate}));
+  const replay=pgReconcileMotion(authority,10,pending,1000,PG_MAP,PG_SIEGE_MOVEMENT_RULES,false);
+  expect(replay.motion).toEqual(authority);
+  expect(replay.motion.lean).toBe(0);
+  expect(replay.pending).toEqual(pending.slice(1));
+  expect(replay.at).toBeGreaterThanOrEqual(pending.at(-1)!.at);
+  expect(pgReconcileMotion(authority,13,replay.pending,1100,PG_MAP,PG_SIEGE_MOVEMENT_RULES,false).pending).toEqual([]);
+  const unlocked=pgReconcileMotion(authority,10,pending,1000,PG_MAP,PG_SIEGE_MOVEMENT_RULES,true);
+  expect(unlocked.motion.position).not.toEqual(authority.position);
+  expect(authority.position).toEqual({x:40,y:0,z:0});
+ });
+ it("matches authority when replaying a pending descent against the Nova Block north rail",()=>{
+  const authority=pgSpawnMotion({x:-21.008344116934055,y:1.36,z:-36.9058333333333},1.2957963267948966);
+  authority.velocity={x:.4,y:-6.2,z:-.9333333333333247};
+  let at=1000;
+  const pending:PgPendingInput[]=Array.from({length:24},(_,i)=>({
+   input:{sequence:i+1,moveX:0,moveZ:0,yaw:authority.yaw,pitch:0,jump:false,sprint:false,crouch:false,ads:false},
+   at:at+=1000/PG_BALANCE.tickRate
+  }));
+  const checkpoint=structuredClone(authority);
+  pgStepMovement(checkpoint,pending[0].input,1/60,pending[0].at,PG_MAP);
+  for(const p of pending)pgStepMovement(authority,p.input,1/60,p.at,PG_MAP);
+  const replay=pgReconcileMotion(checkpoint,1,pending,pending[0].at,PG_MAP);
+  expect(replay.motion).toEqual(authority);
+  expect(replay.pending).toEqual(pending.slice(1));
+  expect(authority.position.x).toBeCloseTo(-21.001677450267387,10);
+  expect(authority.grounded).toBe(true);
+  expect(pgCapsuleClear(authority.position,PG_BALANCE.height,PG_MAP)).toBe(true);
+ });
+ it("drops settled inputs even when a discarded command never moved the authoritative pilot",()=>{
+  const authority=pgSpawnMotion({x:40,y:0,z:0},Math.PI/2);
+  const idle={moveX:0,moveZ:0,yaw:authority.yaw,pitch:0,jump:false,sprint:false,crouch:false,ads:false};
+  const pending=[
+   {input:{...idle,sequence:10,collisionRevision:2,moveZ:1},at:1000},
+   {input:{...idle,sequence:11,collisionRevision:2,jump:true,moveX:1},at:1017},
+   {input:{...idle,sequence:12,collisionRevision:3,moveZ:-1},at:1034},
+  ];
+  const expected=structuredClone(authority);
+  pgStepMovement(expected,pending[2].input,1/60,pending[2].at);
+  const replay=pgReconcileMotion(authority,11,pending);
+  expect(replay.pending).toEqual([pending[2]]);
+  expect(replay.motion).toEqual(expected);
+  expect(pgReconcileMotion(expected,12,replay.pending).pending).toHaveLength(0);
+ });
  for(const delay of [3,6,11])it(`reconciles sprint, slide and thrust with ${delay} ticks of jitter and command loss`,()=>{
   let predicted=pgSpawnMotion({x:40,y:0,z:0},Math.PI/2);const authority=structuredClone(predicted),pending:PgPendingInput[]=[],snapshots:{at:number;motion:typeof authority;ack:number}[]=[];
   let input:PgInput={sequence:0,moveX:0,moveZ:0,yaw:Math.PI/2,pitch:0,jump:false,sprint:false,crouch:false,ads:false};

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DirectionalLight } from "three";
 import { PlanetfallGame } from "./game";
 import { BattleRoyaleGame } from "./modes/battle-royale/br-game";
 import {PlanetGunGame} from "./modes/planet-gun/pg-game";
@@ -87,10 +88,14 @@ describe("shared renderer mode ownership", () => {
   it.each([PlanetGunGame,PlanetRunGame])("keeps inactive arena/race settings off the active renderer",Mode=>{
     const {renderer}=fixture(true),world={setQuality:vi.fn()};
     const audio={setPgAmbience:vi.fn()};
-    const mode=Object.assign(Object.create(Mode.prototype),{active:false,renderer,world,audio,events:{setQuality:vi.fn()},settings:defaultSettings()});
+    const sun=Mode===PlanetGunGame?new DirectionalLight(0xcbe4ff,2.5):undefined;
+    if(sun)sun.castShadow=true;
+    const mode=Object.assign(Object.create(Mode.prototype),{active:false,renderer,world,audio,events:{setQuality:vi.fn()},settings:defaultSettings()},sun&&{sun});
     mode.setSettings({...defaultSettings(),graphicsQuality:"low"});
     expect(renderer.setPixelRatio).not.toHaveBeenCalled();expect(renderer.shadowMap.enabled).toBe(true);
+    if(sun)expect(sun.castShadow).toBe(true);
     mode.activate("pilot");expect(renderer.setPixelRatio).toHaveBeenCalledExactlyOnceWith(.72);expect(renderer.shadowMap.enabled).toBe(false);
+    if(sun)expect(sun.castShadow).toBe(false);
     mode.activate("pilot");expect(renderer.setPixelRatio).toHaveBeenCalledOnce();
     if(Mode===PlanetGunGame)expect(audio.setPgAmbience).toHaveBeenCalledExactlyOnceWith(true);
   });

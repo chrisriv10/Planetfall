@@ -18,6 +18,7 @@
     "audit:br-signs": "node tools/br-sign-audit.mjs",
     "audit:br-cleanup": "node tools/br-world-cleanup-audit.mjs",
     "test:e2e": "playwright test",
+    "test:e2e:production": "playwright test --config playwright.production.config.js",
     "pretypecheck": "npm run build -w @planetfall/shared",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },

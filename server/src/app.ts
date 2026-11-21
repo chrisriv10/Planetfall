@@ -37,7 +37,8 @@ export async function createPlanetfallServer(options: ServerOptions = {}) {
   const app = express();
   app.disable("x-powered-by");
   app.use(cors({ origin: (origin, callback) => callback(originAllowed(origin) ? null : new Error("Origin not allowed"), true) }));
-  app.use(express.json({ limit: "16kb" }));
+  // Browser APIs use plain JSON; reject encoded bodies before creating a decoder.
+  app.use(express.json({ limit: "16kb", inflate: false }));
   const server = http.createServer(app);
   const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, {
     cors: { origin: allowedOrigins, methods: ["GET", "POST"] },
@@ -66,11 +67,16 @@ export async function createPlanetfallServer(options: ServerOptions = {}) {
   }
   const persisted=options.testAccounts?await ProfileDatabase.open(options.testAccounts.connection):
     databaseUrl?await ProfileDatabase.connect(databaseUrl):undefined;
-  const profiles=new PlayerProfiles(persisted?undefined:profileFile,persisted?.document,persisted?.database);
+  let profiles:PlayerProfiles;
+  let claimed:string[];
+  try{
+    profiles=new PlayerProfiles(persisted?undefined:profileFile,persisted?.document,persisted?.database);
+    claimed=await persisted?.database.accountKeys()??[];
+  }catch(error){await persisted?.database.close().catch(()=>{});throw error;}
   const manager = new RoomManager(io,profiles,!isProduction&&process.env.PLANETFALL_PR_REVIEW==="1");
   let stopAccounts:(()=>void)|undefined;
   try {
-    for(const key of await persisted?.database.accountKeys(Boolean(provider))??[])profiles.holdGuest(key);
+    for(const key of claimed)profiles.holdGuest(key);
     if(provider&&accountOrigin&&persisted) {
       stopAccounts=installAccounts({app,io,manager,profiles,database:persisted.database,provider,origin:accountOrigin,gatewaySecret});
     } else {
@@ -90,6 +96,10 @@ export async function createPlanetfallServer(options: ServerOptions = {}) {
     if(request.path.startsWith("/api/account/"))return response.status(400).set("Cache-Control","private, no-store").end();
     next(error);
   });
+  io.use((socket,next)=>{
+    if(!profiles.usesDatabase){next();return;}
+    void manager.prepareProfile(socket).then(()=>next(),()=>next(new Error("Your saved profile is temporarily unavailable. Please reconnect.")));
+  });
   io.on("connection", (socket) => manager.bind(socket));
 
   return {
@@ -107,6 +117,7 @@ export async function createPlanetfallServer(options: ServerOptions = {}) {
     async close(): Promise<void> {
       stopAccounts?.();
       manager.stop();
+      io.disconnectSockets(true);
       try {
         await profiles.close();
       } finally {

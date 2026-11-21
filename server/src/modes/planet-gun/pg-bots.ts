@@ -42,6 +42,19 @@ function reachableNode(from:Vec3,to:Vec3,map:PgMap):boolean {
   return !escaping||bodySegmentClear(from,to,map);
 }
 const distance=(a:Vec3,b:Vec3)=>Math.hypot(a.x-b.x,a.z-b.z);
+const metric=(a:Vec3,b:Vec3)=>Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z);
+type NavigationNode=PgMap["navigation"][number];
+function reachableAnchor(nodes:NavigationNode[],position:Vec3,map:PgMap,skip=0):NavigationNode|undefined {
+  const ordered=nodes.map(node=>({node,distance:metric(node.position,position)})).sort((a,b)=>a.distance-b.distance);
+  let last:NavigationNode|undefined;
+  for(const {node} of ordered){
+    if(!reachableNode(position,node.position,map))continue;
+    if(skip--===0)return node;
+    last=node;
+  }
+  // Recovery advances to the next usable connector, clamped to the last one.
+  return last;
+}
 function visible(a:Vec3,b:Vec3):boolean {const n=Math.hypot(b.x-a.x,b.y-a.y,b.z-a.z);if(n<.001)return true;const direction={x:(b.x-a.x)/n,y:(b.y-a.y)/n,z:(b.z-a.z)/n};return !PG_MAP.solids.some(box=>{const t=pgRayBox(a,direction,box);return t!==null&&t<n;});}
 const walkEdges=new WeakMap<PgMap,Map<string,boolean>>();
 function walkEdgeClear(from:number,to:number,map:PgMap):boolean {
@@ -75,29 +88,29 @@ export function pgBotInput(p:PgPlayer,players:Iterable<PgPlayer>,now:number,diff
   const objective=context?.goal;
   // Modes request a stationary interaction by targeting the bot's current feet.
   if(!steered&&objective&&Math.hypot(objective.x-p.position.x,objective.y-p.position.y,objective.z-p.position.z)<.01){m.path=[];m.routeMap=map;m.routeGoal={...objective};m.routeBlocked=false;}
-  const metric=(a:Vec3,b:Vec3)=>Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z);
   const changedRoute=!!objective&&(m.routeMap!==map||!m.routeGoal||metric(objective,m.routeGoal)>.1);
   if(!steered&&(changedRoute||now>=m.nextDecision)){m.nextDecision=now+reaction;
-    const nodes=map.navigation.filter(n=>difficulty!=="easy"||n.position.y===0);
-    const ordered=[...nodes].sort((a,b)=>metric(a.position,p.position)-metric(b.position,p.position));
+    const nodes=difficulty==="easy"?map.navigation.filter(n=>n.position.y===0):map.navigation;
     // Patrol and pursuit retain their corners across combat reaction ticks too.
     // A moving visible enemy changes the destination only after changing nav anchor.
-    const chase=target?[...nodes].sort((a,b)=>metric(a.position,target.position)-metric(b.position,target.position)).find(n=>reachableNode(target.position,n.position,map)):undefined;
+    const chase=target&&!objective?reachableAnchor(nodes,target.position,map):undefined;
     const chaseChanged=!objective&&!!chase&&(m.routeTargetId!==target?.id||m.goal!==chase.id);
     const completed=!m.path.length&&!!m.routeGoal&&metric(m.routeGoal,p.position)<.85;
     const needsRoute=objective?changedRoute:m.routeMap!==map||chaseChanged||completed||!m.routeGoal;
     if(needsRoute){
-      const connectors=ordered.filter(n=>reachableNode(p.position,n.position,map));
-      const nearest=connectors[Math.min(m.routeRecovery??0,Math.max(0,connectors.length-1))];
+      const nearest=reachableAnchor(nodes,p.position,map,m.routeRecovery);
       if(!nearest){m.path=[];m.routeBlocked=true;m.routeMap=map;m.routeGoal=objective?{...objective}:undefined;}
       else {
         const tree=routeTree(nearest.id,map,context?.grounded,!objective);
-        const available=nodes.filter(n=>tree.has(n.id));
-        const upper=available.filter(n=>n.position.y>=2&&n.links.length>0),identity=p.id.charCodeAt(p.id.length-1);
-        const patrol=available.filter(n=>metric(n.position,p.position)>3);
-        const pool=difficulty!=="easy"&&upper.length&&Math.floor(now/6000)%3===identity%3?upper:patrol.length?patrol:available;
-        const previous=!objective&&!completed&&m.routeGoal?available.find(n=>metric(n.position,m.routeGoal!)<.1):undefined;
-        const goal=objective?([...nodes].sort((a,b)=>metric(a.position,objective)-metric(b.position,objective)).find(n=>reachableNode(objective,n.position,map))??nearest):chase&&available.some(n=>n.id===chase.id)?chase:previous??pool[(Math.floor(now/3500)+identity*7)%pool.length];
+        let goal=objective?reachableAnchor(nodes,objective,map)??nearest:chase&&tree.has(chase.id)?chase:undefined;
+        if(!goal){
+          const available=nodes.filter(n=>tree.has(n.id));
+          const previous=!completed&&m.routeGoal?available.find(n=>metric(n.position,m.routeGoal!)<.1):undefined;
+          const upper=available.filter(n=>n.position.y>=2&&n.links.length>0),identity=p.id.charCodeAt(p.id.length-1);
+          const patrol=available.filter(n=>metric(n.position,p.position)>3);
+          const pool=difficulty!=="easy"&&upper.length&&Math.floor(now/6000)%3===identity%3?upper:patrol.length?patrol:available;
+          goal=previous??pool[(Math.floor(now/3500)+identity*7)%pool.length];
+        }
         m.path=route(nearest.id,goal.id,tree);m.goal=goal.id;
         m.routeBlocked=nearest.id!==goal.id&&!m.path.length;
         m.path.unshift(nearest.id);m.routeMap=map;m.routeGoal={...(objective??goal.position)};m.routeTargetId=target?.id??null;

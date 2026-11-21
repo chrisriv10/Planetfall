@@ -242,7 +242,7 @@ test("Battle Royale lobby stays usable while its renderer module loads", async (
   });
   try {
     await page.goto("/");
-    await page.getByLabel("Name").fill("Loading Pilot");
+    await page.getByLabel("Name",{exact:true}).fill("Loading Pilot");
     await selectExperimentalFamily(page,"battle-royale");
     await page.getByRole("button", { name: "Create PlanetRoyale Room" }).click();
     await expect(page.locator("#br-lobby-screen")).toBeVisible();
@@ -269,7 +269,7 @@ test("Battle Royale creates an isolated room and enters the Starliner drop", asy
   // gameplay-state test; visual budgets are covered by the dedicated scene test.
   await page.evaluate(() => localStorage.setItem("planetfall:settings:v1", JSON.stringify({ mouseSensitivity: 1, controllerSensitivity: 1, invertY: false, musicVolume: 0, sfxVolume: 0, cameraShake: "off", graphicsQuality: "low" })));
   await page.reload();
-  await page.getByLabel("Name").fill("Star Pilot");
+  await page.getByLabel("Name",{exact:true}).fill("Star Pilot");
   await selectExperimentalFamily(page,"battle-royale");
   await page.getByRole("button", { name: "Create PlanetRoyale Room" }).click();
   await expect(page.locator("#br-lobby-screen")).toBeVisible();
@@ -366,7 +366,7 @@ test("Battle Royale Solo requires confirmation and respects quick-play settings"
   const checkpoint=(stage:string)=>console.info(`BR Solo timing: ${stage} ${Date.now()-started}ms`);
   await page.goto("/");
   checkpoint("home loaded");
-  await page.getByLabel("Name").fill("Intentional Pilot");
+  await page.getByLabel("Name",{exact:true}).fill("Intentional Pilot");
   await selectExperimentalFamily(page,"battle-royale");
   await page.locator("#play-solo").click();
   await expect(page.locator("#br-quick-play")).toBeVisible();
@@ -444,7 +444,7 @@ test("Battle Royale Solo requires confirmation and respects quick-play settings"
 test("the cannon guide marks its predicted planet impact", async ({ page }) => {
   const browserErrors = collectBrowserErrors(page);
   await page.goto("/");
-  await page.getByLabel("Name").fill("Nova");
+  await page.getByLabel("Name",{exact:true}).fill("Nova");
   await page.getByRole("button", { name: "Play Solo" }).click();
   await expect(page.locator("#hud")).toBeVisible();
   await expect(page.locator(".weapon-panel")).toContainText("CANNON WEAPON");
@@ -465,9 +465,9 @@ test("two players can create, join, ready, and start", async ({ browser }) => {
   const browserErrors = [collectBrowserErrors(host), collectBrowserErrors(guest)];
   await Promise.all([host.goto("/"), guest.goto("/")]);
 
-  await host.getByLabel("Name").fill("Nova");
+  await host.getByLabel("Name",{exact:true}).fill("Nova");
   await expect(host.getByRole("button", { name: "Create Room" })).toBeEnabled();
-  await expect(host.getByLabel("Name")).toHaveValue("Nova");
+  await expect(host.getByLabel("Name",{exact:true})).toHaveValue("Nova");
   await host.getByRole("button", { name: "Create Room" }).click();
   await expect(host.getByRole("heading", { name: "Crew" })).toBeVisible();
   await expect.poll(async () => (await debugState(host)).lobbyAvatarCount).toBe(1);
@@ -480,7 +480,7 @@ test("two players can create, join, ready, and start", async ({ browser }) => {
   await expect(host.locator("#bot-hard")).toHaveClass(/selected/);
   const code = (await host.locator("#lobby-code").textContent())!;
 
-  await guest.getByLabel("Name").fill("Orbit");
+  await guest.getByLabel("Name",{exact:true}).fill("Orbit");
   await guest.getByLabel("Room code").fill(code);
   await guest.getByRole("button", { name: "Join Game" }).click();
   await expect(guest.locator("#player-list").getByText("Nova",{exact:true})).toBeVisible();
@@ -509,12 +509,12 @@ test("a human can raid, steal, shove, sabotage, and resume cannon play", async (
   const guest = await guestContext.newPage();
   const browserErrors = [collectBrowserErrors(host), collectBrowserErrors(guest)];
   await Promise.all([host.goto("/"), guest.goto("/")]);
-  await host.getByLabel("Name").fill("Chris");
+  await host.getByLabel("Name",{exact:true}).fill("Chris");
   await host.getByRole("button", { name: "Create Room" }).click();
   await expect(host.getByRole("heading", { name: "Crew" })).toBeVisible();
   await expect(host.locator("#lobby-code")).not.toHaveText("------");
   const code = (await host.locator("#lobby-code").textContent())!;
-  await guest.getByLabel("Name").fill("Nova");
+  await guest.getByLabel("Name",{exact:true}).fill("Nova");
   await guest.getByLabel("Room code").fill(code);
   await guest.getByRole("button", { name: "Join Game" }).click();
   await expect(guest.getByText("Chris")).toBeVisible();
@@ -807,11 +807,11 @@ test("the host can start one clearly revealed Chaos modifier", async ({ browser 
   const guest = await guestContext.newPage();
   const browserErrors = [collectBrowserErrors(host), collectBrowserErrors(guest)];
   await Promise.all([host.goto("/"), guest.goto("/")]);
-  await host.getByLabel("Name").fill("Vega");
+  await host.getByLabel("Name",{exact:true}).fill("Vega");
   await host.getByRole("button", { name: "Create Room" }).click();
   await expect(host.locator("#lobby-code")).not.toHaveText("------");
   const code = (await host.locator("#lobby-code").textContent())!;
-  await guest.getByLabel("Name").fill("Luna");
+  await guest.getByLabel("Name",{exact:true}).fill("Luna");
   await guest.getByLabel("Room code").fill(code);
   await guest.getByRole("button", { name: "Join Game" }).click();
   await expect(guest.getByRole("heading", { name: "Crew" })).toBeVisible();
@@ -837,7 +837,7 @@ test("the host can start one clearly revealed Chaos modifier", async ({ browser 
 test("six participants remain readable and within the visual budget", async ({ page }) => {
   const browserErrors = collectBrowserErrors(page);
   await page.goto("/");
-  await page.getByLabel("Name").fill("Clarity");
+  await page.getByLabel("Name",{exact:true}).fill("Clarity");
   await page.getByRole("button", { name: "Create Room" }).click();
   for (let index = 0; index < 5; index++) await page.getByRole("button", { name: "+ Add Bot" }).click();
   await expect(page.locator("#player-list .player-row")).toHaveCount(6);
@@ -863,7 +863,7 @@ test("solo quick play starts with three clearly marked bots", async ({ page }) =
   const musicResponse = page.waitForResponse((response) => response.url().endsWith(MUSIC_TRACKS.menu.url));
   await page.goto("/");
   expect((await musicResponse).ok()).toBe(true);
-  await page.getByLabel("Name").fill("Chris");
+  await page.getByLabel("Name",{exact:true}).fill("Chris");
   await page.getByRole("button", { name: "Play Solo" }).click();
   await expect(page.locator("#hud")).toBeVisible();
   await expect(page.locator("#leaderboard-list .bot-badge")).toHaveCount(3);

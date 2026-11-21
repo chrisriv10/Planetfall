@@ -33,3 +33,75 @@ describe("PlanetGun authoritative/predicted movement",()=>{
   }
  });
 });
+
+describe("Nova Block deck rail collision",()=>{
+ const northRail=PG_MAP.solids.find(b=>b.id==="deck-rail-north")!;
+ const inside=northRail.center.z+northRail.half.z+B.radius;
+
+ it("resolves the captured landing off the front face of the north rail",()=>{
+  const p=pgSpawnMotion({x:-21.008344116934055,y:1.36,z:-36.9058333333333},1.2957963267948966);
+  p.velocity={x:.4,y:-6.2,z:-.9333333333333247};
+  step(p,{yaw:p.yaw},2,PG_MAP,1000);
+  expect(p.position.x).toBeCloseTo(-21.001677450267387,10);
+  expect(p.position.z).toBeCloseTo(inside,10);
+  expect(p.position.y).toBeCloseTo(1.1333333333333333,10);
+  expect(p.velocity.x).toBeCloseTo(.1333333333333334,10);
+  expect(p.velocity.z).toBe(0);
+  expect(p.velocity.y).toBeCloseTo(-7,10);
+  expect(p.grounded).toBe(false);
+  expect(pgCapsuleClear(p.position,B.height)).toBe(true);
+  step(p,{yaw:p.yaw},20,PG_MAP,1034);
+  expect(p.position.y).toBe(0);
+  expect(p.grounded).toBe(true);
+ });
+
+ it.each([
+  [-20,-36.91,.3,-.8,-6],
+  [15,-36.97,-1.2,.5,-4],
+  [0,-38.07,1.1,.6,-8],
+  [-30,-37.98,0,0,-2],
+  [-44.96,-36.94,.6,-.9,-6],
+  [44.96,-36.94,-.6,-.9,-4],
+  [46.06,-37.52,-.6,0,-6],
+  [-46.06,-37.52,.6,0,-8]
+ ])("keeps a descent at x=%s z=%s local to the contacted rail face",(x,z,vx,vz,vy)=>{
+  const p=pgSpawnMotion({x,y:1.25,z});
+  p.velocity={x:vx,y:vy,z:vz};
+  for(let i=0;i<5;i++){
+   const before={...p.position};
+   step(p,{},1,PG_MAP,1000+i*1000/60);
+   expect(Math.hypot(p.position.x-before.x,p.position.z-before.z)).toBeLessThan(.55);
+   expect(pgCapsuleClear(p.position,B.height)).toBe(true);
+  }
+ });
+
+ it.each([false,true])("blocks ground approaches from both sides and allows tangential travel (sprint=%s)",sprint=>{
+  const railMap=arena([northRail]);
+  for(const direction of [-1,1]){
+   const p=pgSpawnMotion({x:-21,y:0,z:northRail.center.z-direction*2});
+   p.grounded=true;
+   step(p,{moveX:.8,moveZ:direction*.6,sprint},65,railMap);
+   const boundary=northRail.center.z-direction*(northRail.half.z+B.radius);
+   expect(p.position.z).toBeCloseTo(boundary,8);
+   expect(p.position.x).toBeGreaterThan(-17);
+   expect(p.velocity.x).toBeGreaterThan(0);
+   expect(p.grounded).toBe(true);
+   expect(pgCapsuleClear(p.position,B.height,railMap)).toBe(true);
+  }
+ });
+
+ it("blocks a slide into the rail while keeping the slide's tangential movement",()=>{
+  const p=pgSpawnMotion({x:-21,y:0,z:inside+.2});
+  p.grounded=true;
+  p.velocity={x:7,y:0,z:-6};
+  for(let i=0;i<10;i++){
+   step(p,{moveX:.8,moveZ:-.6,sprint:true,crouch:true},1,PG_MAP,1000+i*1000/60);
+   expect(p.position.z).toBeGreaterThanOrEqual(inside-.01);
+  }
+  expect(p.mode).toBe("slide");
+  expect(p.position.z).toBeLessThanOrEqual(inside);
+  expect(pgCapsuleClear(p.position,B.crouchHeight)).toBe(true);
+  expect(p.position.x).toBeGreaterThan(-20.5);
+  expect(p.grounded).toBe(true);
+ });
+});

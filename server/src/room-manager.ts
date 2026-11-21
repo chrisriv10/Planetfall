@@ -1,11 +1,14 @@
 import {PlanetGunRoom} from "./modes/planet-gun/pg-room.js";
 import { randomBytes } from "node:crypto";
 import type { Server, Socket } from "socket.io";
-import { BALANCE, type BrJoinResult, type ClientToServerEvents, type JoinResult, type ServerToClientEvents } from "@planetfall/shared";
+import { BALANCE, type BrJoinResult, type ClientToServerEvents, type GameFamily, type JoinResult, type ServerToClientEvents } from "@planetfall/shared";
 import { GameRoom } from "./game-room.js";
 import { BattleRoyaleRoom } from "./modes/battle-royale/br-room.js";
 import {PlanetRunRoom} from "./modes/planet-run/pr-room.js";
 import {PlayerProfiles} from "./player-profiles.js";
+import {GlobalLeaderboard} from "./global-leaderboard.js";
+import {PlayerPresence} from "./player-presence.js";
+import type {ShopResult} from "./cosmetic-shop.js";
 
 type GameSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 type GameServer = Server<ClientToServerEvents, ServerToClientEvents>;
@@ -15,9 +18,15 @@ export class RoomManager {
   rooms = new Map<string, GameRoom | BattleRoyaleRoom | PlanetRunRoom | PlanetGunRoom>();
   private timer: NodeJS.Timeout | null = null;
   private lastTick = Date.now();
+  private readonly leaderboard:GlobalLeaderboard;
+  private readonly presence:PlayerPresence;
 
   constructor(private io: GameServer,private profiles=new PlayerProfiles(),private readonly allowPrReview=process.env.NODE_ENV!=="production"&&process.env.PLANETFALL_PR_REVIEW==="1") {
+    this.leaderboard=new GlobalLeaderboard(profiles);
+    this.presence=new PlayerPresence(io);
     this.profiles.onChange=(key,profile)=>{for(const socket of this.io.sockets.sockets.values())if(socket.data.profileKey===key)socket.emit("profile:state",profile);};
+    this.profiles.onSaveFailure=(key)=>{for(const socket of this.io.sockets.sockets.values())if(socket.data.profileKey===key)socket.emit("server:error",{message:"The server could not confirm your progression save. It will retry."});};
+    this.profiles.onGuestClaimed=key=>this.endGuestAccess(key);
   }
 
   start(): void {
@@ -43,15 +52,38 @@ export class RoomManager {
     this.timer = null;
     for (const room of this.rooms.values()){this.profiles.capture(room.players.values());room.dispose();}
     this.rooms.clear();
+    this.presence.stop();
+  }
+
+  async prepareProfile(socket:GameSocket):Promise<void> {
+    if(typeof socket.data.profileKey==="string"){
+      if(!await this.profiles.refresh(socket.data.profileKey))throw new Error("Account profile unavailable");
+    }else if(socket.handshake.auth?.profile===true){
+      const identity=await this.profiles.connectGuest(socket.handshake.auth.profileToken);
+      socket.data.profileKey=identity.key;
+      socket.data.profileToken=identity.token;
+    }
   }
 
   bind(socket: GameSocket): void {
     if(typeof socket.data.profileKey==="string"){
-      socket.emit("profile:ready",{profile:this.profiles.view(socket.data.profileKey)});
+      socket.emit("profile:ready",{token:socket.data.profileToken,profile:this.profiles.view(socket.data.profileKey)});
     }else if(socket.handshake.auth?.profile===true){
       try{const profile=this.profiles.open(socket.handshake.auth.profileToken);socket.data.profileKey=profile.key;socket.emit("profile:ready",{token:profile.token,profile:this.profiles.view(profile.key)});}
       catch(error){console.error("Cannot open persistent player profile.",error);socket.emit("server:error",{message:"Your saved profile is temporarily unavailable. Please reconnect."});socket.disconnect(true);return;}
     }
+    const profileKey=typeof socket.data.profileKey==="string"?socket.data.profileKey:undefined;
+    if(profileKey)this.presence.bind(socket,profileKey);
+    socket.on("leaderboard:read",ack=>{
+      if(typeof ack!=="function")return;
+      void this.leaderboard.read(profileKey).then(
+        data=>ack({ok:true,data}),
+        ()=>ack({ok:false,error:"The leaderboard is temporarily unavailable. Try again."}),
+      );
+    });
+    socket.on("leaderboard:visibility",(name,ack)=>{
+      if(typeof ack==="function")void this.leaderboard.setVisibility(profileKey,name,!socket.data.accountPrincipal).then(ack);
+    });
     socket.on("room:leave", (payload, ack) => {
       const code = String(payload?.code ?? "").trim().toUpperCase();
       const current = this.current(socket);
@@ -110,11 +142,11 @@ export class RoomManager {
     socket.on("player:emote", (payload) => { const c = this.currentClassic(socket); if (c) c.room.playEmote(c.playerId, payload?.emote, payload?.direction); });
     socket.on("shop:buy", (payload, ack) => {
       const c = this.currentClassic(socket);
-      if (typeof ack === "function") ack(c ? c.room.buyShopItem(c.playerId, payload?.itemId) : { ok: false, error: "Not in a room." });
+      if (typeof ack === "function") this.shop(socket,c,"planetfall","buy",payload?.itemId,ack);
     });
     socket.on("shop:equip", (payload, ack) => {
       const c = this.currentClassic(socket);
-      if (typeof ack === "function") ack(c ? c.room.equipShopItem(c.playerId, payload?.itemId) : { ok: false, error: "Not in a room." });
+      if (typeof ack === "function") this.shop(socket,c,"planetfall","equip",payload?.itemId,ack);
     });
     socket.on("match:rematch", () => { const c = this.currentClassic(socket); if (c) c.room.voteRematch(c.playerId); });
 
@@ -169,8 +201,8 @@ export class RoomManager {
     socket.on("br:ping", (payload) => { const c = this.currentBr(socket); if (c) c.room.ping(c.playerId, payload?.type, payload?.position, payload?.itemId); });
     socket.on("br:emote", (payload) => { const c = this.currentBr(socket); if (c) c.room.playEmote(c.playerId, payload?.emote, payload?.direction); });
     socket.on("br:match:return", () => { const c = this.currentBr(socket); if (c) c.room.returnToLobby(c.playerId); });
-    socket.on("br:shop:buy", (payload, ack) => { const c = this.currentBr(socket); if (typeof ack === "function") ack(c ? c.room.buyShopItem(c.playerId, String(payload?.itemId ?? "")) : { ok: false, error: "Not in a Battle Royale room." }); });
-    socket.on("br:shop:equip", (payload, ack) => { const c = this.currentBr(socket); if (typeof ack === "function") ack(c ? c.room.equipShopItem(c.playerId, String(payload?.itemId ?? "")) : { ok: false, error: "Not in a Battle Royale room." }); });
+    socket.on("br:shop:buy",(p,ack)=>{if(typeof ack==="function")this.shop(socket,this.currentBr(socket),"battle-royale","buy",p?.itemId,ack);});
+    socket.on("br:shop:equip",(p,ack)=>{if(typeof ack==="function")this.shop(socket,this.currentBr(socket),"battle-royale","equip",p?.itemId,ack);});
     socket.on("pr:room:create", (payload,ack) => {
       if(typeof ack!=="function")return;
       if(this.current(socket))return ack({ok:false,error:"Already in a room."});
@@ -199,8 +231,8 @@ export class RoomManager {
     });
     socket.on("pr:emote",p=>{const c=this.currentPr(socket);if(c)c.room.playEmote(c.playerId,p?.emote);});
     socket.on("pr:tiles:sync",()=>{const c=this.currentPr(socket);c?.room.syncTiles(c.playerId);});
-    socket.on("pr:shop:buy",(p,ack)=>{const c=this.currentPr(socket);if(typeof ack==="function")ack(c?c.room.buyShopItem(c.playerId,String(p?.itemId??"")):{ok:false,error:"Not in PlanetRun."});});
-    socket.on("pr:shop:equip",(p,ack)=>{const c=this.currentPr(socket);if(typeof ack==="function")ack(c?c.room.equipShopItem(c.playerId,String(p?.itemId??"")):{ok:false,error:"Not in PlanetRun."});});
+    socket.on("pr:shop:buy",(p,ack)=>{if(typeof ack==="function")this.shop(socket,this.currentPr(socket),"planet-run","buy",p?.itemId,ack);});
+    socket.on("pr:shop:equip",(p,ack)=>{if(typeof ack==="function")this.shop(socket,this.currentPr(socket),"planet-run","equip",p?.itemId,ack);});
     socket.on("pg:clock",ack=>{if(typeof ack==="function")ack(Date.now());});
     socket.on("pg:room:create",(payload,ack)=>{
       if(typeof ack!=="function")return;
@@ -229,15 +261,36 @@ export class RoomManager {
     socket.on("pg:weapon:fire",p=>{const c=this.currentPg(socket);c?.room.fire(c.playerId,p);});
     socket.on("pg:weapon:reload",()=>{const c=this.currentPg(socket);c?.room.reload(c.playerId);});
     socket.on("pg:weapon:switch",p=>{const c=this.currentPg(socket);c?.room.switchWeapon(c.playerId,p?.slot);});
-    socket.on("pg:shop:buy",(p,ack)=>{const c=this.currentPg(socket);if(typeof ack==="function")ack(c?c.room.buyShopItem(c.playerId,String(p?.itemId??"")):{ok:false,error:"Not in PlanetGun."});});
-    socket.on("pg:shop:equip",(p,ack)=>{const c=this.currentPg(socket);if(typeof ack==="function")ack(c?c.room.equipShopItem(c.playerId,String(p?.itemId??"")):{ok:false,error:"Not in PlanetGun."});});
+    socket.on("pg:shop:buy",(p,ack)=>{if(typeof ack==="function")this.shop(socket,this.currentPg(socket),"planet-gun","buy",p?.itemId,ack);});
+    socket.on("pg:shop:equip",(p,ack)=>{if(typeof ack==="function")this.shop(socket,this.currentPg(socket),"planet-gun","equip",p?.itemId,ack);});
     socket.on("disconnect", () => { const c = this.current(socket); if (c) c.room.disconnect(c.playerId); });
+  }
+
+  private shop(socket:GameSocket,current:ReturnType<RoomManager["current"]>,family:GameFamily,action:"buy"|"equip",item:unknown,ack:(result:ShopResult)=>void):void {
+    if(!current){ack({ok:false,error:"Not in a room."});return;}
+    const {room,playerId}=current;
+    const key=socket.data.profileKey;
+    if(!this.profiles.usesDatabase||typeof key!=="string"){
+      const result=action==="buy"?room.buyShopItem(playerId,String(item??"")):room.equipShopItem(playerId,String(item??""));
+      ack(result.ok?{ok:true}:{ok:false,error:result.error??"Shop request failed."});
+      return;
+    }
+    const phase=()=>socket.connected&&socket.data.roomCode===room.code&&socket.data.playerId===playerId?room.phase:"";
+    void this.profiles.shop(key,!socket.data.accountPrincipal,action,item,family,phase).then(result=>{
+      if(phase())room.emitRoom();
+      ack(result);
+    },()=>ack({ok:false,error:"Your saved Shop update could not be confirmed. Please try again."}));
   }
 
   endIdentity(socket:GameSocket,reason:Parameters<ServerToClientEvents["account:ended"]>[0]):void {
     this.leaveMembership(socket);
     socket.emit("account:ended",reason);
     socket.disconnect(true);
+  }
+  endGuestAccess(key:string):void {
+    for(const socket of this.io.sockets.sockets.values()){
+      if(socket.data.profileKey===key&&!socket.data.accountPrincipal)this.endIdentity(socket,"linked");
+    }
   }
 
   private leaveMembership(socket:GameSocket):void {
