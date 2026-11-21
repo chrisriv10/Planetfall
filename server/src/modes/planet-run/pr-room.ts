@@ -163,7 +163,7 @@ export class PlanetRunRoom {
   }
   private snapshot(now:number,full:boolean):PrSnapshot{return {serverTime:now,roundStartedAt:this.roundStartedAt,phaseEndsAt:this.phaseEndsAt,phase:this.phase,roundId:this.round?.id??null,roundIndex:this.roundIndex,seed:this.seed,players:[...this.players.values()].map(p=>{const {fallbucks,crowns,sessionTotalXp,sessionLevel,sessionXp,ownedCosmetics,unlockedPassRewards,...state}=publicPlayer(p);return state;}),qualificationTarget:this.qualificationTarget,winnerId:this.winnerId,tileRevision:this.tiles.revision,tilesFull:full,tiles:full?this.tiles.full():[]};}
   private migrateHost():void{this.hostId=[...this.players.values()].find(p=>!p.isBot&&p.connected)?.id??"";}
-  private emitRoom():void{this.onProgress?.(this.players.values());this.io.to(this.code).emit("pr:room:state",this.view());}
+  emitRoom():void{this.onProgress?.(this.players.values());this.io.to(this.code).emit("pr:room:state",this.view());}
   private makePlayer(name:string,isBot:boolean):Record {
     return {...prSpawn({x:0,y:.6,z:0}),id:`pr-${randomUUID().slice(0,12)}`,name,isBot,color:["#ff976c","#75e5d0","#bca0ff","#f8dc77"][this.players.size%4],connected:!isBot,ready:isBot,emote:null,emoteStartedAt:-2000,status:"active",checkpoint:0,place:0,qualifiedRounds:0,lastInputSequence:-1,fallbucks:0,crowns:0,sessionTotalXp:0,sessionLevel:1,sessionXp:0,ownedCosmetics:[],equippedCosmetics:{...DEFAULT_COSMETICS},unlockedPassRewards:["default"],socketId:null,sessionToken:randomBytes(24).toString("base64url"),disconnectedAt:null,input:idle(),lastInputAt:0,respawnAt:0,bot:{goal:0,nextDecision:0,sequence:0},eliminatedAt:0};
   }

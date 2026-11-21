@@ -64,16 +64,43 @@ export function createPgModeArt(){
    const g=o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone();local.multiplyMatrices(inverse[index],o.matrixWorld);g.applyMatrix4(local);g.deleteAttribute("uv");const material=Array.isArray(o.material)?o.material[0]:o.material,color=(material as THREE.MeshStandardMaterial).color??new THREE.Color(0x777777),values=new Float32Array(g.getAttribute("position").count*3);for(let i=0;i<values.length;i+=3){values[i]=color.r;values[i+1]=color.g;values[i+2]=color.b;}g.setAttribute("color",new THREE.BufferAttribute(values,3));parts[index].push(g);
   });
   const material=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.9,flatShading:true});materials.push(material);
-  const batches=parts.map((pieces,index)=>{const geometry=mergeGeometries(pieces)!;pieces.forEach(g=>g.dispose());geometries.push(geometry);const mesh=new THREE.InstancedMesh(geometry,material,32);mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);mesh.count=0;mesh.frustumCulled=false;mesh.name=`pg-infected-${kind}${partNames[index]}`;group.add(mesh);return {mesh,position:anchors[index].position.clone(),rotationZ:anchors[index].rotation.z};});
+  const batches=parts.map((pieces,index)=>{const geometry=mergeGeometries(pieces)!;pieces.forEach(g=>g.dispose());geometries.push(geometry);const mesh=new THREE.InstancedMesh(geometry,material,32);mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);mesh.count=0;mesh.visible=false;mesh.frustumCulled=false;mesh.name=`pg-infected-${kind}${partNames[index]}`;group.add(mesh);return {mesh,position:anchors[index].position.clone(),rotationZ:anchors[index].rotation.z};});
   infected.set(kind,batches);art.dispose();oldInstances.forEach(mesh=>mesh.dispose());oldGeometry.forEach(g=>g.dispose());oldMaterial.forEach(m=>m.dispose());
  }
  // Recycled records avoid per-frame objects and bound history even across long runs.
  const motion=Array.from({length:32},()=>({id:"",x:0,z:0,at:0,movedAt:0,speed:0,amount:0,phase:0}));
  const rootMatrix=new THREE.Matrix4(),bodyMatrix=new THREE.Matrix4(),partMatrix=new THREE.Matrix4(),pose=new THREE.Object3D();
- const windup=new THREE.InstancedMesh(ring,glow,32);windup.name="pg-infected-windup";windup.count=0;windup.frustumCulled=false;group.add(windup);
+ const windup=new THREE.InstancedMesh(ring,glow,32);windup.name="pg-infected-windup";windup.count=0;windup.visible=false;windup.frustumCulled=false;group.add(windup);
  const matrix=new THREE.Object3D(),direction=new THREE.Vector3(),up=new THREE.Vector3(0,1,0);let disposed=false;
  const colorFor=(kind:string)=>kind==="heat"||kind==="breach"||kind==="electric"?0xff934b:kind==="gravity"||kind==="jammer"?0xb09aff:kind==="smoke"?0x8994ae:0x69d6f1;
+ const watchEntryObjects:readonly THREE.Object3D[]=Object.freeze([...markers[0].root.children]);
  return {group,
+  /** Borrow the actual relay ground/label for targeted compilation without scene mutation. */
+  watchEntryShaderObjects():readonly THREE.Object3D[]{return watchEntryObjects;},
+  /** Call during loading, after world lights/fog and renderer quality are set.
+   * Only Cairn's two non-instanced, opaque world programs are compiled. The
+   * temporary objects borrow pool resources and never enter the visible scene.
+   */
+  async warmRampart(renderer:THREE.WebGLRenderer,camera:THREE.Camera,worldScene:THREE.Scene):Promise<void>{
+   if(disposed)throw new Error("Cannot warm disposed PlanetGun mode art");
+   if(renderer.getContext().isContextLost())throw new Error("Cannot warm Rampart with a lost WebGL context");
+   const body=new THREE.Mesh(box,panelMaterial),integrity=new THREE.Mesh(box,glow);
+   body.name="pg-rampart-warmup";integrity.name="panel-integrity";body.add(integrity);
+   try{
+    await renderer.compileAsync(body,camera,worldScene);
+    if(disposed||renderer.getContext().isContextLost())throw new Error("Rampart warm-up interrupted");
+    // Three r185 compileAsync waits for KHR_parallel_shader_compile, but leaves
+    // diagnostics and uniform/attribute discovery until first use. Without KHR
+    // it resolves without waiting for the driver at all. Finish precisely these
+    // two programs here, while the caller still holds the loading boundary.
+    // This is intentionally a narrow adapter to r185's program properties.
+    for(const material of [panelMaterial,glow]){
+     const properties=renderer.properties.get(material) as {currentProgram?:{getUniforms:()=>unknown}};
+     if(!properties.currentProgram)throw new Error("Rampart shader program was not prepared");
+     properties.currentProgram.getUniforms();
+    }
+   }finally{body.clear();}
+  },
   update(snapshot:PgModeSnapshot|null,_localId:string,serverTime:number,quality:GraphicsQuality="medium",reducedMotion=false,arsenalOwner:string|null=null,forgeOwner:string|null=null){
    if(disposed)return;group.visible=!!snapshot;
    arsenal.update(snapshot?.id==="planetzombies"?snapshot.arsenal:null,serverTime,arsenalOwner,quality,reducedMotion);
@@ -84,7 +111,7 @@ export function createPgModeArt(){
    tonics.root.visible=snapshot?.id==="planetzombies";if(snapshot?.id==="planetzombies")tonics.update(true,survivor?.perks??[],serverTime,quality,reducedMotion);
    securityCameras.update(snapshot?.id==="planetsiege"?snapshot.cameras:null);
    drops.update(snapshot?.id==="planetstrike"?snapshot.drops:null);
-   for(const m of panels)m.visible=false;for(const e of effects)e.root.visible=false;for(const m of markers)m.root.visible=false;for(const m of drones)m.visible=false;charge.visible=false;for(const parts of infected.values())for(const p of parts)p.mesh.count=0;windup.count=0;
+   for(const m of panels)m.visible=false;for(const e of effects)e.root.visible=false;for(const m of markers)m.root.visible=false;for(const m of drones)m.visible=false;charge.visible=false;for(const parts of infected.values())for(const p of parts){p.mesh.count=0;p.mesh.visible=false;}windup.count=0;windup.visible=false;
    if(snapshot?.id!=="planetzombies")for(const state of motion)state.id="";
    if(!snapshot)return;
    for(let i=0;i<Math.min(snapshot.collision.panels.length,panels.length);i++){const p=snapshot.collision.panels[i],mesh=panels[i];mesh.visible=p.active&&!p.id.startsWith("installation-")&&!barricades.ownsPanel(p.id);mesh.name=`pg-panel-${p.id}`;mesh.position.copy(p.solid.center);mesh.scale.set(p.solid.half.x*2,p.solid.half.y*2,p.solid.half.z*2);mesh.material=snapshot.id==="planetzombies"&&p.maxHp>=1000000?quarantineMaterial:p.reinforced?reinforcedMaterial:panelMaterial;mesh.children[0].visible=p.maxHp<1000000;mesh.userData.hp=p.hp;mesh.userData.maxHp=p.maxHp;const fraction=Math.max(0,Math.min(1,p.hp/Math.max(1,p.maxHp)));mesh.children[0].scale.set(p.solid.half.x>p.solid.half.z?fraction*.9:1.01,.025,p.solid.half.z>p.solid.half.x?fraction*.9:1.01);}
@@ -115,7 +142,9 @@ export function createPgModeArt(){
      for(let limb=1;limb<5;limb++){const part=parts[limb],arm=limb<3,side=limb===1||limb===3?-1:1;pose.position.copy(part.position);pose.rotation.set(arm?(warning?(z.kind==="bulwark"?-.95:-.65):(z.kind==="skitter"?-.3:0)-stride*side*.7):stride*side,0,part.rotationZ+(arm&&warning?side*.08:0));pose.updateMatrix();partMatrix.multiplyMatrices(arm?bodyMatrix:rootMatrix,pose.matrix);part.mesh.setMatrixAt(part.mesh.count++,partMatrix);}
      if(warning){matrix.position.set(z.position.x,z.position.y+.04,z.position.z);matrix.rotation.set(0,0,0);matrix.scale.setScalar(.65);matrix.updateMatrix();windup.setMatrixAt(windup.count++,matrix.matrix);}
     }
-    for(const parts of infected.values())for(const p of parts)p.mesh.instanceMatrix.needsUpdate=true;windup.instanceMatrix.needsUpdate=true;
+    // Keep the pool's existing first-draw behavior in Zombies. Other modes
+    // must never submit these zero-instance meshes to the renderer.
+    for(const parts of infected.values())for(const p of parts){p.mesh.visible=true;p.mesh.instanceMatrix.needsUpdate=true;}windup.visible=true;windup.instanceMatrix.needsUpdate=true;
    }
   },
   dispose(){if(disposed)return;disposed=true;barricades.dispose();wallBuys.dispose();forge.dispose();tonics.dispose();arsenal.dispose();securityCameras.dispose();drops.dispose();group.removeFromParent();group.clear();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());for(const parts of infected.values())for(const p of parts)p.mesh.dispose();windup.dispose();}

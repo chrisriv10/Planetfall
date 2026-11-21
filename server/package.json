@@ -8,6 +8,7 @@
     "build": "tsc -p tsconfig.json",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
+    "db:migrate": "node dist/migrate-profile-database.js",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

@@ -35,6 +35,14 @@ export interface GuestProfile {
   fallbucks:number;crowns:number;sessionTotalXp:number;sessionLevel:number;sessionXp:number;
   ownedCosmetics:string[];equippedCosmetics:EquippedCosmetics;unlockedPassRewards:string[];
 }
+export interface LeaderboardEntry {rank:number; name:string; xp:number; isYou:boolean;}
+export interface LeaderboardData {
+  entries:LeaderboardEntry[];
+  currentPlayer:LeaderboardEntry|null;
+  publicName:string|null;
+}
+export type LeaderboardResult={ok:true; data:LeaderboardData}|{ok:false; error:string};
+export type LeaderboardVisibilityResult={ok:true}|{ok:false; error:string};
 
 export interface ShopItem {
   id: string;
@@ -421,6 +429,9 @@ export interface ServerSnapshot {
 export type LeaveRoomResult = { ok: true } | { ok: false; error: string };
 
 export interface ClientToServerEvents extends BrClientToServerEvents, PrClientToServerEvents, PgClientToServerEvents {
+  "leaderboard:read": (ack:(result:LeaderboardResult)=>void) => void;
+  "leaderboard:visibility": (name:string|null,ack:(result:LeaderboardVisibilityResult)=>void) => void;
+  "presence:menu": (subscribed:boolean) => void;
   "room:leave": (payload: { code: string }, ack: (result: LeaveRoomResult) => void) => void;
   "room:create": (payload: { name: string; sessionToken?: string }, ack: (result: JoinResult) => void) => void;
   "room:solo": (payload: { name: string }, ack: (result: JoinResult) => void) => void;
@@ -442,6 +453,7 @@ export interface ClientToServerEvents extends BrClientToServerEvents, PrClientTo
 }
 
 export interface ServerToClientEvents extends BrServerToClientEvents, PrServerToClientEvents, PgServerToClientEvents {
+  "presence:count": (count:number) => void;
   "profile:ready": (payload: { token?: string; profile:GuestProfile }) => void;
   "account:ended": (reason: "expired" | "signed-out" | "linked" | "unavailable") => void;
   "profile:state": (profile:GuestProfile) => void;

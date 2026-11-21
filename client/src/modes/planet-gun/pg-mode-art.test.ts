@@ -1,9 +1,33 @@
-import {describe,it,expect} from "vitest";
+import {describe,it,expect,vi} from "vitest";
 import * as THREE from "three";
 import {pgCreateCollisionSnapshot,type PgModeSnapshot} from "@planetfall/shared";
 import {createPgModeArt} from "./pg-mode-art";
 const state=():Extract<PgModeSnapshot,{id:"planetzombies"}>=>({id:"planetzombies",forge:{phase:"idle",ownerId:null,weaponId:null,targetTier:null,startedAt:null,completesAt:null},collision:pgCreateCollisionSnapshot(),effects:[],pilots:{},round:1,subphase:"wave",deadline:10000,wave:1,remaining:1,queued:0,zombies:[],arsenal:{phase:"idle",ownerId:null,weaponId:null,revealAt:null,expiresAt:null},power:false,unlocked:[],reason:null});
 describe("PlanetGun authoritative world presentation",()=>{
+ it("keeps infected shader submissions exclusive to Zombies",()=>{
+  const art=createPgModeArt(),s=state(),batches:THREE.InstancedMesh[]=[];
+  art.group.traverse(o=>{if(o instanceof THREE.InstancedMesh&&o.name.startsWith("pg-infected-"))batches.push(o);});
+  const expectEmpty=()=>{expect(batches).toHaveLength(16);for(const mesh of batches){expect(mesh.count).toBe(0);expect(mesh.visible).toBe(false);}};
+  const watch:Extract<PgModeSnapshot,{id:"planetwatch"}>={...state(),id:"planetwatch",control:{owner:null,capture:{solar:0,void:0},progress:{solar:0,void:0},contested:false,point:0},roundScores:{solar:0,void:0},intel:[]};
+  expectEmpty();art.update(watch,"",0);expect(art.group.visible).toBe(true);expectEmpty();
+  s.zombies=[{id:"walker",kind:"drifter",position:{x:0,y:0,z:0},yaw:0,hp:100,maxHp:100,windupUntil:1000}];
+  art.update(s,"",100);for(const mesh of batches){expect(mesh.visible).toBe(true);expect(mesh.count).toBe(mesh.name.includes("drifter")||mesh.name==="pg-infected-windup"?1:0);}
+  art.update(s,"",1001);expect(batches.find(mesh=>mesh.name==="pg-infected-windup")!.count).toBe(0);
+  art.update(watch,"",1100);expectEmpty();art.update(s,"",1200);expect(batches.every(mesh=>mesh.visible)).toBe(true);
+  art.update(null,"",1400);expectEmpty();art.dispose();
+ });
+ it("exposes stable relay shader objects without changing their parent or visibility",()=>{
+  for(const withLabel of [false,true]){
+   const ctx={fillText:vi.fn(),fillRect:vi.fn(),clearRect:vi.fn()};
+   vi.stubGlobal("document",withLabel?{createElement:()=>({getContext:()=>ctx})}:undefined);
+   try{
+    const art=createPgModeArt(),objects=art.watchEntryShaderObjects(),marker=art.group.getObjectByName("pg-objective-0")!;
+    expect(objects).toEqual(marker.children);expect(objects).toHaveLength(withLabel?2:1);expect(objects[0]).toBeInstanceOf(THREE.Mesh);if(withLabel)expect(objects[1]).toBeInstanceOf(THREE.Sprite);
+    const parents=objects.map(o=>o.parent),visibility=objects.map(o=>o.visible);
+    expect(art.watchEntryShaderObjects()).toBe(objects);expect(objects.map(o=>o.parent)).toEqual(parents);expect(objects.map(o=>o.visible)).toEqual(visibility);expect(marker.visible).toBe(false);art.dispose();
+   }finally{vi.unstubAllGlobals();}
+  }
+ });
  it("marks objectives with ground rings and labels without solid posts through the capture position",()=>{
   const art=createPgModeArt(),s=state();art.update(s,"",0);
   const marker=art.group.getObjectByName("pg-objective-power")!;

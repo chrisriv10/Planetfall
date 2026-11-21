@@ -36,11 +36,7 @@ export function installAccounts({app,io,manager,profiles,database,provider,origi
   const expectedGateway = gatewaySecret ? digest(gatewaySecret) : undefined;
   let checking = false;
   const live = (session:AccountSession) => session.expiresAt>Date.now()&&!revoked.has(session.sessionId);
-  const ownership = new AccountOwnership(database,profiles,provider.issuer,key=>{
-    for(const socket of io.sockets.sockets.values()) {
-      if(socket.data.profileKey===key&&!socket.data.accountPrincipal)manager.endIdentity(socket,"linked");
-    }
-  });
+  const ownership = new AccountOwnership(database,profiles,provider.issuer,key=>manager.endGuestAccess(key));
 
   function endSession(session:AccountSession,reason:"expired"|"signed-out"|"unavailable") {
     if(reason!=="unavailable"&&session.expiresAt>Date.now())revoked.set(session.sessionId,session.expiresAt);
@@ -180,10 +176,15 @@ export function installAccounts({app,io,manager,profiles,database,provider,origi
     try {
       await ownership.reconcile();
       const accounts=new Map<string,Principal>();
+      const guests=new Set<string>();
       for(const socket of io.sockets.sockets.values()) {
         const principal=socket.data.accountPrincipal as Principal|undefined;
         if(principal)accounts.set(principal.session.sessionId,principal);
+        else if(typeof socket.data.profileKey==="string")guests.add(socket.data.profileKey);
       }
+      try{
+        for(const key of await database.linkedGuests([...guests]))profiles.holdGuest(key);
+      }catch{/* guest-only mutations still check ownership in PostgreSQL */}
       for(const id of failedChecks)if(!accounts.has(id))failedChecks.delete(id);
       // Cap concurrent provider traffic and share a verification across tabs.
       const sessions=[...accounts.values()];

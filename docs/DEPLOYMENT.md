@@ -24,12 +24,39 @@ Render supplies `PORT`. The server binds to `0.0.0.0` and serves HTTP health che
 
 The build explicitly includes dev dependencies because TypeScript is needed to compile the workspaces even with `NODE_ENV=production`.
 
-For saved Fallbucks, configure server-only `DATABASE_URL` with a durable
-PostgreSQL database before hosted playtesting. The Free service's local files
-are ephemeral; its file fallback cannot preserve wallets across sleep/restarts.
-See [saved player profiles](PLAYER_PROFILES.md) for setup and acceptance checks.
+For saved progression, set the server-only `DATABASE_URL` to the writable
+Neon connection for the restricted runtime role. The Free service's local
+files are ephemeral. Prepare the separate database migration before starting
+the service.
 
-Deploy and copy the public HTTPS service URL. Opening its `/health` path should return JSON with `ok: true`.
+After the authorized cutover below, verify `/health` reports both `ok: true`
+and `profileStorage: "postgresql"`.
+
+### Database migration and first transactional release
+
+Rehearse the [migration and grants](PLAYER_PROFILES.md#explicit-migration-and-database-roles)
+on an isolated Neon branch and verify a recoverable backup. The first
+production migration and deployment require explicit operator authorization.
+The older whole-ledger writer can overwrite newer progression, even with the
+new schema present. Stop new matches, drain active rooms, disable automatic
+replacement for this cutover, and verify the old writers have stopped and
+cannot reconnect. Then take or verify the final recovery point.
+
+Run `npm run db:migrate -w @planetfall/server` from the built release in an
+authorized environment with the direct owner URL in
+`PLANETFALL_MIGRATION_DATABASE_URL`. Run it again to verify it reports the
+schema is current. Apply the specific runtime role grants and verify the
+restricted connection. Render's build and start commands use neither the
+migration command nor its credentials.
+
+Start the corrected Render service with the restricted `DATABASE_URL`, verify
+database startup, then release the matching Pages revision. Confirm saves,
+reconnect and restart behavior, leaderboard opt-in and opt-out, account
+linking when enabled, and Players Online before reopening matches. Monitor
+database startup and save errors. For rollback, use a vetted version with
+transactional persistence and restricted startup. Retain the additive
+schema, operation receipts and newer committed progression. See the
+[first release and rollback procedure](PLAYER_PROFILES.md#first-release-and-rollback).
 
 ## 2. Cloudflare Pages client
 
@@ -60,14 +87,14 @@ Deployments and restarts erase active rooms. Publish updates between play sessio
 
 Guest profiles work independently of this configuration. Account sign-in is opt-in. Complete these steps for an isolated test branch first, and use production credentials only for an authorized release.
 
-1. Back up the existing progression database. Enable **Managed Better Auth** on an isolated Neon branch that contains the progression schema. Use the branch's Auth base URL exactly as displayed. Auth data lives in the `neon_auth` schema. The application preserves `planetfall_guest_profiles` and adds `planetfall_account_links` at startup when accounts are enabled. [Neon Auth setup](https://neon.com/docs/auth/overview), [authentication flow](https://neon.com/docs/auth/authentication-flow).
+1. Back up the existing progression database. Enable **Managed Better Auth** on an isolated Neon branch that contains the progression schema. Use the branch's Auth base URL exactly as displayed. Auth data lives in the `neon_auth` schema. The explicit profile migration verifies or creates the separate Planetfall account-link table before startup. [Neon Auth setup](https://neon.com/docs/auth/overview) · [Authentication flow](https://neon.com/docs/auth/authentication-flow)
 2. Configure Google OAuth in that branch. For launch, use your own Google Cloud **Web application** OAuth client and configure the consent screen and any required test users or publishing steps. In Google Cloud, register the branch's exact authorized redirect URI, `{NEON_AUTH_BASE_URL}/callback/google`. Add the exact Pages origin to Neon Auth **Trusted Domains**. Planetfall's application callback is `<PAGES_ORIGIN>/api/account/complete`. Google redirects to Neon and Neon returns the browser to Planetfall. [Neon OAuth setup](https://neon.com/docs/auth/guides/setup-oauth), [Neon’s production checklist](https://neon.com/docs/auth/production-checklist).
 3. Configure Render and Cloudflare Pages with the settings below. Use distinct random values of at least 32 characters for the two secrets. Scope both services to the same canonical HTTPS Pages origin. Keep the current public origin for the initial rollout so browsers can still read their existing guest credentials. Use separate Neon branches, secrets and origins for test and preview environments. Keep provider base URLs stable for a released branch because they namespace the account links.
 4. After authorizing release, deploy the server and Pages from the same revision. Check `/health` for `profileStorage: "postgresql"`. Check the account endpoint through Pages. Confirm first-party `Secure`, `HttpOnly`, `SameSite=Lax` cookies and a clean address bar after the OAuth callback. Test guest play, Google consent, guest linking, a second device with a separate browser profile, existing-profile conflict, sign-out/switch, rewards and cosmetics after a restart, and blocked third-party cookies. Validate both cancellation and a temporarily unavailable provider.
 
 | Where | Variable | Value |
 | --- | --- | --- |
-| Render secret | `DATABASE_URL` | Existing PostgreSQL connection string for the selected branch |
+| Render secret | `DATABASE_URL` | Writable PostgreSQL connection string for the selected branch and restricted runtime role |
 | Render | `NEON_AUTH_BASE_URL` | Managed Better Auth branch base URL |
 | Render secret | `NEON_AUTH_COOKIE_SECRET` | Random secret for the Neon adapter |
 | Render | `PLANETFALL_ACCOUNT_ORIGIN` | Exact Pages HTTPS origin, also listed in `CLIENT_ORIGIN` |
@@ -80,7 +107,7 @@ Enter Google OAuth credentials in the Neon console and disable unused sign-in me
 ### Local development and backups
 
 - Run `npm run dev` for regular guest development. Run `npm run test:e2e -- --project accounts` for the local browser flow with a fixture provider and isolated PGlite. It needs no provider or database credentials. Build the shared workspace first if running the fixture directly.
-- For real local OAuth, use an isolated Neon branch with Google enabled, add `http://localhost:5173` as a trusted domain, and set the local `DATABASE_URL`, `NEON_AUTH_BASE_URL`, `NEON_AUTH_COOKIE_SECRET`, and `PLANETFALL_ACCOUNT_ORIGIN=http://localhost:5173` in the server process environment. Vite proxies the account routes locally. Browse that exact origin. If your browser declines secure cookies on localhost, use a trusted local HTTPS frontend and configure that exact origin instead.
+- For real local OAuth, migrate an isolated Neon branch, enable Google there, and add `http://localhost:5173` as a trusted domain. Set the branch's runtime `DATABASE_URL`, `NEON_AUTH_BASE_URL`, `NEON_AUTH_COOKIE_SECRET`, and `PLANETFALL_ACCOUNT_ORIGIN=http://localhost:5173` in the server process environment. Vite proxies the account routes locally. Browse that exact origin. If your browser declines secure cookies on localhost, use a trusted local HTTPS frontend and configure that exact origin instead.
 - Keep one authoritative Render process. Take encrypted, access-restricted backups of the Planetfall ledger and links. Follow Neon's managed Auth backup procedures to preserve the related identity namespace. Validate restoration on an isolated branch and document the provider mapping before changing branch endpoints or restoring production. The Free point-in-time restore window is short, so keep offline logical backups for longer retention. [Neon restore documentation](https://neon.com/docs/introduction/branch-restore).
 
 ### Free-tier limits

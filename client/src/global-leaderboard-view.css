@@ -1,0 +1,51 @@
+#global-leaderboard-overlay { position: fixed; inset: 0; z-index: 160; display: grid; place-items: safe center; padding: clamp(12px, 3vw, 32px); box-sizing: border-box; overflow: auto; overscroll-behavior: contain; background: rgba(3, 6, 24, .8); backdrop-filter: blur(12px); }
+#global-leaderboard-overlay[hidden], .global-leaderboard-panel [hidden] { display: none !important; }
+.global-leaderboard-panel { width: min(100%, 660px); box-sizing: border-box; padding: clamp(18px, 3vw, 30px); border: 1px solid rgba(112, 245, 255, .28); border-radius: 24px; color: #f4f7ff; background: linear-gradient(145deg, #16204f, #080c27); box-shadow: 0 24px 90px #0007, inset 0 1px 0 #ffffff0f; }
+.global-leaderboard-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.global-leaderboard-header button { flex-shrink: 0; }
+.global-leaderboard-heading { margin: 0; font-size: clamp(24px, 4.5vw, 34px); letter-spacing: -.025em; line-height: 1.15; }
+.global-leaderboard-intro { color: #b8c9e2; font-size: 12px; line-height: 1.6; margin: 14px 0 18px; }
+.global-leaderboard-status { padding: 22px 16px; color: #d9e9ff; background: #030a244f; border-radius: 12px; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.global-leaderboard-table { border-collapse: separate; border-spacing: 0 4px; table-layout: fixed; width: 100%; font-variant-numeric: tabular-nums; }
+.global-leaderboard-table th { text-align: left; font-size: 10px; letter-spacing: .07em; text-transform: uppercase; color: #a7bad7; padding: 0 12px 7px; }
+.global-leaderboard-table th:first-child { width: 52px; }
+.global-leaderboard-table th:last-child { width: 105px; text-align: right; }
+.global-leaderboard-row td { padding: 10px 12px; font-size: 14px; background: #ffffff05; border-block: 1px solid transparent; }
+.global-leaderboard-row td:first-child { border-radius: 8px 0 0 8px; border-left: 1px solid transparent; }
+.global-leaderboard-row td:last-child { border-radius: 0 8px 8px 0; border-right: 1px solid transparent; }
+.global-leaderboard-rank { color: #a7bad7; font-weight: 800; }
+.global-leaderboard-row[data-rank="1"] .global-leaderboard-rank { color: #ffdc4f; }
+.global-leaderboard-row[data-rank="2"] .global-leaderboard-rank { color: #d5e5ff; }
+.global-leaderboard-row[data-rank="3"] .global-leaderboard-rank { color: #f0ad84; }
+.global-leaderboard-row[data-rank="1"] td { background: #ffdc4f09; }
+.global-leaderboard-row.is-you td { background: #70f5ff0b; border-color: #70f5ff30; }
+.global-leaderboard-pilot-name { overflow-wrap: anywhere; font-weight: 650; }
+.global-leaderboard-you { display: inline-block; margin-left: 7px; font-size: 9px; color: #70f5ff; font-weight: 800; letter-spacing: .06em; }
+.global-leaderboard-xp { text-align: right; font-weight: 750; color: #edf5ff; overflow-wrap: anywhere; }
+.global-leaderboard-personal { margin-top: 12px; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; padding: 12px 14px; border: 1px solid #70f5ff35; border-radius: 12px; background: #70f5ff07; }
+.global-leaderboard-personal span:first-child { font-size: 9px; letter-spacing: .08em; font-weight: 800; color: #9adfe8; }
+.global-leaderboard-personal strong { color: #70f5ff; font-size: 20px; font-variant-numeric: tabular-nums; }
+.global-leaderboard-personal span:last-child { margin-left: auto; font-size: 12px; color: #c1d2e9; }
+.global-leaderboard-sharing { margin-top: 22px; padding-top: 20px; border-top: 1px solid #adc5ed24; }
+.global-leaderboard-sharing h3 { font-size: 15px; margin: 0 0 8px; }
+.global-leaderboard-disclosure, .global-leaderboard-privacy, .global-leaderboard-save-status { color: #b6c6df; font-size: 11px; line-height: 1.6; margin: 8px 0; }
+.global-leaderboard-name-label { display: block; font-size: 11px; color: #d1def2; margin: 14px 0 6px; }
+.global-leaderboard-name { width: 100%; box-sizing: border-box; min-height: 44px; border: 1px solid #9abbe64f; border-radius: 9px; padding: 10px 12px; background: #02081d80; color: #f4f7ff; font: inherit; }
+.global-leaderboard-sharing-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.global-leaderboard-panel button { min-height: 44px; white-space: normal; }
+.global-leaderboard-panel :is(button, input):focus-visible { outline: 3px solid #70f5ff; outline-offset: 3px; }
+.global-leaderboard-panel :disabled { opacity: .5; cursor: wait; transform: none; }
+.global-leaderboard-save-status { color: #70f5ff; }
+.global-leaderboard-save-status:empty { display: none; }
+.global-leaderboard-sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width: 420px) { .global-leaderboard-header { gap: 8px; } .global-leaderboard-header button { padding-inline: 10px; } .global-leaderboard-table th:first-child { width: 38px; } .global-leaderboard-table th:last-child { width: 82px; } .global-leaderboard-table th, .global-leaderboard-row td { padding-inline: 7px; } .global-leaderboard-row td { font-size: 12px; } .global-leaderboard-sharing-actions { flex-direction: column; } }
+@media (prefers-reduced-motion: reduce) { .global-leaderboard-panel, .global-leaderboard-panel * { animation: none !important; transition: none !important; } }
+
+/* Specificity keeps this independent of account-panel stylesheet import order. */
+#home-screen .home-pilot-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+#home-screen .home-pilot-actions > button { min-width: 0; padding-inline: 8px; font-size: .71rem; white-space: normal; overflow-wrap: anywhere; }
+.home-presence { display: flex; align-items: baseline; justify-content: center; flex-wrap: wrap; gap: 5px 10px; margin: 14px 0 0; color: #a8b9d7; font-size: .72rem; line-height: 1.5; }
+.home-presence strong { color: #b9f4f1; font-size: .78rem; font-weight: 750; font-variant-numeric: tabular-nums; }
+.home-presence[data-state="unavailable"] strong { color: #a8b9d7; font-weight: 500; }
+@media (max-width: 420px) { #home-screen .home-pilot-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); } #home-screen #leaderboard-home { grid-column: 1 / -1; } }
+@media (max-height: 700px) { .home-presence { margin-top: 8px; } }

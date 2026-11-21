@@ -118,7 +118,19 @@ export function createPgViewmodel(){
   const reloadSample=createPgReloadSample(),weaponResponse=createPgWeaponResponse();
   const clamp=(v:number)=>Math.max(0,Math.min(1,Number.isFinite(v)?v:0));
   const wrist=new THREE.Vector3(),elbow=new THREE.Vector3(),direction=new THREE.Vector3(),up=new THREE.Vector3(0,1,0),parentOrientation=new THREE.Quaternion();
-  return{root,update(state:PgViewmodelState):void{
+  return{root,
+  /** Actual photon shader sources, including currently hidden attachment meshes. */
+  watchEntryShaderSources():{receiver:THREE.Mesh<THREE.BufferGeometry,THREE.MeshStandardMaterial>|null;cellRing:THREE.Mesh<THREE.BufferGeometry,THREE.MeshBasicMaterial>|null}{
+    let receiver:THREE.Mesh<THREE.BufferGeometry,THREE.MeshStandardMaterial>|null=null;
+    let cellRing:THREE.Mesh<THREE.BufferGeometry,THREE.MeshBasicMaterial>|null=null;
+    weapons.get("photon")?.traverse(object=>{
+      if(!(object instanceof THREE.Mesh))return;
+      const material=object.material;
+      if(material instanceof THREE.MeshStandardMaterial&&material.vertexColors&&!receiver)receiver=new THREE.Mesh(object.geometry,material);
+      if(material instanceof THREE.MeshBasicMaterial&&material.transparent&&material.side===THREE.FrontSide&&!cellRing)cellRing=new THREE.Mesh(object.geometry,material);
+    });
+    return {receiver,cellRing};
+  },update(state:PgViewmodelState):void{
     if(disposed)return;
     const time=Number.isFinite(state.time)?state.time:lastTime,responseDt=(time-lastTime)/1000,dt=Math.min(.05,Math.max(0,responseDt));lastTime=time;
     if(current===null){current=state.weapon;weapons.get(current)!.visible=true;}

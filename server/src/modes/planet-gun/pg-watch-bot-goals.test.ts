@@ -61,6 +61,38 @@ describe("PlanetWatch physical bot goals",()=>{
   }
   expect(pgCapsuleClear({x:2.2,y:0,z:0},PG_BALANCE.height,f.world.map)).toBe(true);
   expect(f.mode.botGoal(p,13001)).toBeNull();
+  for(let i=0;i<4;i++)expect(f.mode.botGoal(p,13200+i*200)).toBeNull();
+  f.world.damage("enclosure-0",200,14000);
+  f.world.damage("enclosure-1",200,14000);
+  f.world.damage("enclosure-2",200,14000);
+  f.world.damage("enclosure-3",200,14000);
+  assertGround(f.mode.botGoal(p,14001),f.world,p.position);
+ });
+ it("reuses relay ground checks across equivalent roles but rechecks moving origins",()=>{
+  const f=fixture(),first=f.players.get("cairn")!;
+  // Each team can field the same hero, with distinct origins.
+  const second={...first,id:"void-cairn",team:"void" as const,position:{...PG_MAP.spawns.at(-1)!.position}};
+  f.players.set(second.id,second);
+  const ground=vi.spyOn(f.mode as unknown as {validGround(position:Vec3):boolean},"validGround");
+  const reach=vi.spyOn(PgZombieNavigation.prototype,"reachable");
+  try{
+   const preferred=f.mode.botGoal(first,13000)!;
+   const blocker="shared-role-cover";
+   addCover(f.world,{id:blocker,kind:"structure",center:{...preferred,y:1.1},half:{x:.3,y:1.1,z:1.8},mantle:false});
+   const fallback=f.mode.botGoal(first,13001);
+   expect(fallback).not.toEqual(preferred);
+   const groundChecks=ground.mock.calls.length;
+   expect(f.mode.botGoal(second,13002)).toEqual(fallback);
+   expect(ground).toHaveBeenCalledTimes(groundChecks);
+   expect(reach.mock.calls.some(([from])=>from===second.position)).toBe(true);
+   first.position={...first.position,x:first.position.x+.05};
+   expect(f.mode.botGoal(first,13171)).toEqual(fallback);
+   expect(ground).toHaveBeenCalledTimes(groundChecks);
+   expect(reach.mock.calls.some(([from])=>from===first.position)).toBe(true);
+   f.world.damage(blocker,200,13172);
+   expect(f.mode.botGoal(first,13173)).toEqual(preferred);
+   expect(ground.mock.calls.length).toBeGreaterThan(groundChecks);
+  }finally{ground.mockRestore();reach.mockRestore();}
  });
  it("keeps support goals grounded when a wounded ally is airborne",()=>{
   const f=fixture(),p=f.players.get("solace")!,ally=f.players.get("cairn")!;

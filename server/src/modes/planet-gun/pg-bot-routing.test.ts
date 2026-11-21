@@ -1,4 +1,5 @@
-import {describe,expect,it} from "vitest";
+import {describe,expect,it,vi} from "vitest";
+import * as shared from "@planetfall/shared";
 import {PG_MAP,PG_OBJECTIVES,PG_TACTICAL_MOVEMENT_RULES,pgCollisionMap,pgCreateCollisionSnapshot,pgCreateGun,pgRayBox,pgSpawnMotion,pgStepMovement,type PgMap,type PgPlayer,type Vec3} from "@planetfall/shared";
 import {pgBotInput,pgBotMemory} from "./pg-bots.js";
 import {PgStrike} from "./pg-strike.js";
@@ -16,6 +17,23 @@ const corners=[
 ];
 
 describe("objective bot route following",()=>{
+ it("checks only the required physical connectors on a new route and none on a stable refresh",()=>{
+  const p=player(point(-1,0)),goal=point(1,0),memory=pgBotMemory();
+  const positions=[point(0,0),goal,...Array.from({length:96},(_,i)=>point(3+i*.25,0))];
+  const map:PgMap={...PG_MAP,solids:[PG_MAP.solids[0]],navigation:positions.map((position,id)=>({
+   id,position,links:id===0?[{to:1,kind:"walk"}]:[],
+  }))};
+  const rays=vi.spyOn(shared,"pgRayBox");
+  try{
+   pgBotInput(p,[p],1000,"normal",memory,context(goal,map));
+   expect(memory.path).toEqual([0,1]);
+   expect(rays).toHaveBeenCalledTimes(1);
+   pgBotInput(p,[p],1350,"normal",memory,context(goal,map));
+   expect(memory.path).toEqual([0,1]);
+   expect(rays).toHaveBeenCalledTimes(1);
+  }finally{rays.mockRestore();}
+ });
+
  it.each([
   {name:"recent incoming fire",damageAt:900,attacker:"enemy",range:40,respond:true},
   {name:"expired incoming fire",damageAt:-1000,attacker:"enemy",range:40,respond:false},

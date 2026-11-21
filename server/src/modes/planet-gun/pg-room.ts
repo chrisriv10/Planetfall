@@ -16,13 +16,15 @@ import {PgSiege} from "./pg-siege.js";
 import {PgZombies} from "./pg-zombies.js";
 type GameServer=Server<ClientToServerEvents,ServerToClientEvents>;
 type GameSocket=Socket<ClientToServerEvents,ServerToClientEvents>;
-interface Pilot extends PgPlayer {socketId:string|null;sessionToken:string;disconnectedAt:number|null;input:PgInput;lastInputAt:number;bot:PgBotMemory;fireSequence:number;}
+interface Pilot extends PgPlayer {socketId:string|null;sessionToken:string;disconnectedAt:number|null;input:PgInput;lastInputAt:number;receivedInputSequence:number;bot:PgBotMemory;fireSequence:number;}
+const INPUT_TIMEOUT_MS=400;
+const SNAPSHOT_PERIOD_MS=1000/B.snapshotRate;
 const idle=():PgInput=>({sequence:0,moveX:0,moveZ:0,yaw:0,pitch:0,jump:false,sprint:false,crouch:false,ads:false});
-const publicPlayer=(p:Pilot):PgPlayer=>{const {socketId,sessionToken,disconnectedAt,input,lastInputAt,bot,fireSequence,...state}=p;return structuredClone(state);};
+const publicPlayer=(p:Pilot):PgPlayer=>{const {socketId,sessionToken,disconnectedAt,input,lastInputAt,receivedInputSequence,bot,fireSequence,...state}=p;return structuredClone(state);};
 export class PlanetGunRoom {
   readonly family="planet-gun" as const;readonly players=new Map<string,Pilot>();
   hostId="";configuration:PgConfiguration={targetPlayers:12,fillBots:true,botDifficulty:"normal",scoreLimit:75};
-  private match=new PgMatch();private combat=new PgCombat();private accumulator=0;private lastSnapshot=0;private startedAt=0;private rewarded=false;private feed:PgSnapshot["feed"]=[];private deathDanger:PgSpawnDanger[]=[];
+  private match=new PgMatch();private combat=new PgCombat();private accumulator=0;private nextSnapshotAt:number|null=null;private startedAt=0;private rewarded=false;private feed:PgSnapshot["feed"]=[];private deathDanger:PgSpawnDanger[]=[];
   private mode:PgModeRuntime|null=null;private readonly world=new PgModeWorld();private modeStarted=false;
   private readonly actionSequences=new Map<string,number>();private readonly selections=new Map<string,string>();private readonly savedKits=new Map<string,PgLoadout>();private readonly selectedLoadouts=new Map<string,PgLoadout>();
   onProgress?:import("../../player-profiles.js").ProgressHandler;
@@ -97,14 +99,51 @@ export class PlanetGunRoom {
     if(this.configuration.fillBots)while(this.players.size<this.configuration.targetPlayers){const p=this.makePlayer(`Nova ${this.players.size+1}`,true);this.players.set(p.id,p);}
     if(this.players.size<(this.configuration.mode==="planetzombies"?1:2))return false;
     this.match=new PgMatch(this.configuration.scoreLimit);this.match.start(now);this.startedAt=now;this.rewarded=false;this.feed=[];this.deathDanger=[];this.combat.clear();this.accumulator=0;
+    this.nextSnapshotAt=null;
     this.actionSequences.clear();this.modeStarted=false;this.world.reset([],now);
     const context:PgModeContext={players:this.players,world:this.world,selections:this.selections,selectedLoadouts:this.selectedLoadouts,emitShot:shot=>this.io.to(this.code).emit("pg:combat:shot",shot),respawn:(p,at,loadout,position)=>{this.respawn(this.players.get(p.id)!,at,loadout,position);},damage:(target,attacker,amount,at)=>this.modeDamage(target,attacker,amount,at),finish:winner=>this.match.finish(winner)};
     this.mode=this.configuration.mode==="planetstrike"?new PgStrike(context):this.configuration.mode==="planetwatch"?new PgWatch(context):this.configuration.mode==="planetsiege"?new PgSiege(context):this.configuration.mode==="planetzombies"?new PgZombies(context):null;
     let i=0;for(const p of this.players.values()){if(!this.mode)p.team=i++%2?"void":"solar";if(this.configuration.mode==="planetzombies")p.team="solar";if(this.mode&&!this.savedKits.has(p.id))this.savedKits.set(p.id,structuredClone(p.loadout));p.hp=0;p.kills=0;p.deaths=0;this.respawn(p,now);}
     this.combat.history.record(this.players.values(),now);this.emitRoom();return true;
   }
-  setInput(id:string,raw:unknown):void {const p=this.players.get(id),input=pgSanitizeInput(raw);if(!p||p.isBot||p.hp<=0||!input||!["playing","overtime"].includes(this.phase)||input.sequence<=Math.max(p.lastInputSequence,p.input.sequence))return;if(this.mode&&input.collisionRevision!==this.world.revision){p.lastInputSequence=Math.max(p.lastInputSequence,input.sequence);return;}input.jump||=p.input.sequence>p.lastInputSequence&&p.input.jump;p.input=input;p.lastInputAt=Date.now();}
-  fire(id:string,request:PgFireRequest,now=Date.now()):void {if(!["playing","overtime"].includes(this.phase))return;const p=this.players.get(id);if(!p||this.mode&&!this.mode.canFire(p))return;const targets:PgModeTarget[]=this.mode?[...this.panelTargets(),...this.mode.targets(p)]:[];const shots=this.combat.fire(p,request,this.players.values(),now,this.mode?{solids:this.world.shotSolids(Math.min(now,request?.clientTime??now),now),targets,damage:(victim,attacker,amount,at)=>this.modeDamage(victim,attacker,amount,at),modifiers:this.mode.weaponModifiers?.(p,now)}:undefined);for(const shot of shots){this.io.to(this.code).emit("pg:combat:shot",shot);if(shot.targetId){const victim=this.players.get(shot.targetId);if(victim&&victim.hp<=0)this.kill(victim,p,shot.weapon,shot.headshot,now);}}if(this.phase==="results"){this.reward(now);this.emitRoom();}}
+  setInput(id:string,raw:unknown):void {
+    const p=this.players.get(id),input=pgSanitizeInput(raw);
+    if(!p||p.isBot||p.hp<=0||!input||!["playing","overtime"].includes(this.phase)||input.sequence<=Math.max(p.receivedInputSequence,p.lastInputSequence,p.input.sequence))return;
+    p.receivedInputSequence=input.sequence;
+    const revision=this.world.revision;
+    const pending=p.input.sequence>p.lastInputSequence&&(!this.mode||p.input.collisionRevision===revision);
+    if(this.mode&&input.collisionRevision!==revision){
+      // Publish the disposition only when it cannot cover a valid input still awaiting simulation.
+      if(!pending)p.lastInputSequence=input.sequence;
+      return;
+    }
+    input.jump||=pending&&p.input.jump;
+    p.input=input;
+    p.lastInputAt=Date.now();
+  }
+  fire(id:string,request:PgFireRequest,now=Date.now()):void {
+    if(!["playing","overtime"].includes(this.phase))return;
+    const p=this.players.get(id);
+    if(!p||this.mode&&!this.mode.canFire(p))return;
+    // Input reaches the room before its shot, but the next movement step may still be pending.
+    const pendingAim=!p.isBot&&p.input.sequence>p.lastInputSequence&&now-p.lastInputAt<=INPUT_TIMEOUT_MS
+      &&(!this.mode||p.input.collisionRevision===this.world.revision&&this.mode.canMove(p))?p.input:undefined;
+    const targets:PgModeTarget[]=this.mode?[...this.panelTargets(),...this.mode.targets(p)]:[];
+    const shots=this.combat.fire(p,request,this.players.values(),now,this.mode?{
+      solids:this.world.shotSolids(Math.min(now,request?.clientTime??now),now),
+      targets,
+      damage:(victim,attacker,amount,at)=>this.modeDamage(victim,attacker,amount,at),
+      modifiers:this.mode.weaponModifiers?.(p,now)
+    }:undefined,pendingAim);
+    for(const shot of shots){
+      this.io.to(this.code).emit("pg:combat:shot",shot);
+      if(shot.targetId){
+        const victim=this.players.get(shot.targetId);
+        if(victim&&victim.hp<=0)this.kill(victim,p,shot.weapon,shot.headshot,now);
+      }
+    }
+    if(this.phase==="results"){this.reward(now);this.emitRoom();}
+  }
   reload(id:string,now=Date.now()):void{const p=this.players.get(id);if(p&&p.hp>0&&["playing","overtime"].includes(this.phase)&&(!this.mode||this.mode.canFire(p))){const gun=p.guns[p.slot];if(pgStartReload(gun,now)){const modifiers=this.mode?.weaponModifiers?.(p,now);gun.reloadUntil=now+(gun.reloadUntil-now)*(modifiers?.reload??modifiers?.reloadMultiplier??1);}}}
   switchWeapon(id:string,slot:unknown,now=Date.now()):void {const p=this.players.get(id);if(!p||p.hp<=0||slot!==0&&slot!==1||p.slot===slot||this.mode?.allowSlot&&!this.mode.allowSlot(p,slot))return;p.guns[p.slot].reloadUntil=0;p.guns[p.slot].burstRemaining=0;p.slot=slot;p.adsSince=0;p.fireReadyAt=now+200;}
   update(dt:number,now:number):void {
@@ -114,7 +153,14 @@ export class PlanetGunRoom {
     if(["playing","overtime"].includes(this.phase)){this.accumulator+=Math.max(0,Math.min(.1,dt));while(this.accumulator>=1/B.tickRate){this.accumulator-=1/B.tickRate;this.step(1/B.tickRate,now-this.accumulator*1000);if(this.phase==="results")break;}}
     if(this.phase==="results"&&!this.rewarded)this.reward(now);
     if(previous!==this.phase)this.emitRoom();
-    if(this.phase!=="lobby"&&now-this.lastSnapshot>=1000/B.snapshotRate){this.lastSnapshot=now;if(this.mode){for(const p of this.players.values())if(p.socketId)this.io.to(p.socketId).emit("pg:match:snapshot",this.snapshot(now,p.id));}else this.io.to(this.code).emit("pg:match:snapshot",this.snapshot(now));}
+    const deadline=this.nextSnapshotAt;
+    if(this.phase==="lobby"||!Number.isFinite(now)||deadline!==null&&now<deadline)return;
+    // Keep the original timing grid. Skip missed slots after a stall and send only current state.
+    const elapsed=deadline===null?0:now-deadline;
+    this.nextSnapshotAt=now+SNAPSHOT_PERIOD_MS-elapsed%SNAPSHOT_PERIOD_MS;
+    if(this.mode){
+      for(const p of this.players.values())if(p.socketId)this.io.to(p.socketId).emit("pg:match:snapshot",this.snapshot(now,p.id));
+    }else this.io.to(this.code).emit("pg:match:snapshot",this.snapshot(now));
   }
   private step(dt:number,now:number):void {
     const shots:{id:string;sequence:number}[]=[];
@@ -122,9 +168,11 @@ export class PlanetGunRoom {
       if(p.hp<=0){if(!this.mode&&now>=p.respawnAt)this.respawn(p,now);else continue;}
       let input=p.input;
       if(p.isBot){this.mode?.botAction(p,now);const goal=this.mode?.botGoal(p,now)??null;const decision=pgBotInput(p,this.players.values(),now,this.configuration.botDifficulty,p.bot,this.mode?{map:this.world.map,goal,...(this.mode.botWaypoint?{steering:this.mode.botWaypoint(p,goal)}:{}),grounded:this.configuration.mode!=="planetwatch",combatArea:this.mode.botCombatArea?.(p)??undefined,allowCombatReposition:this.mode.canMove(p)&&this.mode.canFire(p),visible:(a,b)=>this.world.visible(a,b)&&(this.mode?.visible?.(a,b)??true)}:undefined);input=decision.input;if(decision.fire)shots.push({id:p.id,sequence:++p.fireSequence});if(p.guns[p.slot].magazine===0)this.reload(p.id,now);}
-      else if(!p.connected||now-p.lastInputAt>400)input={...idle(),sequence:p.input.sequence,yaw:p.yaw,pitch:p.pitch};
+      else if(!p.connected||now-p.lastInputAt>INPUT_TIMEOUT_MS)input={...idle(),sequence:p.input.sequence,yaw:p.yaw,pitch:p.pitch};
       if(this.mode&&p.isBot)input.collisionRevision=this.world.revision;if(this.mode&&!p.isBot&&input.collisionRevision!==this.world.revision)input={...idle(),sequence:input.sequence,yaw:p.yaw,pitch:p.pitch};
-      const wasSprint=p.mode==="sprint";if(!this.mode||this.mode.canMove(p))pgStepMovement(p,input,dt,now,this.world.map,this.mode?.movement(p));else {p.velocity={x:0,y:0,z:0};p.lean=0;}p.lastInputSequence=input.sequence;
+      const wasSprint=p.mode==="sprint";if(!this.mode||this.mode.canMove(p))pgStepMovement(p,input,dt,now,this.world.map,this.mode?.movement(p));else {p.velocity={x:0,y:0,z:0};p.lean=0;}
+      // A step settles the latest retained command and any newer inputs already discarded.
+      p.lastInputSequence=p.isBot?input.sequence:Math.max(p.lastInputSequence,p.receivedInputSequence);
       if(wasSprint&&p.mode!=="sprint")p.fireReadyAt=Math.max(p.fireReadyAt,now+pgGunProfile(p.guns[p.slot]).sprintDelayMs);
       if(input.ads&&p.mode!=="sprint"){if(!p.adsSince)p.adsSince=now;}else p.adsSince=0;
       for(const gun of p.guns){pgFinishReload(gun,now);pgUpdateGunHeat(gun,now);const modifiers=this.mode?.weaponModifiers?.(p,now);if(modifiers)pgCoolModeGun(gun,modifiers,now);gun.recoil=Math.max(0,gun.recoil-dt*.09);}
@@ -142,10 +190,14 @@ export class PlanetGunRoom {
     victim.hp=0;victim.deaths++;victim.deadAt=now;victim.respawnAt=now+B.respawnMs;victim.velocity={x:0,y:0,z:0};for(const gun of victim.guns)gun.burstRemaining=0;this.deathDanger.push({position:{...victim.position},at:now});
     if(killer&&killer.team!==victim.team){killer.kills++;this.feed.push({id:this.feed.length?this.feed.at(-1)!.id+1:1,at:now,killerId:killer.id,victimId:victim.id,weapon,headshot});if(this.feed.length>8)this.feed.shift();}
   }
-  private respawn(p:Pilot,now:number,loadout?:PgLoadout,position?:PgPlayer["position"]):void {if(loadout)p.loadout=structuredClone(loadout);else if(!this.mode&&p.queuedLoadout){p.loadout=p.queuedLoadout;delete p.queuedLoadout;}const s=pgChooseSpawn(p.team,this.players.values(),this.deathDanger,now);Object.assign(p,pgSpawnMotion(position??s.position,s.yaw));p.hp=100;p.lifeId++;p.deadAt=0;p.respawnAt=0;p.protectedUntil=now+1000;p.lastDamageAt=now;p.lastAttacker=null;p.guns=[pgCreateGun(p.loadout.primary,p.loadout.primaryModules),pgCreateGun(p.loadout.secondary,p.loadout.secondaryModules)];p.slot=0;p.adsSince=0;p.fireReadyAt=now+150;p.input={...idle(),sequence:p.lastInputSequence,yaw:s.yaw};p.bot=pgBotMemory();}
+  private respawn(p:Pilot,now:number,loadout?:PgLoadout,position?:PgPlayer["position"]):void {if(loadout)p.loadout=structuredClone(loadout);else if(!this.mode&&p.queuedLoadout){p.loadout=p.queuedLoadout;delete p.queuedLoadout;}const s=pgChooseSpawn(p.team,this.players.values(),this.deathDanger,now);Object.assign(p,pgSpawnMotion(position??s.position,s.yaw));p.hp=100;p.lifeId++;p.deadAt=0;p.respawnAt=0;p.protectedUntil=now+1000;p.lastDamageAt=now;p.lastAttacker=null;p.guns=[pgCreateGun(p.loadout.primary,p.loadout.primaryModules),pgCreateGun(p.loadout.secondary,p.loadout.secondaryModules)];p.slot=0;p.adsSince=0;p.fireReadyAt=now+150;this.discardQueuedInput(p);p.bot=pgBotMemory();}
+  private discardQueuedInput(p:Pilot):void {
+    p.lastInputSequence=Math.max(p.lastInputSequence,p.receivedInputSequence);
+    p.input={...idle(),sequence:p.lastInputSequence,yaw:p.yaw};
+  }
   private reward(now:number):void {this.rewarded=true;if(now-this.startedAt<60000||!this.mode&&this.players.size<6)return;for(const p of this.players.values())if(!p.isBot){const contribution=this.mode?.snapshot(p.id).pilots[p.id]?.contribution??0;if(this.mode&&p.kills===0&&contribution<=0)continue;const win=p.team===this.match.winner;p.fallbucks+=5+Math.min(15,p.kills+Math.floor(contribution/100))+(win?10:0);p.sessionTotalXp+=25+Math.min(100,p.kills*5+Math.floor(contribution/10))+(win?35:0);reconcilePassRewards(p);}this.onProgress?.(this.players.values());}
   leave(id:string):void {this.onProgress?.(this.players.values());this.mode?.leave(id,Date.now());this.selections.delete(id);this.selectedLoadouts.delete(id);this.savedKits.delete(id);this.actionSequences.delete(id);this.players.delete(id);this.combat.forget(id);if(this.hostId===id)this.migrateHost();this.emitRoom();}
-  disconnect(id:string):void{const p=this.players.get(id);if(p){p.connected=false;p.socketId=null;p.disconnectedAt=Date.now();p.input=idle();if(this.hostId===id)this.migrateHost();this.emitRoom();}}
+  disconnect(id:string):void{const p=this.players.get(id);if(p){p.connected=false;p.socketId=null;p.disconnectedAt=Date.now();this.discardQueuedInput(p);if(this.hostId===id)this.migrateHost();this.emitRoom();}}
   isEmpty():boolean{return ![...this.players.values()].some(p=>!p.isBot&&(p.connected||p.disconnectedAt!==null&&Date.now()-p.disconnectedAt<B.disconnectGraceMs));}
   dispose():void{this.onProgress?.(this.players.values());this.players.clear();this.combat.clear();}
   returnToLobby(id:string):void{if(id!==this.hostId||this.phase!=="results")return;for(const [key,p]of this.players)if(p.isBot)this.players.delete(key);else {p.ready=false;const kit=this.savedKits.get(p.id);if(kit)p.loadout=structuredClone(kit);}this.savedKits.clear();this.mode=null;this.modeStarted=false;this.world.reset([],Date.now());this.match=new PgMatch(this.configuration.scoreLimit);this.emitRoom();}
@@ -153,7 +205,7 @@ export class PlanetGunRoom {
   equipShopItem(id:string,itemId:string):{ok:boolean;error?:string}{const result=equipCosmetic(this.players.get(id),this.phase,itemId,"planet-gun");if(!result.ok)return result;if(result.changed)this.emitRoom();return {ok:true};}
   private hideEquipment(state:Pick<PgPlayer,"loadout"|"queuedLoadout"|"guns"|"slot"|"hp">):void{state.hp=state.hp>0?100:0;state.loadout={primary:"pulse",secondary:"orbit"};delete state.queuedLoadout;state.slot=0;state.guns=[pgCreateGun("pulse"),pgCreateGun("orbit")];for(const gun of state.guns){gun.magazine=0;gun.reserve=0;}}
   private migrateHost():void{this.hostId=[...this.players.values()].find(p=>!p.isBot&&p.connected)?.id??"";}
-  private emitRoom():void{this.onProgress?.(this.players.values());if(this.configuration.mode==="planetsiege"){for(const p of this.players.values())if(p.socketId)this.io.to(p.socketId).emit("pg:room:state",this.view(p.id));}else this.io.to(this.code).emit("pg:room:state",this.view());}
+  emitRoom():void{this.onProgress?.(this.players.values());if(this.configuration.mode==="planetsiege"){for(const p of this.players.values())if(p.socketId)this.io.to(p.socketId).emit("pg:room:state",this.view(p.id));}else this.io.to(this.code).emit("pg:room:state",this.view());}
   private error(id:string,message:string){const socket=this.players.get(id)?.socketId;if(socket)this.io.to(socket).emit("pg:error",{message});}
   private panelTargets():PgModeTarget[]{return this.world.snapshot().panels.filter(p=>p.active).map(panel=>({id:panel.solid.id,kind:"panel",position:panel.solid.center,half:panel.solid.half,damage:(amount,_shooter,now)=>this.mode?.id==="planetzombies"&&panel.maxHp>=1000000?0:this.world.damage(panel.id,amount,now)}));}
   private modeDamage(target:PgPlayer,attacker:PgPlayer|null,amount:number,now:number){if(!this.mode)return 0;const wasAlive=target.hp>0,result=this.mode.damage(target,attacker,amount,now);if(wasAlive&&target.hp<=0)this.kill(this.players.get(target.id)!,attacker?this.players.get(attacker.id)??null:null,attacker?.guns[attacker.slot].id??"comet",false,now);return result;}
@@ -169,5 +221,5 @@ export class PlanetGunRoom {
     }
     if(!this.mode||!this.modeStarted||!["playing","overtime"].includes(this.phase))return {ok:false,error:"This action is unavailable."};return this.mode.action(p,a,now);
   }
-  private makePlayer(name:string,isBot:boolean):Pilot {const team=this.configuration.mode==="planetzombies"?"solar":[...this.players.values()].filter(p=>p.team==="solar").length<=[...this.players.values()].filter(p=>p.team==="void").length?"solar":"void";return {...pgSpawnMotion({x:0,y:0,z:0}),id:`pg-${randomUUID().slice(0,12)}`,name,color:team==="solar"?"#ffba62":"#80dfff",team,isBot,connected:!isBot,ready:isBot,hp:100,kills:0,deaths:0,lifeId:0,deadAt:0,respawnAt:0,protectedUntil:0,lastDamageAt:0,lastAttacker:null,lastInputSequence:-1,loadout:{primary:"pulse",secondary:"comet"},slot:0,guns:[pgCreateGun("pulse"),pgCreateGun("comet")],adsSince:0,fireReadyAt:0,fallbucks:0,crowns:0,sessionTotalXp:0,sessionLevel:1,sessionXp:0,ownedCosmetics:[],equippedCosmetics:{...DEFAULT_COSMETICS},unlockedPassRewards:["default"],socketId:null,sessionToken:randomBytes(24).toString("base64url"),disconnectedAt:null,input:idle(),lastInputAt:0,bot:pgBotMemory(),fireSequence:0};}
+  private makePlayer(name:string,isBot:boolean):Pilot {const team=this.configuration.mode==="planetzombies"?"solar":[...this.players.values()].filter(p=>p.team==="solar").length<=[...this.players.values()].filter(p=>p.team==="void").length?"solar":"void";return {...pgSpawnMotion({x:0,y:0,z:0}),id:`pg-${randomUUID().slice(0,12)}`,name,color:team==="solar"?"#ffba62":"#80dfff",team,isBot,connected:!isBot,ready:isBot,hp:100,kills:0,deaths:0,lifeId:0,deadAt:0,respawnAt:0,protectedUntil:0,lastDamageAt:0,lastAttacker:null,lastInputSequence:-1,loadout:{primary:"pulse",secondary:"comet"},slot:0,guns:[pgCreateGun("pulse"),pgCreateGun("comet")],adsSince:0,fireReadyAt:0,fallbucks:0,crowns:0,sessionTotalXp:0,sessionLevel:1,sessionXp:0,ownedCosmetics:[],equippedCosmetics:{...DEFAULT_COSMETICS},unlockedPassRewards:["default"],socketId:null,sessionToken:randomBytes(24).toString("base64url"),disconnectedAt:null,input:idle(),lastInputAt:0,receivedInputSequence:-1,bot:pgBotMemory(),fireSequence:0};}
 }

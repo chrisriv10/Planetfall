@@ -18,7 +18,7 @@ export class AccountOwnership {
     return result;
   }
 
-  private confirmClaim(key:string):void {this.profiles.holdGuest(key);this.revokeGuest(key);}
+  private confirmClaim(key:string):void {this.profiles.holdGuest(key);}
 
   async reconcile():Promise<void> {
     for(const key of [...this.uncertain].slice(0,8)) {
@@ -33,7 +33,8 @@ export class AccountOwnership {
   private async resolveNext(userId:string, guestToken:unknown, choice:LinkChoice, authorized:()=>boolean):Promise<LinkResult> {
     const existing = await this.database.accountLink(this.issuer,userId);
     if(!authorized())throw new Error("Account session ended");
-    const guest = this.profiles.guestKey(guestToken);
+    const guest = await this.profiles.lookupGuest(guestToken);
+    if(!authorized())throw new Error("Account session ended");
     if(existing) {
       if(this.profiles.ownsBearer(existing,guestToken)) {
         this.confirmClaim(existing);

@@ -33,6 +33,8 @@ import { mouseButtonIcon } from "./mouse-button-icon";
 import { cosmeticCompatible,cosmeticFamilies,sessionXpRequired,BALANCE, BR_BALANCE, BR_HEALS, BR_MAP, BR_POIS, BR_SECONDARY_LOCATIONS, BR_WEAPONS, CHAOS_COPY, PLANET_PASS_REWARDS, SESSION_PROGRESSION, SHOP_CATALOG, WEAPON_COPY, WEAPON_ORDER, brPickupDisposition, isBrWeapon, type BotDifficulty, type BrCrateState, type BrItemId, type BrJoinResult, type BrLootState, type BrMatchResult, type BrPlayerState, type BrRoomView, type BrTeamMode, type ChaosModifier, type CosmeticCategory, type EmoteType, type GameFamily, type GameMode, type JoinResult, type MatchCalloutType, type MatchEvent, type MatchResult, type RoomView, type WeaponType } from "@planetfall/shared";
 import { createGameSocket,getGuestProfile } from "./network";
 import {AccountClient} from "./account-client";
+import {createGlobalLeaderboardController} from "./global-leaderboard-controller";
+import {createHomePresence} from "./home-presence";
 import {PG_MODE_PREFERENCE_KEY} from "./account-preference-sync";
 import { inputLabel, type InputMethod } from "./input";
 import { SETTINGS_STORAGE_KEY, parseStoredSettings, type UserSettings } from "./settings";
@@ -238,6 +240,14 @@ const account = new AccountClient({
 });
 const socket = createGameSocket(()=>account.credentials());
 account.attach(socket);
+const globalLeaderboard=createGlobalLeaderboardController(socket,open=>captureUi(open||Boolean(activeOverlay())));
+const homePresence=createHomePresence(socket,byId("home-online-count"));
+homePresence.setVisible(true);
+byId("ui").append(globalLeaderboard.root);
+const globalLeaderboardButton=byId("leaderboard-home");
+globalLeaderboardButton.addEventListener("click",()=>{
+  if(currentScreen==="home"&&!activeOverlay())globalLeaderboard.open(nameInput.value,globalLeaderboardButton);
+});
 byId("ui").append(account.panel.root);
 let pgKitFocus:HTMLElement|null=null;
 const pgKits=createPgKitEditor({
@@ -542,6 +552,10 @@ byId("pass-results").addEventListener("click", openPass);
 byId("pass-close").addEventListener("click", closePass);
 byId("settings-lobby").addEventListener("click", () => openSettings("screen"));
 addEventListener("keydown", (event) => {
+  if(!globalLeaderboard.root.hidden){
+    if(event.key==="Escape"){event.preventDefault();game.consumeUiCancel();globalLeaderboard.close();return;}
+    if(event.key!=="Tab"||event.defaultPrevented)return;
+  }
   const escape=event.code==="Escape",menuToggle=matchesControlKey(event,"buyMenu"),pause=escape||matchesControlKey(event,"pause");
   if(escape&&!account.panel.root.hidden){event.preventDefault();game.consumeUiCancel();account.close();return;}
   if(!account.panel.root.hidden&&event.key!=="Tab")return;
@@ -1645,7 +1659,7 @@ function focusFirst(root: HTMLElement): void {
 }
 
 function focusableElements(root:HTMLElement):HTMLElement[]{return [...root.querySelectorAll<HTMLElement>("button:not([disabled]):not([hidden]), input:not([disabled]):not([hidden]), select:not([disabled]):not([hidden]), summary, [tabindex]:not([tabindex='-1'])")].filter(element=>element.offsetParent!==null);}
-function activeOverlay():HTMLElement|null{return !account.panel.root.hidden?account.panel.root:pgStrikeBuy.visible?pgStrikeBuy.root:pgCharacterSelection.visible?pgCharacterSelection.root:pgModeUi.menuOpen?pgModeUi.hudRoot.querySelector<HTMLElement>(".pg-mode-menu"):!pgKits.root.hidden?pgKits.root:pgUi.scoreboardVisible?byId("pg-scoreboard"):!modeWarning.root.hidden?modeWarning.root:!brQuickPlay.hidden?brQuickPlay:!brInventoryOverlay.hidden?brInventoryOverlay:!brMapOverlay.hidden?brMapOverlay:!shopOverlay.hidden?shopOverlay:!passOverlay.hidden?passOverlay:!settingsOverlay.hidden?settingsOverlay:!pauseOverlay.hidden?pauseOverlay:pgSiegeFeed.visible?pgSiegeFeed.root:null;}
+function activeOverlay():HTMLElement|null{return !globalLeaderboard.root.hidden?globalLeaderboard.root:!account.panel.root.hidden?account.panel.root:pgStrikeBuy.visible?pgStrikeBuy.root:pgCharacterSelection.visible?pgCharacterSelection.root:pgModeUi.menuOpen?pgModeUi.hudRoot.querySelector<HTMLElement>(".pg-mode-menu"):!pgKits.root.hidden?pgKits.root:pgUi.scoreboardVisible?byId("pg-scoreboard"):!modeWarning.root.hidden?modeWarning.root:!brQuickPlay.hidden?brQuickPlay:!brInventoryOverlay.hidden?brInventoryOverlay:!brMapOverlay.hidden?brMapOverlay:!shopOverlay.hidden?shopOverlay:!passOverlay.hidden?passOverlay:!settingsOverlay.hidden?settingsOverlay:!pauseOverlay.hidden?pauseOverlay:pgSiegeFeed.visible?pgSiegeFeed.root:null;}
 
 function setGameMode(mode: GameMode): void {
   if (!room || room.hostId !== playerId || room.phase !== "lobby" || room.gameMode === mode) return;
@@ -1654,6 +1668,8 @@ function setGameMode(mode: GameMode): void {
 }
 
 function showScreen(name: keyof typeof screens): void {
+  homePresence.setVisible(name==="home");
+  if(name!=="home")globalLeaderboard.close();
   if(name!==currentScreen){pgCharacterSelection.close(false);pgStrikeBuy.close(false);}
   if(name!==currentScreen)pgKits.close();
   if(name==="home"){
@@ -1810,8 +1826,8 @@ function applyPgRoom(next:PgRoomView):void {
  if(currentFamily!=="planet-gun"||next.code!==currentCode)return;pgRoom=next;pgActionSequence=Math.max(pgActionSequence,next.lastActionSequence??0);pgUi.render(next,playerId);pgStartingSide.render(next,playerId);pgModeUi.render(next,playerId,next.phase==="lobby"?null:pendingPgSnapshot?.mode);pgCharacterSelection.update();pgStrikeBuy.update();pgSiegeFeed.update();
  if(next.phase==="lobby"){const me=next.players.find(p=>p.id===playerId),mode=next.configuration.mode??"deathmatch",side=me?.team==="void"?"defend":"attack",signature=`${next.code}:${mode}:${side}`;if(pgPreferenceApplied!==signature){pgPreferenceApplied=signature;const preference=pgReadCharacterPreference(account.preferences.storage,mode,side);if(preference&&!next.selections?.[playerId])sendPgModeAction({kind:"select",...preference});}pgModeUi.setSnapshot(null,playerId);pgGame?.deactivate();game.setActive(true);game.setHomeFamily("planet-gun");syncLobbyPresentation("planet-gun",next.players,next.hostId);game.setMode("lobby");showScreen("pgLobby");}
  else {game.setActive(false);brGame?.deactivate();prGame?.deactivate();
-  if(!pgGame&&!pgLoading)pgLoading=import("./modes/planet-gun/pg-game").then(({PlanetGunGame})=>{pgGame=new PlanetGunGame(game.renderer,canvas,socket,s=>{pgUi.renderSnapshot(s,playerId);const observer=s.players.find(p=>p.id===playerId);pgModeUi.setViewPosition(observer?{...observer.position,y:observer.position.y+(observer.crouched?PG_BALANCE.crouchEye:PG_BALANCE.eye)}:null);pgModeUi.setSnapshot(s.mode??null,playerId,s.serverTime,s.players);pgCharacterSelection.update();pgStrikeBuy.update();pgSiegeFeed.update();},(n,head)=>pgUi.hit(n,head),game.audio);pgGame.onCaptureHint=mode=>pgUi.setCaptureHint(mode);pgGame.onInputMethod=renderInputUi;pgGame.onSpectator=name=>pgUi.setSpectator(name);pgGame.onModeAction=sendPgModeAction;pgGame.onModeMenu=togglePgModeMenu;pgGame.onAim=(weapon,ads,spread,optic)=>pgUi.updateAim(weapon,ads,spread,optic);pgGame.onMenuNavigate=navigateUi;pgGame.onPause=()=>togglePause();pgGame.onScoreboard=()=>setPgScoreboard(!pgUi.scoreboardVisible);pgGame.setSettings(runtimeSettings());if(currentFamily==="planet-gun"&&pgRoom?.phase!=="lobby"){pgGame.activate(playerId);if(pendingPgSnapshot)pgGame.applySnapshot(pendingPgSnapshot);}}).finally(()=>pgLoading=null);
-  else pgGame?.activate(playerId);showScreen(next.phase==="results"?"pgResults":"pgHud");
+  if(!pgGame&&!pgLoading)pgLoading=import("./modes/planet-gun/pg-game").then(({PlanetGunGame})=>{pgGame=new PlanetGunGame(game.renderer,canvas,socket,s=>{pgUi.renderSnapshot(s,playerId);const observer=s.players.find(p=>p.id===playerId);pgModeUi.setViewPosition(observer?{...observer.position,y:observer.position.y+(observer.crouched?PG_BALANCE.crouchEye:PG_BALANCE.eye)}:null);pgModeUi.setSnapshot(s.mode??null,playerId,s.serverTime,s.players);pgCharacterSelection.update();pgStrikeBuy.update();pgSiegeFeed.update();},(n,head)=>pgUi.hit(n,head),game.audio);pgGame.onCaptureHint=mode=>pgUi.setCaptureHint(mode);pgGame.onInputMethod=renderInputUi;pgGame.onSpectator=name=>pgUi.setSpectator(name);pgGame.onModeAction=sendPgModeAction;pgGame.onModeMenu=togglePgModeMenu;pgGame.onAim=(weapon,ads,spread,optic)=>pgUi.updateAim(weapon,ads,spread,optic);pgGame.onMenuNavigate=navigateUi;pgGame.onPause=()=>togglePause();pgGame.onScoreboard=()=>setPgScoreboard(!pgUi.scoreboardVisible);pgGame.setSettings(runtimeSettings());if(currentFamily==="planet-gun"&&pgRoom?.phase!=="lobby"){pgGame.activate(playerId,pgRoom?.configuration.mode==="planetwatch");if(pendingPgSnapshot)pgGame.applySnapshot(pendingPgSnapshot);}}).finally(()=>pgLoading=null);
+  else pgGame?.activate(playerId,next.configuration.mode==="planetwatch");showScreen(next.phase==="results"?"pgResults":"pgHud");
  }
 }
 socket.on("pg:room:state",applyPgRoom);
