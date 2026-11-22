@@ -7,9 +7,19 @@
 .experience-actions .button { min-height: 40px; font-size: .75rem; }
 /* Keep the three existing account tools together and balance the two new
    secondary actions beneath them, rather than leaving a lone grid cell. */
-#home-screen .home-pilot-actions { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+#home-screen .home-card .home-pilot-actions { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 #home-screen .home-pilot-actions > button { grid-column: span 2; min-width: 0; }
 #home-screen .home-pilot-actions > :is(#help-home, #career-home) { grid-column: span 3; }
+/* Keep the complete card reachable at every desktop height, including heights
+   just above the compact-layout breakpoint. */
+#home-screen.screen { align-items: safe center; padding-block: 16px; }
+#home-screen .home-card {
+  max-height: calc(100dvh - 32px);
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  pointer-events: auto;
+}
 .lobby-hub-nav > button[id^="invite-"] { grid-column: 1 / -1; min-width: 0; min-height: 36px; padding: 8px 12px; font-size: .66rem; white-space: normal; }
 .result-actions > button[id^="career-"] { grid-column: 1 / -1; min-height: 38px; font-size: .73rem; }
 #results-screen .result-actions:has(> #find-another-match:not([hidden])) > :is(button[id^="career-"], #find-another-match) { grid-column: span 2; min-height: 42px; padding: 8px 12px; font-size: .73rem; }
@@ -22,7 +32,7 @@
 :is(#pr-results-screen, #pg-results-screen) :is(.pr-actions, .pg-actions) > button[id^="career-"] { flex: 1 1 100%; min-width: 0; font-size: .73rem; }
 :is(#results-screen, #br-results-screen, #pr-results-screen, #pg-results-screen) .experience-muted { overflow-wrap: anywhere; }
 @media (max-width: 420px) {
-  #home-screen .home-pilot-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #home-screen .home-card .home-pilot-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   #home-screen .home-pilot-actions > button,
   #home-screen .home-pilot-actions > :is(#help-home, #career-home) { grid-column: auto; }
   #home-screen .home-pilot-actions > #leaderboard-home { grid-column: 1 / -1; }
