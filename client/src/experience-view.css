@@ -1,0 +1,82 @@
+.experience-quick { margin: 12px 0; padding: 16px; border: 1px solid #70f5ff55; border-radius: 12px; background: #070d2899; }
+.experience-quick[hidden] { display: none; }
+.experience-quick h3 { margin: 0 0 8px; font-size: 1rem; color: #f4f7ff; }
+.experience-quick-count { margin: 0; font-weight: 800; color: #70f5ff; }
+.experience-muted { color: #b8c7eb; font-size: .8rem; line-height: 1.5; }
+.experience-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.experience-actions .button { min-height: 40px; font-size: .75rem; }
+/* Keep the three existing account tools together and balance the two new
+   secondary actions beneath them, rather than leaving a lone grid cell. */
+#home-screen .home-pilot-actions { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+#home-screen .home-pilot-actions > button { grid-column: span 2; min-width: 0; }
+#home-screen .home-pilot-actions > :is(#help-home, #career-home) { grid-column: span 3; }
+.lobby-hub-nav > button[id^="invite-"] { grid-column: 1 / -1; min-width: 0; min-height: 36px; padding: 8px 12px; font-size: .66rem; white-space: normal; }
+.result-actions > button[id^="career-"] { grid-column: 1 / -1; min-height: 38px; font-size: .73rem; }
+#results-screen .result-actions:has(> #find-another-match:not([hidden])) > :is(button[id^="career-"], #find-another-match) { grid-column: span 2; min-height: 42px; padding: 8px 12px; font-size: .73rem; }
+@media (max-width: 760px) {
+  #results-screen .result-actions:has(> #find-another-match:not([hidden])) > :is(button[id^="career-"], #find-another-match) { grid-column: span 1; }
+}
+@media (max-width: 420px) {
+  #results-screen .result-actions:has(> #find-another-match:not([hidden])) > :is(button[id^="career-"], #find-another-match) { grid-column: 1 / -1; }
+}
+:is(#pr-results-screen, #pg-results-screen) :is(.pr-actions, .pg-actions) > button[id^="career-"] { flex: 1 1 100%; min-width: 0; font-size: .73rem; }
+:is(#results-screen, #br-results-screen, #pr-results-screen, #pg-results-screen) .experience-muted { overflow-wrap: anywhere; }
+@media (max-width: 420px) {
+  #home-screen .home-pilot-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #home-screen .home-pilot-actions > button,
+  #home-screen .home-pilot-actions > :is(#help-home, #career-home) { grid-column: auto; }
+  #home-screen .home-pilot-actions > #leaderboard-home { grid-column: 1 / -1; }
+}
+@media (max-width: 440px) { .experience-actions .button { flex: 1 1 100%; } }
+.experience-overlay { position: fixed; inset: 0; z-index: 120; display: grid; place-items: center; padding: 24px; background: #03071bd9; pointer-events: auto; box-sizing: border-box; }
+.experience-overlay[hidden], .experience-hint[hidden], .experience-panel [hidden] { display: none; }
+.experience-panel { width: min(780px, 100%); max-height: calc(100dvh - 48px); overflow-y: auto; overscroll-behavior: contain; box-sizing: border-box; padding: 28px; border: 1px solid #7a96cf66; border-radius: 18px; background: linear-gradient(145deg, #171f46, #0b1230); color: #f4f7ff; }
+.experience-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 16px; border-bottom: 1px solid #7a96cf44; }
+.experience-heading h2 { margin: 0; font: 900 clamp(1.35rem, 3vw, 2rem)/1.1 'Arial Black', sans-serif; letter-spacing: -.04em; }
+.experience-heading .button { flex: 0 0 auto; min-height: 38px; font-size: .75rem; }
+.experience-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 18px 0; }
+.experience-tabs .button { padding: 8px; min-height: 42px; font-size: .7rem; }
+.experience-tabs .is-selected { border-color: #70f5ff; color: #fff; box-shadow: inset 0 -3px #ffdc4f; }
+.experience-section-title { margin: 22px 0 10px; font-size: 1.1rem; }
+.experience-objective { margin: 8px 0; font-weight: 800; font-size: 1rem; line-height: 1.5; }
+.experience-first { padding: 12px 14px; border-left: 3px solid #ffdc4f; background: #ffdc4f0a; font-size: .85rem; line-height: 1.5; color: #f2e2b2; }
+.experience-guide-columns { display: grid; grid-template-columns: 1.2fr 1fr; gap: 24px; }
+.experience-panel h4 { margin: 16px 0 8px; font-size: .83rem; }
+.experience-copy-list { margin: 0; padding-left: 19px; font-size: .8rem; line-height: 1.6; color: #c3d0ec; }
+.experience-copy-list li + li { margin-top: 5px; }
+.experience-controls { margin: 0; font-size: .76rem; }
+.experience-controls > div { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid #7a96cf26; }
+.experience-controls dt { color: #c3d0ec; }
+.experience-controls dd { margin: 0; font-weight: 800; color: #70f5ff; text-align: right; }
+.experience-submodes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; border-top: 1px solid #7a96cf33; margin-top: 18px; }
+.experience-submodes p { margin-top: 5px; }
+.experience-hint { position: fixed; z-index: 85; left: 50%; bottom: max(160px, 22vh); transform: translateX(-50%); width: min(360px, calc(100vw - 32px)); box-sizing: border-box; padding: 13px 16px; border: 1px solid #70f5ff66; border-radius: 12px; background: #0c1435ed; color: #f4f7ff; pointer-events: none; }
+.experience-hint strong { color: #ffdc4f; font-size: .8rem; }
+.experience-hint p { margin: 6px 0 9px; font-size: .76rem; line-height: 1.5; }
+.experience-hint .button { pointer-events: auto; min-height: 32px; font-size: .7rem; }
+.experience-hint.is-inline { position: static; transform: none; width: 100%; margin: 12px 0; pointer-events: auto; }
+.experience-kicker { color: #70f5ff; font-weight: 800; overflow-wrap: anywhere; }
+.experience-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin: 18px 0; }
+.experience-summary > div, .experience-family-stat { padding: 12px; border: 1px solid #7a96cf33; border-radius: 10px; background: #050c254d; }
+.experience-summary dt { font-size: .67rem; color: #aabbdc; }
+.experience-summary dd { margin: 6px 0 0; font-weight: 900; font-size: 1rem; }
+.experience-family-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.experience-family-stat h3 { font-size: .8rem; margin: 0 0 8px; }
+.experience-family-stat p { font-size: .75rem; margin: 0; color: #b8c7eb; }
+.experience-achievements { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.experience-achievement { padding: 13px; border: 1px solid #7a96cf33; border-radius: 10px; }
+.experience-achievement strong { font-size: .79rem; }
+.experience-achievement-status { display: block; margin-top: 5px; color: #aabbdc; font-size: .67rem; }
+.experience-achievement .experience-muted { margin: 8px 0; font-size: .72rem; }
+.experience-achievement progress { display: block; width: 100%; height: 5px; border: none; border-radius: 4px; accent-color: #70f5ff; }
+.experience-achievement.is-unlocked { border-color: #ffdc4f66; background: #ffdc4f08; }
+.experience-achievement.is-unlocked .experience-achievement-status { color: #ffdc4f; }
+@media (max-width: 540px) {
+  .experience-overlay { padding: 12px; }
+  .experience-panel { padding: 18px; max-height: calc(100dvh - 24px); }
+  .experience-tabs, .experience-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .experience-guide-columns, .experience-submodes, .experience-achievements { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .experience-achievements { gap: 8px; }
+  .experience-hint { bottom: 170px; }
+}
+@media (prefers-reduced-motion: reduce) { .experience-overlay *, .experience-hint *, .experience-quick * { transition: none; animation: none; } }

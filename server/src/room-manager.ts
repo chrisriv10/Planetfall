@@ -8,6 +8,7 @@ import {PlanetRunRoom} from "./modes/planet-run/pr-room.js";
 import {PlayerProfiles} from "./player-profiles.js";
 import {GlobalLeaderboard} from "./global-leaderboard.js";
 import {PlayerPresence} from "./player-presence.js";
+import {PublicMatchmaking} from "./public-matchmaking.js";
 import type {ShopResult} from "./cosmetic-shop.js";
 
 type GameSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
@@ -20,13 +21,21 @@ export class RoomManager {
   private lastTick = Date.now();
   private readonly leaderboard:GlobalLeaderboard;
   private readonly presence:PlayerPresence;
+  private readonly publicMatches:PublicMatchmaking;
 
   constructor(private io: GameServer,private profiles=new PlayerProfiles(),private readonly allowPrReview=process.env.NODE_ENV!=="production"&&process.env.PLANETFALL_PR_REVIEW==="1") {
     this.leaderboard=new GlobalLeaderboard(profiles);
     this.presence=new PlayerPresence(io);
+    this.publicMatches=new PublicMatchmaking(io,{
+      create:()=>{const room=this.trackRoom(new GameRoom(this.makeCode(),this.io));this.rooms.set(room.code,room);return room;},
+      exists:room=>this.rooms.get(room.code)===room,
+      current:socket=>Boolean(this.current(socket)),leave:socket=>this.leaveMembership(socket),
+      attach:(socket,room,result)=>this.attachProfile(socket,room,result),
+    });
     this.profiles.onChange=(key,profile)=>{for(const socket of this.io.sockets.sockets.values())if(socket.data.profileKey===key)socket.emit("profile:state",profile);};
     this.profiles.onSaveFailure=(key)=>{for(const socket of this.io.sockets.sockets.values())if(socket.data.profileKey===key)socket.emit("server:error",{message:"The server could not confirm your progression save. It will retry."});};
     this.profiles.onGuestClaimed=key=>this.endGuestAccess(key);
+    this.profiles.onCareerSettled=(key,family,settlementId)=>{for(const socket of this.io.sockets.sockets.values())if(socket.data.profileKey===key)socket.emit("career:settled",{family,settlementId});};
   }
 
   start(): void {
@@ -44,6 +53,7 @@ export class RoomManager {
         }
       }
       this.profiles.retry(now);
+      this.publicMatches.tick(now);
     }, 1000 / BALANCE.serverRate);
   }
 
@@ -53,6 +63,7 @@ export class RoomManager {
     for (const room of this.rooms.values()){this.profiles.capture(room.players.values());room.dispose();}
     this.rooms.clear();
     this.presence.stop();
+    this.publicMatches.stop();
   }
 
   async prepareProfile(socket:GameSocket):Promise<void> {
@@ -74,6 +85,7 @@ export class RoomManager {
     }
     const profileKey=typeof socket.data.profileKey==="string"?socket.data.profileKey:undefined;
     if(profileKey)this.presence.bind(socket,profileKey);
+    this.publicMatches.bind(socket);
     socket.on("leaderboard:read",ack=>{
       if(typeof ack!=="function")return;
       void this.leaderboard.read(profileKey).then(
@@ -127,10 +139,12 @@ export class RoomManager {
       if (room instanceof PlanetGunRoom) return this.reply(ack, {ok:false,error:"That code belongs to PlanetGun."});
       if (room instanceof PlanetRunRoom) return this.reply(ack, { ok: false, error: "That code belongs to a PlanetRun room." });
       if (room instanceof BattleRoyaleRoom) return this.reply(ack, { ok: false, error: "That code belongs to a Battle Royale room." });
+      if(room.matchmaking&&![...room.players.values()].some(player=>!player.connected&&typeof payload?.sessionToken==="string"&&player.sessionToken===payload.sessionToken))
+        return this.reply(ack,{ok:false,error:"Use Quick Match to enter a public lobby. Private invites use their own room code."});
       this.reply(ack, this.attachProfile(socket,room,this.joinRoom(socket,room,payload?.name,payload?.sessionToken)));
     });
     socket.on("room:ready", (payload) => { const c = this.currentClassic(socket); if (c) c.room.setReady(c.playerId, payload?.ready); });
-    socket.on("room:bot:add", () => { const c = this.currentClassic(socket); if (c) c.room.addBot(c.playerId); });
+    socket.on("room:bot:add", () => { const c = this.currentClassic(socket); if (c&&!c.room.matchmaking) c.room.addBot(c.playerId); });
     socket.on("room:bot:remove", (payload) => { const c = this.currentClassic(socket); if (c) c.room.removeBot(c.playerId, String(payload?.botId ?? "")); });
     socket.on("room:mode", (payload) => { const c = this.currentClassic(socket); if (c) c.room.setMode(c.playerId, payload?.mode); });
     socket.on("room:bot:difficulty", (payload) => { const c = this.currentClassic(socket); if (c) c.room.setBotDifficulty(c.playerId, payload?.difficulty); });
@@ -263,7 +277,7 @@ export class RoomManager {
     socket.on("pg:weapon:switch",p=>{const c=this.currentPg(socket);c?.room.switchWeapon(c.playerId,p?.slot);});
     socket.on("pg:shop:buy",(p,ack)=>{if(typeof ack==="function")this.shop(socket,this.currentPg(socket),"planet-gun","buy",p?.itemId,ack);});
     socket.on("pg:shop:equip",(p,ack)=>{if(typeof ack==="function")this.shop(socket,this.currentPg(socket),"planet-gun","equip",p?.itemId,ack);});
-    socket.on("disconnect", () => { const c = this.current(socket); if (c) c.room.disconnect(c.playerId); });
+    socket.on("disconnect", () => { if(this.publicMatches.disconnect(socket))return;const c = this.current(socket); if (c) c.room.disconnect(c.playerId); });
   }
 
   private shop(socket:GameSocket,current:ReturnType<RoomManager["current"]>,family:GameFamily,action:"buy"|"equip",item:unknown,ack:(result:ShopResult)=>void):void {
@@ -294,6 +308,7 @@ export class RoomManager {
   }
 
   private leaveMembership(socket:GameSocket):void {
+    this.publicMatches.release(socket);
     const current=this.current(socket);
     if(socket.data.roomCode)void socket.leave(socket.data.roomCode);
     delete socket.data.roomCode;
@@ -316,10 +331,15 @@ export class RoomManager {
     return room.join(socket,name,token) as ReturnType<R["join"]>;
   }
 
-  private trackRoom<T extends GameRoom|BattleRoyaleRoom|PlanetRunRoom|PlanetGunRoom>(room:T):T {room.onProgress=players=>this.profiles.capture(players);return room;}
+  private trackRoom<T extends GameRoom|BattleRoyaleRoom|PlanetRunRoom|PlanetGunRoom>(room:T):T {
+    room.onProgress=players=>this.profiles.capture(players);
+    room.onCareer=(family,id,entries)=>this.profiles.recordCareer(family,id,entries);
+    return room;
+  }
   private attachProfile<T extends import("@planetfall/shared").JoinResult|BrJoinResult|import("@planetfall/shared").PrJoinResult|import("@planetfall/shared").PgJoinResult>(socket:GameSocket,room:GameRoom|BattleRoyaleRoom|PlanetRunRoom|PlanetGunRoom,result:T):T {
     if(result.ok&&typeof socket.data.profileKey==="string"){
       const player=room.players.get(result.playerId);if(player)this.profiles.bind(player,socket.data.profileKey);
+      if(room instanceof GameRoom&&room.matchmaking)this.publicMatches.reattach(socket,room,result.playerId);
       return {...result,room:room.view()} as T;
     }
     return result;

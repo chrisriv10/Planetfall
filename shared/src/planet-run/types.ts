@@ -32,7 +32,7 @@ export interface PrSnapshot {
   roundIndex:number;seed:number;players:PrSnapshotPlayer[];qualificationTarget:number;winnerId:string|null;
   tileRevision:number;tiles:PrTileDelta[];tilesFull:boolean;
 }
-export interface PrRoomView {code:string;gameFamily:"planet-run";hostId:string;phase:PrPhase;configuration:PrConfiguration;players:PrPlayerState[];}
+export interface PrRoomView {careerSettlementId?:string;code:string;gameFamily:"planet-run";hostId:string;phase:PrPhase;configuration:PrConfiguration;players:PrPlayerState[];}
 export type PrJoinResult={ok:true;room:PrRoomView;playerId:string;sessionToken:string}|{ok:false;error:string};
 export interface PrClientToServerEvents {
   "pr:room:create":(payload:{name:string;sessionToken?:string},ack:(r:PrJoinResult)=>void)=>void;

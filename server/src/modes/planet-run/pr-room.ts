@@ -1,3 +1,4 @@
+import {newCareerSettlement,type CareerSettlement} from "../../career-settlement.js";
 import {randomBytes,randomUUID} from "node:crypto";
 import {reconcilePassRewards} from "../../pass-reconciliation.js";
 import type {Server,Socket} from "socket.io";
@@ -8,7 +9,7 @@ type GameServer=Server<ClientToServerEvents,ServerToClientEvents>;
 type GameSocket=Socket<ClientToServerEvents,ServerToClientEvents>;
 interface Record extends PrPlayerState {socketId:string|null;sessionToken:string;disconnectedAt:number|null;input:PrInput;lastInputAt:number;respawnAt:number;bot:PrBotMemory;eliminatedAt:number;}
 const idle=():PrInput=>({sequence:0,moveX:0,moveZ:0,jump:false,dive:false});
-const publicPlayer=(p:Record):PrPlayerState=>{const {socketId,sessionToken,disconnectedAt,input,lastInputAt,respawnAt,bot,eliminatedAt,...state}=p;return {...state,position:{...state.position},velocity:{...state.velocity},equippedCosmetics:{...state.equippedCosmetics},ownedCosmetics:[...state.ownedCosmetics],unlockedPassRewards:[...state.unlockedPassRewards]};};
+const publicPlayer=(p:Record):PrPlayerState=>{const {socketId,sessionToken,disconnectedAt,input,lastInputAt,respawnAt,bot,eliminatedAt,career,...state}=p;return {...state,position:{...state.position},velocity:{...state.velocity},equippedCosmetics:{...state.equippedCosmetics},ownedCosmetics:[...state.ownedCosmetics],unlockedPassRewards:[...state.unlockedPassRewards]};};
 const inside=(p:Vec3,box:{center:Vec3;half:Vec3})=>Math.abs(p.x-box.center.x)<=box.half.x&&Math.abs(p.y-box.center.y)<=box.half.y&&Math.abs(p.z-box.center.z)<=box.half.z;
 
 export class PlanetRunRoom {
@@ -17,10 +18,13 @@ export class PlanetRunRoom {
   hostId="";phase:PrPhase="lobby";configuration:PrConfiguration={targetPlayers:20,fillBots:true,botDifficulty:"normal"};
   round:PrRoundDefinition|null=null;roundIndex=0;seed=0;roundStartedAt=0;phaseEndsAt=0;qualificationTarget=0;winnerId:string|null=null;
   tiles=new PrTileState([]);onProgress?:import("../../player-profiles.js").ProgressHandler;
+  onCareer?:CareerSettlement;
+  private careerSettlementId=newCareerSettlement();
+  private careerEligible=false;
   private crowd:PrCrowdGrid|null=null;private crowdEpoch=-1;
   private accumulator=0;private lastSnapshot=0;private matchStartedAt=0;private rewarded=false;private finishOrder:string[]=[];private roundParticipants=new Set<string>();
   constructor(readonly code:string,private readonly io:GameServer){}
-  view():PrRoomView{return {code:this.code,gameFamily:this.family,hostId:this.hostId,phase:this.phase,configuration:{...this.configuration},players:[...this.players.values()].map(publicPlayer)};}
+  view():PrRoomView{return {...(this.careerEligible?{careerSettlementId:this.careerSettlementId}:{}),code:this.code,gameFamily:this.family,hostId:this.hostId,phase:this.phase,configuration:{...this.configuration},players:[...this.players.values()].map(publicPlayer)};}
   join(socket:GameSocket,name:unknown,sessionToken?:string):PrJoinResult {
     const returning=sessionToken?[...this.players.values()].find(p=>p.sessionToken===sessionToken&&!p.connected&&p.disconnectedAt!==null&&Date.now()-p.disconnectedAt<B.disconnectGraceMs):undefined;
     if(!returning&&this.phase!=="lobby")return {ok:false,error:"PlanetRun is already running. Reconnect with your original pilot session."};
@@ -47,6 +51,8 @@ export class PlanetRunRoom {
     for(const [key,p]of this.players)if(p.isBot)this.players.delete(key);
     if(this.configuration.fillBots)while(this.players.size<this.configuration.targetPlayers){const p=this.makePlayer(`Pilot ${this.players.size+1}`,true);this.players.set(p.id,p);}
     if(this.players.size<2)return false;
+    this.careerSettlementId=newCareerSettlement();
+    this.careerEligible=false;
     this.seed=randomBytes(4).readUInt32LE();this.matchStartedAt=now;this.roundIndex=0;this.rewarded=false;this.winnerId=null;
     for(const p of this.players.values()){p.status="active";p.qualifiedRounds=0;p.place=0;}
     this.beginRound(now);return true;
@@ -158,6 +164,8 @@ export class PlanetRunRoom {
         p.sessionTotalXp+=20+p.qualifiedRounds*15+(p.id===winner?60:0);p.fallbucks+=5+p.qualifiedRounds*3+(p.id===winner?20:0);if(p.id===winner)p.crowns++;
         reconcilePassRewards(p);
       }
+      this.careerEligible=eligible;
+      if(eligible){this.onProgress?.(this.players.values());this.onCareer?.("planet-run",this.careerSettlementId,[...this.players.values()].filter(p=>!p.isBot).map(player=>({player,won:player.id===winner,qualifications:player.qualifiedRounds})));}
     }
     this.emitRoom();
   }

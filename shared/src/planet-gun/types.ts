@@ -20,7 +20,7 @@ export interface PgConfiguration {mode?:PgModeId;targetPlayers:1|2|3|4|8|12;fill
 export interface PgKill {id:number;at:number;killerId:string;victimId:string;weapon:PgWeaponId;headshot:boolean;}
 export type PgSnapshotPlayer=Omit<PgPlayer,"fallbucks"|"crowns"|"sessionTotalXp"|"sessionLevel"|"sessionXp"|"ownedCosmetics"|"unlockedPassRewards">;
 export interface PgSnapshot {phase:PgPhase;serverTime:number;phaseEndsAt:number;scores:Record<PgTeam,number>;winner:PgTeam|null;players:PgSnapshotPlayer[];feed:PgKill[];mode?:PgModeSnapshot;}
-export interface PgRoomView {gameFamily:"planet-gun";code:string;hostId:string;phase:PgPhase;configuration:PgConfiguration;players:PgPlayer[];selections?:Record<string,string>;lastActionSequence?:number;}
+export interface PgRoomView {careerSettlementId?:string;gameFamily:"planet-gun";code:string;hostId:string;phase:PgPhase;configuration:PgConfiguration;players:PgPlayer[];selections?:Record<string,string>;lastActionSequence?:number;}
 export type PgJoinResult={ok:true;playerId:string;sessionToken:string;room:PgRoomView}|{ok:false;error:string};
 export interface PgFireRequest {sequence:number;clientTime:number;weapon:PgWeaponId;yaw:number;pitch:number;}
 export interface PgShot {id:number;at:number;shooterId:string;weapon:PgWeaponId;origin:Vec3;end:Vec3;targetId:string|null;damage:number;headshot:boolean;}

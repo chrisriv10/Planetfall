@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import {newCareerSettlement,type CareerSettlement} from "./career-settlement.js";
 import type { Server as SocketServer, Socket } from "socket.io";
 import RAPIER from "@dimforge/rapier3d-compat";
 import {reconcilePassRewards} from "./pass-reconciliation.js";
@@ -83,6 +84,7 @@ type GameSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 type GameServer = SocketServer<ClientToServerEvents, ServerToClientEvents>;
 
 interface PlayerRecord extends PlayerState {
+  career?:import("@planetfall/shared").CareerData;
   socketId: string | null;
   sessionToken: string;
   disconnectedAt: number | null;
@@ -119,7 +121,7 @@ function clonePlayer(player: PlayerRecord): PlayerState {
     jumpSignalActive: _n, grappleAnchor: _o, grappleRestLength: _p, grappleStartedAt: _started,
     playerGrappleBlockedUntilRelease: _grappleBlocked,
     lastEmoteType: _emoteType, lastEmoteDirection: _emoteDirection,
-    sabotage: _q, input: _r, body: _s, ...view
+    sabotage: _q, input: _r, body: _s, career: _career, ...view
   } = player;
   return {
     ...view,
@@ -141,6 +143,10 @@ export class GameRoom {
   matchStats = new Map<string, MatchStats>();
   matchResult: MatchResult | null = null;
   gameMode: GameMode = "classic";
+  matchmaking?: { botsAvailableAt: number; expiresAt: number };
+  onCareer?:CareerSettlement;
+  private careerSettlementId=newCareerSettlement();
+  private careerEligible=false;
   activeModifier: ChaosModifier | null = null;
   rules: MatchRules = createMatchRules();
   winStreak: RoomView["winStreak"] = null;
@@ -369,6 +375,7 @@ export class GameRoom {
   }
 
   setMode(playerId: string, mode: unknown): void {
+    if (this.matchmaking && mode !== "classic") return;
     if (this.phase !== "lobby" || playerId !== this.hostId || (mode !== "classic" && mode !== "chaos")) return;
     this.gameMode = mode;
     this.activeModifier = null;
@@ -768,6 +775,8 @@ export class GameRoom {
 
   view(): RoomView {
     return {
+      ...(this.careerEligible?{careerSettlementId:this.careerSettlementId}:{}),
+      ...(this.matchmaking ? {matchmaking:{...this.matchmaking,humans:[...this.players.values()].filter(p=>!p.isBot&&p.connected).length}} : {}),
       code: this.code, hostId: this.hostId, phase: this.phase,
       players: [...this.players.values()].map(clonePlayer),
       planets: [...this.planets.values()], scraps: [...this.scraps.values()],
@@ -814,6 +823,8 @@ export class GameRoom {
   }
 
   private resetMatch(): void {
+    this.careerSettlementId=newCareerSettlement();
+    this.careerEligible=false;
     this.scraps.clear(); this.projectiles.clear(); this.rematchVotes.clear(); this.winnerId = null; this.overtimeEndsAt = null;
     this.matchResult = null; this.matchStartedAt = 0; this.hitShots.clear(); this.burstBumpCooldowns.clear(); this.highFiveCooldowns.clear();
     this.firstHitSent = false; this.firstRaidSent = false;
@@ -1439,6 +1450,8 @@ export class GameRoom {
       winStreak: this.winStreak ? { ...this.winStreak } : null,
       fallbucks, progression
     };
+    this.careerEligible=now-this.matchStartedAt>=30_000;
+    if(this.careerEligible)this.onCareer?.("planetfall",this.careerSettlementId,[...this.players.values()].filter(p=>!p.isBot).map(player=>({player,won:player.id===winnerId,repairs:this.stat(player.id).repairsPerformed,scrap:this.stat(player.id).scrapCollected})));
     this.io.to(this.code).emit("match:ended", { winnerId, reason, result: this.matchResult });
     this.emitRoom();
   }

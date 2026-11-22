@@ -1,4 +1,6 @@
 import type {PgClientToServerEvents,PgServerToClientEvents} from "./planet-gun/types.js";
+import type {CareerData} from "./career.js";
+export * from "./career.js";
 export * from "./planet-gun/index.js";
 import type { BrClientToServerEvents, BrServerToClientEvents } from "./battle-royale/types.js";
 import type { PrClientToServerEvents, PrServerToClientEvents } from "./planet-run/types.js";
@@ -31,6 +33,7 @@ export interface EquippedCosmetics {
   emblem?:string;
 }
 export interface GuestProfile {
+  career?: CareerData;
   lobbyBadge?:string;
   fallbucks:number;crowns:number;sessionTotalXp:number;sessionLevel:number;sessionXp:number;
   ownedCosmetics:string[];equippedCosmetics:EquippedCosmetics;unlockedPassRewards:string[];
@@ -377,6 +380,8 @@ export interface MatchEvent {
 }
 
 export interface RoomView {
+  careerSettlementId?:string;
+  matchmaking?: { humans: number; botsAvailableAt: number; expiresAt: number };
   code: string;
   hostId: string;
   phase: RoomPhase;
@@ -429,6 +434,9 @@ export interface ServerSnapshot {
 export type LeaveRoomResult = { ok: true } | { ok: false; error: string };
 
 export interface ClientToServerEvents extends BrClientToServerEvents, PrClientToServerEvents, PgClientToServerEvents {
+  "quick:join": (payload: { name: string }, ack: (result: JoinResult) => void) => void;
+  "quick:cancel": (ack: (result: LeaveRoomResult) => void) => void;
+  "quick:bots": (ack: (result: LeaveRoomResult) => void) => void;
   "leaderboard:read": (ack:(result:LeaderboardResult)=>void) => void;
   "leaderboard:visibility": (name:string|null,ack:(result:LeaderboardVisibilityResult)=>void) => void;
   "presence:menu": (subscribed:boolean) => void;
@@ -453,6 +461,8 @@ export interface ClientToServerEvents extends BrClientToServerEvents, PrClientTo
 }
 
 export interface ServerToClientEvents extends BrServerToClientEvents, PrServerToClientEvents, PgServerToClientEvents {
+  "career:settled": (result:{family:GameFamily;settlementId:string}) => void;
+  "quick:ended": (message: string) => void;
   "presence:count": (count:number) => void;
   "profile:ready": (payload: { token?: string; profile:GuestProfile }) => void;
   "account:ended": (reason: "expired" | "signed-out" | "linked" | "unavailable") => void;

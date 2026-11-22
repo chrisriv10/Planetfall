@@ -2,7 +2,8 @@ import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./e2e",
-  testIgnore: "planet-gun-production.spec.ts",
+  // These scenarios have dedicated clocks/persistence fixtures and commands.
+  testIgnore: ["planet-gun-production.spec.ts","experience.spec.ts","career-account.spec.ts"],
   // The WebGL clients, authority and latency proxy share the local machine.
   workers: 1,
   timeout: 90_000,

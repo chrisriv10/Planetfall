@@ -1,7 +1,7 @@
 import {createHash,randomBytes,randomUUID} from "node:crypto";
 import {existsSync,mkdirSync,readFileSync,renameSync,writeFileSync} from "node:fs";
 import {dirname} from "node:path";
-import {DEFAULT_COSMETICS,PLANET_PASS_REWARDS,sanitizeName,type GameFamily,type GuestProfile,type PlanetPassReward} from "@planetfall/shared";
+import {DEFAULT_COSMETICS,PLANET_PASS_REWARDS,sanitizeName,applyCareerResult,copyCareer,type CareerResult,type GameFamily,type GuestProfile,type PlanetPassReward} from "@planetfall/shared";
 import type {LeaderboardScore,ProfileDatabase,ProfileDocument,RankedLeaderboardScore} from "./profile-database.js";
 import {passFallbucksAlreadyGranted,reconcilePassRewards} from "./pass-reconciliation.js";
 import {buyCosmetic,equipCosmetic,type ShopResult} from "./cosmetic-shop.js";
@@ -9,13 +9,14 @@ import {buyCosmetic,equipCosmetic,type ShopResult} from "./cosmetic-shop.js";
 export type PlayerProgress=GuestProfile&{lobbyBadge?:string};
 export type ProgressCapture=Map<GuestProfile,PlanetPassReward[]>;
 export type ProgressHandler=(players:Iterable<GuestProfile>)=>void|ProgressCapture;
+export type CareerEntry=CareerResult&{player:PlayerProgress};
 type Binding={key:string;baseline:PlayerProgress;fingerprint:string};
 type ProgressDelta={
   xp:number;bucks:number;crowns:number;
   owned:Set<string>;pass:Set<string>;equipped:Partial<PlayerProgress["equippedCosmetics"]>;
 };
 const passIds=new Set(PLANET_PASS_REWARDS.map(reward=>reward.id));
-const copy=(p:PlayerProgress):PlayerProgress=>({...p,ownedCosmetics:[...p.ownedCosmetics],equippedCosmetics:{...DEFAULT_COSMETICS,...p.equippedCosmetics},unlockedPassRewards:[...p.unlockedPassRewards]});
+const copy=(p:PlayerProgress):PlayerProgress=>({...p,...(p.career?{career:copyCareer(p.career)}:{}),ownedCosmetics:[...p.ownedCosmetics],equippedCosmetics:{...DEFAULT_COSMETICS,...p.equippedCosmetics},unlockedPassRewards:[...p.unlockedPassRewards]});
 const empty=():PlayerProgress=>({fallbucks:0,crowns:0,sessionTotalXp:0,sessionLevel:1,sessionXp:0,ownedCosmetics:[],equippedCosmetics:{...DEFAULT_COSMETICS},unlockedPassRewards:["default"]});
 const keyFor=(token:string)=>createHash("sha256").update(token).digest("hex");
 const leaderboardOrder=(a:LeaderboardScore,b:LeaderboardScore)=>b.xp-a.xp||(a.key<b.key?-1:a.key>b.key?1:0);
@@ -24,6 +25,7 @@ const leaderboardOrder=(a:LeaderboardScore,b:LeaderboardScore)=>b.xp-a.xp||(a.ke
  * token; balances and owned items never come from client storage or payloads. */
 export class PlayerProfiles {
   onChange?:(key:string,profile:PlayerProgress)=>void;
+  onCareerSettled?:(key:string,family:GameFamily,settlementId:string)=>void;
   onSaveFailure?:(key:string)=>void;
   onGuestClaimed?:(key:string)=>void;
   private readonly records=new Map<string,PlayerProgress>();
@@ -33,12 +35,15 @@ export class PlayerProfiles {
   private readonly bindings=new WeakMap<PlayerProgress,Binding>();
   private readonly players=new Set<WeakRef<PlayerProgress>>();
   private readonly pending=new Map<string,ProgressDelta[]>();
+  private readonly careerReceipts=new Set<string>();
+  private readonly localCareerPending:Array<()=>void>=[];
   private dirty=false;
   private lastRetry=0;
   constructor(private readonly file?:string,initial?:ProfileDocument,private readonly database?:ProfileDatabase){
     if(initial||file&&existsSync(file)){
       const data=initial??JSON.parse(readFileSync(file!,"utf8"));
       if(data.version!==1||!data.profiles||typeof data.profiles!=="object")throw new Error("Invalid player profile store; refusing to overwrite it.");
+      for(const id of data.careerReceipts??[])this.careerReceipts.add(id);
       for(const [key,value]of Object.entries(data.profiles)){
         const p=value as PlayerProgress;
         if(!/^[a-f0-9]{64}$/.test(key)||![p.fallbucks,p.crowns,p.sessionTotalXp].every(n=>Number.isSafeInteger(n)&&n>=0)||!Array.isArray(p.ownedCosmetics)||!Array.isArray(p.unlockedPassRewards)||!p.equippedCosmetics)throw new Error("Invalid saved player profile; refusing to overwrite it.");
@@ -102,7 +107,7 @@ export class PlayerProfiles {
   boundKey(player:PlayerProgress):string|undefined {return this.bindings.get(player)?.key;}
   hasProgress(key:string):boolean {
     const p=this.view(key);
-    return p.fallbucks!==0||p.crowns!==0||p.sessionTotalXp!==0||p.ownedCosmetics.length!==0||
+    return Boolean(p.career)||p.fallbucks!==0||p.crowns!==0||p.sessionTotalXp!==0||p.ownedCosmetics.length!==0||
       p.unlockedPassRewards.some(id=>id!=="default")||Boolean(p.lobbyBadge)||
       Object.entries(DEFAULT_COSMETICS).some(([category,id])=>p.equippedCosmetics[category as keyof typeof DEFAULT_COSMETICS]!==id);
   }
@@ -244,6 +249,53 @@ export class PlayerProfiles {
       this.onChange?.(key,copy(progress));
     });
   }
+  /** Called only by authoritative match endings with their stable server UUID.
+   * Bound objects establish identity; no client-provided key or statistics enter here. */
+  recordCareer(family:GameFamily,settlementId:string,entries:Iterable<CareerEntry>):void {
+    if(!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(settlementId))throw new RangeError("Invalid Career settlement UUID");
+    const at=new Date().toISOString(),staged=new Map<string,{id:string;result:CareerResult}>();
+    for(const entry of entries){
+      const key=this.bindings.get(entry.player)?.key;
+      if(!key||staged.has(key))continue;
+      const {won,eliminations,qualifications,repairs,scrap,waves}=entry;
+      const result={won,eliminations,qualifications,repairs,scrap,waves};
+      applyCareerResult(undefined,family,result,at); // Validate the entire batch before queuing writes.
+      staged.set(key,{id:careerReceipt(settlementId,key),result});
+    }
+    this.capture([]);
+    for(const [key,{id,result}]of staged){
+      if(this.database){
+        let reported=false;
+        this.database.enqueue(key,async()=>{
+          let committed;
+          try{
+            committed=await this.database!.mutate(key,id,false,current=>({
+              value:null,progress:{...copy(current),career:applyCareerResult(current.career,family,result,at)},
+            }));
+          }catch(error){if(!reported){reported=true;this.onSaveFailure?.(key);}throw error;}
+          if(committed.claimed)this.holdGuest(key);
+          this.syncCommitted(key,committed.progress);
+          this.onChange?.(key,copy(committed.progress));
+          this.onCareerSettled?.(key,family,settlementId);
+        });
+      }else{
+        this.localCareerPending.push(()=>{
+          if(this.careerReceipts.has(id)){this.onCareerSettled?.(key,family,settlementId);return;}
+          const previous=this.records.get(key)!,next={...copy(previous),career:applyCareerResult(previous.career,family,result,at)};
+          this.records.set(key,next);this.careerReceipts.add(id);this.dirty=true;
+          try{this.flush();}catch(error){this.records.set(key,previous);this.careerReceipts.delete(id);this.dirty=true;throw error;}
+          this.syncBindings(new Map([[key,next]]));this.onChange?.(key,copy(next));this.onCareerSettled?.(key,family,settlementId);
+        });
+      }
+    }
+    this.flushLocalCareer();
+  }
+  private flushLocalCareer():void {
+    while(this.localCareerPending.length){
+      try{this.localCareerPending[0]();this.localCareerPending.shift();}
+      catch(error){console.error("Career save failed; retaining result for retry.",error instanceof Error?error.message:"Unknown save error");break;}
+    }
+  }
   async shop(key:string,guest:boolean,action:"buy"|"equip",itemId:unknown,family:GameFamily,phase:()=>string):Promise<ShopResult>{
     const database=this.database;
     if(!database)throw new Error("Shop requires database");
@@ -262,14 +314,19 @@ export class PlayerProfiles {
     this.onChange?.(key,copy(progress));
     return value;
   }
-  retry(now:number):void {if(now-this.lastRetry>=1000){this.lastRetry=now;this.database?.retry();if(this.dirty)try{this.flush();}catch(error){console.error("Player profile save retry failed.",error);}}}
-  async close():Promise<void>{this.flush();await this.database?.close();}
+  retry(now:number):void {if(now-this.lastRetry>=1000){this.lastRetry=now;this.database?.retry();this.flushLocalCareer();if(this.dirty)try{this.flush();}catch(error){console.error("Player profile save retry failed.",error);}}}
+  async close():Promise<void>{this.flushLocalCareer();this.flush();await this.database?.close();}
   flush():void {
     if(!this.dirty)return;
-    const document:ProfileDocument={version:1,profiles:Object.fromEntries([...this.records].map(([key,p])=>[key,copy(p)]))};
+    const document:ProfileDocument={version:1,profiles:Object.fromEntries([...this.records].map(([key,p])=>[key,copy(p)])),...(this.careerReceipts.size?{careerReceipts:[...this.careerReceipts]}:{})};
     if(this.file){document.leaderboardNames=Object.fromEntries(this.leaderboardNames);mkdirSync(dirname(this.file),{recursive:true});const temporary=`${this.file}.tmp`;writeFileSync(temporary,JSON.stringify(document),{mode:0o600});renameSync(temporary,this.file);}
     this.dirty=false;
   }
+}
+function careerReceipt(settlementId:string,key:string):string {
+  const hex=createHash("sha256").update(`planetfall:career:v1:${settlementId.toLowerCase()}:${key}`).digest("hex");
+  // UUID-shaped namespaced digest fits the existing bounded uuid receipt column.
+  return `${hex.slice(0,8)}-${hex.slice(8,12)}-5${hex.slice(13,16)}-a${hex.slice(17,20)}-${hex.slice(20,32)}`;
 }
 function playerProgress(p:PlayerProgress):PlayerProgress{return {fallbucks:p.fallbucks,crowns:p.crowns,sessionTotalXp:p.sessionTotalXp,sessionLevel:p.sessionLevel,sessionXp:p.sessionXp,ownedCosmetics:p.ownedCosmetics,equippedCosmetics:p.equippedCosmetics,unlockedPassRewards:p.unlockedPassRewards,...(p.lobbyBadge!==undefined?{lobbyBadge:p.lobbyBadge}:{})};}
 const validAmount=(n:number)=>Number.isSafeInteger(n)&&n>=0;

@@ -1,4 +1,66 @@
 /* Loaded after the base stylesheet to keep four families in a balanced grid. */
+/* Center the whole wordmark, including its orbit, independently of name length.
+   A shared header height keeps the form stationary when families change. */
+#home-screen .brand-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: clamp(74px, 7vw, 92px);
+  padding-bottom: 20px;
+  box-sizing: border-box;
+  margin: 2px 0 8px;
+}
+#home-screen .brand-lockup {
+  --brand-letter: #ffdc4f;
+  --brand-ring: #70f5ff;
+  --brand-planet: #ff55ad;
+  --brand-shadow: #25245e;
+  --brand-tilt: -7deg;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: max-content;
+  max-width: none;
+  margin: 0;
+  transform: none;
+}
+#home-screen .brand-lockup h1 { flex: 0 0 auto; font-size: clamp(2.65rem, 6vw, 4.2rem); text-align: center; text-shadow: 0 6px 0 var(--brand-shadow), 0 10px 28px rgba(0,0,0,.45); }
+#home-screen .brand-lockup h1::first-letter { color: var(--brand-letter); }
+#home-screen .brand-orbit {
+  left: -15px;
+  border-color: color-mix(in srgb, var(--brand-ring) 72%, transparent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--brand-ring) 22%, transparent);
+  transform: rotate(var(--brand-tilt));
+  animation-name: family-orbit-breathe;
+}
+#home-screen .brand-lockup > b { right: -18px; background: var(--brand-planet); box-shadow: -10px 0 18px var(--brand-planet), 0 0 0 4px rgba(255,255,255,.2); }
+#home-screen[data-family="battle-royale"] .brand-lockup { --brand-letter: #70f5ff; --brand-ring: #a995ff; --brand-planet: #bc8cff; --brand-shadow: #30275f; --brand-tilt: -5deg; }
+#home-screen[data-family="battle-royale"] .brand-lockup h1 { font-size: clamp(2.2rem, 5vw, 3.9rem); }
+#home-screen[data-family="planet-run"] .brand-lockup { --brand-letter: #ffdc4f; --brand-ring: #ffb768; --brand-planet: #ff806f; --brand-shadow: #4a2955; --brand-tilt: -10deg; }
+#home-screen[data-family="planet-gun"] .brand-lockup { --brand-letter: #8ff7d4; --brand-ring: #73baff; --brand-planet: #8ff7d4; --brand-shadow: #183e60; --brand-tilt: -3deg; }
+#home-screen[data-family="planet-gun"] .brand-orbit { height: 34%; top: 48%; }
+@keyframes family-orbit-breathe { 50% { transform: rotate(calc(var(--brand-tilt) + 2deg)) scaleX(1.02); opacity: .72; } }
+[data-brand-mode] { --mode-brand-accent: #70f5ff; }
+[data-brand-mode="chaos"] { --mode-brand-accent: #ed88ff; }
+[data-brand-mode="planetstrike"] { --mode-brand-accent: #ff9478; }
+[data-brand-mode="planetwatch"] { --mode-brand-accent: #7cdfff; }
+[data-brand-mode="planetsiege"] { --mode-brand-accent: #ffd078; }
+[data-brand-mode="planetzombies"] { --mode-brand-accent: #b7ed78; }
+#home-screen[data-brand-mode="chaos"] .brand-lockup { --brand-letter: #f78bff; --brand-ring: #bd85ff; --brand-planet: #ff69bd; --brand-shadow: #432661; }
+#home-screen[data-brand-mode="planetstrike"] .brand-lockup { --brand-letter: #ffb17c; --brand-ring: #ff946c; --brand-planet: #ff726e; --brand-shadow: #512e39; }
+#home-screen[data-brand-mode="planetwatch"] .brand-lockup { --brand-letter: #7ce6ff; --brand-ring: #72aaff; --brand-planet: #94d9ff; --brand-shadow: #213c65; }
+#home-screen[data-brand-mode="planetsiege"] .brand-lockup { --brand-letter: #ffd078; --brand-ring: #dfad65; --brand-planet: #ffe5a1; --brand-shadow: #493749; }
+#home-screen[data-brand-mode="planetzombies"] .brand-lockup { --brand-letter: #b7ed78; --brand-ring: #8ecb83; --brand-planet: #d9ff8a; --brand-shadow: #293e42; }
+#home-screen[data-family="planet-gun"]:not([data-brand-mode="deathmatch"]) .brand-lockup h1 { font-size: clamp(2rem, 4.8vw, 3.6rem); }
+.mode-brand-caption { display: block; color: var(--mode-brand-accent, #70f5ff); font-size: .62rem; line-height: 1.4; font-weight: 900; letter-spacing: .2em; }
+.mode-brand-caption[hidden] { display: none; }
+#home-screen .mode-brand-caption { position: absolute; bottom: 0; left: 0; right: 0; text-align: center; }
+.lobby-heading .mode-brand-title-group { min-width: 0; flex: 1 1 auto; }
+.lobby-heading .mode-brand-heading { max-width: 100%; overflow-wrap: anywhere; font-size: clamp(1.35rem, 2.7vw, 2.4rem); line-height: 1.05; letter-spacing: -.045em; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 2px solid var(--mode-brand-accent, #70f5ff); }
+#pg-lobby-screen.mode-lobby .pg-lobby-card .lobby-heading .mode-brand-heading { font-size: clamp(1.2rem, 2.7vw, 2.2rem); margin: 0 0 6px; }
+.lobby-heading .mode-brand-caption { font-size: .56rem; }
 #home-screen .home-card .family-selector { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
 .family-selector .family-card {
   position: relative;
@@ -32,6 +94,10 @@
 .family-selector .family-card:enabled:hover { border-color: #b0ecff; }
 .family-selector .family-card:focus-visible { outline: 3px solid #ffdc4f; outline-offset: 3px; }
 @media (max-width: 760px) {
+  #home-screen .brand-header { height: clamp(62px, 14vw, 78px); }
+  #home-screen .brand-lockup h1 { font-size: clamp(1.75rem, 9.4vw, 3.45rem); }
+  #home-screen[data-family="battle-royale"] .brand-lockup h1 { font-size: clamp(1.55rem, 8.5vw, 3rem); }
+  #home-screen[data-family="planet-gun"]:not([data-brand-mode="deathmatch"]) .brand-lockup h1 { font-size: clamp(1.45rem, 7.5vw, 2.8rem); }
   #home-screen .home-card .family-selector { grid-template-columns: minmax(0, 1fr); gap: 7px; }
 }
 @media (max-width: 440px) {

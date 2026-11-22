@@ -185,6 +185,7 @@ export interface BrMatchResult {
 }
 
 export interface BrRoomView {
+  careerSettlementId?:string;
   family: "battle-royale";
   code: string;
   hostId: string;

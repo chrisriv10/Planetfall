@@ -2,7 +2,7 @@ import {profileConnection,type ProfileDatabaseConnection,type ProfileQuery} from
 import {earnedXp,leaderboardOrder,safeProfileDatabaseError,validateProfileSchema} from "./profile-schema.js";
 import type {PlayerProgress} from "./player-profiles.js";
 export type {ProfileDatabaseConnection,ProfileQuery} from "./profile-connection.js";
-export interface ProfileDocument {version:1;profiles:Record<string,PlayerProgress>;leaderboardNames?:Record<string,string>;}
+export interface ProfileDocument {version:1;profiles:Record<string,PlayerProgress>;leaderboardNames?:Record<string,string>;careerReceipts?:string[];}
 export interface LeaderboardScore {key:string; name:string; xp:number;}
 export interface RankedLeaderboardScore extends LeaderboardScore {rank:number;}
 function leaderboardScore(row:Record<string,unknown>):LeaderboardScore {

@@ -16,6 +16,11 @@ import {createPgKitEditor} from "./modes/planet-gun/pg-kit-editor";
 import {createDevCanvasRecording} from "./dev-canvas-recording";
 import {PG_BALANCE,type PgRoomView,type PgSnapshot,type PgModeActionResult} from "@planetfall/shared";
 import {MODE_DEVELOPMENT} from "./mode-development";
+import {applyModeBranding} from "./mode-branding";
+import {createPlayerGuide} from "./player-guide";
+import {createExperienceView} from "./experience-view";
+import {buildRoomInvite,readRoomInvite} from "./room-invites";
+import {CAREER_ACHIEVEMENTS} from "@planetfall/shared";
 import {createModeWarningArt} from "./mode-warning-art";
 import { createPrUi } from "./modes/planet-run/pr-ui";
 import type { PrRoomView, PrSnapshot } from "@planetfall/shared";
@@ -28,6 +33,7 @@ import "./br-squad-hud.css";
 import "./ui-foundation.css";
 import "./lobby-layout.css";
 import "./modes/planet-gun/pg-mode-hud-presentation.css";
+import "./experience-view.css";
 import { brItemName, brItemDescription, BR_RARITIES } from "@planetfall/shared";
 import { mouseButtonIcon } from "./mouse-button-icon";
 import { cosmeticCompatible,cosmeticFamilies,sessionXpRequired,BALANCE, BR_BALANCE, BR_HEALS, BR_MAP, BR_POIS, BR_SECONDARY_LOCATIONS, BR_WEAPONS, CHAOS_COPY, PLANET_PASS_REWARDS, SESSION_PROGRESSION, SHOP_CATALOG, WEAPON_COPY, WEAPON_ORDER, brPickupDisposition, isBrWeapon, type BotDifficulty, type BrCrateState, type BrItemId, type BrJoinResult, type BrLootState, type BrMatchResult, type BrPlayerState, type BrRoomView, type BrTeamMode, type ChaosModifier, type CosmeticCategory, type EmoteType, type GameFamily, type GameMode, type JoinResult, type MatchCalloutType, type MatchEvent, type MatchResult, type RoomView, type WeaponType } from "@planetfall/shared";
@@ -283,6 +289,8 @@ let brGame: BrGame | null = null;
 let brGamePromise: Promise<BrGame> | null = null;
 let brRoom: BrRoomView | null = null;
 let selectedFamily: GameFamily = "planetfall";
+let selectedClassicBrandMode: GameMode = "classic";
+let selectedPgBrandMode: string | null = null;
 let currentFamily: GameFamily = "planetfall";
 let pendingBrLoot: BrLootState[] = [];
 let pendingBrCrates: BrCrateState[] = [];
@@ -319,6 +327,108 @@ let brEventTimer=0;
 const brMiniTeammates = new Map<string, HTMLElement>();
 
 await game.init();
+const playerGuide=createPlayerGuide();
+let experienceFocus:HTMLElement|null=null;
+let quickTimer:ReturnType<typeof setInterval>|undefined;
+const experienceView=createExperienceView(document,{
+  cancel:()=>void leaveRoom(),
+  startBots:()=>void socket.timeout(5000).emitWithAck("quick:bots").then(result=>{if(!result.ok)toast(result.error);},()=>toast("Could not start the bot match. Try again.")),
+  closeGuide:()=>playerGuide.close(),dismissHint:()=>playerGuide.dismissHint(),skipGuide:()=>playerGuide.skipFamily(playerGuide.getState().family),
+  enableGuide:()=>playerGuide.setEnabled(!playerGuide.getState().enabled),selectGuideFamily:family=>playerGuide.open(family),closeCareer:closeCareer,
+});
+byId("ui").append(experienceView.guideRoot,experienceView.careerRoot,experienceView.hintRoot);
+byId("mode-selector").before(experienceView.quickRoot);
+let guideWasOpen=false;
+playerGuide.subscribe(state=>{
+  experienceView.renderGuide(state);
+  if(state.open===guideWasOpen)return;guideWasOpen=state.open;
+  if(state.open){experienceFocus=document.activeElement as HTMLElement;document.exitPointerLock?.();captureUi(true);focusFirst(experienceView.guideRoot);}
+  else{captureUi(Boolean(activeOverlay()));experienceFocus?.focus();}
+});
+function experienceButton(id:string,text:string,parent:HTMLElement,handler:()=>void){const b=document.createElement("button");b.id=id;b.type="button";b.className="button button-quiet";b.textContent=text;b.addEventListener("click",handler);parent.append(b);return b;}
+const homeActions=byId("shop-home").parentElement!;
+const resultConfirmations=new Map<HTMLElement,HTMLElement>();
+const settledResults=new Set<string>();
+let earnedAchievementNames:string[]=[];
+experienceButton("help-home","HOW TO PLAY",homeActions,()=>playerGuide.open(selectedFamily));
+experienceButton("career-home","CAREER",homeActions,openCareer);
+for(const [family,screen] of [["planetfall",screens.lobby],["battle-royale",screens.brLobby],["planet-run",screens.prLobby],["planet-gun",screens.pgLobby]] as const){
+  const nav=screen.querySelector<HTMLElement>(".lobby-hub-nav")!;
+  experienceButton(`invite-${family}`,"COPY INVITE LINK",nav,()=>{
+    const code=family==="planetfall"?room?.code:family==="battle-royale"?brRoom?.code:family==="planet-run"?prRoom?.code:pgRoom?.code;
+    if(!code)return;
+    const link=buildRoomInvite(location.origin,family,code);
+    void navigator.clipboard.writeText(link).then(()=>toast("Invite link copied. Your friend confirms joining."),()=>toast(`Invite link: ${link}`));
+  });
+}
+for(const screen of [screens.results,screens.brResults,screens.prResults,screens.pgResults]){
+  const actions=screen.querySelector<HTMLElement>(".result-actions,.br-actions,.pr-actions,.pg-actions")??screen.querySelector<HTMLElement>(".results-card,.br-results-card,.pr-panel,.pg-panel")??screen;
+  experienceButton(`career-${screen.id}`,"VIEW CAREER",actions,openCareer);
+  const confirmation=document.createElement("p");confirmation.className="experience-muted";confirmation.setAttribute("role","status");actions.before(confirmation);resultConfirmations.set(screen,confirmation);
+}
+function renderResultsConfirmation():void {
+  for(const [screen,profileRoom]of [[screens.results,room],[screens.brResults,brRoom],[screens.prResults,prRoom],[screens.pgResults,pgRoom]]as const){
+    const line=resultConfirmations.get(screen)!;
+    if(profileRoom?.phase!=="results"){line.textContent="";continue;}
+    const id=profileRoom.careerSettlementId;
+    line.textContent=id?settledResults.has(id)?`Rewards and Career saved.${earnedAchievementNames.length?" Achievements: "+earnedAchievementNames.join(", ")+".":""}`:"Saving rewards and Career… Your confirmed balances appear in Career.":"Short or abandoned matches do not add Career credit. Confirmed balances appear in Career.";
+  }
+}
+socket.on("career:settled",({settlementId})=>{settledResults.add(settlementId);if(settledResults.size>64)settledResults.delete(settledResults.values().next().value!);renderResultsConfirmation();});
+experienceButton("find-another-match","FIND ANOTHER MATCH",screens.results.querySelector<HTMLElement>(".result-actions")??screens.results,()=>{
+  void leaveRoom().then(left=>{if(left){applyFamilySelection("planetfall");void findQuickMatch();}});
+});
+experienceButton("help-pause","HOW TO PLAY",byId("pause-kits").parentElement!,()=>playerGuide.open(currentFamily));
+const quickButton=experienceButton("quick-match","Quick Match · Find players",soloButton.parentElement!,()=>void findQuickMatch());
+quickButton.className="button button-primary";soloButton.before(quickButton);
+soloButton.classList.replace("button-primary","button-secondary");soloButton.innerHTML='<span class="button-icon">▶</span> Play Solo · Bots';
+function openCareer():void {
+  const profile=getGuestProfile();if(!profile){toast("Connect your saved pilot before opening Career.");return;}
+  experienceFocus=document.activeElement as HTMLElement;
+  experienceView.renderCareer(profile,nameInput.value.trim()||"Your pilot");experienceView.careerRoot.hidden=false;
+  document.exitPointerLock?.();captureUi(true);focusFirst(experienceView.careerRoot);
+}
+function closeCareer():void {experienceView.careerRoot.hidden=true;captureUi(Boolean(activeOverlay()));experienceFocus?.focus();}
+async function findQuickMatch():Promise<void> {
+  if(selectedFamily!=="planetfall"||currentScreen!=="home"||joining||leaving||activeOverlay())return;
+  const name=nameInput.value.trim();if(!name)return toast("Choose a pilot name first.");
+  if(!socket.connected||account.changing)return toast("Wait for your pilot to finish connecting.");
+  joining=true;quickButton.disabled=true;quickButton.textContent="Finding a Classic lobby…";
+  const generation=membershipGeneration;
+  try{
+    const result=await socket.timeout(8000).emitWithAck("quick:join",{name});
+    if(generation!==membershipGeneration)return;
+    if(!result.ok){toast(result.error);return;}
+    currentName=name;localStorage.setItem("planetfall:name",name);currentFamily="planetfall";playerId=result.playerId;currentCode=result.room.code;
+    sessionStorage.setItem(`planetfall:${currentCode}`,result.sessionToken);game.setLocalId(playerId);applyRoom(result.room);
+  }catch{toast("Could not confirm the search. Reconnect before trying again.");}
+  finally{joining=false;quickButton.disabled=false;quickButton.textContent="Quick Match · Find players";}
+}
+function renderQuickMatch():void {
+  const status=currentScreen==="lobby"?room?.matchmaking:undefined;
+  experienceView.renderQuick(status?{...status,state:status.humans>=2?"ready":"searching",canStartBots:room?.hostId===playerId}:null);
+  if(status&&quickTimer===undefined)quickTimer=setInterval(renderQuickMatch,1000);
+  if(!status&&quickTimer!==undefined){clearInterval(quickTimer);quickTimer=undefined;}
+}
+function syncGuideContext():void {
+  const family=currentScreen==="home"?selectedFamily:currentFamily;
+  const phase=currentScreen==="home"?"home":family==="planet-gun"?pgRoom?.phase:family==="planet-run"?prRoom?.phase:family==="battle-royale"?brRoom?.phase:room?.phase;
+  const inline=phase==="lobby"&&currentScreen!=="home";
+  experienceView.hintRoot.classList.toggle("is-inline",inline);
+  if(inline)screens[currentScreen].querySelector(".lobby-heading")?.after(experienceView.hintRoot);
+  else if(experienceView.hintRoot.parentElement!==byId("ui"))byId("ui").append(experienceView.hintRoot);
+  playerGuide.setContext({family,phase:phase??"home",inputMethod:game.getInputMethod(),...(family==="planet-gun"?{submode:pgRoom?.configuration.mode??"deathmatch"}:{})});
+}
+socket.on("quick:ended",message=>{if(room?.matchmaking){clearMembership();toast(message);}});
+let knownAchievements=new Set(Object.keys(getGuestProfile()?.career?.achievements??{}));
+socket.on("profile:ready",({profile})=>{knownAchievements=new Set(Object.keys(profile.career?.achievements??{}));});
+socket.on("profile:state",profile=>{
+  const unlocked:string[]=[];
+  for(const id of Object.keys(profile.career?.achievements??{}))if(!knownAchievements.has(id)){knownAchievements.add(id);unlocked.push(CAREER_ACHIEVEMENTS.find(a=>a.id===id)?.name??"New milestone");}
+  if(unlocked.length){earnedAchievementNames.push(...unlocked);toast(`${unlocked.length===1?unlocked[0]:unlocked.length+" achievements"} earned! View Career.`);}
+  if(!experienceView.careerRoot.hidden)experienceView.renderCareer(profile,nameInput.value.trim()||"Your pilot");
+  renderResultsConfirmation();
+});
 addEventListener("pointerdown", () => game.audio.unlock(), { once: true, capture: true });
 addEventListener("keydown", () => game.audio.unlock(), { once: true, capture: true });
 if (import.meta.env.DEV) Object.defineProperty(window, "__PLANETFALL_DEBUG__", { value: () => game.debugState(), configurable: true });
@@ -552,6 +662,10 @@ byId("pass-results").addEventListener("click", openPass);
 byId("pass-close").addEventListener("click", closePass);
 byId("settings-lobby").addEventListener("click", () => openSettings("screen"));
 addEventListener("keydown", (event) => {
+  if(event.key==="Escape"&&(!experienceView.guideRoot.hidden||!experienceView.careerRoot.hidden)){
+    event.preventDefault();game.consumeUiCancel();if(!experienceView.guideRoot.hidden)playerGuide.close();else closeCareer();return;
+  }
+  if((!experienceView.guideRoot.hidden||!experienceView.careerRoot.hidden)&&event.key!=="Tab")return;
   if(!globalLeaderboard.root.hidden){
     if(event.key==="Escape"){event.preventDefault();game.consumeUiCancel();globalLeaderboard.close();return;}
     if(event.key!=="Tab"||event.defaultPrevented)return;
@@ -645,12 +759,15 @@ modeWarning.continueButton.addEventListener("click",()=>closeModeWarning(true));
 modeWarning.cancelButton.addEventListener("click",()=>closeModeWarning(false));
 function applyFamilySelection(family: GameFamily): void {
   selectedFamily = family;
+  renderHomeBranding();
   if(currentScreen==="home"&&!room&&!brRoom&&!prRoom&&!pgRoom)currentFamily=family;
   game.setHomeFamily(family);
+  quickButton.hidden=family!=="planetfall";
+  soloButton.classList.toggle("button-primary",family!=="planetfall");soloButton.classList.toggle("button-secondary",family==="planetfall");
   familyPlanetfallButton.classList.toggle("selected", family === "planetfall"); familyBrButton.classList.toggle("selected", family === "battle-royale");
   byId("home-intro").textContent = family === "planetfall" ? "Last planet standing wins." : "Drop onto Orbital Isle. Loot up. Be the last crew standing.";
-  soloButton.innerHTML = family === "planetfall" ? '<span class="button-icon">▶</span> Play Solo' : '<span class="button-icon">▼</span> PlanetRoyale Solo + Bots';
-  createButton.textContent = family === "planetfall" ? "Create Room" : "Create PlanetRoyale Room";
+  soloButton.innerHTML = family === "planetfall" ? '<span class="button-icon">▶</span> Play Solo · Bots' : '<span class="button-icon">▼</span> PlanetRoyale Solo + Bots';
+  createButton.textContent = family === "planetfall" ? "Create Private Room" : "Create PlanetRoyale Room";
   byId("family-pr").classList.toggle("selected",family==="planet-run");
   if(family==="planet-run"){
     byId("home-intro").textContent="Race. Survive. Qualify. One pilot takes the crown.";
@@ -659,6 +776,12 @@ function applyFamilySelection(family: GameFamily): void {
   byId("family-pg").classList.toggle("selected",family==="planet-gun");
   if(family==="planet-gun"){byId("home-intro").textContent="Fast first-person combat. Ion movement. Nova Block.";soloButton.textContent="PLANETGUN + BOTS";createButton.textContent="CREATE PLANETGUN ROOM";}
   renderInputUi(game.getInputMethod());
+}
+
+function renderHomeBranding(): void {
+  const mode = selectedFamily === "planet-gun" ? selectedPgBrandMode ?? account.preferences.storage.getItem(PG_MODE_PREFERENCE_KEY) ?? "deathmatch"
+    : selectedFamily === "planetfall" ? selectedClassicBrandMode : undefined;
+  applyModeBranding(screens.home, byId("logo-title"), selectedFamily, mode);
 }
 
 function openBrQuickPlay(): void {
@@ -699,6 +822,7 @@ async function leaveRoom(): Promise<boolean> {
 }
 
 function clearMembership():void {
+  experienceView.careerRoot.hidden=true;playerGuide.close();
   pgCharacterSelection.close(false);pgStrikeBuy.close(false);pgSiegeFeed.update();
   membershipGeneration++;
   joining=false;
@@ -1118,6 +1242,11 @@ function renderBrMap(player: BrRoomView["players"][number]): void {
 
 function renderLobby(): void {
   if (!room) return;
+  byId("invite-planetfall").hidden=Boolean(room.matchmaking);
+  renderQuickMatch();
+  syncGuideContext();
+  selectedClassicBrandMode = room.gameMode;
+  applyModeBranding(screens.lobby, byId("lobby-title"), "planetfall", room.gameMode);
   byId("lobby-code").textContent = room.code;
   playerList.replaceChildren(...room.players.map((player) => {
     const row=createLobbyRosterRow(document,{...player,localId:playerId,hostId:room!.hostId});row.classList.add("player-row");
@@ -1131,13 +1260,13 @@ function renderLobby(): void {
   const me = room.players.find((p) => p.id === playerId);
   readyButton.textContent = me?.ready ? "Ready ✓" : "Ready";
   startButton.hidden = room.hostId !== playerId;
-  addBotButton.hidden = room.hostId !== playerId || room.players.length >= BALANCE.maxPlayers;
+  addBotButton.hidden = room.hostId !== playerId || room.players.length >= BALANCE.maxPlayers || Boolean(room.matchmaking);
   const waitingForReconnect = room.players.some((player) => !player.connected);
   startButton.toggleAttribute("disabled", waitingForReconnect || room.players.filter((p) => p.connected).length < BALANCE.minPlayers || !room.players.filter((p) => p.connected).every((p) => p.ready));
   byId("lobby-hint").textContent = waitingForReconnect ? "Waiting for player to reconnect" : room.players.length < 2 ? "Waiting for players" : room.hostId === playerId ? "Start when everyone is ready" : "Waiting for host";
   const isHost = room.hostId === playerId;
   modeClassicButton.disabled = !isHost;
-  modeChaosButton.disabled = !isHost;
+  modeChaosButton.disabled = !isHost || Boolean(room.matchmaking);
   modeClassicButton.classList.toggle("selected", room.gameMode === "classic");
   modeChaosButton.classList.toggle("selected", room.gameMode === "chaos");
   document.body.dataset.gameMode = room.gameMode;
@@ -1262,7 +1391,7 @@ function showResults(winnerId: string | null, result: MatchResult | null = room?
   const streak = result?.winStreak?.playerId === winnerId && (result.winStreak?.count ?? 0) >= 2 ? ` · ${result.winStreak!.count} WIN STREAK` : "";
   byId("winner-copy").innerHTML = winner
     ? `${winner.isBot ? '<span class="bot-badge">BOT</span> ' : ""}${isMe ? "Your planet survived." : `${escapeHtml(winner.name)} held on.`} <strong class="result-crowns">♛ ${crownTotal}${streak}</strong>`
-    : "No planets left.";
+    : result?.reason==="timer"?"Time expired with tied planet integrity.":result?.reason==="last-standing"?"No planets left.":"The match ended in a draw.";
   const standings = byId("results-standings");
   const awards = byId("results-awards");
   const finalResult = result;
@@ -1521,6 +1650,7 @@ function closePause(): void {
 }
 
 function renderInputUi(method: InputMethod): void {
+  syncGuideContext();
   document.body.dataset.input = method;
   const battleRoyale = currentScreen === "home" ? selectedFamily === "battle-royale" : currentFamily === "battle-royale";
   const planetRun=currentScreen==="home"?selectedFamily==="planet-run":currentFamily==="planet-run";
@@ -1610,6 +1740,8 @@ function showFirstMatchControls(): void {
 
 function navigateUi(action: "up" | "down" | "left" | "right" | "confirm" | "back"): void {
   if (action === "back") {
+    if(!experienceView.guideRoot.hidden)return playerGuide.close();
+    if(!experienceView.careerRoot.hidden)return closeCareer();
     if(pgStrikeBuy.visible){pgStrikeBuy.close();return;}
     if(pgCharacterSelection.visible){pgCharacterSelection.close();return;}
     if(pgUi.scoreboardVisible)return setPgScoreboard(false);
@@ -1655,11 +1787,11 @@ function navigateUi(action: "up" | "down" | "left" | "right" | "confirm" | "back
 function focusFirst(root: HTMLElement): void {
   document.querySelectorAll(".gamepad-focus").forEach((element) => element.classList.remove("gamepad-focus"));
   const first = focusableElements(root)[0];
-  if ((game.getInputMethod() === "gamepad"||root.classList.contains("overlay")) && first) { first.classList.toggle("gamepad-focus",game.getInputMethod()==="gamepad"); first.focus(); }
+  if ((game.getInputMethod() === "gamepad"||root.classList.contains("overlay")||root.classList.contains("experience-overlay")) && first) { first.classList.toggle("gamepad-focus",game.getInputMethod()==="gamepad"); first.focus(); }
 }
 
 function focusableElements(root:HTMLElement):HTMLElement[]{return [...root.querySelectorAll<HTMLElement>("button:not([disabled]):not([hidden]), input:not([disabled]):not([hidden]), select:not([disabled]):not([hidden]), summary, [tabindex]:not([tabindex='-1'])")].filter(element=>element.offsetParent!==null);}
-function activeOverlay():HTMLElement|null{return !globalLeaderboard.root.hidden?globalLeaderboard.root:!account.panel.root.hidden?account.panel.root:pgStrikeBuy.visible?pgStrikeBuy.root:pgCharacterSelection.visible?pgCharacterSelection.root:pgModeUi.menuOpen?pgModeUi.hudRoot.querySelector<HTMLElement>(".pg-mode-menu"):!pgKits.root.hidden?pgKits.root:pgUi.scoreboardVisible?byId("pg-scoreboard"):!modeWarning.root.hidden?modeWarning.root:!brQuickPlay.hidden?brQuickPlay:!brInventoryOverlay.hidden?brInventoryOverlay:!brMapOverlay.hidden?brMapOverlay:!shopOverlay.hidden?shopOverlay:!passOverlay.hidden?passOverlay:!settingsOverlay.hidden?settingsOverlay:!pauseOverlay.hidden?pauseOverlay:pgSiegeFeed.visible?pgSiegeFeed.root:null;}
+function activeOverlay():HTMLElement|null{return !experienceView.guideRoot.hidden?experienceView.guideRoot:!experienceView.careerRoot.hidden?experienceView.careerRoot:!globalLeaderboard.root.hidden?globalLeaderboard.root:!account.panel.root.hidden?account.panel.root:pgStrikeBuy.visible?pgStrikeBuy.root:pgCharacterSelection.visible?pgCharacterSelection.root:pgModeUi.menuOpen?pgModeUi.hudRoot.querySelector<HTMLElement>(".pg-mode-menu"):!pgKits.root.hidden?pgKits.root:pgUi.scoreboardVisible?byId("pg-scoreboard"):!modeWarning.root.hidden?modeWarning.root:!brQuickPlay.hidden?brQuickPlay:!brInventoryOverlay.hidden?brInventoryOverlay:!brMapOverlay.hidden?brMapOverlay:!shopOverlay.hidden?shopOverlay:!passOverlay.hidden?passOverlay:!settingsOverlay.hidden?settingsOverlay:!pauseOverlay.hidden?pauseOverlay:pgSiegeFeed.visible?pgSiegeFeed.root:null;}
 
 function setGameMode(mode: GameMode): void {
   if (!room || room.hostId !== playerId || room.phase !== "lobby" || room.gameMode === mode) return;
@@ -1668,11 +1800,13 @@ function setGameMode(mode: GameMode): void {
 }
 
 function showScreen(name: keyof typeof screens): void {
+  const previousScreen=currentScreen;
   homePresence.setVisible(name==="home");
   if(name!=="home")globalLeaderboard.close();
   if(name!==currentScreen){pgCharacterSelection.close(false);pgStrikeBuy.close(false);}
   if(name!==currentScreen)pgKits.close();
   if(name==="home"){
+    renderHomeBranding();
     pauseOverlay.hidden=true;settingsOverlay.hidden=true;pgUi.showScoreboard(false);
     captureUi(Boolean(activeOverlay()));
   }
@@ -1681,6 +1815,9 @@ function showScreen(name: keyof typeof screens): void {
   if(name==="pgResults"){pauseOverlay.hidden=true;settingsOverlay.hidden=true;pgUi.showScoreboard(false);captureUi(false);}
   const previousFamily=document.body.dataset.gameFamily;
   currentScreen = name;
+  syncGuideContext();renderQuickMatch();
+  renderResultsConfirmation();
+  if(["hud","brHud","prHud","pgHud"].includes(name)&&!["hud","brHud","prHud","pgHud"].includes(previousScreen))earnedAchievementNames=[];
   pgSiegeFeed.update();
   connectionPill.hidden = name === "hud" || name === "brHud" || name==="prHud" || name==="pgHud";
   if (name !== "hud" && name !== "brHud" && name!=="prHud" && name!=="pgHud") {
@@ -1824,6 +1961,8 @@ if(import.meta.env.DEV){
 function setPgScoreboard(show:boolean):void{pgUi.showScoreboard(show);captureUi(show||Boolean(activeOverlay()));if(show)byId("pg-scoreboard-close").focus();}
 function applyPgRoom(next:PgRoomView):void {
  if(currentFamily!=="planet-gun"||next.code!==currentCode)return;pgRoom=next;pgActionSequence=Math.max(pgActionSequence,next.lastActionSequence??0);pgUi.render(next,playerId);pgStartingSide.render(next,playerId);pgModeUi.render(next,playerId,next.phase==="lobby"?null:pendingPgSnapshot?.mode);pgCharacterSelection.update();pgStrikeBuy.update();pgSiegeFeed.update();
+ selectedPgBrandMode = next.configuration.mode ?? "deathmatch";
+ applyModeBranding(screens.pgLobby, screens.pgLobby.querySelector<HTMLElement>(".lobby-heading h1")!, "planet-gun", selectedPgBrandMode);
  if(next.phase==="lobby"){const me=next.players.find(p=>p.id===playerId),mode=next.configuration.mode??"deathmatch",side=me?.team==="void"?"defend":"attack",signature=`${next.code}:${mode}:${side}`;if(pgPreferenceApplied!==signature){pgPreferenceApplied=signature;const preference=pgReadCharacterPreference(account.preferences.storage,mode,side);if(preference&&!next.selections?.[playerId])sendPgModeAction({kind:"select",...preference});}pgModeUi.setSnapshot(null,playerId);pgGame?.deactivate();game.setActive(true);game.setHomeFamily("planet-gun");syncLobbyPresentation("planet-gun",next.players,next.hostId);game.setMode("lobby");showScreen("pgLobby");}
  else {game.setActive(false);brGame?.deactivate();prGame?.deactivate();
   if(!pgGame&&!pgLoading)pgLoading=import("./modes/planet-gun/pg-game").then(({PlanetGunGame})=>{pgGame=new PlanetGunGame(game.renderer,canvas,socket,s=>{pgUi.renderSnapshot(s,playerId);const observer=s.players.find(p=>p.id===playerId);pgModeUi.setViewPosition(observer?{...observer.position,y:observer.position.y+(observer.crouched?PG_BALANCE.crouchEye:PG_BALANCE.eye)}:null);pgModeUi.setSnapshot(s.mode??null,playerId,s.serverTime,s.players);pgCharacterSelection.update();pgStrikeBuy.update();pgSiegeFeed.update();},(n,head)=>pgUi.hit(n,head),game.audio);pgGame.onCaptureHint=mode=>pgUi.setCaptureHint(mode);pgGame.onInputMethod=renderInputUi;pgGame.onSpectator=name=>pgUi.setSpectator(name);pgGame.onModeAction=sendPgModeAction;pgGame.onModeMenu=togglePgModeMenu;pgGame.onAim=(weapon,ads,spread,optic)=>pgUi.updateAim(weapon,ads,spread,optic);pgGame.onMenuNavigate=navigateUi;pgGame.onPause=()=>togglePause();pgGame.onScoreboard=()=>setPgScoreboard(!pgUi.scoreboardVisible);pgGame.setSettings(runtimeSettings());if(currentFamily==="planet-gun"&&pgRoom?.phase!=="lobby"){pgGame.activate(playerId,pgRoom?.configuration.mode==="planetwatch");if(pendingPgSnapshot)pgGame.applySnapshot(pendingPgSnapshot);}}).finally(()=>pgLoading=null);
@@ -1851,3 +1990,8 @@ if(import.meta.env.DEV){const review=document.createElement("details");review.id
 
 bindingSettings.useStorage(account.preferences.storage);
 account.start();
+const invited=readRoomInvite(location.href);
+if(invited){
+  if(invited.ok){applyFamilySelection(invited.invite.family);codeInput.value=invited.invite.code;toast("Room invite ready. Choose your name, then confirm Join Game.");}
+  else toast(invited.error);
+}

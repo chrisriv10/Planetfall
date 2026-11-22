@@ -1,3 +1,4 @@
+import {newCareerSettlement,type CareerSettlement} from "../../career-settlement.js";
 import {randomBytes,randomUUID} from "node:crypto";
 import {reconcilePassRewards} from "../../pass-reconciliation.js";
 import type {Server,Socket} from "socket.io";
@@ -20,7 +21,7 @@ interface Pilot extends PgPlayer {socketId:string|null;sessionToken:string;disco
 const INPUT_TIMEOUT_MS=400;
 const SNAPSHOT_PERIOD_MS=1000/B.snapshotRate;
 const idle=():PgInput=>({sequence:0,moveX:0,moveZ:0,yaw:0,pitch:0,jump:false,sprint:false,crouch:false,ads:false});
-const publicPlayer=(p:Pilot):PgPlayer=>{const {socketId,sessionToken,disconnectedAt,input,lastInputAt,receivedInputSequence,bot,fireSequence,...state}=p;return structuredClone(state);};
+const publicPlayer=(p:Pilot):PgPlayer=>{const {socketId,sessionToken,disconnectedAt,input,lastInputAt,receivedInputSequence,bot,fireSequence,career,...state}=p;return structuredClone(state);};
 export class PlanetGunRoom {
   readonly family="planet-gun" as const;readonly players=new Map<string,Pilot>();
   hostId="";configuration:PgConfiguration={targetPlayers:12,fillBots:true,botDifficulty:"normal",scoreLimit:75};
@@ -28,9 +29,12 @@ export class PlanetGunRoom {
   private mode:PgModeRuntime|null=null;private readonly world=new PgModeWorld();private modeStarted=false;
   private readonly actionSequences=new Map<string,number>();private readonly selections=new Map<string,string>();private readonly savedKits=new Map<string,PgLoadout>();private readonly selectedLoadouts=new Map<string,PgLoadout>();
   onProgress?:import("../../player-profiles.js").ProgressHandler;
+  onCareer?:CareerSettlement;
+  private careerSettlementId=newCareerSettlement();
+  private careerEligible=false;
   constructor(readonly code:string,private readonly io:GameServer){}
   get phase(){return this.match.phase;}
-  view(viewerId?:string):PgRoomView{const viewer=viewerId?this.players.get(viewerId):undefined;return {gameFamily:this.family,code:this.code,hostId:this.hostId,phase:this.phase,...(viewerId?{lastActionSequence:this.actionSequences.get(viewerId)??-1}:{}),configuration:{...this.configuration},players:[...this.players.values()].map(p=>{const state=publicPlayer(p);const selected=this.selectedLoadouts.get(p.id);if(this.configuration.mode==="planetsiege"&&viewer?.team!==p.team)this.hideEquipment(state);else if(this.phase==="lobby"&&selected)state.loadout=structuredClone(selected);return state;}),...(this.selections.size?{selections:Object.fromEntries([...this.selections].filter(([id])=>this.configuration.mode!=="planetsiege"||viewer?.team===this.players.get(id)?.team))}:{})};}
+  view(viewerId?:string):PgRoomView{const viewer=viewerId?this.players.get(viewerId):undefined;return {...(this.careerEligible?{careerSettlementId:this.careerSettlementId}:{}),gameFamily:this.family,code:this.code,hostId:this.hostId,phase:this.phase,...(viewerId?{lastActionSequence:this.actionSequences.get(viewerId)??-1}:{}),configuration:{...this.configuration},players:[...this.players.values()].map(p=>{const state=publicPlayer(p);const selected=this.selectedLoadouts.get(p.id);if(this.configuration.mode==="planetsiege"&&viewer?.team!==p.team)this.hideEquipment(state);else if(this.phase==="lobby"&&selected)state.loadout=structuredClone(selected);return state;}),...(this.selections.size?{selections:Object.fromEntries([...this.selections].filter(([id])=>this.configuration.mode!=="planetsiege"||viewer?.team===this.players.get(id)?.team))}:{})};}
   snapshot(now:number,viewerId?:string):PgSnapshot{const mode=this.modeStarted?this.mode?.snapshot(viewerId):undefined;if(mode&&this.mode)mode.controls=Object.fromEntries([...this.players.values()].filter(p=>!viewerId||p.id===viewerId).map(p=>[p.id,{lastActionSequence:this.actionSequences.get(p.id)??-1,movement:this.mode!.movement(p),canMove:this.mode!.canMove(p),canFire:this.mode!.canFire(p),combat:this.mode!.weaponModifiers?.(p,now)??{},...(this.mode!.viewOrigin?{viewOrigin:this.mode!.viewOrigin(p)}:{})}]));return {phase:this.phase,serverTime:now,phaseEndsAt:mode?.deadline??this.match.phaseEndsAt,scores:mode&&"roundScores"in mode?{...mode.roundScores}:{...this.match.scores},winner:this.match.winner,feed:this.feed.map(k=>({...k})),players:[...this.players.values()].map(p=>{const {fallbucks,crowns,sessionTotalXp,sessionLevel,sessionXp,ownedCosmetics,unlockedPassRewards,...state}=publicPlayer(p);if(mode?.id==="planetsiege"&&!mode.pilots[p.id]?.characterId)this.hideEquipment(state);return state;}),...(mode?{mode}:{})};}
   join(socket:GameSocket,name:unknown,token?:string):PgJoinResult {
     const now=Date.now(),returning=token?[...this.players.values()].find(p=>p.sessionToken===token&&!p.connected&&p.disconnectedAt!==null&&now-p.disconnectedAt<B.disconnectGraceMs):undefined;
@@ -98,6 +102,8 @@ export class PlanetGunRoom {
     for(const [key,p]of this.players)if(p.isBot)this.players.delete(key);
     if(this.configuration.fillBots)while(this.players.size<this.configuration.targetPlayers){const p=this.makePlayer(`Nova ${this.players.size+1}`,true);this.players.set(p.id,p);}
     if(this.players.size<(this.configuration.mode==="planetzombies"?1:2))return false;
+    this.careerSettlementId=newCareerSettlement();
+    this.careerEligible=false;
     this.match=new PgMatch(this.configuration.scoreLimit);this.match.start(now);this.startedAt=now;this.rewarded=false;this.feed=[];this.deathDanger=[];this.combat.clear();this.accumulator=0;
     this.nextSnapshotAt=null;
     this.actionSequences.clear();this.modeStarted=false;this.world.reset([],now);
@@ -195,7 +201,13 @@ export class PlanetGunRoom {
     p.lastInputSequence=Math.max(p.lastInputSequence,p.receivedInputSequence);
     p.input={...idle(),sequence:p.lastInputSequence,yaw:p.yaw};
   }
-  private reward(now:number):void {this.rewarded=true;if(now-this.startedAt<60000||!this.mode&&this.players.size<6)return;for(const p of this.players.values())if(!p.isBot){const contribution=this.mode?.snapshot(p.id).pilots[p.id]?.contribution??0;if(this.mode&&p.kills===0&&contribution<=0)continue;const win=p.team===this.match.winner;p.fallbucks+=5+Math.min(15,p.kills+Math.floor(contribution/100))+(win?10:0);p.sessionTotalXp+=25+Math.min(100,p.kills*5+Math.floor(contribution/10))+(win?35:0);reconcilePassRewards(p);}this.onProgress?.(this.players.values());}
+  private reward(now:number):void {
+    this.rewarded=true;if(now-this.startedAt<60000||!this.mode&&this.players.size<6)return;
+    for(const p of this.players.values())if(!p.isBot){const contribution=this.mode?.snapshot(p.id).pilots[p.id]?.contribution??0;if(this.mode&&p.kills===0&&contribution<=0)continue;const win=p.team===this.match.winner;p.fallbucks+=5+Math.min(15,p.kills+Math.floor(contribution/100))+(win?10:0);p.sessionTotalXp+=25+Math.min(100,p.kills*5+Math.floor(contribution/10))+(win?35:0);reconcilePassRewards(p);}
+    this.onProgress?.(this.players.values());
+    this.careerEligible=true;
+    this.onCareer?.("planet-gun",this.careerSettlementId,[...this.players.values()].filter(p=>!p.isBot).map(player=>({player,won:player.team===this.match.winner,eliminations:player.kills})));
+  }
   leave(id:string):void {this.onProgress?.(this.players.values());this.mode?.leave(id,Date.now());this.selections.delete(id);this.selectedLoadouts.delete(id);this.savedKits.delete(id);this.actionSequences.delete(id);this.players.delete(id);this.combat.forget(id);if(this.hostId===id)this.migrateHost();this.emitRoom();}
   disconnect(id:string):void{const p=this.players.get(id);if(p){p.connected=false;p.socketId=null;p.disconnectedAt=Date.now();this.discardQueuedInput(p);if(this.hostId===id)this.migrateHost();this.emitRoom();}}
   isEmpty():boolean{return ![...this.players.values()].some(p=>!p.isBot&&(p.connected||p.disconnectedAt!==null&&Date.now()-p.disconnectedAt<B.disconnectGraceMs));}

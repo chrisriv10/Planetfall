@@ -1,3 +1,4 @@
+import {newCareerSettlement,type CareerSettlement} from "../../career-settlement.js";
 import { randomBytes, randomUUID } from "node:crypto";
 import {buyCosmetic,equipCosmetic} from "../../cosmetic-shop.js";
 import type { Server, Socket } from "socket.io";
@@ -24,6 +25,7 @@ type GameSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 type GameServer = Server<ClientToServerEvents, ServerToClientEvents>;
 
 interface BrPlayerRecord extends BrPlayerState {
+  career?:import("@planetfall/shared").CareerData;
   socketId: string | null;
   sessionToken: string;
   disconnectedAt: number | null;
@@ -80,7 +82,7 @@ function clonePlayer(player: BrPlayerRecord): BrPlayerState {
     lastEmoteAt: _lastEmoteAt, saberCombo: _saberCombo,
     saberComboAt: _saberComboAt, stormDamageRemainder: _stormDamageRemainder, traversalCooldownUntil: _traversalCooldownUntil,
     lastGroundedAt: _lastGroundedAt, jumpBufferedUntil: _jumpBufferedUntil,
-    spectatorTargetId: _spectatorTargetId, lastPingAt: _lastPingAt, history: _history, ...state } = player;
+    spectatorTargetId: _spectatorTargetId, lastPingAt: _lastPingAt, history: _history, career: _career, ...state } = player;
   return { ...state, position: { ...state.position }, velocity: { ...state.velocity }, rotation: { ...state.rotation }, inventory: state.inventory.map((item) => item ? { ...item } : null), ammo: { ...state.ammo }, unlockedPassRewards: [...state.unlockedPassRewards], ownedCosmetics: [...state.ownedCosmetics], equippedCosmetics: { ...state.equippedCosmetics } };
 }
 
@@ -546,7 +548,7 @@ export class BattleRoyaleRoom {
   view(): BrRoomView {
     const players = [...this.players.values()].map(clonePlayer);
     const living = players.filter((player) => player.alive && !player.downed);
-    return { family: this.family, code: this.code, hostId: this.hostId, phase: this.phase, teamMode: this.teamMode, targetPlayers: this.targetPlayers, fillBots: this.fillBots, botDifficulty: this.botDifficulty,
+    return { ...(this.careerEligible?{careerSettlementId:this.careerSettlementId}:{}),family: this.family, code: this.code, hostId: this.hostId, phase: this.phase, teamMode: this.teamMode, targetPlayers: this.targetPlayers, fillBots: this.fillBots, botDifficulty: this.botDifficulty,
       players, teams: [...this.teams].map(([id, playerIds]) => ({ id, playerIds: [...playerIds] })), countdownEndsAt: this.countdownEndsAt, ship: this.ship ? { ...this.ship, start: { ...this.ship.start }, end: { ...this.ship.end }, position: { ...this.ship.position } } : null,vehicles:[...this.vehicles.values()].map(vehicle=>({...vehicle,position:{...vehicle.position},velocity:{...vehicle.velocity}})),
       storm: { ...this.storm, center: { ...this.storm.center }, nextCenter: { ...this.storm.nextCenter } }, playersRemaining: living.length, teamsRemaining: new Set(living.map((player) => player.teamId)).size, matchResult: this.matchResult, returnVotes: [...this.returnVotes], seed: this.seed };
   }
@@ -584,6 +586,8 @@ export class BattleRoyaleRoom {
   }
 
   private resetMatch(now: number): void {
+    this.careerSettlementId=newCareerSettlement();
+    this.careerEligible=false;
     this.seed = (this.seed * 1664525 + 1013904223) >>> 0; this.matchStartedAt = now; this.matchResult = null; this.returnVotes.clear(); this.ship = null; this.loot.clear(); this.beams.clear();this.weaponCycles.clear(); this.worldEffects.clear(); this.scanMarkers.clear(); this.crates.clear(); this.projectiles.clear();this.vehicles.clear();for(const spawn of [...BR_VEHICLE_SPAWNS,...BR_TEAM_VEHICLE_SPAWNS])this.vehicles.set(`skimmer-${spawn.id}`,{id:`skimmer-${spawn.id}`,spawnId:spawn.id,kind:spawn.kind??"hover-skimmer",passengerIds:Array.from({length:BR_VEHICLE_DEFINITIONS[spawn.kind??"hover-skimmer"].seats.length-1},()=>null),position:{...spawn.position},velocity:{x:0,y:0,z:0},yaw:spawn.yaw,driverId:null}); this.storm = this.initialStorm(); this.stormStageStartedAt = 0; this.physics.reset();
     for (const player of this.players.values()) {
       player.gravCoilEndsAt=0;player.voidFilterEndsAt=0;player.alive = true; player.downed = false; player.deployment = "attached"; player.hp = BR_BALANCE.hp; player.shield = 0; player.downedHp = BR_BALANCE.downedHp; player.bleedoutEndsAt = null; player.crouched = false;player.vehicleId=null;
@@ -1030,7 +1034,10 @@ export class BattleRoyaleRoom {
       return { playerId: player.id, teamId: player.teamId, placement, kills: player.kills, damage: Math.round(player.damageDealt), revives: player.revives, survivalMs: (player.eliminatedAt ?? now) - player.matchStartedAt, xp, fallbucks: bucks };
     }) };
     this.onProgress?.(this.players.values());
-    this.phase = "results"; this.io.to(this.code).emit("br:match:ended", this.matchResult); this.emitRoom();
+    this.phase = "results"; this.io.to(this.code).emit("br:match:ended", this.matchResult);
+    this.careerEligible=now-this.matchStartedAt>=60_000;
+    if(this.careerEligible)this.onCareer?.("battle-royale",this.careerSettlementId,[...this.players.values()].filter(p=>!p.isBot).map(player=>({player,won:player.teamId===winningTeamId,eliminations:player.kills})));
+    this.emitRoom();
   }
 
   private emitSnapshots(now: number): void {
@@ -1079,6 +1086,9 @@ export class BattleRoyaleRoom {
   }
 
   onProgress?:import("../../player-profiles.js").ProgressHandler;
+  onCareer?:CareerSettlement;
+  private careerSettlementId=newCareerSettlement();
+  private careerEligible=false;
   emitRoom(): void { this.onProgress?.(this.players.values());this.io.to(this.code).emit("br:room:state", this.view()); }
   private error(playerId: string, message: string, code?: string): void { const player = this.players.get(playerId); if (player?.socketId) this.io.to(player.socketId).emit("br:error", { message, code }); }
   private canDamage(attacker: BrPlayerRecord, target: BrPlayerRecord): boolean { return target.alive && target.id !== attacker.id && (BR_BALANCE.friendlyFire || target.teamId !== attacker.teamId); }
