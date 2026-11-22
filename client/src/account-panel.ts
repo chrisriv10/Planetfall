@@ -1,6 +1,7 @@
 import "./account-panel.css";
 
 export interface AccountPanelView {
+  desktopGuestOnly?: boolean;
   state: "guest" | "signed-in" | "conflict" | "busy" | "unavailable";
   account?: {name: string; avatar?: string};
   profile?: {sessionLevel: number; fallbucks: number; crowns: number};
@@ -69,36 +70,40 @@ export function createAccountPanel(onAction: (action: AccountAction) => void) {
   panel.append(header, identity, description, summary, cosmetic, feedback, actions, note); root.append(panel);
   const number = new Intl.NumberFormat(undefined, {maximumFractionDigits: 0});
   function render(view: AccountPanelView) {
-    const signedIn = view.state === "signed-in", conflict = view.state === "conflict", busy = view.state === "busy";
-    root.dataset.state = view.state; panel.setAttribute("aria-busy", String(busy));
+    const desktopGuestOnly = view.desktopGuestOnly === true;
+    const state = desktopGuestOnly ? "guest" : view.state;
+    const signedIn = state === "signed-in", conflict = state === "conflict", busy = state === "busy";
+    root.dataset.state = state; panel.setAttribute("aria-busy", String(busy));
     name.textContent = (signedIn || conflict) ? view.account?.name || "Pilot" : "GUEST PILOT";
-    provider.textContent = signedIn ? "Google · Signed in" : conflict ? "Google · Account progress found" : "Guest profile";
-    identity.hidden = busy || view.state === "unavailable";
+    provider.textContent = desktopGuestOnly ? "Windows app · Guest profile" : signedIn ? "Google · Signed in" : conflict ? "Google · Account progress found" : "Guest profile";
+    identity.hidden = busy || state === "unavailable";
     initials.textContent = signedIn || conflict ? (view.account?.name?.trim().slice(0, 2).toUpperCase() || "P") : "GP";
     const avatarUrl = signedIn || conflict ? safeAvatar(view.account?.avatar) : null;
     if (avatarUrl) {
       if (avatar.getAttribute("src") !== avatarUrl) { avatar.src = avatarUrl; avatar.hidden = false; initials.hidden = true; }
     } else { avatar.removeAttribute("src"); avatar.hidden = true; initials.hidden = false; }
-    description.textContent = signedIn ? "Your account keeps your progression together across devices and every game family."
+    description.textContent = desktopGuestOnly ? "This Windows app supports guest play. Guest progress is saved for this app profile. Browser accounts remain separate."
+      : signedIn ? "Your account keeps your progression together across devices and every game family."
       : conflict ? "This account already has progress. Choose which profile to play with. Your profiles will not be merged or overwritten."
       : busy ? "Connecting your pilot profile…"
-      : view.state === "unavailable" ? "Account sign-in is temporarily unavailable. You can keep playing as a guest."
+      : state === "unavailable" ? "Account sign-in is temporarily unavailable. You can keep playing as a guest."
       : "Sign in to keep your progress across devices. You can always play as a guest.";
-    summary.hidden = !view.profile || busy || conflict || view.state === "unavailable";
+    summary.hidden = !view.profile || busy || conflict || state === "unavailable";
     const values = view.profile ? [view.profile.sessionLevel, view.profile.fallbucks, view.profile.crowns] : [];
     stats.forEach((node, index) => { const value = values[index]; node.textContent = Number.isFinite(value) ? number.format(Math.max(0, value!)) : "—"; });
     cosmetic.hidden = !view.cosmeticName || summary.hidden;
     cosmeticValue.textContent = cosmetic.hidden ? "" : view.cosmeticName!;
-    feedback.textContent = view.feedback || ""; feedback.hidden = !view.feedback;
+    feedback.textContent = desktopGuestOnly ? "" : view.feedback || ""; feedback.hidden = desktopGuestOnly || !view.feedback;
     for (const [action, node] of buttons) {
-      node.hidden = action !== "close" && !(signedIn ? action === "switch" || action === "signout"
+      node.hidden = action !== "close" && !(desktopGuestOnly ? action === "guest" : signedIn ? action === "switch" || action === "signout"
         : conflict ? action === "account" || action === "guest"
-        : view.state === "guest" ? action === "google" || action === "guest"
-        : view.state === "unavailable" ? action === "retry" || action === "guest" : action === "guest");
+        : state === "guest" ? action === "google" || action === "guest"
+        : state === "unavailable" ? action === "retry" || action === "guest" : action === "guest");
       node.disabled = busy && action !== "close";
     }
     buttons.get("guest")!.textContent = conflict ? "Keep playing as guest" : "Continue as Guest";
-    note.textContent = signedIn ? "Sign out before someone else uses this device."
+    note.textContent = desktopGuestOnly ? "For Google sign-in, use Planetfall → Open browser version in the app menu. It opens the game in your system browser; it does not link this app’s guest progress to a browser account. Clearing the app’s profile data can remove access to guest progress."
+      : signedIn ? "Sign out before someone else uses this device."
       : conflict ? "Keeping your guest profile leaves the existing account progress unchanged."
       : busy ? "Please wait while your account is checked."
       : "Guest access is remembered in this browser. Clearing browser storage can remove access to guest progress.";

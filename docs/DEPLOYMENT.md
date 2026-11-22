@@ -1,6 +1,6 @@
 # Deployment
 
-Deploy one Render web service for the authoritative server and one Cloudflare Pages project for the static client. No live URLs are configured in the repository.
+Production uses one Render web service at `https://planetfall-server.onrender.com` and the canonical Cloudflare Pages project at `https://planetfall.pages.dev`. Keep this Pages origin stable to preserve browser guest access and first-party account cookies. The Windows desktop shell loads that same HTTPS client; it does not host another game server. See [desktop setup and security](../desktop/README.md).
 
 ## 1. Render server
 

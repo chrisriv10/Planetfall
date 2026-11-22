@@ -21,6 +21,11 @@
     "test:e2e:experience": "playwright test --config playwright.experience.config.js",
     "test:e2e:career-accounts": "playwright test --config playwright.career-account.config.js",
     "test:e2e:production": "playwright test --config playwright.production.config.js",
+    "desktop:install": "npm ci --prefix desktop",
+    "desktop:dev": "npm --prefix desktop start",
+    "desktop:test": "npm --prefix desktop test",
+    "desktop:smoke": "node desktop/smoke.cjs",
+    "desktop:dist": "npm --prefix desktop run dist",
     "pretypecheck": "npm run build -w @planetfall/shared",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },

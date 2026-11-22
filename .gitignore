@@ -8,3 +8,4 @@ test-results/
 *.tsbuildinfo
 .DS_Store
 server/data/
+/dist-desktop/

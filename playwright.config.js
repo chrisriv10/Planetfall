@@ -12,8 +12,8 @@ export default defineConfig({
   // headless shell uses SwiftShader on the Windows release workstation.
   use: { channel: "chromium", headless: true },
   projects: [
-    { name: "gameplay", testIgnore: ["accounts.spec.ts","planet-gun-production.spec.ts"], use: { baseURL: "http://127.0.0.1:15173" } },
-    { name: "accounts", testMatch: "accounts.spec.ts", use: { baseURL: "http://127.0.0.1:25173" } },
+    { name: "gameplay", testIgnore: ["accounts.spec.ts","desktop-guest.spec.ts","planet-gun-production.spec.ts"], use: { baseURL: "http://127.0.0.1:15173" } },
+    { name: "accounts", testMatch: ["accounts.spec.ts","desktop-guest.spec.ts"], use: { baseURL: "http://127.0.0.1:25173" } },
   ],
   webServer: [
     {

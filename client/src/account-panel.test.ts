@@ -21,6 +21,29 @@ function setup() {
 }
 afterEach(() => vi.unstubAllGlobals());
 describe("account panel presentation", () => {
+  it.each(["guest", "signed-in", "conflict", "busy", "unavailable"] as const)("offers only guest and close in desktop mode despite stale %s state", state => {
+    const {panel, root, find, button, action} = setup();
+    panel.render({state: "signed-in", account: {name: "Previous Google Pilot", avatar: "https://example.com/avatar.png"}});
+    panel.render({state, desktopGuestOnly: true, account: {name: "Previous Google Pilot", avatar: "https://example.com/avatar.png"}, feedback: "Google connection failed."});
+    expect(root.dataset.state).toBe("guest");
+    expect(find("account-panel").attrs["aria-busy"]).toBe("false");
+    expect(find("account-name").textContent).toBe("GUEST PILOT");
+    expect(find("account-avatar").getAttribute("src")).toBeNull();
+    expect(find("account-avatar").hidden).toBe(true);
+    expect(find("account-feedback").textContent).toBe("");
+    expect(find("account-description").textContent).toContain("Browser accounts remain separate");
+    expect(find("account-note").textContent).toContain("Planetfall → Open browser version");
+    expect(find("account-note").textContent).toContain("does not link");
+    for (const name of ["google", "account", "switch", "signout", "retry"]) { expect(button(name).hidden).toBe(true); button(name).onclick!(); }
+    expect(action).not.toHaveBeenCalled();
+    expect(button("guest").hidden).toBe(false); expect(button("guest").disabled).toBe(false);
+    expect(button("guest").textContent).toBe("Continue as Guest");
+    button("guest").onclick!(); button("close").onclick!();
+    expect(action.mock.calls).toEqual([["guest"], ["close"]]);
+    panel.render({state: "guest"});
+    expect(button("google").hidden).toBe(false);
+    expect(find("account-note").textContent).toContain("this browser");
+  });
   it("starts hidden and emits distinct conflict choices without owning visibility", () => {
     const {panel, root, button, action} = setup();
     expect(root.hidden).toBe(true); expect(root.attrs["aria-labelledby"]).toBe("account-heading");

@@ -1,9 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <title>Planetfall</title>
-  <rect width="32" height="32" rx="7" fill="#080b28"/>
-  <g transform="rotate(-7 16 16)">
-    <ellipse cx="16" cy="16" rx="12" ry="6.5"
-      fill="none" stroke="#70f5ff" stroke-width="2.5"/>
-    <circle cx="27.5" cy="16" r="3.2" fill="#ff68c4"/>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <title>Planetfall astronaut</title>
+  <rect width="128" height="128" rx="26" fill="#0c1435"/>
+  <!-- Shared astronaut: faceted white helmet, cyan band and two oval eyes. -->
+  <path d="m94 27 4-13" stroke="#dbe9f3" stroke-width="5"/>
+  <path d="m95 6 7 1 4 6-4 6-7-1-3-6Z" fill="#a9edfa"/>
+  <path d="m20 38 16-14 22-7 23 2 20 11 12 21 3 24-7 22-17 16-27 7-27-7-20-17-7-23 2-19Z" fill="#dce6ef"/>
+  <path d="m36 24 22-7 23 2 20 11-10 10H27Z" fill="#f4f6f8"/>
+  <path d="m20 38 7 2h64l18 2 4 9 3 24-7 22-17 16-27 7-27-7-20-17-7-23 2-19Z" fill="#b6c9dc"/>
+  <path d="m13 54 16 5 62 1 22-9 3 24-5 17-20 10H34L16 91l-5-18Z" fill="#86a6c5"/>
+  <path d="m91 60 22-9 3 24-5 17-20 10Z" fill="#7293b3"/>
+  <path d="m16 91 18 11h57l20-10-3 8-17 10H35l-15-9Z" fill="#63d5ec"/>
+  <path d="m20 101 15 9h56l17-10-16 13-27 7-27-7Z" fill="#8aa7c2"/>
+  <ellipse cx="46" cy="76" rx="7" ry="12" fill="#020409"/>
+  <ellipse cx="82" cy="76" rx="7" ry="12" fill="#020409"/>
+  <ellipse cx="44" cy="71" rx="2.1" ry="2.5" fill="#fff"/>
+  <ellipse cx="80" cy="71" rx="2.1" ry="2.5" fill="#fff"/>
 </svg>

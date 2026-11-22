@@ -1,0 +1,18 @@
+{
+  "name": "planetfall-desktop",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Planetfall Windows guest client",
+  "author": "Planetfall",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test desktop.test.cjs",
+    "dist": "electron-builder --config electron-builder.cjs --win --x64 --publish never",
+    "pack": "electron-builder --config electron-builder.cjs --win --x64 --dir --publish never"
+  },
+  "devDependencies": {
+    "electron": "45.4.1",
+    "electron-builder": "26.18.0"
+  }
+}

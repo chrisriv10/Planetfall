@@ -2,6 +2,7 @@ import {createAccountPanel,type AccountPanelView} from "./account-panel";
 import {AccountPreferenceSync,type AccountPreferenceRevision} from "./account-preference-sync";
 import {clearNetworkProfile,getGuestProfile,GUEST_TOKEN_KEY,type GameSocket} from "./network";
 import type {AccountControls} from "@planetfall/shared";
+import {isDesktopGuest} from "./desktop-environment";
 
 type Choice = "link" | "existing" | "new";
 type Auth = {profile?:true;profileToken?:string;accountTicket?:string};
@@ -25,6 +26,7 @@ interface AccountHooks {
 }
 
 export class AccountClient {
+  private readonly desktopGuestOnly=isDesktopGuest();
   readonly preferences:AccountPreferenceSync;
   readonly panel = createAccountPanel(action=>void this.act(action));
   private socket!:GameSocket;
@@ -73,6 +75,10 @@ export class AccountClient {
   }
 
   start():void {
+    if(this.desktopGuestOnly){
+      sessionStorage.removeItem(INTENT);sessionStorage.removeItem(APPROVAL);localStorage.removeItem(ACTIVE_ACCOUNT);
+      this.state="guest";this.connect();return;
+    }
     const url=new URL(location.href);
     const returned=url.searchParams.get("account");
     if(returned!==null){url.searchParams.delete("account");history.replaceState(history.state,"",url);}
@@ -88,7 +94,7 @@ export class AccountClient {
   }
 
   async credentials():Promise<Auth> {
-    if(!this.context)return {profile:true,profileToken:localStorage.getItem(GUEST_TOKEN_KEY)??undefined};
+    if(this.desktopGuestOnly||!this.context)return {profile:true,profileToken:localStorage.getItem(GUEST_TOKEN_KEY)??undefined};
     if(this.firstTicket){const ticket=this.firstTicket;this.firstTicket=undefined;return {accountTicket:ticket};}
     const context=this.context;
     try {
@@ -105,7 +111,7 @@ export class AccountClient {
     return {accountTicket:"unavailable"};
   }
 
-  get signedIn():boolean {return Boolean(this.context);}
+  get signedIn():boolean {return !this.desktopGuestOnly&&Boolean(this.context);}
   get changing():boolean {return this.busy;}
   open():void {
     if(!this.panel.root.hidden)return;
@@ -123,7 +129,7 @@ export class AccountClient {
 
   private render():void {
     this.panel.render({state:this.state,account:this.account,profile:getGuestProfile()??undefined,
-      cosmeticName:this.hooks.cosmeticName(),feedback:this.feedback});
+      cosmeticName:this.hooks.cosmeticName(),feedback:this.feedback,desktopGuestOnly:this.desktopGuestOnly});
     this.hooks.render();
   }
 
@@ -172,6 +178,7 @@ export class AccountClient {
   }
 
   private async restore(show=false,choice?:Choice,expectedContext?:string):Promise<void> {
+    if(this.desktopGuestOnly){this.state="guest";this.connect();return;}
     if(this.busy)return;
     const generation=++this.generation;
     this.busy=true;
@@ -227,6 +234,11 @@ export class AccountClient {
 
   private async act(action:"google"|"guest"|"account"|"signout"|"switch"|"retry"|"close"):Promise<void> {
     if(action==="close"){this.close();return;}
+    if(this.desktopGuestOnly){
+      if(action==="guest")this.close();
+      else this.report("Google account progress is available in the browser version. Use Planetfall → Open browser version.");
+      return;
+    }
     if(this.busy)return;
     if(action==="account") {
       if(await this.hooks.leaveRoom())await this.restore(true,"existing",this.pendingContext);
@@ -275,6 +287,7 @@ export class AccountClient {
   private announce():void {localStorage.setItem(CHANGE,crypto.randomUUID());}
 
   private post(endpoint:string,body:object={}):Promise<Response> {
+    if(this.desktopGuestOnly)return Promise.reject(new Error("Desktop account linking is not supported."));
     return fetch(`/api/account/${endpoint}`,{method:"POST",headers:{"Content-Type":"application/json"},
       cache:"no-store",signal:AbortSignal.timeout(15_000),body:JSON.stringify(body)});
   }
